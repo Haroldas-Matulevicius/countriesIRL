@@ -53,8 +53,8 @@
 
 ### F6: Project Management
 
-- **F6.1** Save map configuration locally (browser storage or file download)
-- **F6.2** Load previously saved map
+- [x] **F6.1** Save map configuration locally (browser storage or file download)
+- [x] **F6.2** Load previously saved map
 - **F6.3** Share map URL (optional for V1, nice-to-have)
 
 ---
