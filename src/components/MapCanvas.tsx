@@ -111,6 +111,20 @@ function measureAndConsume(startMark: string, measureName: string): void {
   performance.clearMarks(startMark);
 }
 
+function runAfterPaint(callback: () => void): () => void {
+  let paintFrame: number | null = null;
+  const updateFrame = requestAnimationFrame((): void => {
+    paintFrame = requestAnimationFrame(callback);
+  });
+
+  return (): void => {
+    cancelAnimationFrame(updateFrame);
+    if (paintFrame !== null) {
+      cancelAnimationFrame(paintFrame);
+    }
+  };
+}
+
 function isSvgPathElement(
   target: EventTarget | null,
 ): target is SVGPathElement {
@@ -360,13 +374,13 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
         });
 
       if (!mapReadyMeasuredRef.current) {
-        const animationFrame = requestAnimationFrame((): void => {
+        const cancelPaintMeasurement = runAfterPaint((): void => {
           measureAndConsume(MAP_LOAD_START_MARK, MAP_READY_MEASURE);
           mapReadyMeasuredRef.current = true;
         });
 
         return (): void => {
-          cancelAnimationFrame(animationFrame);
+          cancelPaintMeasurement();
           countries.on('.map', null);
           countries.interrupt();
         };
@@ -433,15 +447,13 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
           return `${feature.properties.name}, ${color}`;
         });
 
-      const animationFrame = requestAnimationFrame((): void => {
+      return runAfterPaint((): void => {
         INTERACTION_MEASURES.forEach(
           ({ startMark, measureName }): void => {
             measureAndConsume(startMark, measureName);
           },
         );
       });
-
-      return (): void => cancelAnimationFrame(animationFrame);
     }, [alphabeticalFeatures, colors, selectedIds]);
 
     const handleBackgroundClick = useCallback(
