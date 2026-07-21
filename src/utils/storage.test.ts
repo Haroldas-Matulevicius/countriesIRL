@@ -40,11 +40,6 @@ class FakeStorage implements Storage {
   }
 }
 
-function expectSuccess<T>(result: ReturnType<ReturnType<typeof createStorageAdapter>['list']>): void;
-function expectSuccess<T>(result: { ok: true; value: T } | { ok: false }): asserts result is {
-  ok: true;
-  value: T;
-};
 function expectSuccess<T>(result: { ok: true; value: T } | { ok: false }): asserts result is {
   ok: true;
   value: T;
