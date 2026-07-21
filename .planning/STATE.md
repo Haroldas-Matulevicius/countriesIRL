@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-07-21T22:27:29.000Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-07-21T22:38:04.361Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 1
-  percent: 6
+  completed_plans: 2
+  percent: 12
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,17 +26,18 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 2 of 17 in current phase
+Plan: 3 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [█░░░░░░░░░] 6%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 7 min | 1 task | 4 files |
+| Phase 01 P02 | 6 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -49,6 +50,9 @@ Progress: [█░░░░░░░░░] 6%
 - [Phase 1]: Historical borders, flexible centering, and legends remain deferred to Phase 2.
 - [Phase 1]: Approved only the exact `vitest` package sourced from the `vitest-dev/vitest` repository. — Registry, official documentation, and organization-owned source metadata matched before execution.
 - [Phase 1]: Approved only the exact `vercel` package sourced from the `vercel/vercel` repository package directory `packages/cli`. — Registry, official CLI documentation, and organization-owned source metadata matched before execution.
+- [Phase 01]: Keep every Plan 01-02 direct dependency exactly pinned; no ranges or generator defaults. — Preserves the approved supply-chain boundary and reproducible React 18 toolchain.
+- [Phase 01]: Keep default test execution non-watch for deterministic local and automated runs. — Avoids hanging test processes and gives later plans a stable verification command.
+- [Phase 01]: Preserve Plan 01-12 ownership of root index.html; Plan 01-02 does not add a placeholder entry. — Maintains the planned file boundary even though the production build probe cannot resolve an entry yet.
 
 ### Pending Todos
 
@@ -67,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T22:27:29Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-07-21T22:37:49.755Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
