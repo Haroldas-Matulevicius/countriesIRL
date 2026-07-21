@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 16 plans
+**Plans:** 17 plans
 
 Plans:
 
@@ -19,42 +19,49 @@ Plans:
 - [ ] 01-01-PLAN.md — Verify Vitest and Vercel CLI package identities before execution
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Create the exact React 18/Vite/TypeScript/ESLint/Vitest toolchain
+- [ ] 01-02-PLAN.md — Create the bounded React 18/Vite/TypeScript/ESLint/Vitest toolchain
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Define shared contracts, constants, and tested color normalization
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-04-PLAN.md — Implement centralized reducer/context with bounded 50-action history
-- [ ] 01-05-PLAN.md — Prepare, validate, bundle, and load normalized Natural Earth data
-- [ ] 01-09-PLAN.md — Implement validated max-10 localStorage persistence
+- [ ] 01-04-PLAN.md — Implement centralized reducer/context with bounded 50-action history and timing marks
+- [ ] 01-05-PLAN.md — Prepare deterministic normalized Natural Earth data and abortable loading
+- [ ] 01-09-PLAN.md — Implement validated max-10 map persistence plus onboarding dismissal storage
 - [ ] 01-11-PLAN.md — Implement deterministic exact 1080×1080 PNG export
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 01-06-PLAN.md — Build stable accessible D3/SVG map and data states
+- [ ] 01-06-PLAN.md — Build stable accessible D3/SVG map, data states, and visible timing measures
 - [ ] 01-07-PLAN.md — Build single/bulk selection and preset/custom color controls
-- [ ] 01-08-PLAN.md — Build history/file controls, onboarding/help, and live feedback
+- [ ] 01-08-PLAN.md — Build history/file controls, controlled onboarding/help, and live feedback
 - [ ] 01-10-PLAN.md — Build accessible save/replace/load/delete modal
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-12-PLAN.md — Wire all subsystems into the complete creator workflow
-- [ ] 01-13-PLAN.md — Apply approved responsive, dark-theme, motion, and accessibility CSS
+- [ ] 01-12-PLAN.md — Wire one matchMedia-composed responsive workspace and persisted help state
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 01-14-PLAN.md — Document shipped behavior and pass full lint/test/build gates
+- [ ] 01-13-PLAN.md — Wire styles after composition and apply responsive/theme/accessibility CSS
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 01-15-PLAN.md — Human UAT for 50+ history, 100+ interactions, persistence, responsiveness, accessibility, data POV, and exact export
+- [ ] 01-14-PLAN.md — Run the immutable verification-only lint/test/determinism/build gate
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 01-16-PLAN.md — Deploy the verified static app to Vercel and publish the URL
+- [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 01-16-PLAN.md — Complete blocking Vercel authorization and deploy the approved static build
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 01-17-PLAN.md — Verify production root/assets and publish the exact URL and shipped contract in README
 
 Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
 - Every exported PNG is exactly 1080×1080, opaque white, map-only, and independent of device pixel ratio or dark theme.
 - Selection, focus, errors, and operation results remain keyboard/screen-reader accessible and never rely on color alone.
 - Existing coding rules remain authoritative and receive only targeted corrections when implementation proves a durable rule change.
-- Production acceptance requires `npm run lint`, `npm run test:run`, and `npm run build` to pass before browser UAT and deployment.
+- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage failures, the eight-cell compatibility matrix, Natural Earth presentation approval, and Vercel production verification.
+- Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
+- Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees.
 
 ### Deliverables
 
@@ -65,10 +72,10 @@ Cross-cutting constraints:
 - Immutable undo/redo for the last 50 color-changing actions plus undoable reset
 - Browser local save/overwrite/load/delete for up to 10 maps
 - Exact white-background 1080×1080 PNG export using html2canvas
-- First-use onboarding, persistent help, loading/warning/error/success states
-- Desktop, tablet, and secondary mobile layouts including 360px support and dark UI chrome
+- Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
+- One-active-workspace desktop/tablet/secondary-mobile layouts including 360px support and dark UI chrome
 - Unit tests for reducer/history and color, GeoJSON, storage, and export utilities
-- Production Vercel deployment and shareable URL
+- Measured <500ms map and <100ms color/undo/redo browser checks, current/previous browser matrix, and production Vercel URL
 
 ### Key Decisions
 
@@ -78,6 +85,9 @@ Cross-cutting constraints:
 - [x] html2canvas with deterministic 540×540 scale-2 export frame
 - [x] localStorage with no backend, authentication, or mandatory login
 - [x] Plain component-scoped CSS plus theme custom properties
+- [x] Offline boundary: bundled same-origin/no runtime third-party requests; no fresh disconnected reload or service worker
+- [x] Natural Earth 5.1.1 default POV with blocking presentation acceptance
+- [x] Human Vercel authorization before automated deployment
 
 ### Out of Scope (Phase 1)
 

@@ -639,25 +639,19 @@ The current Phase 1 has no router requirement, so omit `vercel.json` unless clie
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | “Offline capable” for Phase 1 means all runtime map assets are same-origin/bundled and an already-loaded session needs no third-party API; it does not guarantee a fresh reload while fully disconnected because no service worker/PWA is in the locked scope. `[ASSUMED]` | Open Questions / Summary | If true offline reload is required, the planner needs a service-worker decision and likely another package or custom cache plan. |
+| A1 | Phase 1 offline capability is same-origin bundled runtime assets with no third-party requests and continued operation after load; fresh disconnected reload is not required and no service worker is planned. `[RESOLVED]` | RESOLVED / Summary | None — this boundary is locked for Phase 1. |
 | A2 | Projection visual warning signs and dark-export variance will reproduce on target browsers as described. `[ASSUMED]` | Common Pitfalls | Browser/manual acceptance may need adjusted viewport constants or export styling. |
 
-## Open Questions
+## RESOLVED
 
-1. **Which Natural Earth geopolitical point of view should Phase 1 publish?**
-   - What we know: Natural Earth's default Admin 0 dataset depicts de facto control and offers optional country-specific POV variants. `[CITED: naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/]`
-   - What's unclear: The PRD selects Natural Earth but does not explicitly approve its default disputed-boundary policy for politically sensitive European borders. `[CITED: .planning/CODEX_PROMPT.md]`
-   - Recommendation: Use the standard default 5.1.1 dataset for Phase 1, document version/POV in `public/data/README.md`, and add a human acceptance checkpoint before deployment rather than building POV selection now. `[CITED: naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/]`
+1. **Natural Earth geopolitical point of view**
+   - Resolution: Phase 1 uses Natural Earth 5.1.1 standard/default Admin 0 geopolitical point of view. The preparation script and `public/data/README.md` document the version, POV, and Europe/transcontinental inclusion policy. Plan 01-15 requires blocking human presentation acceptance before deployment. `[RESOLVED: user-approved planning direction] [CITED: naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/]`
 
-2. **Does “offline capable” require disconnected reload?**
-   - What we know: The locked product runtime has no backend and all map data will be bundled. `[CITED: .planning/CODEX_PROMPT.md]`
-   - What's unclear: A static site without a service worker does not guarantee that a browser can reload every asset while offline. `[ASSUMED]`
-   - Recommendation: Plan Phase 1 as runtime self-contained after initial load; if disconnected reload is acceptance-critical, obtain user confirmation and add an explicit service-worker task rather than silently expanding scope. `[ASSUMED]`
+2. **Offline capability boundary**
+   - Resolution: Phase 1 bundles all product and map assets on the same origin, makes no runtime third-party requests, and continues working after the application is already loaded. Fresh disconnected reload is explicitly not required. Do not add a service worker, PWA package, cache manifest, or disconnected-reload acceptance test. `[RESOLVED: user decision 2026-07-21]`
 
-3. **Can the production Vercel deployment be completed autonomously?**
-   - What we know: Vercel deployment is locked and the git remote exists. `[VERIFIED: project inspection] [CITED: .planning/CODEX_PROMPT.md]`
-   - What's unclear: The Vercel CLI is not installed and account/project authorization was not available to verify. `[VERIFIED: environment probe]`
-   - Recommendation: Use Vercel Git integration as the primary fallback; the plan must include a human checkpoint for account authorization and production URL verification. `[CITED: vercel.com/docs/deployments/overview]`
+3. **Vercel production authorization**
+   - Resolution: Vercel account authorization is human-required. Plan 01-16 is non-autonomous and contains the blocking Vercel authentication checkpoint before automated production deployment; Plan 01-17 verifies production and records the URL. `[RESOLVED: user decision 2026-07-21] [CITED: vercel.com/docs/cli]`
 
 ## Environment Availability
 
