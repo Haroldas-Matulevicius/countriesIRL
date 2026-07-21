@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Wave 4 integrated; ready for 01-06-PLAN.md
-last_updated: "2026-07-21T23:24:50.139Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-07-21T23:44:55.268Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 7
-  percent: 41
+  completed_plans: 8
+  percent: 47
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 6 of 17 in current phase
+Plan: 7 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [████░░░░░░] 41%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Progress: [████░░░░░░] 41%
 | Phase 01 P05 | 12 min | 3 tasks | 6 files |
 | Phase 01 P09 | 8 min | 2 tasks | 3 files |
 | Phase 01 P11 | 8 min | 1 task | 2 files |
+| Phase 01 P06 | 10 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Progress: [████░░░░░░] 41%
 - [Phase 01]: Keep all raw Storage and JSON access in one injected adapter. — Keeps tests and React callers independent of direct window.localStorage access while containing browser exceptions at one typed boundary.
 - [Phase 01]: Preserve usable saved records when neighboring records or color entries are corrupt, and filter loaded colors to current country IDs. — Recovers valid user data without allowing stale or invalid map state into the editor.
 - [Phase 01]: Initialize onboarding persistence independently and expose explicit saved-map refresh. — Keeps saved-map reads lazy until the modal opens while allowing onboarding state to load immediately.
+- [Phase 01]: Expose the connected map export source as a forwarded HTMLDivElement ref containing the live SVG. — Matches exportMapPng's HTMLElement boundary and provides one active export and focus subtree.
+- [Phase 01]: Fit Mercator to a fixed west/east Europe viewport object and clip to the 1080-square canvas. — Full transcontinental source geometries remain available without dynamically shrinking or reframing the intended Europe composition.
+- [Phase 01]: Keep roving focus identity local to the D3-owned path layer while provider state remains the sole selection owner. — Preserves one creator selection source while keeping path focus stable across lightweight style updates.
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T23:24:50.139Z
-Stopped at: Wave 4 integrated; ready for 01-06-PLAN.md
+Last session: 2026-07-21T23:44:13.403Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
