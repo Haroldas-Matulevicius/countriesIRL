@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-07-21T23:06:50.719Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-07-21T23:13:44.310Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 4
-  percent: 24
+  completed_plans: 5
+  percent: 29
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 5 of 17 in current phase
+Plan: 6 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [██░░░░░░░░] 24%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [██░░░░░░░░] 24%
 | Phase 01 P02 | 6 min | 3 tasks | 9 files |
 | Phase 01 P03 | 13 min | 2 tasks | 6 files |
 | Phase 01 P04 | 8 min | 2 tasks | 3 files |
+| Phase 01 P05 | 12 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,10 @@ Progress: [██░░░░░░░░] 24%
 - [Phase 01]: Expose semantic map operations through useMapState without exposing raw dispatch or creating a second selection store. — Keeps all UI plans on one provider-owned state path and enforces one action per user intent.
 - [Phase 01]: Retain at most 50 color-changing actions plus the oldest reachable baseline snapshot, truncating redo history on branch edits. — Implements the approved bounded full-snapshot model while preserving exactly 50 undoable transitions.
 - [Phase 01]: Clear and recreate named interaction start marks before color, undo, and redo dispatches. — Gives MapCanvas one current start point for visible-completion measures without accumulating stale same-name marks.
+- [Phase 01]: Pin exact Natural Earth 5.1.1 Admin 0 source bytes by SHA-256. — Prevents a moved tag or changed upstream download from silently altering committed boundaries.
+- [Phase 01]: Include all Natural Earth Europe features plus Armenia, Azerbaijan, Cyprus, Georgia, Kazakhstan, and Turkey. — Documents the Europe/transregional policy while retaining Natural Earth's default POV and complete source geometries.
+- [Phase 01]: Use administrative-code precedence ADM0_A3, GU_A3, ISO_A3, then SOV_A3 for country IDs. — Keeps rendering, selection, persistence, and future data joins on stable non-sentinel identifiers.
+- [Phase 01]: Serialize the normalized asset as compact ID-sorted canonical JSON. — Preserves byte determinism while reducing same-origin load and parse overhead.
 
 ### Pending Todos
 
@@ -79,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T23:06:50.708Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-07-21T23:13:44.300Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
