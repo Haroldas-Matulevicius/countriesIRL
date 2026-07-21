@@ -7,31 +7,86 @@
 
 ## Phase 1: Foundation & Modern Map (1–1.5 weeks)
 
-**Goal:** Working interactive map UI with modern European borders, basic coloring, export.
+**Goal:** A production-ready browser-only editor where non-technical creators can select and color one or many modern European countries, use 50-action undo/redo and local persistence, recover from loading/storage/export errors, work across desktop/tablet/secondary-mobile layouts, and download an exact 1080×1080 PNG from a shareable Vercel URL.
+
+**Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
+
+**Plans:** 16 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 01-01-PLAN.md — Verify Vitest and Vercel CLI package identities before execution
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 01-02-PLAN.md — Create the exact React 18/Vite/TypeScript/ESLint/Vitest toolchain
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01-03-PLAN.md — Define shared contracts, constants, and tested color normalization
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 01-04-PLAN.md — Implement centralized reducer/context with bounded 50-action history
+- [ ] 01-05-PLAN.md — Prepare, validate, bundle, and load normalized Natural Earth data
+- [ ] 01-09-PLAN.md — Implement validated max-10 localStorage persistence
+- [ ] 01-11-PLAN.md — Implement deterministic exact 1080×1080 PNG export
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 01-06-PLAN.md — Build stable accessible D3/SVG map and data states
+- [ ] 01-07-PLAN.md — Build single/bulk selection and preset/custom color controls
+- [ ] 01-08-PLAN.md — Build history/file controls, onboarding/help, and live feedback
+- [ ] 01-10-PLAN.md — Build accessible save/replace/load/delete modal
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 01-12-PLAN.md — Wire all subsystems into the complete creator workflow
+- [ ] 01-13-PLAN.md — Apply approved responsive, dark-theme, motion, and accessibility CSS
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 01-14-PLAN.md — Document shipped behavior and pass full lint/test/build gates
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 01-15-PLAN.md — Human UAT for 50+ history, 100+ interactions, persistence, responsiveness, accessibility, data POV, and exact export
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 01-16-PLAN.md — Deploy the verified static app to Vercel and publish the URL
+
+Cross-cutting constraints:
+- All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
+- Every exported PNG is exactly 1080×1080, opaque white, map-only, and independent of device pixel ratio or dark theme.
+- Selection, focus, errors, and operation results remain keyboard/screen-reader accessible and never rely on color alone.
+- Existing coding rules remain authoritative and receive only targeted corrections when implementation proves a durable rule change.
+- Production acceptance requires `npm run lint`, `npm run test:run`, and `npm run build` to pass before browser UAT and deployment.
 
 ### Deliverables
 
-- Web app skeleton (React or vanilla HTML/JS)
-- GeoJSON loader for European country boundaries (Modern Earth)
-- Interactive SVG/Canvas map of Europe
-- Country selection & color picker UI
-- Color state management (in-memory)
-- Export to PNG (1080×1080)
-- Browser local storage save/load
-- Basic error handling
+- React 18 + strict TypeScript + Vite application shell
+- Reproducible Natural Earth 1:10m Europe-focused GeoJSON asset and validation boundary
+- Interactive accessible D3 SVG map with modern European borders
+- Single and multi-country selection with named presets and validated custom colors
+- Immutable undo/redo for the last 50 color-changing actions plus undoable reset
+- Browser local save/overwrite/load/delete for up to 10 maps
+- Exact white-background 1080×1080 PNG export using html2canvas
+- First-use onboarding, persistent help, loading/warning/error/success states
+- Desktop, tablet, and secondary mobile layouts including 360px support and dark UI chrome
+- Unit tests for reducer/history and color, GeoJSON, storage, and export utilities
+- Production Vercel deployment and shareable URL
 
 ### Key Decisions
 
-- [ ] Tech stack: React + D3.js vs. Mapbox + React vs. Vanilla JS + SVG
-- [ ] Map projection: Mercator vs. Azimuthal Equidistant (for centering)
-- [ ] Canvas vs. SVG for rendering
+- [x] React 18 + TypeScript + Vite
+- [x] D3.js v7+ with interactive SVG and Mercator projection
+- [x] React Context plus useReducer for map state
+- [x] html2canvas with deterministic 540×540 scale-2 export frame
+- [x] localStorage with no backend, authentication, or mandatory login
+- [x] Plain component-scoped CSS plus theme custom properties
 
 ### Out of Scope (Phase 1)
 
-- Historical borders
-- Flexible centering
-- Legend generation
-- Mobile responsiveness
+- Historical borders and time-period controls
+- Flexible centering/reprojection and regional zoom presets
+- Legend generation or legend styling
+- SVG export, batch/timelapse export, ZIP workflows
+- Cloud sync, authentication, sharing URLs, analytics, or server infrastructure
+- Non-European maps, native mobile app, hatching/patterns, or advanced palette hotkeys
 
 ---
 
@@ -135,19 +190,19 @@
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | Historical border data sparse/inaccurate | Medium | Start with best-documented regions (Poland, Balkans); use academic sources; label uncertain periods |
-| Map rendering performance slow | High | Test with 50+ regions; use Canvas if SVG too slow; lazy-load GeoJSON |
+| Map rendering performance slow | High | Test with 50+ regions; use stable SVG joins and cache projection/path geometry |
 | Centering projection distorts far regions | Medium | Use Azimuthal Equidistant; document limitations; offer "full world view" option |
-| Browser storage quota exceeded | Low | Limit saved maps to 5–10; offer JSON export as fallback |
+| Browser storage quota exceeded | Low | Limit saved maps to 10 and surface typed quota/unavailable errors |
 | Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2; iterate UI based on feedback |
 
 ---
 
 ## Dependencies
 
-- **GeoJSON libraries:** topojson-client, d3-geo
-- **UI framework:** React (recommended) or vanilla JS
-- **Export library:** html2canvas, canvas2image (for PNG export)
-- **Data sources:** Natural Earth (free), Wikidata (free), potential paid sources for accuracy
+- **GeoJSON libraries:** D3 geo APIs and `@types/geojson`
+- **UI framework:** React 18
+- **Export library:** html2canvas
+- **Data sources:** Natural Earth (free/public domain), Wikidata and historical sources in later phases
 
 ---
 
@@ -166,7 +221,6 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Planning** → Run `/gsd:plan-phase 1` to break Phase 1 into executable tasks
-2. **Tech Stack Decision** → Finalize React vs. alternatives
-3. **Data Sourcing** → Begin gathering historical borders
-4. **Prototype UI** → Build interactive wireframe for team feedback
+1. **Phase 1 Execution** → Run `/gsd:execute-phase 1`
+2. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all summaries exist
+3. **Phase 2 Discussion** → Confirm historical data and centering decisions after Phase 1 closes
