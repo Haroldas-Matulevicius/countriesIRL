@@ -11,7 +11,7 @@
 
 - **F1.1** Display interactive map of Europe with individual country/region boundaries
 - **F1.2** Click/tap any country to select it for coloring
-- **F1.3** Color picker (palette or custom hex) to assign color to selected country
+- [x] **F1.3** Color picker (palette or custom hex) to assign color to selected country
 - **F1.4** Bulk color assignment: apply same color to multiple countries at once
 - **F1.5** Undo/redo for color changes
 - **F1.6** Reset all colors to default (white/uncolored)
@@ -78,11 +78,11 @@
 
 - **NFR8** Historical borders accurate to within ~5% (visual accuracy, not surveyed precision)
 - **NFR9** All country names localized or clearly identified
-- **NFR10** Consistent color space (RGB, no palette limitations)
+- [x] **NFR10** Consistent color space (RGB, no palette limitations)
 
 ### Accessibility
 
-- **NFR11** WCAG AA compliant (alt text for map regions, keyboard navigation)
+- [x] **NFR11** WCAG AA compliant (alt text for map regions, keyboard navigation)
 - **NFR12** Color-blind friendly: support patterns or labels as alternative to color alone (optional V1)
 
 ---
