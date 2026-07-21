@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 3/17 plans executed
+**Plans:** 4/17 plans executed
 
 Plans:
 
@@ -25,7 +25,7 @@ Plans:
 - [x] 01-03-PLAN.md — Define shared contracts, constants, and tested color normalization
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-04-PLAN.md — Implement centralized reducer/context with bounded 50-action history and timing marks
+- [x] 01-04-PLAN.md — Implement centralized reducer/context with bounded 50-action history and timing marks
 - [ ] 01-05-PLAN.md — Prepare deterministic normalized Natural Earth data and abortable loading
 - [ ] 01-09-PLAN.md — Implement validated max-10 map persistence plus onboarding dismissal storage
 - [ ] 01-11-PLAN.md — Implement deterministic exact 1080×1080 PNG export

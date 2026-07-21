@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-07-21T22:52:22Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-07-21T23:06:50.719Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 3
-  percent: 18
+  completed_plans: 4
+  percent: 24
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 4 of 17 in current phase
+Plan: 5 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [██░░░░░░░░] 18%
+Progress: [██░░░░░░░░] 24%
 
 ## Performance Metrics
 
@@ -39,6 +39,7 @@ Progress: [██░░░░░░░░] 18%
 | Phase 01 P01 | 7 min | 1 task | 4 files |
 | Phase 01 P02 | 6 min | 3 tasks | 9 files |
 | Phase 01 P03 | 13 min | 2 tasks | 6 files |
+| Phase 01 P04 | 8 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,9 @@ Progress: [██░░░░░░░░] 18%
 - [Phase 01]: Represent the shared map/list selection as one ReadonlySet of normalized country IDs; display names remain labels only. — Prevents map and bulk-list selection state from diverging.
 - [Phase 01]: Use discriminated result contracts for color, GeoJSON, storage, and export boundaries instead of fallback values or ambiguous nulls. — Lets downstream UI translate typed outcomes without allowing invalid state through shared boundaries.
 - [Phase 01]: Store every accepted custom color as uppercase #RRGGBB while keeping the exact named UI palette in shared constants. — Gives reducer, persistence, rendering, and export one deterministic color representation.
+- [Phase 01]: Expose semantic map operations through useMapState without exposing raw dispatch or creating a second selection store. — Keeps all UI plans on one provider-owned state path and enforces one action per user intent.
+- [Phase 01]: Retain at most 50 color-changing actions plus the oldest reachable baseline snapshot, truncating redo history on branch edits. — Implements the approved bounded full-snapshot model while preserving exactly 50 undoable transitions.
+- [Phase 01]: Clear and recreate named interaction start marks before color, undo, and redo dispatches. — Gives MapCanvas one current start point for visible-completion measures without accumulating stale same-name marks.
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T22:50:34.181Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-07-21T23:06:50.708Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None

@@ -10,11 +10,11 @@
 ### F1: Interactive Map Interface
 
 - **F1.1** Display interactive map of Europe with individual country/region boundaries
-- **F1.2** Click/tap any country to select it for coloring
+- [x] **F1.2** Click/tap any country to select it for coloring
 - [x] **F1.3** Color picker (palette or custom hex) to assign color to selected country
-- **F1.4** Bulk color assignment: apply same color to multiple countries at once
-- **F1.5** Undo/redo for color changes
-- **F1.6** Reset all colors to default (white/uncolored)
+- [x] **F1.4** Bulk color assignment: apply same color to multiple countries at once
+- [x] **F1.5** Undo/redo for color changes
+- [x] **F1.6** Reset all colors to default (white/uncolored)
 
 ### F2: Historical Borders
 
