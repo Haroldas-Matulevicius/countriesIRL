@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Wave 5 integration in progress; completed 01-06 and 01-07; earliest incomplete 01-08
-last_updated: "2026-07-21T23:47:11.000Z"
+stopped_at: Wave 5 complete; ready for 01-12-PLAN.md
+last_updated: "2026-07-21T23:52:01Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 9
-  percent: 53
+  completed_plans: 11
+  percent: 65
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 8 of 17 in current phase
+Plan: 12 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [█████░░░░░] 53%
+Progress: [███████░░░] 65%
 
 ## Performance Metrics
 
@@ -45,6 +45,8 @@ Progress: [█████░░░░░] 53%
 | Phase 01 P11 | 8 min | 1 task | 2 files |
 | Phase 01 P06 | 10 min | 2 tasks | 4 files |
 | Phase 01 P07 | 7 min | 3 tasks | 3 files |
+| Phase 01 P08 | 7 min | 3 tasks | 5 files |
+| Phase 01 P10 | 8 min | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -81,6 +83,12 @@ Progress: [█████░░░░░] 53%
 - [Phase 01]: Keep selection and color mutations provider-owned while normalized feature data is passed to controls for display only. — Prevents duplicate selection state and keeps country names out of map keys.
 - [Phase 01]: Emit color-application status text through an App-supplied callback rather than creating component-local global feedback state. — Preserves one ToastRegion owner for later application composition.
 - [Phase 01]: Interpret absent color entries as DEFAULT_COLOR in summaries, preset activity, and country-list swatches. — Keeps UI previews aligned with reducer reset and map rendering semantics.
+- [Phase 01]: Use parent-supplied readiness, availability, and busy state for native control disabling while retaining a local synchronous export activation lock. — Prevents duplicate export activation before parent state can rerender.
+- [Phase 01]: Keep onboarding and Show Help fully controlled so App composition owns persistence and map focus. — Prevents help surfaces from creating competing storage or map-state ownership.
+- [Phase 01]: Allowlist approved operation announcements and fall back to stable generic copy. — Prevents arbitrary technical error text from reaching creators.
+- [Phase 01]: Require explicit saved-map load, map-focus, and status callbacks at the modal boundary. — Forces App composition to wire history reset, focus recovery, and announcements without hidden side effects.
+- [Phase 01]: Treat SaveLoad component mount as the modal-open boundary and refresh saved maps lazily. — Keeps persistence reads scoped to creator intent.
+- [Phase 01]: Keep storage failures and validation local to the open dialog. — Preserves the current map and entered name as recoverable state.
 
 ### Pending Todos
 
@@ -99,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T23:47:11.000Z
-Stopped at: Wave 5 integration in progress; completed 01-06 and 01-07; earliest incomplete 01-08
+Last session: 2026-07-21T23:52:01Z
+Stopped at: Wave 5 complete; ready for 01-12-PLAN.md
 Resume file: None
