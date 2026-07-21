@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type { MapAction, MapState } from '../types/map';
@@ -5,6 +7,7 @@ import {
   createInitialMapState,
   mapStateReducer,
 } from '../providers/MapStateProvider';
+import { useMapState } from './useMapState';
 
 function reduceActions(
   actions: ReadonlyArray<MapAction>,
@@ -170,6 +173,19 @@ describe('mapStateReducer color history', (): void => {
     expect(loadedState.historyIndex).toBe(0);
     expect(mapStateReducer(loadedState, { type: 'UNDO' })).toBe(loadedState);
     expect(mapStateReducer(loadedState, { type: 'REDO' })).toBe(loadedState);
+  });
+});
+
+describe('useMapState', (): void => {
+  it('throws a clear developer error outside MapStateProvider', (): void => {
+    function HookProbe(): null {
+      useMapState();
+      return null;
+    }
+
+    expect(() => renderToString(createElement(HookProbe))).toThrowError(
+      'useMapState must be used within a MapStateProvider.',
+    );
   });
 });
 

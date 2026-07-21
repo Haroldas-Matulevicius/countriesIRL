@@ -1,6 +1,50 @@
-import type { MapAction, MapState, SelectedCountryIds } from '../types/map';
+import {
+  createContext,
+  useCallback,
+  useMemo,
+  useReducer,
+} from 'react';
+import type { PropsWithChildren } from 'react';
+
+import type {
+  ColorMap,
+  CountryId,
+  MapAction,
+  MapState,
+  SelectedCountryIds,
+} from '../types/map';
 import { HISTORY_LIMIT } from '../constants/config';
 import { areColorMapsEqual } from '../utils/colors';
+
+const COLOR_START_MARK = 'countriesirl-color-start';
+const UNDO_START_MARK = 'countriesirl-undo-start';
+const REDO_START_MARK = 'countriesirl-redo-start';
+
+export interface MapStateContextValue {
+  state: MapState;
+  canUndo: boolean;
+  canRedo: boolean;
+  canReset: boolean;
+  selectCountry: (countryId: CountryId | null) => void;
+  replaceSelection: (countryIds: ReadonlyArray<CountryId>) => void;
+  toggleSelection: (countryId: CountryId) => void;
+  clearSelection: () => void;
+  setColor: (countryId: CountryId, color: string) => void;
+  setColors: (countryIds: ReadonlyArray<CountryId>, color: string) => void;
+  resetColors: () => void;
+  undo: () => void;
+  redo: () => void;
+  loadState: (colors: ColorMap) => void;
+}
+
+export const MapStateContext = createContext<MapStateContextValue | undefined>(
+  undefined,
+);
+
+function markInteraction(markName: string): void {
+  performance.clearMarks(markName);
+  performance.mark(markName);
+}
 
 function areSelectionsEqual(
   first: SelectedCountryIds,
@@ -39,9 +83,9 @@ function commitColors(
   };
 }
 
-function replaceSelection(
+function replaceSelectedIds(
   state: MapState,
-  countryIds: Iterable<string>,
+  countryIds: Iterable<CountryId>,
 ): MapState {
   const selectedIds = new Set(countryIds);
 
@@ -116,13 +160,13 @@ export function mapStateReducer(state: MapState, action: MapAction): MapState {
     }
 
     case 'SELECT_COUNTRY':
-      return replaceSelection(
+      return replaceSelectedIds(
         state,
         action.payload.countryId === null ? [] : [action.payload.countryId],
       );
 
     case 'SET_SELECTION':
-      return replaceSelection(state, action.payload.countryIds);
+      return replaceSelectedIds(state, action.payload.countryIds);
 
     case 'TOGGLE_SELECTION': {
       const selectedIds = new Set(state.selectedIds);
@@ -140,7 +184,7 @@ export function mapStateReducer(state: MapState, action: MapAction): MapState {
     }
 
     case 'CLEAR_SELECTION':
-      return replaceSelection(state, []);
+      return replaceSelectedIds(state, []);
 
     case 'LOAD_STATE': {
       const colors = { ...action.payload.colors };
@@ -153,4 +197,100 @@ export function mapStateReducer(state: MapState, action: MapAction): MapState {
       };
     }
   }
+}
+
+export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
+  const [state, dispatch] = useReducer(
+    mapStateReducer,
+    undefined,
+    createInitialMapState,
+  );
+
+  const selectCountry = useCallback((countryId: CountryId | null): void => {
+    dispatch({ type: 'SELECT_COUNTRY', payload: { countryId } });
+  }, []);
+
+  const replaceSelection = useCallback(
+    (countryIds: ReadonlyArray<CountryId>): void => {
+      dispatch({ type: 'SET_SELECTION', payload: { countryIds } });
+    },
+    [],
+  );
+
+  const toggleSelection = useCallback((countryId: CountryId): void => {
+    dispatch({ type: 'TOGGLE_SELECTION', payload: { countryId } });
+  }, []);
+
+  const clearSelection = useCallback((): void => {
+    dispatch({ type: 'CLEAR_SELECTION' });
+  }, []);
+
+  const setColor = useCallback((countryId: CountryId, color: string): void => {
+    markInteraction(COLOR_START_MARK);
+    dispatch({ type: 'SET_COLOR', payload: { countryId, color } });
+  }, []);
+
+  const setColors = useCallback(
+    (countryIds: ReadonlyArray<CountryId>, color: string): void => {
+      markInteraction(COLOR_START_MARK);
+      dispatch({ type: 'SET_COLORS', payload: { countryIds, color } });
+    },
+    [],
+  );
+
+  const resetColors = useCallback((): void => {
+    dispatch({ type: 'RESET_ALL' });
+  }, []);
+
+  const undo = useCallback((): void => {
+    markInteraction(UNDO_START_MARK);
+    dispatch({ type: 'UNDO' });
+  }, []);
+
+  const redo = useCallback((): void => {
+    markInteraction(REDO_START_MARK);
+    dispatch({ type: 'REDO' });
+  }, []);
+
+  const loadState = useCallback((colors: ColorMap): void => {
+    dispatch({ type: 'LOAD_STATE', payload: { colors } });
+  }, []);
+
+  const value = useMemo<MapStateContextValue>(
+    () => ({
+      state,
+      canUndo: state.historyIndex > 0,
+      canRedo: state.historyIndex < state.history.length - 1,
+      canReset: Object.keys(state.colors).length > 0,
+      selectCountry,
+      replaceSelection,
+      toggleSelection,
+      clearSelection,
+      setColor,
+      setColors,
+      resetColors,
+      undo,
+      redo,
+      loadState,
+    }),
+    [
+      state,
+      selectCountry,
+      replaceSelection,
+      toggleSelection,
+      clearSelection,
+      setColor,
+      setColors,
+      resetColors,
+      undo,
+      redo,
+      loadState,
+    ],
+  );
+
+  return (
+    <MapStateContext.Provider value={value}>
+      {children}
+    </MapStateContext.Provider>
+  );
 }
