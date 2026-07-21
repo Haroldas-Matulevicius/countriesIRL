@@ -7,7 +7,7 @@ const RGB_COLOR_PATTERN = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*
 const RGB_CHANNEL_MAX = 255;
 const HEX_RADIX = 16;
 const HEX_CHANNEL_LENGTH = 2;
-const PRESET_COLOR_VALUES = new Set(COLOR_PRESETS.map((preset) => preset.value));
+const PRESET_COLOR_VALUES = new Set<string>(COLOR_PRESETS.map((preset) => preset.value));
 
 function expandShortHex(hex: string): string {
   return hex
