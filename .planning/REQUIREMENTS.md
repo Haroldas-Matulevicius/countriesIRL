@@ -45,9 +45,9 @@
 
 ### F5: Export & Output
 
-- **F5.1** Export map as PNG image (1080×1080 Instagram square format)
+- [x] **F5.1** Export map as PNG image (1080×1080 Instagram square format)
 - **F5.2** PNG includes map + legend in single image
-- **F5.3** High quality output (300+ DPI or screen-optimized)
+- [x] **F5.3** High quality output (300+ DPI or screen-optimized)
 - **F5.4** Export also available as SVG (for further editing)
 - **F5.5** Filename includes map name + date (e.g., "EU_HumanZoo_2026-07-21.png")
 
