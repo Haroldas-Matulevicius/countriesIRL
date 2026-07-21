@@ -3,134 +3,70 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-07-21T22:14:56.041Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-07-21T22:27:29.000Z"
+last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 6
 ---
 
 # CountriesIRL Map Generator — Project State
 
-**Last updated:** 2026-07-21  
-**Status:** Ready to execute
+## Project Reference
 
----
+See: `.planning/PROJECT.md` (updated 2026-07-21)
 
-## Current Phase
+**Core value:** Help non-technical Instagram creators produce accurate, polished European choropleth maps quickly.
+**Current focus:** Phase 1 — Foundation & Modern Map
 
-**Phase 1: Foundation & Modern Map** (Not yet started)
+## Current Position
 
-### Phase 1 Goals
+Phase: 1 of 3 (Foundation & Modern Map)
+Plan: 2 of 17 in current phase
+Status: Ready to execute
+Last activity: 2026-07-21
 
-- [x] Planning finalized across 17 executable plans and 11 waves
-- [ ] React 18 + strict TypeScript + Vite shell
-- [ ] Modern European D3/SVG map with stable normalized country IDs
-- [ ] Single/multi-country coloring with 50-action undo/redo and reset
-- [ ] Exact 1080×1080 PNG export
-- [ ] Local save/replace/load/delete plus persisted onboarding dismissal
-- [ ] Responsive/accessibility/browser matrix and measured performance acceptance
-- [ ] Human-authorized Vercel deployment and verified production URL
+Progress: [█░░░░░░░░░] 6%
 
----
+## Performance Metrics
 
-## Decisions Made
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 7 min | 1 task | 4 files |
 
-### Project Scope
+## Accumulated Context
 
-- ✅ **European focus** (V1): Poland, Lithuania, Hungary, Balkans, Iberia, Scandinavia, + broader EU
-- ✅ **Phase 1 stack**: React 18 + strict TypeScript + Vite + D3 SVG + html2canvas + localStorage
-- ✅ **Phase 1 scope**: Modern borders, single/multi-coloring, 50-action history, persistence, exact PNG, onboarding, responsive/accessibility, deployment
-- ✅ **Natural Earth**: Version 5.1.1 default POV, with blocking presentation acceptance before deployment
-- ✅ **Offline boundary**: Bundled same-origin assets and no runtime third-party requests; already-loaded use works offline; fresh disconnected reload is not required; no service worker
-- ✅ **Responsive composition**: One active matchMedia-selected React workspace with viewport-correct DOM/focus order
-- ✅ **Historical/centering/legend scope**: Deferred to Phase 2
+### Decisions
 
-### User Personas
+- [Phase 1]: React 18, strict TypeScript, Vite, D3 SVG, html2canvas, and localStorage are the locked MVP stack.
+- [Phase 1]: Natural Earth 5.1.1 default POV requires presentation acceptance before deployment.
+- [Phase 1]: Offline means bundled same-origin assets and continued use after load; no service worker or fresh disconnected reload requirement.
+- [Phase 1]: Responsive composition uses one active matchMedia-selected React workspace with viewport-correct DOM and focus order.
+- [Phase 1]: Historical borders, flexible centering, and legends remain deferred to Phase 2.
+- [Phase 1]: Approved only the exact `vitest` package sourced from the `vitest-dev/vitest` repository. — Registry, official documentation, and organization-owned source metadata matched before execution.
+- [Phase 1]: Approved only the exact `vercel` package sourced from the `vercel/vercel` repository package directory `packages/cli`. — Registry, official CLI documentation, and organization-owned source metadata matched before execution.
 
-- Instagram creators (non-technical to moderately technical)
-- 5–10+ users across group
-- Primary use: 5–10 min per map for content creation
-- Secondary use: Sharing historical border data
+### Pending Todos
 
----
+- Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
-## Pending Decisions
+### Blockers/Concerns
 
-| Decision | Owned by | Target Date |
-|----------|----------|-------------|
-| Historical border data sourcing (buy, trace, mix sources?) | Codex + Team | Phase 2 kickoff |
-| Historical-period geopolitical POV/accuracy policy | Owner + Codex | Phase 2 kickoff |
-
----
-
-## Communication & Handoff
-
-### Team
-
-- **Owner/Product:** georgibg88 (georgibg88@gmail.com)
-- **Lead Dev/Executor:** Codex
-- **Test/Feedback:** Instagram creators group (5–10 people, TBD)
-
-### Communication Protocol
-
-- Decisions logged in this file (STATE.md)
-- Phase status updated weekly in ROADMAP.md
-- Blocker escalations: Email to owner + update STATE.md
-
----
+None.
 
 ## Known Constraints
 
-1. **Historical data scarcity** — Pre-1400s borders unreliable; focus on 1400+
-2. **Phase 1 projection** — Fixed Mercator Europe view; centering/reprojection remains Phase 2
-3. **Browser storage limits** — Maximum 10 saved maps; quota/unavailable/corrupt cases are mandatory tests
-4. **Small territories** — Exclaves/small regions remain selectable through the country list
-5. **Browser availability** — Safari current/previous requires macOS or BrowserStack if unavailable locally
-6. **Vercel authorization** — Human login checkpoint is required before production deployment
+- Browser storage must handle capacity, quota, unavailable, and corrupt-data cases.
+- Small territories and exclaves remain selectable through the country list.
+- Safari current/previous testing may require macOS or BrowserStack.
+- Vercel production deployment requires a later human authorization checkpoint.
 
----
+## Session Continuity
 
-## Assumptions
-
-- Users have Chrome, Firefox, Safari, or Edge from the current or previous release; all eight matrix cells must pass
-- Creators willing to manually map data (country → yes/no/other) before using tool
-- No real-time collaboration needed (V1)
-- Instagram export format: 1080×1080 PNG (standard square)
-
----
-
-## Success Metrics (MVP)
-
-**By 2026-08-25:**
-
-- ✅ Tool deployed to public URL
-- ✅ 3+ creators able to generate maps in <5 minutes
-- ✅ 4+ historical periods per major region available
-- ✅ Export quality meets Instagram standards
-- ✅ Zero crashes in first 100 uses per creator
-- ✅ 95%+ satisfaction from tester group
-
----
-
-## Escalation Path
-
-- **Blocker (critical)**: Notify georgibg88, update STATE.md immediately
-- **Decision needed**: Log in "Pending Decisions" table, notify Codex
-- **Feedback/iteration**: Gather during Phase 2–3, iterate in Phase 3
-
----
-
-## Version History
-
-| Date | Version | Changes |
-|------|---------|---------|
-| 2026-07-21 | 1.0 | Initial project initialization; European focus confirmed; 3-phase roadmap created |
-
----
-
-## Next Action
-
-**Run `/gsd:execute-phase 1` to execute the 17 approved plans across 11 waves.**
+Last session: 2026-07-21T22:27:29Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None

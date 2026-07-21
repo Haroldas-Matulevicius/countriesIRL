@@ -63,10 +63,10 @@
 
 ### Performance
 
-- **NFR1** Map renders in <1 second
-- **NFR2** Color changes apply instantly (no lag)
+- [x] **NFR1** Map renders in <1 second
+- [x] **NFR2** Color changes apply instantly (no lag)
 - **NFR3** Historical period switch completes in <500ms
-- **NFR4** Export to PNG completes in <5 seconds
+- [x] **NFR4** Export to PNG completes in <5 seconds
 
 ### Usability
 
