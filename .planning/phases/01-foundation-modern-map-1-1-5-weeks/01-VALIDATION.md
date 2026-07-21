@@ -47,12 +47,13 @@ updated: 2026-07-21
 | 01-05-02 | 05 | 4 | F1.1/NFR1 | T-01-09 | Byte-deterministic committed map asset | CLI | `node scripts/prepareGeoData.mjs && node scripts/prepareGeoData.mjs --check` | ❌ W0 | pending |
 | 01-09-01 | 09 | 4 | F6.1/F6.2 | T-01-21/T-01-22 | Saved-map and onboarding storage validation | unit | `npm run test:run -- src/utils/storage.test.ts` | ❌ W0 | pending |
 | 01-11-01 | 11 | 4 | F5.1/F5.3/NFR4 | T-01-27/T-01-29 | Exact dimensions and cleanup | unit | `npm run test:run -- src/utils/export.test.ts` | ❌ W0 | pending |
-| 01-12-01 | 12 | 6 | NFR7/NFR11 | T-01-44 | matchMedia drives one active focus-order-correct workspace | static/build | `npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | ❌ W0 | pending |
+| 01-12-01 | 12 | 6 | NFR7/NFR11 | T-01-44 | G-03/G-10 matchMedia drives one active focus-order-correct workspace | static/build | `npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | ❌ W0 | pending |
+| 01-12-02 | 12 | 6 | NFR5 | T-01-30 | Root index.html and React provider bootstrap | static/build | `npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | ❌ W0 | pending |
 | 01-12-03 | 12 | 6 | F1.1-F1.6/F5.1/F6.1/F6.2 | T-01-30/T-01-32 | One-way integration and persisted onboarding | integration/build | `npm run test:run && npm run lint && npm run build` | ❌ W0 | pending |
 | 01-13-01 | 13 | 7 | NFR5/NFR6/NFR7/NFR11 | T-01-45 | Styles wire after composition without CSS reordering | static/build | `npm run lint && npm run build` | ❌ W0 | pending |
 | 01-14-01 | 14 | 8 | all phase requirements | T-01-36/T-01-46 | Verification-only clean-diff gate | full | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ❌ W0 | pending |
 | 01-16-01 | 16 | 10 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
-| 01-17-01 | 17 | 11 | F5.1/NFR5 | T-01-47 | Verified root and bundled asset on exact production URL | network | production root/data `curl -fsS` checks | external | pending |
+| 01-17-01 | 17 | 11 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
 
 ---
 
@@ -85,7 +86,7 @@ updated: 2026-07-21
 | Already-loaded offline behavior with no runtime third-party requests | NFR5 | Network inspection and loaded-session behavior | Plan 01-15 step 11; fresh disconnected reload excluded |
 | Natural Earth 5.1.1 default POV/inclusion acceptance | F1.1 | Geopolitical presentation requires approval | Plan 01-15 step 12 |
 | Vercel account authorization | NFR5 | Human identity flow | Plan 01-16 Task 1 |
-| Production URL/root/bundled asset and smoke | F5.1/NFR5 | External deployment | Plan 01-17 Task 1 |
+| Production title/Vite entry/non-empty GeoJSON plus browser/network approval | F5.1/NFR5 | External deployment content and same-origin behavior | Plan 01-17 Task 1 checkpoint |
 
 ---
 

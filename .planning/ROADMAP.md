@@ -19,7 +19,7 @@ Plans:
 - [ ] 01-01-PLAN.md — Verify Vitest and Vercel CLI package identities before execution
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Create the bounded React 18/Vite/TypeScript/ESLint/Vitest toolchain
+- [ ] 01-02-PLAN.md — Create the bounded React 18/Vite configuration/TypeScript/ESLint/Vitest toolchain
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Define shared contracts, constants, and tested color normalization
@@ -37,7 +37,7 @@ Plans:
 - [ ] 01-10-PLAN.md — Build accessible save/replace/load/delete modal
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-12-PLAN.md — Wire one matchMedia-composed responsive workspace and persisted help state
+- [ ] 01-12-PLAN.md — Create root index.html and wire one matchMedia-composed responsive workspace with persisted help
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 01-13-PLAN.md — Wire styles after composition and apply responsive/theme/accessibility CSS
@@ -49,10 +49,10 @@ Plans:
 - [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 01-16-PLAN.md — Complete blocking Vercel authorization and deploy the approved static build
+- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
 
 **Wave 11** *(blocked on Wave 10 completion)*
-- [ ] 01-17-PLAN.md — Verify production root/assets and publish the exact URL and shipped contract in README
+- [ ] 01-17-PLAN.md — Block on production title/Vite/data/browser/network verification, then publish README
 
 Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.

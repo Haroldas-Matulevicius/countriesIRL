@@ -1,9 +1,9 @@
 # Phase 1: Foundation & Modern Map - Pattern Map
 
 **Mapped:** 2026-07-21
-**Files analyzed:** 50 anticipated new/modified files
-**Repository analogs found:** 0 / 50
-**Greenfield authority assignments:** 50 / 50
+**Files analyzed:** 51 anticipated new/modified files
+**Repository analogs found:** 0 / 51
+**Greenfield authority assignments:** 51 / 51
 
 ## Repository Pattern Baseline
 
@@ -29,7 +29,7 @@ Pattern IDs refer to the concrete assignments in the next section.
 |---|---|---|---|---|
 | `package.json` | config | batch | G-01 toolchain shell | exact greenfield |
 | `package-lock.json` | config | batch | G-01 exact-version lock | exact greenfield |
-| `index.html` | config | request-response | G-01 Vite root entry | exact greenfield |
+| `index.html` | config | request-response | G-03 root Vite entry and React bootstrap | exact greenfield |
 | `vite.config.ts` | config | transform | G-01 Vite React config | exact greenfield |
 | `vitest.config.ts` | config | batch | G-02 pure-unit test config | exact greenfield |
 | `eslint.config.js` | config | batch | G-02 ESLint flat config | exact greenfield |
@@ -51,6 +51,7 @@ Pattern IDs refer to the concrete assignments in the next section.
 | `src/hooks/useMapState.test.ts` | test | event-driven | G-05/G-11 reducer contract tests | exact greenfield |
 | `src/hooks/useGeoData.ts` | hook | request-response + file-I/O | G-04 abortable load state | exact greenfield |
 | `src/hooks/useLocalStorage.ts` | hook | file-I/O + event-driven | G-08 reactive persistence facade | exact greenfield |
+| `src/hooks/useResponsiveLayout.ts` | hook | event-driven | G-03/G-10 matchMedia composition and DOM-order contract | exact greenfield |
 | `src/components/AppHeader.tsx` | component | event-driven | G-07 approved header/help pattern | exact greenfield |
 | `src/components/OnboardingBanner.tsx` | component | event-driven | G-07 first-use help pattern | exact greenfield |
 | `src/components/MapWorkspace.tsx` | component | request-response | G-07 loading/warning/fatal-state shell | exact greenfield |
@@ -94,7 +95,7 @@ Pattern IDs refer to the concrete assignments in the next section.
 
 ### G-01 — Application and Toolchain Shell
 
-**Apply to:** `package.json`, `package-lock.json`, root `index.html`, Vite/TypeScript configs,
+**Apply to:** `package.json`, `package-lock.json`, Vite/TypeScript configs,
 `.gitignore`.
 
 **Authority:** `01-RESEARCH.md` lines 146-192 and 260-315; `01-CONTEXT.md` lines 21-40.
@@ -179,7 +180,7 @@ Full: npm run lint && npm run test:run && npm run build
 
 ### G-03 — React Bootstrap and One-Way Composition
 
-**Apply to:** `src/main.tsx`, `src/App.tsx`.
+**Apply to:** `index.html`, `src/main.tsx`, `src/App.tsx`, `src/hooks/useResponsiveLayout.ts`.
 
 **Authority:** `01-RESEARCH.md` lines 123-143 and 224-258; `01-UI-SPEC.md` lines 253-271.
 
@@ -194,6 +195,7 @@ MapCanvas SVG -> export HTML frame -> html2canvas -> Blob download
 
 **Composition convention:**
 
+- Plan 01-12 creates root `index.html` with the approved title, viewport, `#root`, and `/src/main.tsx` module entry; Plan 01-02 does not own this file.
 - `main.tsx` creates the React 18 root, wraps `App` in `React.StrictMode`, and mounts the map-state
   provider.
 - `App.tsx` composes hooks and components; it does not parse GeoJSON, call raw localStorage, or
@@ -203,6 +205,7 @@ MapCanvas SVG -> export HTML frame -> html2canvas -> Blob download
 - Use stable `useCallback` handlers when passing callbacks into map/list/control children.
 - Components render the full application shell during loading and fatal states rather than
   replacing the whole app with a bare message.
+- `useResponsiveLayout` uses `window.matchMedia('(min-width: 1200px)')`, symmetric change-listener cleanup, and a strict desktop/compact result. `App` mounts exactly one branch: desktop map-first, compact actions-first. Shared state remains above the branch; CSS never reorders or hides a duplicate workspace.
 
 **Import order** (`.planning/coding-rules/general.md` lines 65-88):
 
@@ -529,7 +532,7 @@ async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 
 ### G-10 — Plain CSS Design System and Responsive Layout
 
-**Apply to:** `theme.css`, `App.css`, `MapCanvas.css`, `Controls.css`.
+**Apply to:** `src/hooks/useResponsiveLayout.ts`, `src/App.tsx`, `src/main.tsx`, `theme.css`, `App.css`, `MapCanvas.css`, `Controls.css`.
 
 **Authority:** `01-UI-SPEC.md` lines 49-65, 102-249, and 275-347;
 `01-CONTEXT.md` lines 79-85.
@@ -565,9 +568,9 @@ shows the required tokenization shape, not permission to alter approved values.
 - Plain CSS only; no Tailwind, CSS-in-JS, gradients, emoji icons, or component library.
 - Exactly four type sizes (14, 16, 20, 28px) and two weights (400, 600).
 - All authored margin/padding/gap values use the approved spacing scale.
+- Plan 01-12 owns `useResponsiveLayout` and one-active-branch DOM composition; Plan 01-13 owns all stylesheet imports and CSS.
 - Desktop: map-first two-column grid with a 360px control column.
-- Tablet/mobile: DOM and visual order both become actions, map, selection/color, country list.
-  Do not use CSS reordering that disagrees with focus order.
+- Tablet/mobile: the compact React branch DOM and visual order are actions, map, selection/color, country list. Do not render both branches, hide one, or use CSS reordering that disagrees with focus order.
 - Map remains a responsive square with fixed white surface in light and dark UI themes.
 - Controls have at least 48×48px targets; app works at 360px without horizontal page scroll.
 - Country fill/border transitions are 150ms; reduced-motion removes nonessential transitions.
