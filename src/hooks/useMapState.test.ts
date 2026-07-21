@@ -111,7 +111,10 @@ describe('mapStateReducer color history', (): void => {
   it('retains only the latest 50 actions plus their current baseline', (): void => {
     const actions: MapAction[] = Array.from({ length: 51 }, (_, index) => ({
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: `color-${String(index + 1)}` },
+      payload: {
+        countryId: 'FR',
+        color: `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
+      },
     }));
     const editedState = reduceActions(actions);
     const oldestRetainedState = Array.from({ length: 50 }).reduce<MapState>(
@@ -121,9 +124,9 @@ describe('mapStateReducer color history', (): void => {
 
     expect(editedState.history).toHaveLength(51);
     expect(editedState.historyIndex).toBe(50);
-    expect(editedState.history[0]).toEqual({ FR: 'color-1' });
-    expect(editedState.colors).toEqual({ FR: 'color-51' });
-    expect(oldestRetainedState.colors).toEqual({ FR: 'color-1' });
+    expect(editedState.history[0]).toEqual({ FR: '#000001' });
+    expect(editedState.colors).toEqual({ FR: '#000033' });
+    expect(oldestRetainedState.colors).toEqual({ FR: '#000001' });
     expect(oldestRetainedState.historyIndex).toBe(0);
     expect(mapStateReducer(oldestRetainedState, { type: 'UNDO' })).toBe(
       oldestRetainedState,
