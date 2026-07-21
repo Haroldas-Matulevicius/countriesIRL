@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-11-PLAN.md
-last_updated: "2026-07-21T23:13:44.310Z"
+stopped_at: Wave 4 integrated; ready for 01-06-PLAN.md
+last_updated: "2026-07-21T23:24:50.139Z"
 last_activity: 2026-07-21
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 6
-  percent: 35
+  completed_plans: 7
+  percent: 41
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -30,7 +30,7 @@ Plan: 6 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-21
 
-Progress: [████░░░░░░] 35%
+Progress: [████░░░░░░] 41%
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Progress: [████░░░░░░] 35%
 | Phase 01 P03 | 13 min | 2 tasks | 6 files |
 | Phase 01 P04 | 8 min | 2 tasks | 3 files |
 | Phase 01 P05 | 12 min | 3 tasks | 6 files |
+| Phase 01 P09 | 8 min | 2 tasks | 3 files |
 | Phase 01 P11 | 8 min | 1 task | 2 files |
 
 ## Accumulated Context
@@ -69,6 +70,9 @@ Progress: [████░░░░░░] 35%
 - [Phase 01]: Serialize the normalized asset as compact ID-sorted canonical JSON. — Preserves byte determinism while reducing same-origin load and parse overhead.
 - [Phase 01]: Capture PNG exports from a fixed 540x540 HTML frame at scale 2 and reject non-1080x1080 canvases. — Keeps html2canvas on its HTMLElement contract and makes output independent of device pixel ratio.
 - [Phase 01]: Return expected export failures through ExportResult and release anchor, object URL, and frame resources in nested finally blocks. — Lets later controls translate technical outcomes into approved UI copy without leaking temporary browser resources.
+- [Phase 01]: Keep all raw Storage and JSON access in one injected adapter. — Keeps tests and React callers independent of direct window.localStorage access while containing browser exceptions at one typed boundary.
+- [Phase 01]: Preserve usable saved records when neighboring records or color entries are corrupt, and filter loaded colors to current country IDs. — Recovers valid user data without allowing stale or invalid map state into the editor.
+- [Phase 01]: Initialize onboarding persistence independently and expose explicit saved-map refresh. — Keeps saved-map reads lazy until the modal opens while allowing onboarding state to load immediately.
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T23:13:44.300Z
-Stopped at: Completed 01-11-PLAN.md
+Last session: 2026-07-21T23:24:50.139Z
+Stopped at: Wave 4 integrated; ready for 01-06-PLAN.md
 Resume file: None
