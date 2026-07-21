@@ -1,0 +1,70 @@
+{
+  "projectName": "CountriesIRL Map Generator",
+  "owner": "georgibg88",
+  "created": "2026-07-21",
+  "focus": "European-focused map generation tool for Instagram creators",
+  "workflow": {
+    "mode": "delegated",
+    "executor": "codex",
+    "phases": 3,
+    "mvpTargetWeeks": 6
+  },
+  "techStack": {
+    "decided": false,
+    "candidates": [
+      "React + D3.js + html2canvas",
+      "Vanilla JS + SVG + canvas2image",
+      "Svelte + D3.js"
+    ],
+    "recommendation": "React + D3.js (best balance of UX + flexibility for projections)"
+  },
+  "dataSource": {
+    "modernBorders": "Natural Earth (free GeoJSON)",
+    "historicalBorders": "Natural Earth (1800+) + Wikidata + manual tracing",
+    "historicalPeriods": ["1400s", "1700s", "1800s", "1900s", "modern"],
+    "historicalRegions": [
+      "Poland",
+      "Lithuania",
+      "Hungary",
+      "Balkans",
+      "Iberia",
+      "Scandinavia"
+    ]
+  },
+  "features": {
+    "phase1": [
+      "Modern European map rendering",
+      "Interactive country selection & coloring",
+      "Export to PNG (1080×1080)",
+      "Browser storage save/load"
+    ],
+    "phase2": [
+      "Historical border datasets (4 time periods)",
+      "Time period selector",
+      "Map centering on any country",
+      "Regional zoom levels (EU, EU+Middle East, Europe+Russia)",
+      "Auto-legend generation",
+      "Undo/redo"
+    ],
+    "phase3": [
+      "UI Polish & accessibility",
+      "Documentation & user guide",
+      "Public deployment",
+      "Team onboarding"
+    ]
+  },
+  "successCriteria": [
+    "Map creation time < 5 minutes",
+    "4+ historical periods per major region",
+    "Instagram-ready exports",
+    "3+ creators using tool",
+    "95%+ satisfaction rating"
+  ],
+  "constraints": {
+    "scope": "Europe only (V1)",
+    "timeline": "MVP by 2026-08-25",
+    "noServerRequired": true,
+    "offlineCapable": true
+  },
+  "notes": "User wants minimal back-and-forth during planning. Codex can refine tech choices during Phase 1 execution."
+}
