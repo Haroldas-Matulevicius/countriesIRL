@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 8/17 plans executed
+**Plans:** 9/17 plans executed
 
 Plans:
 
@@ -32,7 +32,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 01-06-PLAN.md — Build stable accessible D3/SVG map, data states, and visible timing measures
-- [ ] 01-07-PLAN.md — Build single/bulk selection and preset/custom color controls
+- [x] 01-07-PLAN.md — Build single/bulk selection and preset/custom color controls
 - [ ] 01-08-PLAN.md — Build history/file controls, controlled onboarding/help, and live feedback
 - [ ] 01-10-PLAN.md — Build accessible save/replace/load/delete modal
 

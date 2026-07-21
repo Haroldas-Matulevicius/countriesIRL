@@ -70,7 +70,7 @@
 
 ### Usability
 
-- **NFR5** Tool usable by non-technical creators (intuitive UI, clear affordances)
+- [x] **NFR5** Tool usable by non-technical creators (intuitive UI, clear affordances)
 - **NFR6** On-screen tooltips/help for first-time users
 - **NFR7** Mobile-friendly or tablet-responsive (nice-to-have for V1)
 
