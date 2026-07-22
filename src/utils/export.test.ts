@@ -12,6 +12,7 @@ import {
 import { createExportFilename, exportMapPng } from './export';
 
 const html2canvasMock = vi.hoisted(() => vi.fn());
+const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 
 vi.mock('html2canvas', () => ({
   default: html2canvasMock,
@@ -51,7 +52,9 @@ class FakeElement {
   public parentElement: FakeElement | null = null;
   public isConnected: boolean;
   public wasRemoved = false;
+  public removeCallCount = 0;
   public wasClicked = false;
+  public wasConnectedWhenClicked = false;
   public clickError: Error | null = null;
 
   public constructor(
@@ -100,6 +103,7 @@ class FakeElement {
 
   public remove(): void {
     this.wasRemoved = true;
+    this.removeCallCount += 1;
     this.setConnected(false);
     if (this.parentElement) {
       const index = this.parentElement.children.indexOf(this);
@@ -112,6 +116,7 @@ class FakeElement {
 
   public click(): void {
     this.wasClicked = true;
+    this.wasConnectedWhenClicked = this.isConnected;
     if (this.clickError) {
       throw this.clickError;
     }
@@ -278,6 +283,7 @@ describe('exportMapPng', (): void => {
   });
 
   afterEach((): void => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -337,6 +343,56 @@ describe('exportMapPng', (): void => {
     expect(sourcePath.getAttribute('stroke')).toBe(SELECTED_BORDER_COLOR);
   });
 
+  it('keeps the connected download live through the bounded browser handoff', async (): Promise<void> => {
+    vi.useFakeTimers();
+    const { source } = createSource();
+    html2canvasMock.mockResolvedValue(createCanvas());
+    let didResolve = false;
+
+    const exportPromise = exportMapPng(
+      source,
+      new Date('2026-07-21T12:00:00.000Z'),
+    );
+    void exportPromise.then((): void => {
+      didResolve = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const frame = getCreatedElement(documentMock, 'DIV');
+    const anchor = getCreatedElement(documentMock, 'A');
+    expect(anchor.wasConnectedWhenClicked).toBe(true);
+    expect(anchor.isConnected).toBe(true);
+    expect(anchor.wasRemoved).toBe(false);
+    expect(frame.isConnected).toBe(true);
+    expect(revokeObjectURLMock).not.toHaveBeenCalled();
+    expect(didResolve).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(DOWNLOAD_HANDOFF_DELAY_MS - 1);
+
+    expect(anchor.isConnected).toBe(true);
+    expect(anchor.wasRemoved).toBe(false);
+    expect(frame.isConnected).toBe(true);
+    expect(revokeObjectURLMock).not.toHaveBeenCalled();
+    expect(didResolve).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(exportPromise).resolves.toEqual({
+      ok: true,
+      filename: 'CountriesIRL_2026-07-21.png',
+    });
+    expect(didResolve).toBe(true);
+    expect(anchor.isConnected).toBe(false);
+    expect(anchor.removeCallCount).toBe(1);
+    expect(frame.isConnected).toBe(false);
+    expect(frame.removeCallCount).toBe(1);
+    expect(revokeObjectURLMock).toHaveBeenCalledOnce();
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:countriesirl-export');
+  });
+
   it('fails before encoding when canvas dimensions are not exactly 1080 square', async (): Promise<void> => {
     const { source } = createSource();
     const canvas = createCanvas({ width: EXPORT_SIZE, height: EXPORT_SIZE - 1 });
@@ -378,7 +434,8 @@ describe('exportMapPng', (): void => {
     expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
   });
 
-  it('revokes the object URL and removes all temporary DOM if download fails', async (): Promise<void> => {
+  it('cleans immediately without a handoff wait if the connected click fails', async (): Promise<void> => {
+    vi.useFakeTimers();
     const { source } = createSource();
     documentMock.nextAnchorClickError = new Error('download blocked');
     html2canvasMock.mockResolvedValue(createCanvas());
@@ -390,8 +447,11 @@ describe('exportMapPng', (): void => {
 
     const frame = getCreatedElement(documentMock, 'DIV');
     const anchor = getCreatedElement(documentMock, 'A');
-    expect(frame.wasRemoved).toBe(true);
-    expect(anchor.wasRemoved).toBe(true);
+    expect(anchor.wasConnectedWhenClicked).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(frame.removeCallCount).toBe(1);
+    expect(anchor.removeCallCount).toBe(1);
+    expect(revokeObjectURLMock).toHaveBeenCalledOnce();
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:countriesirl-export');
   });
 
