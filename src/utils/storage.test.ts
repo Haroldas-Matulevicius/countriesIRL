@@ -174,24 +174,50 @@ describe('createStorageAdapter', () => {
     });
   });
 
-  it('deletes only the exact trimmed-name record', () => {
+  it('deduplicates exact and trim-equivalent names before load or delete', () => {
     const storage = new FakeStorage();
     storage.setItem(
       STORAGE_KEY,
       JSON.stringify([
-        { name: 'Alpha', colors: { FRA: '#111111' }, timestamp: 200 },
-        { name: 'Beta', colors: { DEU: '#222222' }, timestamp: 100 },
+        { name: 'Alpha', colors: { FRA: '#111111' }, timestamp: 300 },
+        { name: ' Alpha ', colors: { DEU: '#222222' }, timestamp: 200 },
+        { name: 'Alpha', colors: { ITA: '#333333' }, timestamp: 100 },
+        { name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 },
       ]),
     );
 
     const adapter = createStorageAdapter(storage);
-    const result = adapter.delete('  Alpha ');
 
-    expect(result).toEqual({
+    expect(adapter.list()).toEqual({
       ok: true,
-      value: [{ name: 'Beta', colors: { DEU: '#222222' }, timestamp: 100 }],
-      warnings: [],
+      value: [
+        { name: 'Alpha', colors: { FRA: '#111111' }, timestamp: 300 },
+        { name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 },
+      ],
+      warnings: [
+        { code: 'corrupt-data', recordIndex: 1 },
+        { code: 'corrupt-data', recordIndex: 2 },
+      ],
     });
+    expect(adapter.load(' Alpha ', new Set(['FRA', 'DEU', 'ITA']))).toEqual({
+      ok: true,
+      value: { FRA: '#111111' },
+      warnings: [
+        { code: 'corrupt-data', recordIndex: 1 },
+        { code: 'corrupt-data', recordIndex: 2 },
+      ],
+    });
+    expect(adapter.delete('  Alpha ')).toEqual({
+      ok: true,
+      value: [{ name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 }],
+      warnings: [
+        { code: 'corrupt-data', recordIndex: 1 },
+        { code: 'corrupt-data', recordIndex: 2 },
+      ],
+    });
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
+      { name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 },
+    ]);
     expect(adapter.delete('Missing')).toEqual({ ok: false, reason: 'map-not-found' });
   });
 

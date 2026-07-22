@@ -166,6 +166,7 @@ function parseSavedMaps(
 
   const warnings: StorageWarning[] = [];
   const maps: SavedMap[] = [];
+  const normalizedNames = new Set<string>();
   const records = parsed.slice(0, MAX_SAVED_MAPS);
 
   if (parsed.length > MAX_SAVED_MAPS) {
@@ -174,9 +175,17 @@ function parseSavedMaps(
 
   records.forEach((record, recordIndex) => {
     const map = normalizeSavedMap(record, recordIndex, warnings, validCountryIds);
-    if (map !== null) {
-      maps.push(map);
+    if (map === null) {
+      return;
     }
+
+    if (normalizedNames.has(map.name)) {
+      warnings.push(createCorruptWarning(recordIndex));
+      return;
+    }
+
+    normalizedNames.add(map.name);
+    maps.push(map);
   });
 
   return { maps, warnings };
