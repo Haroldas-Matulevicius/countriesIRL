@@ -13,6 +13,7 @@ import type {
 import { COLOR_PRESETS, DEFAULT_COLOR } from '../constants/colors';
 import { useMapState } from '../hooks/useMapState';
 import { hasEffectiveColorChange, normalizeColor } from '../utils/colors';
+import { TOAST_MESSAGES } from './ToastRegion';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
 const CUSTOM_COLOR_PLACEHOLDER = '#RRGGBB or rgb(0, 0, 0)';
@@ -22,10 +23,6 @@ const CUSTOM_COLOR_ERROR =
 interface ColorPickerProps {
   isDisabled?: boolean;
   onStatus: (message: string) => void;
-}
-
-function buildAppliedMessage(colorLabel: string, selectedCount: number): string {
-  return `Applied ${colorLabel} to ${selectedCount} countries.`;
 }
 
 export function ColorPicker({
@@ -70,7 +67,9 @@ export function ColorPicker({
       }
 
       if (setColors(selectedCountryIds, colorValue)) {
-        onStatus(buildAppliedMessage(colorName, selectedCountryIds.length));
+        onStatus(
+          TOAST_MESSAGES.presetApplied(colorName, selectedCountryIds.length),
+        );
       }
     },
     [onStatus, selectedCountryIds, setColors],
@@ -101,7 +100,7 @@ export function ColorPicker({
 
       setCustomDraft(customColorResult.value);
       onStatus(
-        buildAppliedMessage(
+        TOAST_MESSAGES.customColorApplied(
           customColorResult.value,
           selectedCountryIds.length,
         ),

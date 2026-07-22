@@ -26,16 +26,20 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
 
 const SELECTION_MESSAGE_PATTERN = /^\d+ (?:country|countries) selected\.$/;
 const COLOR_MESSAGE_PATTERN =
-  /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ countries\.$/;
+  /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ (?:country|countries)\.$/;
+
+function countryCountLabel(count: number): string {
+  return `${count} ${count === 1 ? 'country' : 'countries'}`;
+}
 
 export const TOAST_MESSAGES = {
   noSelection: 'No countries selected.',
   selectionCount: (count: number): string =>
-    `${count} ${count === 1 ? 'country' : 'countries'} selected.`,
+    `${countryCountLabel(count)} selected.`,
   presetApplied: (colorName: string, count: number): string =>
-    `Applied ${colorName} to ${count} countries.`,
+    `Applied ${colorName} to ${countryCountLabel(count)}.`,
   customColorApplied: (normalizedHex: string, count: number): string =>
-    `Applied ${normalizedHex} to ${count} countries.`,
+    `Applied ${normalizedHex} to ${countryCountLabel(count)}.`,
   undo: 'Color change undone.',
   redo: 'Color change redone.',
   reset: 'All colors reset. Use Undo Color Change to restore them.',
