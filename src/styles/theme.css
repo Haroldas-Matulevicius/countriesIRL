@@ -46,7 +46,22 @@
   --map-border-default: #9ca3af;
   --map-border-hover: #4b5563;
   --map-border-selected: #111827;
+  --map-fixed-text: #111827;
+  --map-skeleton-fill: #e5e7eb;
+  --map-skeleton-stroke: #d1d5db;
   --map-shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
+  --tooltip-border: #d1d5db;
+  --tooltip-surface: #111827;
+  --tooltip-text: #f9fafb;
+  --tooltip-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
+  --swatch-border: #9ca3af;
+  --mixed-color-light: #ffffff;
+  --mixed-color-dark: #6b7280;
+  --active-check-border: #ffffff;
+  --active-check-surface: #111827;
+  --active-check-text: #ffffff;
+  --modal-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --toast-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {

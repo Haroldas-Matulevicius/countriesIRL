@@ -20,7 +20,7 @@
   border-radius: var(--radius-large);
   background: var(--map-surface);
   box-shadow: var(--map-shadow);
-  color: #111827;
+  color: var(--map-fixed-text);
   isolation: isolate;
 }
 
@@ -89,7 +89,7 @@
   flex-direction: column;
   padding: var(--space-xl);
   background: var(--map-surface);
-  color: #111827;
+  color: var(--map-fixed-text);
   text-align: center;
 }
 
@@ -103,8 +103,8 @@
   display: block;
   width: min(72%, 360px);
   margin-bottom: var(--space-lg);
-  fill: #e5e7eb;
-  stroke: #d1d5db;
+  fill: var(--map-skeleton-fill);
+  stroke: var(--map-skeleton-stroke);
   stroke-linejoin: round;
   stroke-width: 2px;
 }
@@ -146,14 +146,14 @@
   width: max-content;
   max-width: min(360px, calc(100vw - (var(--space-md) * 2)));
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--tooltip-border);
   border-radius: var(--radius-control);
-  background: #111827;
-  color: #f9fafb;
+  background: var(--tooltip-surface);
+  color: var(--tooltip-text);
   pointer-events: none;
   flex-direction: column;
   gap: var(--space-xs);
-  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
+  box-shadow: var(--tooltip-shadow);
 }
 
 .map-tooltip__country {
