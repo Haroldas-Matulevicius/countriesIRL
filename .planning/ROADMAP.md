@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 15/18 plans executed
+**Plans:** 15/21 plans executed
 
 Plans:
 
@@ -48,13 +48,20 @@ Plans:
 **Wave 9** *(blocked on Wave 8 completion)*
 - [x] 01-14-PLAN.md — Rerun the immutable verification-only lint/test/determinism/build gate after 01-18
 
-**Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
+**Wave 10** *(independent product fixes, both blocked on Wave 9 completion)*
+- [ ] 01-19-PLAN.md — Gap closure: make every preset swatch natively disabled when no countries are selected
+- [ ] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle through a safe asynchronous handoff
 
-**Wave 11** *(blocked on Wave 10 completion)*
-- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+**Wave 11** *(blocked on both Wave 10 fixes)*
+- [ ] 01-21-PLAN.md — Run the full automated gate and blocking Chrome 150/Edge 150 focused regression checkpoint
 
 **Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 01-15-PLAN.md — Rerun the complete measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
+
+**Wave 13** *(blocked on Wave 12 completion)*
+- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+
+**Wave 14** *(blocked on Wave 13 completion)*
 - [ ] 01-17-PLAN.md — Block on production title/Vite/data/browser/network verification, then publish README
 
 Cross-cutting constraints:
@@ -96,7 +103,7 @@ Cross-cutting constraints:
 
 - Historical borders and time-period controls
 - Flexible centering/reprojection and regional zoom presets
-- Legend generation or legend styling
+- Legend generation or legend styling UI
 - SVG export, batch/timelapse export, ZIP workflows
 - Cloud sync, authentication, sharing URLs, analytics, or server infrastructure
 - Non-European maps, native mobile app, hatching/patterns, or advanced palette hotkeys
@@ -234,6 +241,7 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Execution** → Run `/gsd:execute-phase 1`
-2. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all summaries exist
-3. **Phase 2 Discussion** → Confirm historical data and centering decisions after Phase 1 closes
+1. **Phase 1 Gap Closure** → Run `/gsd:execute-phase 1 --gaps-only`
+2. **Phase 1 Full UAT Rerun** → Resume Plan 01-15 only after Plan 01-21 approval
+3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
+4. **Phase 2 Discussion** → Confirm historical data and centering decisions after Phase 1 closes

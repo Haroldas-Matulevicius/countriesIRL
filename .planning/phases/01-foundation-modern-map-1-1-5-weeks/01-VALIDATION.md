@@ -10,7 +10,7 @@ updated: 2026-07-21
 
 # Phase 1 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
+> Per-phase validation contract for feedback sampling during execution, including the Plan 01-15 UAT gap-closure chain.
 
 ---
 
@@ -32,8 +32,21 @@ updated: 2026-07-21
 - **After every implementation wave:** Run `npm run test:run && npm run build` once all wave dependencies exist.
 - **Plan 01-18 README gap closure (Wave 8):** Correct documentation only, then commit.
 - **Plan 01-14 verification-only gate (Wave 9):** Run the full suite and require a clean diff; failures route to `/gsd:plan-phase 1 --gaps` rather than inline fixes.
+- **Plans 01-19 and 01-20 UAT gap fixes (Wave 10):** Run focused ColorPicker/export tests independently, then lint, strict TypeScript, and build for each product fix.
+- **Plan 01-21 focused regression gate (Wave 11):** Run the full automated suite, then block on exact Chrome 150 and Edge 150 native disabled-state and PNG-download regression checks.
+- **Plan 01-15 full UAT rerun (Wave 12):** Rerun all twelve original browser/data steps only after Plan 01-21 is approved. BrowserStack/Safari availability and Natural Earth POV approval remain human checkpoint items, not product defects.
 - **Before `/gsd:verify-work`:** Full suite, Plan 01-15 browser matrix/UAT, and Plans 01-16/01-17 deployment verification must be complete.
 - **Max feedback latency:** 60 seconds for automated checks; browser compatibility/timing is a blocking human matrix.
+
+---
+
+## Plan 01-15 UAT Gap Closure
+
+| Gap | Confirmed defect | Closure plans | Acceptance boundary |
+|-----|------------------|---------------|---------------------|
+| Preset controls | Preset swatches lack their own native disabled state when zero countries are selected; the custom input and Apply Custom Color button are the reference behavior. | 01-19 → 01-21 | Ten preset buttons are natively disabled at zero selection in focused tests, Chrome 150, and Edge 150; valid selection re-enables normal preset application. |
+| Chromium PNG download | Chrome 150 and Edge 150 receive complete valid PNG bytes, but native download ends canceled while the UI announces success; immediate anchor removal/object-URL revocation is the lifecycle under test. | 01-20 → 01-21 | Click initiation uses a connected download anchor, anchor/object URL survive an awaited browser handoff, cleanup occurs afterward, and repeated native downloads complete in both affected browsers while output remains exact. |
+| Browser/data availability | Safari/current-previous access and Natural Earth 5.1.1 POV approval remain unresolved human checkpoint work. | 01-15 | These are not product defects and remain blocking acceptance items in the existing full UAT rerun. |
 
 ---
 
@@ -52,10 +65,14 @@ updated: 2026-07-21
 | 01-12-02 | 12 | 6 | NFR5 | T-01-30 | Root index.html and React provider bootstrap | static/build | `npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | ❌ W0 | pending |
 | 01-12-03 | 12 | 6 | F1.1-F1.6/F5.1/F6.1/F6.2 | T-01-30/T-01-32 | One-way integration and persisted onboarding | integration/build | `npm run test:run && npm run lint && npm run build` | ❌ W0 | pending |
 | 01-13-01 | 13 | 7 | NFR5/NFR6/NFR7/NFR11 | T-01-45 | Styles wire after composition without CSS reordering | static/build | `npm run lint && npm run build` | ❌ W0 | pending |
-| 01-18-01 | 18 | 8 | NFR5/NFR6/NFR7 | T-01-51/T-01-52 | README-only scope/stack correction before quality-gate rerun | documentation/full | README source assertions plus `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ✅ | pending |
-| 01-14-01 | 14 | 9 | all phase requirements | T-01-36/T-01-46 | Verification-only clean-diff gate | full | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ❌ W0 | pending |
-| 01-16-01 | 16 | 11 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
-| 01-17-01 | 17 | 12 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
+| 01-18-01 | 18 | 8 | NFR5/NFR6/NFR7 | T-01-51/T-01-52 | README-only scope/stack correction before quality-gate rerun | documentation/full | README source assertions plus `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ✅ | complete |
+| 01-14-01 | 14 | 9 | all phase requirements | T-01-36/T-01-46 | Verification-only clean-diff gate | full | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ✅ | complete |
+| 01-19-01 | 19 | 10 | F1.3/F1.4/NFR5/NFR11 | T-01-54/T-01-55 | Explicit native disabled state prevents zero-selection preset activation | component/static | `npm run test:run -- src/components/ColorPicker.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | ❌ gap plan | pending |
+| 01-20-01 | 20 | 10 | F5.1/F5.3/NFR4/NFR5 | T-01-56/T-01-57/T-01-58 | Connected click initiation and deferred URL/anchor cleanup prevent canceled native download and premature success | unit/build | `npm run test:run -- src/utils/export.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | ✅ extend | pending |
+| 01-21-01 | 21 | 11 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | T-01-59/T-01-60 | Full automated gate plus exact affected-browser native regression | full/browser | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | external | pending |
+| 01-15-01 | 15 | 12 | all phase requirements | T-01-38/T-01-39/T-01-40 | Complete measured UAT after focused defect closure | full/browser/human | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | external | pending |
+| 01-16-01 | 16 | 13 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
+| 01-17-01 | 17 | 14 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
 
 ---
 
@@ -78,6 +95,7 @@ updated: 2026-07-21
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
+| Focused preset/download regressions in Chrome 150 and Edge 150 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | Native disabled behavior and Chromium download-manager lifecycle cannot be proven by Node unit tests | Plan 01-21 focused checkpoint after Plans 01-19 and 01-20 |
 | Five-country flow and persisted onboarding dismissal/reopen | NFR5/NFR6 | Usability, focus, and reload behavior | Plan 01-15 steps 1–2 |
 | Five map-ready samples <500ms; ten color, undo, and redo samples each <100ms | NFR1/NFR2 | Visible browser paint timing requires Performance API observation | Plan 01-15 step 3 |
 | Stable path count and 100+ rapid interactions | F1.1/F1.2/NFR1/NFR2 | Browser DOM/event behavior | Plan 01-15 step 4 |
@@ -98,11 +116,14 @@ updated: 2026-07-21
 - [x] Sampling continuity: no 3 consecutive implementation tasks lack an automated check.
 - [x] Wave 0 covers every missing test/config/package/determinism gate.
 - [x] Plan 01-14 is verification-only and routes failures to targeted gap plans.
+- [x] Plans 01-19 and 01-20 independently close the two confirmed product defects in one wave.
+- [x] Plan 01-21 blocks on focused Chrome 150/Edge 150 regression evidence before the complete Plan 01-15 rerun.
 - [x] Measured map/interaction thresholds use multiple browser samples.
 - [x] Malformed, blocked, and quota storage UAT is mandatory.
 - [x] Browser compatibility matrix includes current and previous Chrome, Firefox, Edge, and Safari.
+- [x] BrowserStack/Safari availability and Natural Earth POV remain human checkpoint items rather than product defects.
 - [x] Offline boundary excludes fresh disconnected reload and service workers.
 - [x] No watch-mode flags are used in acceptance commands.
 - [x] `nyquist_compliant: true` set in frontmatter.
 
-**Approval:** approved 2026-07-21 after plan-checker revisions; Wave 0 artifacts remain pending implementation.
+**Approval:** approved 2026-07-21; updated after failed Plan 01-15 UAT with the 01-19/01-20 → 01-21 → 01-15 gap-closure and rerun chain.

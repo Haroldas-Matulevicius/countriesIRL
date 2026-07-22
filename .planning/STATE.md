@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-14-PLAN.md; Plan 01-15 ready
-last_updated: "2026-07-22T00:58:06.366Z"
-last_activity: 2026-07-22 -- Plan 01-14 automated quality gate passed; Plan 01-15 ready
+stopped_at: Plan 01-15 UAT failed; gap closure Plans 01-19 and 01-20 ready
+last_updated: "2026-07-21T00:00:00.000Z"
+last_activity: 2026-07-21 -- Diagnosed Plan 01-15 UAT failures and planned independent preset/download fixes plus focused Chromium regression
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 18
+  total_plans: 21
   completed_plans: 15
-  percent: 83
+  percent: 71
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 15 of 18 in current phase
-Execution graph: 18 plans across 12 waves
-Status: Ready to execute
-Last activity: 2026-07-22 -- Plan 01-14 automated quality gate passed; Plan 01-15 ready
+Next plans: 01-19 and 01-20 of 21 in current phase
+Execution graph: 21 plans across 14 waves
+Status: Ready to execute UAT gap closure
+Last activity: 2026-07-21 -- Diagnosed Plan 01-15 UAT failures and planned independent preset/download fixes plus focused Chromium regression
 
-Progress: [████████░░] 83%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -50,8 +50,8 @@ Progress: [████████░░] 83%
 | Phase 01 P10 | 8 min | 1 task | 1 file |
 | Phase 01 P12 | 9 min | 3 tasks | 4 files |
 | Phase 01 P13 | 11 min | 2 tasks | 5 files |
-| Phase 01 P18 | 2 min | 1 tasks | 1 files |
-| Phase 01 P14 | 3 min | 1 tasks | 0 files |
+| Phase 01 P18 | 2 min | 1 task | 1 file |
+| Phase 01 P14 | 3 min | 1 task | 0 files |
 
 ## Accumulated Context
 
@@ -100,15 +100,22 @@ Progress: [████████░░] 83%
 - [Phase 01]: Keep all four stylesheet imports in main.tsx in theme, App, MapCanvas, Controls order so components never create cascade-order drift.
 - [Phase 01]: Keep fixed white map and neutral boundary tokens outside dark-theme overrides, while only application chrome follows prefers-color-scheme.
 - [Phase 01]: Use the existing responsive React branch order directly; CSS grids size and wrap that branch without order declarations or duplicate-workspace hiding.
+- [Phase 01 gap closure]: Preset buttons must expose their own native disabled state when zero countries are selected, matching the custom controls rather than relying only on the disabled fieldset.
+- [Phase 01 gap closure]: Chromium download initiation must keep the connected anchor and object URL alive through an awaited browser handoff before cleanup; App success remains gated on the utility's successful result.
 
 ### Pending Todos
 
-- Complete Plan 01-15 blocking browser/data UAT, including the eight-cell compatibility matrix and recorded timing samples.
+- Execute independent gap-closure Plans 01-19 and 01-20 in Wave 10.
+- Complete blocking Plan 01-21 full-gate plus Chrome 150/Edge 150 focused regression checkpoint.
+- Rerun the existing complete Plan 01-15 UAT, including the eight-cell compatibility matrix and recorded timing samples.
+- Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
 ### Blockers/Concerns
 
-- None. Plan 01-14 passed every automated, dependency, security, documentation, TypeScript, deterministic-data, build, and clean-tracked-tree gate; Plan 01-15 is ready.
+- Plan 01-15 UAT confirmed that preset swatches are not natively disabled with zero selected countries.
+- Chrome 150 and Edge 150 receive complete valid PNG bytes but the native download ends canceled while UI success is announced; click/anchor/object-URL lifecycle and cleanup timing require correction and affected-browser regression proof.
+- Safari/current-previous browser availability and Natural Earth 5.1.1 POV approval remain blocking human checkpoint items, not diagnosed product defects.
 
 ## Known Constraints
 
@@ -116,9 +123,10 @@ Progress: [████████░░] 83%
 - Small territories and exclaves remain selectable through the country list.
 - Safari current/previous testing may require macOS or BrowserStack.
 - Vercel production deployment requires a later human authorization checkpoint.
+- PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent while the Chromium download lifecycle is corrected.
 
 ## Session Continuity
 
-Last session: 2026-07-22T00:58:06.356Z
-Stopped at: Completed 01-14-PLAN.md; Plan 01-15 ready
+Last session: 2026-07-21T00:00:00.000Z
+Stopped at: Plan 01-15 UAT failed; gap closure Plans 01-19 and 01-20 ready
 Resume file: None
