@@ -76,7 +76,10 @@ export default function App(): JSX.Element {
   }, []);
 
   const showStatus = useCallback(
-    (message: string, severity: 'success' | 'info' = 'success'): void => {
+    (
+      message: string,
+      severity: 'success' | 'info' | 'warning' = 'success',
+    ): void => {
       setToastMessage({
         id: createToastId(),
         severity,

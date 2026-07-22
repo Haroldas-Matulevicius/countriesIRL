@@ -8,7 +8,11 @@ import {
 import type { FormEvent, KeyboardEvent } from 'react';
 
 import type { ColorMap, CountryId } from '../types/map';
-import type { SavedMap, StorageErrorReason } from '../types/ui';
+import type {
+  SavedMap,
+  StorageErrorReason,
+  StorageWarning,
+} from '../types/ui';
 import { MAX_MAP_NAME_LENGTH } from '../constants/config';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
@@ -40,6 +44,8 @@ const OVERWRITE_NOTICE =
   'A saved map already uses this name. Saving will replace it.';
 const CORRUPT_STORAGE_WARNING =
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.';
+const PARTIAL_LOAD_WARNING =
+  'Saved map loaded, but some invalid saved colors were omitted.';
 const STORAGE_UNAVAILABLE_ERROR =
   'This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.';
 const STORAGE_QUOTA_ERROR =
@@ -47,13 +53,20 @@ const STORAGE_QUOTA_ERROR =
 const MAP_NOT_FOUND_ERROR =
   'This saved map is no longer available. The saved-map list has been refreshed.';
 
+export type SaveLoadStatusSeverity = 'success' | 'warning';
+
 export interface SaveLoadProps {
   colors: ColorMap;
   validCountryIds: ReadonlySet<CountryId>;
   onLoad: (colors: ColorMap) => void;
   onClose: () => void;
   onFocusMap: () => void;
-  onStatus: (message: string) => void;
+  onStatus: (message: string, severity?: SaveLoadStatusSeverity) => void;
+}
+
+export interface LoadFeedback {
+  message: string;
+  severity: SaveLoadStatusSeverity;
 }
 
 interface FormattedSavedDate {
@@ -77,6 +90,14 @@ function formatSavedDate(timestamp: number): FormattedSavedDate {
 
 function getSavedMapFocusKey(savedMap: SavedMap): string {
   return `${savedMap.name.length}:${savedMap.name}:${savedMap.timestamp}`;
+}
+
+export function getLoadFeedback(
+  warnings: ReadonlyArray<StorageWarning>,
+): LoadFeedback {
+  return warnings.some((warning) => warning.code === 'corrupt-data')
+    ? { message: PARTIAL_LOAD_WARNING, severity: 'warning' }
+    : { message: 'Saved map loaded.', severity: 'success' };
 }
 
 function getStorageErrorMessage(
@@ -290,7 +311,8 @@ export function SaveLoad({
       }
 
       onLoad(result.value);
-      onStatus('Saved map loaded.');
+      const feedback = getLoadFeedback(result.warnings);
+      onStatus(feedback.message, feedback.severity);
       shouldRestoreOpenerRef.current = false;
       onClose();
       requestAnimationFrame(onFocusMap);

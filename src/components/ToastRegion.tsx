@@ -20,6 +20,7 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   'This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.',
   'Browser storage is full. Delete an older saved map, then save this map again.',
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.',
+  'Saved map loaded, but some invalid saved colors were omitted.',
   EXPORT_FAILURE_MESSAGE,
 ]);
 
