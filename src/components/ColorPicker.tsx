@@ -131,6 +131,7 @@ export function ColorPicker({
                 data-color-name={preset.name}
                 aria-label={`Apply ${preset.name}`}
                 aria-pressed={isActive}
+                disabled={controlsDisabled}
                 onClick={handlePresetClick}
               >
                 <span
