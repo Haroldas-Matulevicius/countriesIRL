@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Plan 01-15 UAT failed; gap closure Plans 01-19 and 01-20 ready
-last_updated: "2026-07-21T00:00:00.000Z"
-last_activity: 2026-07-21 -- Diagnosed Plan 01-15 UAT failures and planned independent preset/download fixes plus focused Chromium regression
+stopped_at: Plan 01-15 UAT failed; revised gap closure Plans 01-19 and 01-20 ready
+last_updated: "2026-07-21T20:36:59-05:00"
+last_activity: 2026-07-21 -- Revised gap plans for durable export-rule ownership and executable local/tunneled browser preflights
 progress:
   total_phases: 3
   completed_phases: 0
@@ -28,8 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 Phase: 1 of 3 (Foundation & Modern Map)
 Next plans: 01-19 and 01-20 of 21 in current phase
 Execution graph: 21 plans across 14 waves
-Status: Ready to execute UAT gap closure
-Last activity: 2026-07-21 -- Diagnosed Plan 01-15 UAT failures and planned independent preset/download fixes plus focused Chromium regression
+Status: Ready to execute revised UAT gap closure
+Last activity: 2026-07-21 -- Revised gap plans for durable export-rule ownership and executable local/tunneled browser preflights
 
 Progress: [███████░░░] 71%
 
@@ -101,32 +101,35 @@ Progress: [███████░░░] 71%
 - [Phase 01]: Keep fixed white map and neutral boundary tokens outside dark-theme overrides, while only application chrome follows prefers-color-scheme.
 - [Phase 01]: Use the existing responsive React branch order directly; CSS grids size and wrap that branch without order declarations or duplicate-workspace hiding.
 - [Phase 01 gap closure]: Preset buttons must expose their own native disabled state when zero countries are selected, matching the custom controls rather than relying only on the disabled fieldset.
-- [Phase 01 gap closure]: Chromium download initiation must keep the connected anchor and object URL alive through an awaited browser handoff before cleanup; App success remains gated on the utility's successful result.
+- [Phase 01 gap closure]: Chromium export must append/connect the download anchor before click, await a bounded handoff only after successful click, then remove the anchor, revoke the object URL, and remove the frame in `finally`; click failure uses the same `finally` immediately. Plan 01-20 updates the durable export coding rule and its two-entry Last updated history.
+- [Phase 01 gap closure]: Browser acceptance uses exact local browsers directly or BrowserStack Local/an explicitly approved equivalent tunnel that first proves the remote browser can load the local Vite app. Tunnel tooling remains external and never enters the product dependency graph.
 
 ### Pending Todos
 
-- Execute independent gap-closure Plans 01-19 and 01-20 in Wave 10.
-- Complete blocking Plan 01-21 full-gate plus Chrome 150/Edge 150 focused regression checkpoint.
-- Rerun the existing complete Plan 01-15 UAT, including the eight-cell compatibility matrix and recorded timing samples.
+- Execute independent gap-closure Plans 01-19 and 01-20 in Wave 10, including the targeted durable export-rule correction.
+- Complete blocking Plan 01-21 full-gate plus preflighted Chrome 150/Edge 150 focused regression checkpoint.
+- Rerun the existing complete Plan 01-15 UAT after preflighting all eight exact local/tunneled browser routes.
 - Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
 ### Blockers/Concerns
 
 - Plan 01-15 UAT confirmed that preset swatches are not natively disabled with zero selected countries.
-- Chrome 150 and Edge 150 receive complete valid PNG bytes but the native download ends canceled while UI success is announced; click/anchor/object-URL lifecycle and cleanup timing require correction and affected-browser regression proof.
+- Chrome 150 and Edge 150 receive complete valid PNG bytes but the native download ends canceled while UI success is announced; connected click/anchor/object-URL handoff and cleanup timing require correction, durable-rule synchronization, and affected-browser regression proof.
 - Safari/current-previous browser availability and Natural Earth 5.1.1 POV approval remain blocking human checkpoint items, not diagnosed product defects.
+- Remote browser results require a successful BrowserStack Local or approved equivalent tunnel preflight to the local Vite app before acceptance.
 
 ## Known Constraints
 
 - Browser storage must handle capacity, quota, unavailable, and corrupt-data cases.
 - Small territories and exclaves remain selectable through the country list.
 - Safari current/previous testing may require macOS or BrowserStack.
+- BrowserStack Local or equivalent is human test tooling only and must not modify package.json, source, Vite configuration, runtime behavior, or deployment dependencies.
 - Vercel production deployment requires a later human authorization checkpoint.
 - PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent while the Chromium download lifecycle is corrected.
 
 ## Session Continuity
 
-Last session: 2026-07-21T00:00:00.000Z
-Stopped at: Plan 01-15 UAT failed; gap closure Plans 01-19 and 01-20 ready
+Last session: 2026-07-21T20:36:59-05:00
+Stopped at: Plan 01-15 UAT failed; revised gap closure Plans 01-19 and 01-20 ready
 Resume file: None

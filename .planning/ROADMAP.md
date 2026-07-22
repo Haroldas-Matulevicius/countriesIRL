@@ -50,13 +50,13 @@ Plans:
 
 **Wave 10** *(independent product fixes, both blocked on Wave 9 completion)*
 - [ ] 01-19-PLAN.md — Gap closure: make every preset swatch natively disabled when no countries are selected
-- [ ] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle through a safe asynchronous handoff
+- [ ] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle and correct the durable export rule
 
 **Wave 11** *(blocked on both Wave 10 fixes)*
-- [ ] 01-21-PLAN.md — Run the full automated gate and blocking Chrome 150/Edge 150 focused regression checkpoint
+- [ ] 01-21-PLAN.md — Preflight local/tunneled exact browsers, run the full gate, and block on Chrome 150/Edge 150 regressions
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-15-PLAN.md — Rerun the complete measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
+- [ ] 01-15-PLAN.md — Preflight every exact browser route and rerun the complete measured UAT, compatibility matrix, offline boundary, and data POV acceptance
 
 **Wave 13** *(blocked on Wave 12 completion)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
@@ -68,7 +68,8 @@ Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
 - Every exported PNG is exactly 1080×1080, opaque white, map-only, and independent of device pixel ratio or dark theme.
 - Selection, focus, errors, and operation results remain keyboard/screen-reader accessible and never rely on color alone.
-- Existing coding rules remain authoritative and receive only targeted corrections when implementation proves a durable rule change.
+- Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
+- Remote browser acceptance requires BrowserStack Local or an explicitly approved equivalent tunnel to prove the exact browser can load the local Vite app; tunnel tooling never becomes a product dependency.
 - Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage failures, the eight-cell compatibility matrix, Natural Earth presentation approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
 - Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees.
