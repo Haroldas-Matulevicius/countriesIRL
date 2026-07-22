@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 16/21 plans executed
+**Plans:** 17/21 plans executed
 
 Plans:
 
@@ -50,7 +50,7 @@ Plans:
 
 **Wave 10** *(independent product fixes, both blocked on Wave 9 completion)*
 - [x] 01-19-PLAN.md — Gap closure: make every preset swatch natively disabled when no countries are selected
-- [ ] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle and correct the durable export rule
+- [x] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle and correct the durable export rule
 
 **Wave 11** *(blocked on both Wave 10 fixes)*
 - [ ] 01-21-PLAN.md — Preflight local/tunneled exact browsers, run the full gate, and block on Chrome 150/Edge 150 regressions

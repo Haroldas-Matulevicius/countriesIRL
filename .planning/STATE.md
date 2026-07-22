@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-19-PLAN.md
-last_updated: "2026-07-22T02:03:14.602Z"
-last_activity: 2026-07-22 -- Completed Plan 01-19 native preset disabled-state gap closure
+stopped_at: Completed 01-20-PLAN.md
+last_updated: "2026-07-22T02:15:36.000Z"
+last_activity: 2026-07-22 -- Completed Plan 01-20 Chromium native download lifecycle gap closure
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 21
-  completed_plans: 16
-  percent: 76
+  completed_plans: 17
+  percent: 81
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Next plans: 01-20 of 21 in current phase
+Next plans: 01-21 of 21 in current phase
 Execution graph: 21 plans across 14 waves
-Status: Ready to execute Plan 01-20 gap closure
-Last activity: 2026-07-22 -- Completed Plan 01-19 native preset disabled-state gap closure
+Status: Ready to execute Plan 01-21 gap verification
+Last activity: 2026-07-22 -- Completed Plan 01-20 Chromium native download lifecycle gap closure
 
-Progress: [████████░░] 76%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [████████░░] 76%
 | Phase 01 P18 | 2 min | 1 task | 1 file |
 | Phase 01 P14 | 3 min | 1 task | 0 files |
 | Phase 01 P19 | 2 min | 1 tasks | 2 files |
+| Phase 01 P20 | 10 min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -107,7 +108,6 @@ Progress: [████████░░] 76%
 
 ### Pending Todos
 
-- Execute Plan 01-20 in Wave 10 to close the Chromium download lifecycle defect and update the durable export rule.
 - Complete blocking Plan 01-21 full-gate plus preflighted Chrome 150/Edge 150 focused regression checkpoint.
 - Rerun the existing complete Plan 01-15 UAT after preflighting all eight exact local/tunneled browser routes.
 - Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
@@ -115,9 +115,9 @@ Progress: [████████░░] 76%
 
 ### Blockers/Concerns
 
-- Chrome 150 and Edge 150 receive complete valid PNG bytes but the native download ends canceled while UI success is announced; connected click/anchor/object-URL handoff and cleanup timing require correction, durable-rule synchronization, and affected-browser regression proof.
 - Safari/current-previous browser availability and Natural Earth 5.1.1 POV approval remain blocking human checkpoint items, not diagnosed product defects.
 - Remote browser results require a successful BrowserStack Local or approved equivalent tunnel preflight to the local Vite app before acceptance.
+- Chrome 150 and Edge 150 native-download acceptance remains pending Plan 01-21; unit coverage now proves connected click, bounded handoff, and cleanup timing.
 
 ## Known Constraints
 
@@ -126,10 +126,10 @@ Progress: [████████░░] 76%
 - Safari current/previous testing may require macOS or BrowserStack.
 - BrowserStack Local or equivalent is human test tooling only and must not modify package.json, source, Vite configuration, runtime behavior, or deployment dependencies.
 - Vercel production deployment requires a later human authorization checkpoint.
-- PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent while the Chromium download lifecycle is corrected.
+- PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-21 native-download verification.
 
 ## Session Continuity
 
-Last session: 2026-07-22T02:03:13.730Z
-Stopped at: Completed 01-19-PLAN.md
+Last session: 2026-07-22T02:14:14.270Z
+Stopped at: Completed 01-20-PLAN.md
 Resume file: None
