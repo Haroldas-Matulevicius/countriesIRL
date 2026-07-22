@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-20-PLAN.md
-last_updated: "2026-07-22T02:15:36.000Z"
-last_activity: 2026-07-22 -- Completed Plan 01-20 Chromium native download lifecycle gap closure
+stopped_at: Amended Phase 1 UAT acceptance after completed deep-review fixes
+last_updated: "2026-07-22T03:23:52.000Z"
+last_activity: 2026-07-21 -- Amended Plans 01-21/01-15 and validation for completed deep-review fixes
 progress:
   total_phases: 3
   completed_phases: 0
@@ -28,8 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 Phase: 1 of 3 (Foundation & Modern Map)
 Next plans: 01-21 of 21 in current phase
 Execution graph: 21 plans across 14 waves
-Status: Ready to execute Plan 01-21 gap verification
-Last activity: 2026-07-22 -- Completed Plan 01-20 Chromium native download lifecycle gap closure
+Status: Ready to execute revised Plan 01-21 focused acceptance
+Last activity: 2026-07-21 -- Synchronized focused/full UAT acceptance with completed deep-review fixes
 
 Progress: [████████░░] 81%
 
@@ -105,11 +105,15 @@ Progress: [████████░░] 81%
 - [Phase 01 gap closure]: Preset buttons must expose their own native disabled state when zero countries are selected, matching the custom controls rather than relying only on the disabled fieldset.
 - [Phase 01 gap closure]: Chromium export must append/connect the download anchor before click, await a bounded handoff only after successful click, then remove the anchor, revoke the object URL, and remove the frame in `finally`; click failure uses the same `finally` immediately. Plan 01-20 updates the durable export coding rule and its two-entry Last updated history.
 - [Phase 01 gap closure]: Browser acceptance uses exact local browsers directly or BrowserStack Local/an explicitly approved equivalent tunnel that first proves the remote browser can load the local Vite app. Tunnel tooling remains external and never enters the product dependency graph.
+- [Phase 01 deep review]: Treat absent color entries as effective white, keep the selected active preset natively disabled, and suppress active-color no-ops before dispatch so they create no history, success feedback, or `countriesirl-color-start` mark.
+- [Phase 01 deep review]: Preserve valid saved-map subsets while surfacing warning-severity load feedback; an unavailable initial onboarding read creates an immediate assertive storage alert without blocking editing/export.
+- [Phase 01 deep review]: Limit default Vitest discovery to `src/**/*.test.{ts,tsx}` and exclude `.claude/**` so agent-worktree copies cannot inflate or contaminate acceptance evidence.
+- [Phase 01 deep review]: Measure and clamp/flip tooltips inside viewport margins; if responsive remount disconnects the Saved Maps opener, restore focus to the currently mounted `Save or Load Maps` control, then fall back to the map.
 
 ### Pending Todos
 
-- Complete blocking Plan 01-21 full-gate plus preflighted Chrome 150/Edge 150 focused regression checkpoint.
-- Rerun the existing complete Plan 01-15 UAT after preflighting all eight exact local/tunneled browser routes.
+- Complete revised Plan 01-21 full source-scoped gate plus preflighted Chrome 150/Edge 150 White→Red active-disabled/no-op and two-download checkpoint.
+- Rerun Plan 01-15 with source-only discovery evidence, partial-corrupt/startup storage checks, 360px tooltip edges, 1200px modal-focus remounts, revised active-color semantics, and all eight exact browser routes.
 - Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
@@ -117,19 +121,21 @@ Progress: [████████░░] 81%
 
 - Safari/current-previous browser availability and Natural Earth 5.1.1 POV approval remain blocking human checkpoint items, not diagnosed product defects.
 - Remote browser results require a successful BrowserStack Local or approved equivalent tunnel preflight to the local Vite app before acceptance.
-- Chrome 150 and Edge 150 native-download acceptance remains pending Plan 01-21; unit coverage now proves connected click, bounded handoff, and cleanup timing.
+- Chrome 150 and Edge 150 native active-preset/no-op and two-download acceptance remains pending Plan 01-21; source tests now cover effective-white canonicalization, active disabled state, no history/status dispatch, and timing-mark suppression.
 
 ## Known Constraints
 
-- Browser storage must handle capacity, quota, unavailable, and corrupt-data cases.
+- Browser storage must handle capacity, quota, unavailable, corrupt-data, and partial-valid-load cases with distinct feedback.
 - Small territories and exclaves remain selectable through the country list.
 - Safari current/previous testing may require macOS or BrowserStack.
 - BrowserStack Local or equivalent is human test tooling only and must not modify package.json, source, Vite configuration, runtime behavior, or deployment dependencies.
 - Vercel production deployment requires a later human authorization checkpoint.
 - PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-21 native-download verification.
+- Default Vitest acceptance evidence must contain source tests only; `.claude/**` worktree copies are excluded.
+- Effective-white and active-color no-op attempts must not create history, success announcements, or color-start timing marks.
 
 ## Session Continuity
 
-Last session: 2026-07-22T02:14:14.270Z
-Stopped at: Completed 01-20-PLAN.md
+Last session: 2026-07-22T03:23:52.000Z
+Stopped at: Amended Phase 1 UAT acceptance after completed deep-review fixes
 Resume file: None

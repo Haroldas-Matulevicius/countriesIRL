@@ -53,10 +53,10 @@ Plans:
 - [x] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle and correct the durable export rule
 
 **Wave 11** *(blocked on both Wave 10 fixes)*
-- [ ] 01-21-PLAN.md — Preflight local/tunneled exact browsers, run the full gate, and block on Chrome 150/Edge 150 regressions
+- [ ] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-15-PLAN.md — Preflight every exact browser route and rerun the complete measured UAT, compatibility matrix, offline boundary, and data POV acceptance
+- [ ] 01-15-PLAN.md — Verify source-only test discovery and complete deep-review storage/tooltip/focus/active-color UAT, the eight-browser matrix, offline boundary, and data POV acceptance
 
 **Wave 13** *(blocked on Wave 12 completion)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
@@ -68,25 +68,27 @@ Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
 - Every exported PNG is exactly 1080×1080, opaque white, map-only, and independent of device pixel ratio or dark theme.
 - Selection, focus, errors, and operation results remain keyboard/screen-reader accessible and never rely on color alone.
+- Effective white is canonical: selecting an uncolored country leaves White active and natively disabled; applying another preset transfers that active disabled state, and active-color attempts create no history, status, or color timing mark.
 - Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
+- Default automated test discovery is source-scoped to `src/**/*.test.{ts,tsx}` and excludes `.claude/**` agent worktrees.
 - Remote browser acceptance requires BrowserStack Local or an explicitly approved equivalent tunnel to prove the exact browser can load the local Vite app; tunnel tooling never becomes a product dependency.
-- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage failures, the eight-cell compatibility matrix, Natural Earth presentation approval, and Vercel production verification.
+- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, the eight-cell compatibility matrix, Natural Earth presentation approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
-- Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees.
+- Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees; modal focus restoration follows the currently mounted responsive control after a 1200px remount.
 
 ### Deliverables
 
 - React 18 + strict TypeScript + Vite application shell
 - Reproducible Natural Earth 1:10m Europe-focused GeoJSON asset and validation boundary
 - Interactive accessible D3 SVG map with modern European borders
-- Single and multi-country selection with named presets and validated custom colors
+- Single and multi-country selection with named presets, effective-white active/no-op semantics, and validated custom colors
 - Immutable undo/redo for the last 50 color-changing actions plus undoable reset
-- Browser local save/overwrite/load/delete for up to 10 maps
+- Browser local save/overwrite/load/delete for up to 10 maps with partial-corrupt recovery and startup/storage feedback
 - Exact white-background 1080×1080 PNG export using html2canvas
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
-- One-active-workspace desktop/tablet/secondary-mobile layouts including 360px support and dark UI chrome
-- Unit tests for reducer/history and color, GeoJSON, storage, and export utilities
-- Measured <500ms map and <100ms color/undo/redo browser checks, current/previous browser matrix, and production Vercel URL
+- One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
+- Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, and focus helpers
+- Measured <500ms map and <100ms effective color/undo/redo browser checks, current/previous browser matrix, and production Vercel URL
 
 ### Key Decisions
 
@@ -242,7 +244,7 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Gap Closure** → Run `/gsd:execute-phase 1 --gaps-only`
+1. **Phase 1 Focused Acceptance** → Run `/gsd:execute-phase 1 --gaps-only` to complete revised Plan 01-21
 2. **Phase 1 Full UAT Rerun** → Resume Plan 01-15 only after Plan 01-21 approval
 3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
 4. **Phase 2 Discussion** → Confirm historical data and centering decisions after Phase 1 closes
