@@ -1,0 +1,85 @@
+Plan: 01-15
+Verified commit: 0ea596732f1072ab30c9287e6e90546f7a7810d3
+Clean worktree: C:/Users/matul/AppData/Local/Temp/CountriesIRL-01-15-0ea596732f10
+Gate started UTC: 2026-07-22T15:00:55Z
+
+Detached HEAD: 0ea596732f1072ab30c9287e6e90546f7a7810d3
+Initial status: []
+
+===== npm ci =====
+COMMAND: npm ci
+STARTED: 2026-07-22T15:00:55Z
+
+added 252 packages, and audited 253 packages in 4s
+
+51 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:00Z
+
+===== npm run lint =====
+COMMAND: npm run lint
+STARTED: 2026-07-22T15:01:00Z
+
+> countriesirl@0.1.0 lint
+> eslint .
+
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:06Z
+
+===== npm run test:run =====
+COMMAND: npm run test:run
+STARTED: 2026-07-22T15:01:06Z
+
+> countriesirl@0.1.0 test:run
+> vitest run
+
+
+ RUN  v4.1.10 C:/Users/matul/AppData/Local/Temp/CountriesIRL-01-15-0ea596732f10
+
+
+ Test Files  16 passed (16)
+      Tests  145 passed (145)
+   Start at  10:01:07
+   Duration  2.65s (transform 1.98s, setup 0ms, import 6.24s, tests 1.52s, environment 3ms)
+
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:09Z
+
+===== deterministic GeoJSON =====
+COMMAND: node scripts/prepareGeoData.mjs --check
+STARTED: 2026-07-22T15:01:09Z
+GeoJSON check passed: committed asset is current.
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:10Z
+
+===== strict TypeScript =====
+COMMAND: npm exec tsc -- -p tsconfig.app.json --noEmit
+STARTED: 2026-07-22T15:01:10Z
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:13Z
+
+===== single production build =====
+COMMAND: npm run build
+STARTED: 2026-07-22T15:01:13Z
+
+> countriesirl@0.1.0 build
+> tsc -b && vite build
+
+[36mvite v8.1.5 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 610 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.48 kB │ gzip:   0.31 kB
+dist/assets/index-B6IIqT_i.css   21.84 kB │ gzip:   4.48 kB
+dist/assets/index-bm_RKUFJ.js   446.69 kB │ gzip: 128.53 kB
+
+[32m✓ built in 216ms[39m
+EXIT_STATUS: 0
+COMPLETED: 2026-07-22T15:01:17Z
+
+Final detached HEAD: 0ea596732f1072ab30c9287e6e90546f7a7810d3
+Final status: []
+Gate completed UTC: 2026-07-22T15:01:17Z
