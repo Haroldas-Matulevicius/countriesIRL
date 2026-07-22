@@ -160,6 +160,42 @@ describe('normalizeGeoJson', (): void => {
     });
   });
 
+  it.each([
+    ['north pole', 0, 90],
+    ['south pole', 0, -90],
+    ['longitude above range', 181, 0],
+    ['longitude below range', -181, 0],
+    ['latitude above range', 0, 91],
+    ['latitude below range', 0, -91],
+  ] as const)(
+    'rejects %s coordinates as invalid geometry',
+    (_label, longitude, latitude): void => {
+      const coordinates = [
+        [
+          [longitude, latitude],
+          [1, 0],
+          [1, 1],
+          [longitude, latitude],
+        ],
+      ];
+      const result = normalizeGeoJson(
+        createCollection([
+          createFeature('ESP', 'Spain'),
+          createFeature('BAD', 'Malformed', {
+            type: 'Polygon',
+            coordinates,
+          }),
+        ]),
+      );
+
+      expect(result).toMatchObject({
+        ok: true,
+        features: [{ id: 'ESP' }],
+        warnings: [{ featureIndex: 1, code: 'invalid-geometry' }],
+      });
+    },
+  );
+
   it('keeps the first feature and warns when a normalized ID is duplicated', (): void => {
     const result = normalizeGeoJson(
       createCollection([

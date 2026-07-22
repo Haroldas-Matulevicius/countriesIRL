@@ -6,7 +6,11 @@ import europeGeoJson from '../../public/data/europe-modern.geojson?raw';
 import { EXPORT_FRAME_SIZE, MAP_VIEWBOX_SIZE } from '../constants/config';
 import type { GeoFeature } from '../types/map';
 import { normalizeGeoJson } from './geojson';
-import { createFixedEuropeProjection } from './mapProjection';
+import {
+  createFixedEuropeProjection,
+  createSafeMapPath,
+  hasFiniteProjectedBounds,
+} from './mapProjection';
 
 const EXPECTED_COUNTRY_COUNT = 57;
 const MINIMUM_FRAME_MARGIN = 32;
@@ -35,6 +39,33 @@ function createFeatureCollection(
 }
 
 describe('createFixedEuropeProjection', (): void => {
+  it('rejects non-finite projected bounds and skips malformed path data', (): void => {
+    const features = loadEuropeFeatures();
+    const malformedFeature = {
+      ...features[0],
+      id: 'MALFORMED',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[0, 0], [1, 0], [Number.NaN, 1], [0, 0]]],
+      },
+    } as unknown as GeoFeature;
+    const projection = createFixedEuropeProjection([...features, malformedFeature]);
+    const pathGenerator = geoPath(projection);
+    const translation = projection.translate();
+
+    expect(hasFiniteProjectedBounds([[Number.NaN, 0], [1, 1]])).toBe(false);
+    expect(hasFiniteProjectedBounds([[0, 0], [Number.POSITIVE_INFINITY, 1]])).toBe(
+      false,
+    );
+    expect(translation.every(Number.isFinite)).toBe(true);
+    expect(createSafeMapPath(pathGenerator, malformedFeature)).toBe('');
+    expect(
+      features.every(
+        (feature) => createSafeMapPath(pathGenerator, feature).length > 0,
+      ),
+    ).toBe(true);
+  });
+
   it('centers all 57 non-empty paths in the shared 540px preview/export frame', (): void => {
     const features = loadEuropeFeatures();
     const projection = createFixedEuropeProjection(features);

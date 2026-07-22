@@ -24,7 +24,10 @@ import {
 } from '../constants/colors';
 import { MAP_VIEWBOX_SIZE } from '../constants/config';
 import { getEffectiveCountryColor } from '../utils/colors';
-import { createFixedEuropeProjection } from '../utils/mapProjection';
+import {
+  createFixedEuropeProjection,
+  createSafeMapPath,
+} from '../utils/mapProjection';
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const MAP_READY_MEASURE = 'countriesirl-map-ready';
@@ -240,7 +243,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
           (update) => update,
           (exit) => exit.remove(),
         )
-        .attr('d', (feature): string => pathGenerator(feature) ?? '')
+        .attr('d', (feature): string => createSafeMapPath(pathGenerator, feature))
         .on('click.map', (event: MouseEvent, feature): void => {
           event.stopPropagation();
           activeCountryIdRef.current = feature.id;

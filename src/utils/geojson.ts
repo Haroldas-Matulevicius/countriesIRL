@@ -8,17 +8,33 @@ import type {
 } from '../types/map';
 import { normalizeStableCountryId } from './countryIds';
 
+const MIN_LONGITUDE = -180;
+const MAX_LONGITUDE = 180;
+const MIN_LATITUDE = -90;
+const MAX_LATITUDE = 90;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isPosition(value: unknown): value is Position {
-  return (
-    Array.isArray(value) &&
-    value.length >= 2 &&
-    value.every((coordinate) =>
-      typeof coordinate === 'number' && Number.isFinite(coordinate),
+  if (
+    !Array.isArray(value) ||
+    value.length < 2 ||
+    !value.every(
+      (coordinate) =>
+        typeof coordinate === 'number' && Number.isFinite(coordinate),
     )
+  ) {
+    return false;
+  }
+
+  const [longitude, latitude] = value;
+  return (
+    longitude >= MIN_LONGITUDE &&
+    longitude <= MAX_LONGITUDE &&
+    latitude > MIN_LATITUDE &&
+    latitude < MAX_LATITUDE
   );
 }
 
