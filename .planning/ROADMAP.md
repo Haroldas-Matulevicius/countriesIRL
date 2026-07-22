@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 11/17 plans executed
+**Plans:** 12/17 plans executed
 
 Plans:
 
@@ -37,7 +37,7 @@ Plans:
 - [x] 01-10-PLAN.md — Build accessible save/replace/load/delete modal
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-12-PLAN.md — Create root index.html and wire one matchMedia-composed responsive workspace with persisted help
+- [x] 01-12-PLAN.md — Create root index.html and wire one matchMedia-composed responsive workspace with persisted help
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 01-13-PLAN.md — Wire styles after composition and apply responsive/theme/accessibility CSS

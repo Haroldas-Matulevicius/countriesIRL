@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Wave 5 complete; ready for 01-12-PLAN.md
-last_updated: "2026-07-21T23:52:01Z"
-last_activity: 2026-07-21
+stopped_at: Completed 01-12-PLAN.md
+last_updated: "2026-07-22T00:12:02.850Z"
+last_activity: 2026-07-22
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 11
-  percent: 65
+  completed_plans: 12
+  percent: 71
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 12 of 17 in current phase
+Plan: 13 of 17 in current phase
 Status: Ready to execute
-Last activity: 2026-07-21
+Last activity: 2026-07-22
 
-Progress: [███████░░░] 65%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [███████░░░] 65%
 | Phase 01 P07 | 7 min | 3 tasks | 3 files |
 | Phase 01 P08 | 7 min | 3 tasks | 5 files |
 | Phase 01 P10 | 8 min | 1 task | 1 file |
+| Phase 01 P12 | 9 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Progress: [███████░░░] 65%
 - [Phase 01]: Require explicit saved-map load, map-focus, and status callbacks at the modal boundary. — Forces App composition to wire history reset, focus recovery, and announcements without hidden side effects.
 - [Phase 01]: Treat SaveLoad component mount as the modal-open boundary and refresh saved maps lazily. — Keeps persistence reads scoped to creator intent.
 - [Phase 01]: Keep storage failures and validation local to the open dialog. — Preserves the current map and entered name as recoverable state.
+- [Phase 01]: Use one matchMedia-owned desktop/compact hook and conditionally mount only the viewport-correct workspace DOM order. — Preserves focus order without CSS reordering or hidden duplicate workspaces.
+- [Phase 01]: Keep map, GeoJSON, persistence, toast, and export state above responsive presentation branches. — Viewport changes remount presentation only and preserve creator colors, history, selection, and feedback.
+- [Phase 01]: Persist onboarding dismissal through useLocalStorage while Show Help only changes session presentation state. — Reopening guidance must not delete the durable first-use dismissal marker.
 
 ### Pending Todos
 
@@ -107,6 +111,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-21T23:52:01Z
-Stopped at: Wave 5 complete; ready for 01-12-PLAN.md
+Last session: 2026-07-22T00:10:15.540Z
+Stopped at: Completed 01-12-PLAN.md
 Resume file: None
