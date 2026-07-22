@@ -56,10 +56,10 @@ Plans:
 - [x] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-22-PLAN.md — Gap closure: replace the five-traversal projection regression with one finite bounds pass plus one final safe path pass, preserving exact 57-path output and malformed-geometry safety
+- [ ] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
 
 **Wave 13** *(blocked on the Wave 12 map-ready fix)*
-- [ ] 01-15-PLAN.md — Rerun every current-code UAT check against `npm run build` + `npm run preview`, including controlled cold/warm Chrome 150 and Edge 150 map-ready series with every sample <500ms
+- [ ] 01-15-PLAN.md — Automatically generate exact-commit clean-gate and production-preview JSON/log evidence outside repo tooling, then block for human raw-record and remaining-UAT approval
 
 **Wave 14** *(blocked on Wave 13 completion)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
@@ -74,7 +74,8 @@ Cross-cutting constraints:
 - Effective white is canonical: selecting an uncolored country leaves White active and natively disabled; applying another preset transfers that active disabled state, and active-color attempts create no history, status, or color timing mark.
 - Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
 - Default automated test discovery is source-scoped to `src/**/*.test.{ts,tsx}` and excludes `.claude/**` agent worktrees.
-- Map-ready release evidence uses a production build served by Vite preview, controls five cold and five warm cache samples per installed browser, records transfer/cache metadata, reports browser launch/bootstrap separately, and keeps every sample strictly below 500ms.
+- Map-ready release evidence uses one production build from an exact-commit detached clean worktree, controls five cold and five warm cache samples per installed browser, records transfer/cache/service-worker metadata, reports browser launch/bootstrap separately, and keeps every sample strictly below 500ms.
+- Authoritative lint/full-test/data/type/build gates never run in the main checkout containing nested evidence executables; CDP harnesses/profiles stay in OS temp and only non-executable immutable JSON/log evidence is retained.
 - Phase 1 release browser acceptance is local-browser-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and all previous-version certification remain explicitly unverified/deferred by user choice and must never be reported as passed.
 - Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, both installed-browser cells, the recorded Natural Earth Europe approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
@@ -92,7 +93,7 @@ Cross-cutting constraints:
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
 - One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
 - Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, focus helpers, and projection traversal/equivalence safety
-- Measured production-preview map-ready evidence with five cold and five warm samples per installed Chrome 150 and Edge 150, every sample <500ms with transfer/cache metadata and separate launch/bootstrap reporting; <100ms effective color/undo/redo checks; deferred browsers recorded unverified; plus a production Vercel URL
+- Immutable exact-commit production-preview JSON/log evidence: clean gate, one build, five cold and five warm samples per installed Chrome 150 and Edge 150, every sample <500ms with cache/transfer/service-worker and launch/bootstrap fields, 60 interaction samples <100ms, raw browser pass cells, human review, and a production Vercel URL
 
 ### Key Decisions
 
@@ -108,6 +109,7 @@ Cross-cutting constraints:
 - [x] Ship Europe first, then prioritize World and North America canvas variants immediately after Phase 1
 - [x] Human Vercel authorization before automated deployment
 - [x] Keep the <500ms per-sample map-ready threshold and correct redundant geometry traversal rather than weakening acceptance
+- [x] Use isolated exact-commit clean gates and out-of-repository executable browser tooling; retain only immutable non-executable JSON/log evidence
 
 ### Out of Scope (Phase 1)
 
@@ -226,7 +228,7 @@ Cross-cutting constraints:
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | Historical border data sparse/inaccurate | Medium | Start with best-documented regions (Poland, Balkans); use academic sources; label uncertain periods |
-| Map rendering performance slow | High | Aggregate finite projected bounds once, generate each final safe path once, preserve stable SVG joins, and certify every controlled production-preview cold/warm sample below 500ms |
+| Map rendering performance slow or falsely measured | High | Correct traversal, gate/build one exact commit in a clean worktree, collect immutable raw cold/warm evidence with an out-of-repo harness, and require human review of passing browser cells |
 | Centering projection distorts far regions | Medium | Use Azimuthal Equidistant; document limitations; offer "full world view" option |
 | Browser storage quota exceeded | Low | Limit saved maps to 10 and surface typed quota/unavailable errors |
 | Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2; iterate UI based on feedback |
@@ -257,8 +259,8 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Map-Ready Fix** → Execute Plan 01-22 and prove one finite per-feature bounds pass plus one final safe path pass with exact 57-path equivalence
-2. **Phase 1 Full UAT** → Rerun Plan 01-15 from a production build/preview with controlled cold/warm Chrome 150 and Edge 150 evidence; keep every sample <500ms
+1. **Phase 1 Map-Ready Fix** → Execute Plan 01-22, then record the exact implementation commit and its isolated focused/full unfiltered gate
+2. **Phase 1 Full UAT** → Execute Plan 01-15 Task 1 for clean-gate/one-build immutable JSON evidence, then Task 2 for raw-record and remaining manual UAT approval
 3. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
 4. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
 5. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends

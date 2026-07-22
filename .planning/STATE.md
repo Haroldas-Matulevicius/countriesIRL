@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready
-stopped_at: Planned Plan 01-22 map-ready traversal fix before Plan 01-15 production-preview rerun
-last_updated: "2026-07-22T09:00:19-05:00"
-last_activity: 2026-07-22 -- Planned the proven map-ready traversal correction and production-preview benchmark rerun
+stopped_at: Revised Plans 01-22 and 01-15 for exact-commit clean gates and immutable evidence
+last_updated: "2026-07-22T09:20:24-05:00"
+last_activity: 2026-07-22 -- Cleared checker blockers with isolated gates, automatic evidence generation, and human raw-record review
 progress:
   total_phases: 3
   completed_phases: 0
@@ -28,8 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 Phase: 1 of 3 (Foundation & Modern Map)
 Next plans: 01-22, then 01-15, of 22 in current phase
 Execution graph: 22 plans across 15 waves
-Status: Map-ready gap diagnosed and planned; Plan 01-22 must complete before the production-preview Plan 01-15 rerun
-Last activity: 2026-07-22 -- Planned the proven map-ready traversal correction and production-preview benchmark rerun
+Status: Plan 01-22 clean-gated fix precedes Plan 01-15 automatic immutable evidence and blocking human review
+Last activity: 2026-07-22 -- Cleared checker blockers with isolated gates, automatic evidence generation, and human raw-record review
 
 Progress: [████████░░] 82%
 
@@ -115,19 +115,20 @@ Progress: [████████░░] 82%
 - [Phase 01]: Phase 1 browser acceptance is local Chrome and Edge only. — This later explicit user decision supersedes remote and broader current/previous browser-matrix acceptance for Phase 1.
 - [Phase 01]: Europe ships first, with World and North America variants next. — Regional expansion follows the initial Europe release rather than delaying it.
 - [Phase 01 map-ready gap closure]: Preserve D-53's strict per-sample <500ms threshold and replace e2f9190's five geometry traversals with one finite per-feature projected-bounds aggregation plus one final safe path generation. — The production counterfactual passed 14/14 Chrome/Edge samples at 257–388ms with byte-identical 57 paths and unchanged translation.
-- [Phase 01 map-ready acceptance]: Plan 01-15 uses `npm run build` plus `npm run preview`, records five controlled cold and five controlled warm samples per installed browser with transfer/cache metadata, defines map-ready as map-data-start through painted interactive SVG, and reports browser launch/bootstrap separately. — Development StrictMode timing and optional GeoJSON/html2canvas optimizations do not replace the targeted fix or weaken the threshold.
+- [Phase 01 map-ready acceptance]: Plan 01-15 uses one `npm run build` plus production preview, records five controlled cold and five controlled warm samples per installed browser with transfer/cache/service-worker metadata, defines map-ready as map-data-start through painted interactive SVG, and reports browser launch/bootstrap separately. — Development StrictMode timing and optional GeoJSON/html2canvas optimizations do not replace the targeted fix or weaken the threshold.
+- [Phase 01 evidence integrity]: Authoritative lint/full-test/data/type/build gates run in detached clean worktrees of the exact recorded commit; executable CDP harnesses, profiles, and caches stay outside Git; only immutable non-executable JSON/log evidence enters `.planning/ui-reviews`. — Human approval follows automatic evidence generation and cannot override a failed raw browser cell.
 
 ### Pending Todos
 
-- Execute Plan 01-22: add traversal/equivalence/invalid-geometry regressions and implement aggregate finite bounds plus one final safe path generation.
-- Rerun Plan 01-15 from the production build/preview with every current-code UAT check, five cold and five warm map-ready samples per installed browser, and complete cache/transfer/launch metadata.
+- Execute Plan 01-22: implement traversal correction, commit it, then record the exact commit passing focused and full unfiltered gates in a detached clean worktree.
+- Execute Plan 01-15 Task 1 to clean-gate/build once and generate immutable JSON/log evidence with an out-of-repo harness; then Task 2 reviews raw passing browser cells and remaining manual UAT.
 - Complete Plans 01-16 and 01-17 deployment and production verification only after Plan 01-15 approval.
 - Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
 
 ### Blockers/Concerns
 
 - Plan 01-15 is blocked on Plan 01-22 because current production map-ready is 533–713ms from redundant geometry traversal; the threshold remains unchanged.
-- The failed Vite development evidence is inflated by React StrictMode's duplicate mount layout effect and cannot serve as release-performance evidence.
+- The failed Vite development evidence is inflated by React StrictMode and cannot serve as release-performance evidence. The main checkout is also non-authoritative for `eslint .` while nested executable evidence tooling remains untracked.
 - Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
 
 ## Known Constraints
@@ -140,12 +141,13 @@ Progress: [████████░░] 82%
 - PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-15 full UAT.
 - Default Vitest acceptance evidence must contain source tests only; `.claude/**` worktree copies are excluded.
 - Effective-white and active-color no-op attempts must not create history, success announcements, or color-start timing marks.
-- Map-ready acceptance must use a production build/preview, controlled cold and warm cache series, raw per-sample values and metadata, and a strict <500ms result for every sample.
+- Map-ready acceptance must use one production build from an exact-commit clean worktree, controlled cold and warm cache series, raw per-sample values/metadata, and a strict <500ms result for every sample.
 - Browser process launch and pre-data bootstrap are reported separately from the `countriesirl-map-load-start` to painted `countriesirl-map-ready` product measure.
+- Executable evidence harnesses, profiles, cache files, and nested checkouts stay outside the repository; only planned non-executable JSON/log artifacts are retained and hashed.
 - Optional GeoJSON simplification and lazy html2canvas loading are not required for this gap and may not displace the diagnosed traversal correction.
 
 ## Session Continuity
 
-Last session: 2026-07-22T09:00:19-05:00
-Stopped at: Planned Plan 01-22 map-ready traversal fix before Plan 01-15 production-preview rerun
+Last session: 2026-07-22T09:20:24-05:00
+Stopped at: Revised Plans 01-22 and 01-15 for exact-commit clean gates and immutable evidence
 Resume file: None
