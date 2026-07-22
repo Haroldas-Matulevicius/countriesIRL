@@ -42,7 +42,6 @@ const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
 const DEFAULT_STROKE_WIDTH = '1';
 const SELECTED_STROKE_WIDTH = '2';
-const POINTER_TOOLTIP_OFFSET = 12;
 
 const FIXED_EUROPE_VIEW_OBJECT: Feature<Polygon> = {
   type: 'Feature',
@@ -142,8 +141,8 @@ function pointerTooltipData(
     color,
     inputMethod: 'pointer',
     position: {
-      x: event.clientX + POINTER_TOOLTIP_OFFSET,
-      y: event.clientY + POINTER_TOOLTIP_OFFSET,
+      x: event.clientX,
+      y: event.clientY,
     },
   };
 }

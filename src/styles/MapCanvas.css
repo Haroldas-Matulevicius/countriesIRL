@@ -157,14 +157,9 @@
   background: #111827;
   color: #f9fafb;
   pointer-events: none;
-  transform: translate(var(--space-sm), var(--space-sm));
   flex-direction: column;
   gap: var(--space-xs);
   box-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
-}
-
-.map-tooltip[data-input-method="keyboard"] {
-  transform: translate(-50%, calc(-100% - var(--space-sm)));
 }
 
 .map-tooltip__country {
