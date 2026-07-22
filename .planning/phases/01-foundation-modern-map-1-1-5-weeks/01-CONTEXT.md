@@ -1,8 +1,9 @@
 # Phase 1: Foundation & Modern Map - Context
 
 **Gathered:** 2026-07-21
-**Status:** Ready for planning
-**Source:** PRD Express Path (`.planning/CODEX_PROMPT.md`) with locked supplemental authority from `.planning/PHASE1_CODEX_BRIEF.md`
+**Revised:** 2026-07-22
+**Status:** Ready for final functional acceptance planning
+**Source:** PRD Express Path (`.planning/CODEX_PROMPT.md`) with locked supplemental authority from `.planning/PHASE1_CODEX_BRIEF.md` and explicit user release instruction D-63
 
 <domain>
 ## Phase Boundary
@@ -11,7 +12,7 @@ Deliver a production-ready, browser-only CountriesIRL Phase 1 MVP: a modern Euro
 
 This phase also establishes the React/TypeScript/Vite application shell, the normalized Natural Earth GeoJSON asset and validation boundary, the project component/hook/utility structure, automated utility/state tests, and production build/lint verification. It does not add historical borders, flexible centering, regional zoom presets, legends, World or North America canvas variants, batch export, or other Phase 2+ capabilities.
 
-The checked-in repository currently contains planning and guidance documents only; no product source, package manifest, tests, or map data exist. Existing `CLAUDE.md` and `.planning/coding-rules/*.md` files are current authority and must not be regenerated or overwritten wholesale. Update a rule file only if implementation introduces or corrects a lasting project convention.
+The checked-in repository currently contains the completed Phase 1 product plus planning/evidence history. Existing `CLAUDE.md` and `.planning/coding-rules/*.md` files are current authority and must not be regenerated or overwritten wholesale. Update a rule file only if implementation introduces or corrects a lasting project convention.
 
 </domain>
 
@@ -73,7 +74,7 @@ The checked-in repository currently contains planning and guidance documents onl
 - D-42: Use deterministic export sizing independent of device pixel ratio. The required 2× quality path must either capture a 540×540 CSS export frame at scale 2 or explicitly downsample a higher-resolution intermediate canvas to an exact 1080×1080 output canvas.
 - D-43: Use `canvas.toBlob()` and an object URL for download, revoke the URL after use, and clean temporary DOM in `finally`.
 - D-44: Filename format is `CountriesIRL_<YYYY-MM-DD>.png`; no spaces or special characters.
-- D-45: Export control has a disabled/loading state while work is active, completes in under 3 seconds on the target map, and reports failures without crashing the app.
+- D-45: Export control has a disabled/loading state while work is active and reports failures without crashing the app. Its duration target remains an advisory diagnostic under D-63; exact dimensions, opacity, map-only content, current colors, cleanup, and no-crash behavior remain release requirements.
 - D-46: Avoid cross-origin images/fonts/resources in the export subtree so canvas output is not tainted.
 
 ### UX, Responsive Behavior, Accessibility, and Theme
@@ -85,8 +86,8 @@ The checked-in repository currently contains planning and guidance documents onl
 - D-52: Keep color transitions around 150 ms and other UI transitions short enough to feel responsive without blocking state updates.
 
 ### Quality, Testing, and Delivery
-- D-53: Map load/projection/render target is under 500 ms on the Phase 1 Europe dataset; color changes, undo, and redo should complete within 100 ms from user action to visible update.
-- D-54: PNG export target is under 3 seconds and must be verified as exactly 1080×1080.
+- D-53: Map load/projection/render and color/undo/redo timing targets remain instrumented advisory diagnostics under D-63. They may guide later optimization but do not determine Phase 1 release PASS/FAIL.
+- D-54: PNG export duration is advisory under D-63; exact 1080×1080 correctness remains mandatory.
 - D-55: The app must survive 100+ rapid interactions without crashes, broken history, duplicate SVG nodes, stale selections, or console errors/warnings from valid data.
 - D-56: Strict TypeScript is mandatory: no `any`, no implicit function return types, no unsafe assertions used to hide incompatible DOM/API contracts, and no magic numbers where named constants apply.
 - D-57: Provide unit tests for reducer/history behavior and utilities, covering happy paths, edge cases, malformed data/storage, action limits, and error conditions. Visual SVG/component flows and final browser export may use the documented Phase 1 manual checklist.
@@ -97,6 +98,7 @@ The checked-in repository currently contains planning and guidance documents onl
 ### Release Acceptance and Next Priority
 - D-61: For this Phase 1 release, browser acceptance is local-browser-only and requires the currently installed Chrome 150 and Edge 150. Firefox, Safari, Chrome previous, Edge previous, Firefox previous, and Safari previous remain explicitly unverified/deferred by user choice; they must not be recorded as passed or certified and do not block this release.
 - D-62: The user approves shipping Europe first and accepts the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release. World and North America canvas variants are the highest-priority next-phase/backlog work immediately after Phase 1, but no region-variant implementation belongs in Phase 1.
+- D-63: Phase 1 completion is not gated by millisecond timing. Map-ready, color, undo, redo, and other recorded performance samples are advisory diagnostics, not release blockers. Earlier threshold failures and external-harness timeouts remain immutable documented observations and must not be rewritten as passing evidence. Plan 01-15 closes from the accepted final code review, final 24/24 UI audit, 145-source-test/deterministic-data/build evidence, exact 57-path integrity, Plan 01-21 browser/PNG evidence, accepted persistence/history/storage/accessibility/offline coverage, and a concise current-HEAD functional smoke in installed Chrome 150 and Edge 150. Functional stability, no crashes, clean console/product behavior, 57-path integrity, responsive correctness, and exact PNG correctness remain blocking. No CDP timing artifact or timing threshold is a prerequisite.
 
 ### Claude's Discretion
 - Choose the exact current package patch versions compatible with React 18, Vite, the installed Node runtime, and the locked stack.
@@ -115,8 +117,8 @@ The checked-in repository currently contains planning and guidance documents onl
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Locked Phase 1 Product and Implementation Authority
-- `.planning/CODEX_PROMPT.md` — Primary Phase 1 PRD, locked stack, scope, file layout, component responsibilities, concrete behavior, and acceptance checklist.
-- `.planning/PHASE1_CODEX_BRIEF.md` — Supplemental locked Phase 1 architecture, state/data/export contracts, performance/UX targets, deployment requirement, and stricter quality checklist.
+- `.planning/CODEX_PROMPT.md` — Primary Phase 1 PRD, locked stack, scope, file layout, component responsibilities, concrete behavior, and acceptance checklist, as superseded for release timing by D-63.
+- `.planning/PHASE1_CODEX_BRIEF.md` — Supplemental locked Phase 1 architecture, state/data/export contracts, performance/UX targets, deployment requirement, and stricter quality checklist, as superseded for release timing by D-63.
 
 ### Project-Level Instructions and Existing Rules
 - `CLAUDE.md` — Repository routing table, locked Phase 1 stack/wiring, guardrails, commands, documentation policy, and delegation expectations.
@@ -128,11 +130,11 @@ The checked-in repository currently contains planning and guidance documents onl
 - `.planning/coding-rules/storage.md` — `countriesirl_maps` schema, max-10 policy, save/load/delete behavior, recovery, quota handling, and persistence tests.
 - `.planning/config.json` — Delegated workflow settings and browser-only/offline project constraints.
 
-### Broader Project Context (Subordinate When Stale)
-- `.planning/REQUIREMENTS.md` — Full multi-phase requirement catalog. Use Phase 1-relevant modern-map/color/export/storage requirements; defer historical/legend/centering features according to the locked Phase 1 PRD.
+### Broader Project Context
+- `.planning/REQUIREMENTS.md` — Full multi-phase requirement catalog and D-63-aligned Phase 1 release acceptance.
 - `.planning/PROJECT.md` — Product vision, users, European focus, and non-technical creator goals.
-- `.planning/ROADMAP.md` — Phase numbering and broad goal only. Its unresolved stack choices and Phase 1 omissions are stale where they conflict with the two locked Phase 1 PRDs.
-- `.planning/STATE.md` — Current “awaiting Phase 1 planning” status only. Its pending stack/projection/rendering decisions are superseded by the locked Phase 1 PRDs.
+- `.planning/ROADMAP.md` — Phase numbering, goal, dependencies, and D-63-aligned release path.
+- `.planning/STATE.md` — Current position and accumulated decisions, including the non-blocking timing disposition.
 
 </canonical_refs>
 
@@ -148,6 +150,7 @@ The checked-in repository currently contains planning and guidance documents onl
 - The export is always a white-background Instagram square; dark UI theming must not affect it.
 - Use Natural Earth public-domain data with optional visible/documented attribution “Made with Natural Earth.”
 - Build in vertical capability order: app/test shell → state and validation → GeoJSON/map → coloring/bulk controls → persistence → export → responsive/accessibility/theme polish → production verification/deploy.
+- Preserve performance marks and failed timing evidence for diagnosis, but apply D-63 when deciding Phase 1 release readiness.
 
 </specifics>
 
@@ -170,4 +173,4 @@ The checked-in repository currently contains planning and guidance documents onl
 ---
 
 *Phase: 01-foundation-modern-map-1-1-5-weeks*
-*Context gathered: 2026-07-21 via PRD Express Path*
+*Context gathered: 2026-07-21 via PRD Express Path; release acceptance revised 2026-07-22 by explicit user decision D-63*

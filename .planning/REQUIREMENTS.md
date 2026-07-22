@@ -69,10 +69,12 @@
 
 ### Performance
 
-- [x] **NFR1** Map renders in <1 second
-- [x] **NFR2** Color changes apply instantly (no lag)
+The following performance values remain useful diagnostic targets, but Phase 1 release PASS/FAIL is governed by functional correctness under locked decision D-63. Timing samples and harness timeouts do not block release and must not be rewritten as passing evidence.
+
+- [x] **NFR1** Map render timing is instrumented against the original <1 second target; release acceptance requires functional readiness, stable 57-path integrity, no crash, and clean product behavior rather than a timing threshold.
+- [x] **NFR2** Color changes are instrumented for perceived responsiveness; color/undo/redo timing values are advisory diagnostics and functional state/history correctness is blocking.
 - **NFR3** Historical period switch completes in <500ms
-- [x] **NFR4** Export to PNG completes in <5 seconds
+- [x] **NFR4** Export timing is recorded diagnostically; release acceptance requires successful exact 1080×1080 opaque centered map-only output, correct colors, and no crash rather than a duration threshold.
 
 ### Usability
 
@@ -139,7 +141,10 @@
 
 ## Phase 1 Release Acceptance
 
-- [ ] All existing Phase 1 current-code UAT checks pass locally in the currently installed Chrome 150 and Edge 150.
+- [ ] Existing final evidence remains accepted: final code review PASS; final UI audit 24/24; Plan 01-22's clean exact-commit lint, 16 source files/145 tests, deterministic GeoJSON, strict TypeScript, build, and exact 57-path/safety result; Plan 01-21's approved Chrome 150/Edge 150 browser and exact-PNG evidence; and persistence/history/storage/accessibility/offline/no-crash coverage.
+- [ ] A concise current-HEAD functional smoke passes independently in the currently installed Chrome 150 and Edge 150 with exactly 57 unique non-empty paths, working select/color/undo/redo/reset/persistence/export sentinels, responsive correctness, and no console, runtime, crash, or required-product-network errors.
+- [ ] No map-ready, color, undo, redo, export-duration, or other performance threshold is a Phase 1 release blocker per D-63; no CDP timing artifact is required. Existing performance samples and prior harness timeouts remain truthful non-blocking observations.
+- [ ] The immutable failed timing evidence committed at `c449e6e` remains unchanged; it is neither overwritten nor represented as passing.
 - [ ] Firefox, Safari, and previous-version certification is explicitly recorded as unverified/deferred by user choice, never as passed or implicitly certified.
 - [x] The user approved the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release.
 - [ ] World and North America canvas variants remain outside Phase 1 implementation and are the highest-priority next-phase/backlog requirements (F7.1–F7.3).

@@ -10,124 +10,137 @@ updated: 2026-07-22
 
 # Phase 1 — Validation Strategy
 
-> Per-phase validation contract including the Plan 01-22 traversal correction, exact-commit clean-worktree gates, automatic immutable production evidence, and blocking human review before deployment.
+> Final Phase 1 validation contract: accepted final review/test/build/browser evidence plus a concise current-HEAD Chrome 150 and Edge 150 functional smoke. Timing remains diagnostic and non-blocking per D-63.
 
 ---
 
-## Test Infrastructure
+## Release Validation Boundary
 
-| Property | Value |
-|----------|-------|
-| **Framework** | Vitest 4.1.10; exact package identity approved in Plan 01-01 and installed by Plan 01-02 |
-| **Config file** | `vitest.config.ts` — source-scoped to `src/**/*.test.{ts,tsx}`, explicitly excludes `.claude/**`, and is guarded by `src/vitestScope.test.ts` |
-| **Focused command** | `npm run test:run -- src/utils/mapProjection.test.ts` for Plan 01-22 RED/GREEN feedback |
-| **Authoritative full gate** | In a detached clean worktree of the exact commit: `npm ci && npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` |
-| **Why isolated** | Existing nested executable evidence tooling under the main checkout is discovered by repository-wide `eslint .`; the contaminated checkout is not authoritative. |
-| **Verified pre-gap baseline** | The failed Plan 01-15 evidence passed 16 source test files / 136 tests plus deterministic data and production build; only map-ready failed, while the main-checkout lint result was environment-contaminated. |
+Phase 1 release acceptance is functional, not threshold-timing based.
 
----
+- **Blocking:** final code review PASS; final UI audit 24/24; clean lint/test/data/type/build evidence; exactly 57 unique non-empty map paths; stable no-crash selection/color/history behavior; persistence and storage recovery; responsive/accessibility/offline correctness; exact 1080×1080 opaque centered map-only PNG output; and clean Chrome 150/Edge 150 functional cells with no console, runtime, or required-product-network errors.
+- **Advisory only:** map-ready, color, undo, redo, export-duration, launch/bootstrap, ResourceTiming, and other performance samples; threshold booleans; aggregate timing fields; and earlier external-harness timeouts.
+- **Not required:** a passing CDP timing artifact, a fixed count of timing samples, completion of the earlier timing harness, or `overallPass: true` from the immutable failed timing record.
+- **Immutable history:** `.planning/ui-reviews/01-15-production-preview-rerun/acceptance-evidence.json` and `clean-gate.log`, committed at `c449e6e`, remain read-only failed timing evidence. They must not be edited, replaced, deleted, normalized, or described as passing.
 
-## Sampling Rate
-
-- **During Plan 01-22 TDD:** Run the focused projection test for RED/GREEN; after the final implementation commit, run the full unfiltered tests and all other gates in a clean detached worktree of that exact commit.
-- **After implementation waves:** Authoritative acceptance comes from exact-commit clean worktrees, not the main checkout containing nested UI-review executables.
-- **Plan 01-18 through Plan 01-21:** Completed documentation, quality, preset, export, and focused exact-browser closure work remains accepted.
-- **Plan 01-22 map-ready gap fix (Wave 12):** Add traversal-count, exact equivalence, 57-path, and malformed-geometry regressions; implement aggregate finite bounds plus one final safe path; commit; then run npm ci, lint, full unfiltered `npm run test:run`, data, type, and build in the clean worktree. Record the exact commit in `01-22-SUMMARY.md`.
-- **Plan 01-15 Task 1 (Wave 13, automatic):** Create a second clean detached worktree at the exact Plan 01-22 verified commit. Run the authoritative gate first and build exactly once. Serve that `dist` at `127.0.0.1:4173`. Create the CDP harness only in an OS temporary directory outside Git. Generate immutable JSON evidence containing 20 map-ready samples, 60 interaction samples, commit/browser/cache/transfer/service-worker/launch/bootstrap/path/pass-fail fields, plus a non-executable clean-gate log.
-- **Plan 01-15 Task 2 (Wave 13, blocking human):** Review the immutable artifact and its SHA-256, require both raw browser cells and `overallPass` to be true, then complete only the remaining visual/usability/accessibility UAT without rebuilding or editing the evidence.
-- **Before `/gsd:verify-work`:** Plan 01-22, both Plan 01-15 tasks, and Plans 01-16/01-17 must be complete.
+This boundary implements locked decision D-63 while retaining D-55 functional stability, D-58 quality gates, D-61 browser scope, D-62 Europe approval, exact export correctness, and all accepted safety/recovery evidence.
 
 ---
 
-## Deep-Review Fix Coverage
+## Test Infrastructure and Accepted Final Evidence
 
-| Review fix | Completed behavior | Automated evidence | Plan 01-15 acceptance |
-|------------|--------------------|--------------------|------------------------|
-| BL-01 | Exact/trim-equivalent saved-map names deduplicate newest-valid | `src/utils/storage.test.ts` | Task 1 automation plus Task 2 review |
-| BL-02 | Valid-subset load emits warning feedback | `src/components/SaveLoad.test.tsx` | Automated storage simulation plus manual feedback review |
-| BL-03 | Effective white and active presets are disabled/no-op | Color/reducer/component tests | Automated White→Red raw evidence plus review |
-| BL-04 | Unavailable onboarding storage read creates assertive alert | `src/App.test.tsx` | Automated failure simulation plus manual accessibility review |
-| WR-01 | Test discovery is source-only and excludes `.claude/**` | `src/vitestScope.test.ts`, `vitest.config.ts` | Clean-worktree full unfiltered test record |
-| WR-02 | Controls do not advertise unimplemented shortcuts | `src/components/Controls.test.tsx` | Clean-worktree gate |
-| WR-03 | Tooltips flip/clamp in viewport | `src/components/Tooltip.test.ts` | Automated geometry evidence plus 360px human observation |
-| WR-04 | Modal restores focus after responsive remount | SaveLoad/Controls tests | Automated focus state plus both-direction human observation |
+| Evidence | Accepted result | Plan 01-15 use |
+|----------|-----------------|----------------|
+| Final code review | PASS | Retain as accepted final implementation review; no threshold rerun required. |
+| Final UI rerun | 24/24 | Use `.planning/ui-reviews/01-rerun-20260722-011622/` as accepted responsive/visual/accessibility/export evidence. |
+| Plan 01-22 exact-commit gate | PASS | Detached commit `0ea596732f1072ab30c9287e6e90546f7a7810d3`: npm ci, lint, 16 source files/145 tests, deterministic GeoJSON, strict TypeScript, one production build, clean status. |
+| Plan 01-22 geometry | PASS | One finite projected-bounds pass, one final safe path pass, exact translation/path equivalence, 57 non-empty paths, malformed-geometry containment. |
+| Plan 01-21 browser/PNG | PASS and user-approved | Installed Chrome 150 and Edge 150; exact title/57 paths; active no-op/history behavior; four exact 1080×1080 opaque centered PNGs; clean consoles. |
+| Current-code comprehensive evidence | PASS except timing gate | Five-country flow, history/stress, persistence success/failures, responsive/theme/zoom/motion, tooltip/focus, accessibility/live regions, already-loaded offline, same-origin network, and exact export correctness. Timing fields are advisory per D-63. |
+| Failed production timing evidence | FAIL, immutable, non-blocking | Preserve commit `c449e6e`; cite failed samples and Edge harness incompletion as observations only. |
 
----
+### Current-HEAD drift check
 
-## Plan 01-15 UAT Gap Closure
+Before browser smoke, Plan 01-15 verifies that the product/test/data/package/build-config tree has not changed from Plan 01-22's exact verified implementation commit. Planning and immutable evidence commits may differ.
 
-| Gap | Confirmed defect | Closure plans | Acceptance boundary |
-|-----|------------------|---------------|---------------------|
-| Map-ready traversal | e2f9190 introduced approximately five full traversals of 129,974 coordinate positions. | 01-22 → 01-15 | Tests prove one finite bounds pass plus one final path pass with exact output; all 20 production samples remain <500ms. |
-| Development benchmark | Vite dev/StrictMode doubles expensive mount geometry and is not release evidence. | 01-15 Task 1 | Gate/build once in clean checkout, then serve production preview only. |
-| Main-checkout lint contamination | Nested executable evidence checkout/harness files are discovered by `eslint .`. | 01-22 and 01-15 Task 1 | All authoritative lint/test/data/type/build gates run in detached clean worktrees of exact recorded commits. |
-| Evidence provenance | Previous executable harness/profile/cache artifacts lived inside repository evidence trees. | 01-15 Task 1 | Harness, profiles, and caches stay in OS temp; repository retains only final non-executable JSON/log files. |
-| Benchmark semantics | Prior evidence lacked full cache/transfer/service-worker and separate launch/bootstrap metadata. | 01-15 Task 1 | Immutable JSON contains all required fields for every sample and derives browser/overall pass-fail from raw data. |
-| Human approval ordering | One checkpoint previously mixed evidence generation and review. | 01-15 Tasks 1→2 | Automation completes and freezes evidence first; human reviews it and remaining UAT second. Approval cannot override a failed raw cell. |
-| Release browser/data scope | Phase 1 is installed Chrome 150 and Edge 150 only; Natural Earth presentation is already approved. | 01-15 Task 2 | Both raw browser cells and manual checks pass; deferred browsers remain explicitly unverified. |
+```bash
+git diff --quiet 0ea596732f1072ab30c9287e6e90546f7a7810d3 HEAD -- \
+  index.html package.json package-lock.json vite.config.ts vitest.config.ts \
+  eslint.config.js tsconfig.json tsconfig.app.json tsconfig.node.json \
+  src scripts public
+```
 
-Optional GeoJSON simplification and lazy html2canvas loading are not part of this closure and may not replace the targeted traversal correction or unchanged threshold.
+A product-tree difference is blocking and must be explained and revalidated. A timing miss is not.
 
 ---
 
-## Planned Evidence Ownership
+## Plan 01-15 Validation Flow
 
-| Artifact | Owner | Mutability | Contents |
-|----------|-------|------------|----------|
-| `.planning/ui-reviews/01-15-production-preview-rerun/clean-gate.log` | Plan 01-15 Task 1 | Created once; read-only during Task 2 | Exact-commit npm ci/lint/full-test/data/type/single-build transcript |
-| `.planning/ui-reviews/01-15-production-preview-rerun/acceptance-evidence.json` | Plan 01-15 Task 1 | Created atomically once; hashed and never edited during Task 2 | Raw 20 map-ready, 60 interaction, browser/cache/transfer/service-worker/launch/bootstrap/path/check/pass-fail evidence |
-| Temporary CDP harness, browser profiles, caches | Plan 01-15 Task 1 | Ephemeral, outside repository | Harness/profiles deleted after JSON; never copied into Git |
-| Clean worktree and preview process | Task 1 creates; Task 2 cleans | Outside repository; retained only through checkpoint | Same exact commit/build for human observation without rebuilding; removed after approval or rejection |
-| `01-15-SUMMARY.md` | Plan 01-15 Task 2 closeout | Created after approval | Evidence paths/hash, exact commit, raw ranges, browser cells, manual result, deferred labels |
+### Task 1 — Accepted evidence reconciliation
+
+1. Confirm final code review PASS and final UI audit 24/24.
+2. Confirm Plan 01-22 records 16 source test files / 145 tests, deterministic GeoJSON, strict TypeScript, production build, exact 57-path equivalence, and clean exact-commit status.
+3. Confirm Plan 01-21 records approved Chrome 150/Edge 150 behavior and exact PNG integrity.
+4. Confirm accepted persistence/history/storage/accessibility/responsive/offline/no-crash evidence remains present.
+5. Run the current-HEAD product-tree drift check.
+6. Verify the immutable timing JSON/log remain byte-unchanged from commit `c449e6e`.
+7. Label all timing failures and harness timeouts as non-blocking observations per D-63.
+
+### Task 2 — Concise current-HEAD functional smoke
+
+Build current HEAD once, serve it with `npm run preview`, and run the following independently in installed Chrome 150 and Edge 150:
+
+1. Exact title and exactly 57 unique non-empty paths.
+2. Single select/color, bulk color, undo, redo, and reset with stable path count and correct history state.
+3. Save, load, and delete one local map.
+4. One desktop-to-compact/360px responsive check with exactly one active workspace.
+5. One keyboard selection/focus path.
+6. One PNG export that is 1080×1080, opaque, centered, map-only, and color-correct.
+7. Already-loaded offline color/persistence continuity without disconnected reload.
+8. No crash, console error/warning from valid product data, runtime exception, failed required same-origin product request, duplicate path, or missing path.
+
+The smoke records one functional PASS/FAIL cell per browser in `01-15-SUMMARY.md`. No timing threshold is captured or enforced. Incidental timing values may be mentioned only as advisory observations.
+
+---
+
+## Functional Coverage Retained from Final Evidence
+
+| Capability | Required evidence | Blocking failure |
+|------------|-------------------|------------------|
+| Map/data integrity | 57 unique non-empty paths, normalized Natural Earth asset, deterministic build check | Missing/duplicate/empty paths, changed unapproved dataset, crash |
+| Color/history | Single/bulk color, active no-op semantics, undo/redo/reset, 50-action bound, branch truncation | Wrong visible state/history, duplicate snapshot, crash |
+| Persistence/storage | Save/replace/list/load/delete, history reset, corrupt/partial/quota/unavailable recovery | Lost valid data, crash, silent unsafe recovery |
+| Responsive/UI | One active workspace, desktop/compact order, tooltip/focus containment, dark map correctness | Duplicate workspaces, broken focus/order, overflow blocking use |
+| Accessibility | Semantic controls, map keyboard operation, visible focus, live regions | Core flow not keyboard-operable or product errors |
+| Offline/network | Bundled same-origin assets and continued use after load | Required runtime third-party request or already-loaded core flow failure |
+| Export | Exact 1080×1080, opaque white, centered, map-only, current colors, clean lifecycle | Wrong dimensions/content/colors, transparent output, crash |
+| Browser scope | Current installed Chrome 150 and Edge 150 | Either functional cell fails |
+| Deferred scope | Firefox/Safari/previous versions unverified; Europe POV approved | False certification or reopened approved scope |
+
+---
+
+## Performance Observation Register
+
+The following remain documented but do not gate Plan 01-15 or Phase 1 release:
+
+- Earlier development/StrictMode map-ready measurements.
+- Production-preview map-ready samples, including the recorded 523.9 ms Chrome outlier.
+- Recorded color/redo samples over prior thresholds.
+- Incomplete Edge timing record after external-harness attempts.
+- Browser launch/bootstrap/resource/cache/service-worker fields.
+- Any export-duration value, provided exact export correctness and no-crash behavior pass.
+
+No observation may be deleted or rewritten as passing. D-63 changes disposition, not history.
 
 ---
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Artifact | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|----------|--------|
-| 01-01-01 | 01 | 1 | NFR4/NFR5 | T-01-SC | Exact package identities approved | human/package | Registry/source verification | external | complete |
-| 01-02-01 | 02 | 2 | NFR1/NFR2/NFR4 | T-01-SC | Exact audited packages/lockfile | CLI | `npm ls --depth=0` | yes | complete |
-| 01-03 through 01-14 | 03-14 | 3-9 | Phase implementation requirements | Existing registers | State/data/map/export/UI implementation and historical gate | unit/integration/build | Existing plan commands | yes | complete |
-| 01-19-01 | 19 | 10 | F1.3/F1.4/NFR5/NFR11 | T-01-54/T-01-55 | Native preset disabled state | component/static | Focused component/type/build | yes | complete |
-| 01-20-01 | 20 | 10 | F5.1/F5.3/NFR4/NFR5 | T-01-56/T-01-57/T-01-58 | Connected download lifecycle | unit/build | Focused export/type/build | yes | complete |
-| 01-21-01 | 21 | 11 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | T-01-59/T-01-60/T-01-61 | Exact-browser no-op/download evidence | full/browser | Recorded objective evidence | external | complete |
-| 01-22-01 | 22 | 12 | F1.1/F5.1/NFR1/NFR5 | T-01-63/T-01-64/T-01-65 | Traversal/equivalence/safety plus exact-commit clean gate | tdd/unit/build | Focused test, then clean `npm ci`, lint, full unfiltered tests, data, type, build | `01-22-SUMMARY.md` | pending |
-| 01-15-01 | 15 | 13 | all phase requirements | T-01-38/T-01-39/T-01-40/T-01-42 | Clean exact-commit gate, one build, out-of-repo harness, immutable machine evidence | full/browser/automatic | Schema/count verification of generated evidence | JSON/log | pending |
-| 01-15-02 | 15 | 13 | all phase requirements | T-01-38/T-01-40 | Human review cannot override failed raw cells | browser/human | Assert `overallPass` and both browser cells before review | external | pending |
-| 01-16-01 | 16 | 14 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
-| 01-17-01 | 17 | 15 | F5.1/NFR5 | T-01-47/T-01-48 | Production root/data/browser verification | network/human | Production assertions plus checkpoint | external | pending |
-
----
-
-## Manual-Only Verifications
-
-Machine-verifiable gate, timing, cache, sample-count, path-count, interaction, stress, storage, export-file, responsive-state, console/network, and browser-cell evidence belongs to Plan 01-15 Task 1. The human does not recreate it.
-
-| Remaining human observation | Requirement | Task 2 check |
-|-----------------------------|-------------|--------------|
-| Evidence provenance and raw-cell review | NFR1/NFR2/NFR5 | Verify SHA-256, exact commit, clean gate, all raw samples/metadata, and both pass cells |
-| Five-country flow/onboarding clarity | NFR5/NFR6 | Complete under two minutes; dismissal persists; Show Help reopens |
-| Visual hover/selection/focus/custom-error clarity | F1.2/F1.3/NFR11 | Confirm non-color cues and understandable feedback |
-| 360px tooltips and 1200px modal focus | NFR7/NFR11 | Observe containment and both remount directions |
-| Theme, 200% zoom, reduced motion, keyboard/live regions | NFR7/NFR11 | Observe final interactive behavior |
-| Visual PNG quality | F5.1/F5.3/NFR4 | Inspect opaque map-only output after machine dimensions/pixels/download pass |
-| Deferred-browser and Natural Earth record | F1.1/NFR5 | Preserve explicit unverified labels and existing approval |
+| Task ID | Plan | Wave | Requirement | Automated evidence | Human evidence | Status |
+|---------|------|------|-------------|--------------------|----------------|--------|
+| 01-01 through 01-14 | 01-14 | 1-9 | Phase implementation requirements | Existing plan commands and summaries | Existing review/UAT | complete |
+| 01-19-01 | 19 | 10 | F1.3/F1.4/NFR5/NFR11 | Focused component/type/build | Accepted behavior | complete |
+| 01-20-01 | 20 | 10 | F5.1/F5.3/NFR4/NFR5 | Focused export/type/build | Accepted download behavior | complete |
+| 01-21-01 | 21 | 11 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | Objective exact-browser/PNG evidence | Explicit user approval | complete |
+| 01-22-01 | 22 | 12 | F1.1/F5.1/NFR1/NFR5 | Focused traversal tests plus clean npm ci/lint/145 tests/data/type/build | None required | complete |
+| 01-15-01 | 15 | 13 | all Phase 1 requirements | Product-tree/evidence/immutable-record integrity checks | None | pending |
+| 01-15-02 | 15 | 13 | all Phase 1 requirements | Current build and immutable-record checks | Clean Chrome 150 and Edge 150 functional cells | pending |
+| 01-16-01 | 16 | 14 | NFR5 | Vercel identity/link/deploy inspection | Authorization | pending |
+| 01-17-01 | 17 | 15 | F5.1/NFR5 | Production root/data assertions | Production browser/network verification | pending |
 
 ---
 
 ## Validation Sign-Off
 
-- [x] Plan 01-22 runs focused TDD feedback and then a full unfiltered authoritative gate in a clean worktree of the exact commit.
-- [x] Plan 01-15 runs the same authoritative clean gate before evidence generation and builds exactly once for preview.
-- [x] No executable evidence harness, browser profile, or cache artifact is retained under the repository.
-- [x] The exact clean worktree/preview remains outside Git through Task 2 for same-build manual checks, then Task 2 removes it after approval or rejection.
-- [x] Task 1 automatically generates immutable JSON/log evidence before Task 2 requests human approval.
-- [x] Evidence includes exactly 20 map-ready and 60 interaction samples, exact versions/build/commit, cache/transfer/service-worker fields, launch/bootstrap fields, path counts, failed checks, browser cells, and overall pass.
-- [x] Every map-ready sample remains <500ms and every effective interaction sample remains <100ms; no aggregation or sample replacement is allowed.
-- [x] Task 2 can approve only when the immutable raw record, both browser cells, and all remaining manual UAT pass.
-- [x] All prior persistence, export, accessibility, responsive, stress, offline, browser-scope, and data-approval checks remain covered.
-- [x] Deferred browsers remain unverified and optional GeoJSON/html2canvas optimizations remain outside this gap.
+- [x] Final code review PASS and final UI audit 24/24 remain accepted evidence.
+- [x] Plan 01-22 records 16 source files/145 tests, deterministic GeoJSON, strict TypeScript, build, exact 57 paths, and traversal safety.
+- [x] Plan 01-21 records approved Chrome 150/Edge 150 functional and exact-PNG evidence.
+- [x] Persistence/history/storage/accessibility/responsive/offline/no-crash evidence remains part of the release contract.
+- [x] D-63 makes timing values and harness timeouts advisory rather than release-blocking.
+- [x] Immutable failed timing evidence remains truthful, read-only, and non-blocking.
+- [x] Plan 01-15 requires a concise current-HEAD functional smoke in both installed browsers with clean console/product state.
+- [x] No CDP timing artifact, timing threshold, sample count, or `overallPass` timing field is required.
+- [x] Deferred browsers remain unverified and the Natural Earth Europe presentation remains approved.
 - [x] `nyquist_compliant: true` and `wave_0_complete: true` remain set.
 
-**Approval:** checker-blocker revision approved for planning 2026-07-22; execute Plan 01-22, then Plan 01-15 automatic evidence generation and blocking review, then deployment.
+**Approval:** planning revised by explicit user decision D-63 on 2026-07-22. Execute Plan 01-15 functional acceptance next; do not mark it complete or deploy during planning.

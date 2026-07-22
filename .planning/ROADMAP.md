@@ -58,10 +58,10 @@ Plans:
 **Wave 12** *(blocked on Wave 11 completion)*
 - [x] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
 
-**Wave 13** *(blocked on the Wave 12 map-ready fix)*
-- [ ] 01-15-PLAN.md — Automatically generate exact-commit clean-gate and production-preview JSON/log evidence outside repo tooling, then block for human raw-record and remaining-UAT approval
+**Wave 13** *(blocked on the completed Wave 12 product/gate evidence)*
+- [ ] 01-15-PLAN.md — Reconcile accepted final code/UI/test/build/browser evidence and close local release acceptance with concise current-HEAD functional smoke in Chrome 150 and Edge 150; timing observations are non-blocking per D-63
 
-**Wave 14** *(blocked on Wave 13 completion)*
+**Wave 14** *(blocked on Plan 01-15 functional approval)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
 
 **Wave 15** *(blocked on Wave 14 completion)*
@@ -69,15 +69,17 @@ Plans:
 
 Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
-- Every exported PNG is exactly 1080×1080, opaque white, map-only, and independent of device pixel ratio or dark theme.
+- Every exported PNG is exactly 1080×1080, opaque white, map-only, centered, and independent of device pixel ratio or dark theme.
 - Selection, focus, errors, and operation results remain keyboard/screen-reader accessible and never rely on color alone.
 - Effective white is canonical: selecting an uncolored country leaves White active and natively disabled; applying another preset transfers that active disabled state, and active-color attempts create no history, status, or color timing mark.
 - Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
 - Default automated test discovery is source-scoped to `src/**/*.test.{ts,tsx}` and excludes `.claude/**` agent worktrees.
-- Map-ready release evidence uses one production build from an exact-commit detached clean worktree, controls five cold and five warm cache samples per installed browser, records transfer/cache/service-worker metadata, reports browser launch/bootstrap separately, and keeps every sample strictly below 500ms.
-- Authoritative lint/full-test/data/type/build gates never run in the main checkout containing nested evidence executables; CDP harnesses/profiles stay in OS temp and only non-executable immutable JSON/log evidence is retained.
+- Plan 01-22's exact-commit clean gate, 145 source tests, deterministic GeoJSON/build, strict TypeScript, traversal safety, and 57-path equivalence remain accepted final evidence.
+- Plan 01-21's approved installed Chrome 150/Edge 150 browser and exact-PNG evidence remains accepted, supplemented by one concise current-HEAD functional smoke per browser in Plan 01-15.
+- Per D-63, map-ready/color/undo/redo/export-duration samples, threshold fields, and earlier harness timeouts are advisory diagnostics only. They remain documented truthfully but do not block Phase 1 and no CDP timing artifact is required.
+- Authoritative functional acceptance still requires stable/no-crash behavior, exactly 57 unique non-empty paths, clean console/runtime/product-network state, correct history/persistence/storage recovery, responsive/accessibility/offline behavior, and exact PNG correctness.
+- The immutable failed timing evidence committed at `c449e6e` must not be rewritten, overwritten, deleted, or represented as passing.
 - Phase 1 release browser acceptance is local-browser-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and all previous-version certification remain explicitly unverified/deferred by user choice and must never be reported as passed.
-- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, both installed-browser cells, the recorded Natural Earth Europe approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
 - Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees; modal focus restoration follows the currently mounted responsive control after a 1200px remount.
 
@@ -93,7 +95,8 @@ Cross-cutting constraints:
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
 - One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
 - Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, focus helpers, and projection traversal/equivalence safety
-- Immutable exact-commit production-preview JSON/log evidence: clean gate, one build, five cold and five warm samples per installed Chrome 150 and Edge 150, every sample <500ms with cache/transfer/service-worker and launch/bootstrap fields, 60 interaction samples <100ms, raw browser pass cells, human review, and a production Vercel URL
+- Final accepted evidence inventory: code review PASS, UI audit 24/24, 145 source tests, deterministic GeoJSON/build, exact 57-path integrity, Plan 01-21 browser/PNG evidence, functional persistence/history/storage/accessibility/offline coverage, and current-HEAD Chrome 150/Edge 150 smoke
+- Immutable failed timing evidence retained as a non-blocking diagnostic record, followed by a production Vercel URL after Plans 01-16 and 01-17
 
 ### Key Decisions
 
@@ -108,8 +111,9 @@ Cross-cutting constraints:
 - [x] Phase 1 browser certification limited by user choice to installed Chrome 150 and Edge 150; Firefox/Safari/previous versions remain unverified/deferred
 - [x] Ship Europe first, then prioritize World and North America canvas variants immediately after Phase 1
 - [x] Human Vercel authorization before automated deployment
-- [x] Keep the <500ms per-sample map-ready threshold and correct redundant geometry traversal rather than weakening acceptance
-- [x] Use isolated exact-commit clean gates and out-of-repository executable browser tooling; retain only immutable non-executable JSON/log evidence
+- [x] Correct the redundant geometry traversal while preserving exact 57-path output and final functional behavior
+- [x] Use isolated exact-commit clean gates and retain immutable non-executable evidence without rewriting failed historical records
+- [x] D-63 supersedes threshold-based release gating: timing data remains advisory; functional stability, no-crash/error behavior, path integrity, responsive/accessibility/offline correctness, and exact export correctness determine local acceptance
 
 ### Out of Scope (Phase 1)
 
@@ -119,7 +123,7 @@ Cross-cutting constraints:
 - SVG export, batch/timelapse export, ZIP workflows
 - Cloud sync, authentication, sharing URLs, analytics, or server infrastructure
 - World and North America canvas variants are out of Phase 1 implementation but are the highest-priority next-phase work; other non-European maps, native mobile app, hatching/patterns, and advanced palette hotkeys remain later scope
-- GeoJSON simplification and lazy html2canvas loading are not required for the map-ready gap closure and may not replace the targeted traversal correction
+- GeoJSON simplification and lazy html2canvas loading are not required for Phase 1 closeout; any later optimization may use the preserved diagnostic evidence without reopening release acceptance
 
 ---
 
@@ -226,9 +230,9 @@ Cross-cutting constraints:
 ## Risks & Mitigations
 
 | Risk | Impact | Mitigation |
-|------|--------|-----------|
+|------|--------|------------|
 | Historical border data sparse/inaccurate | Medium | Start with best-documented regions (Poland, Balkans); use academic sources; label uncertain periods |
-| Map rendering performance slow or falsely measured | High | Correct traversal, gate/build one exact commit in a clean worktree, collect immutable raw cold/warm evidence with an out-of-repo harness, and require human review of passing browser cells |
+| Map rendering performance varies by browser/machine | Medium | Preserve immutable diagnostic samples and performance marks for later optimization; do not block Phase 1 when functional Chrome/Edge cells, 57-path integrity, no-crash/error behavior, and exact export correctness pass per D-63 |
 | Centering projection distorts far regions | Medium | Use Azimuthal Equidistant; document limitations; offer "full world view" option |
 | Browser storage quota exceeded | Low | Limit saved maps to 10 and surface typed quota/unavailable errors |
 | Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2; iterate UI based on feedback |
@@ -259,7 +263,7 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Full UAT** → Execute Plan 01-15 Task 1 for clean-gate/one-build immutable JSON evidence, then Task 2 for raw-record and remaining manual UAT approval
-2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
+1. **Phase 1 Functional UAT** → Execute revised Plan 01-15: reconcile accepted final evidence, verify the immutable timing record remains unchanged/non-blocking, and complete concise current-HEAD Chrome 150/Edge 150 functional smoke with clean browser cells and no timing thresholds
+2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 only after Plan 01-15 functional approval
 3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
 4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends
