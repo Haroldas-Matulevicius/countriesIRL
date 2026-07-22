@@ -100,25 +100,18 @@
 }
 
 .map-workspace__skeleton {
-  display: grid;
-  width: min(64%, 360px);
-  margin-bottom: var(--space-lg);
-  gap: var(--space-sm);
-}
-
-.map-workspace__skeleton span {
   display: block;
-  min-height: var(--space-md);
-  border-radius: var(--radius-control);
-  background: #e5e7eb;
+  width: min(72%, 360px);
+  margin-bottom: var(--space-lg);
+  fill: #e5e7eb;
+  stroke: #d1d5db;
+  stroke-linejoin: round;
+  stroke-width: 2px;
 }
 
-.map-workspace__skeleton span:nth-child(2) {
-  width: 75%;
-}
-
-.map-workspace__skeleton span:nth-child(3) {
-  width: 48%;
+.map-workspace__skeleton path:nth-child(2n),
+.map-workspace__skeleton circle:nth-child(2n) {
+  opacity: 0.72;
 }
 
 .map-workspace__warning {
