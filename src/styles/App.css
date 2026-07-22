@@ -1,0 +1,202 @@
+#root {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow-x: hidden;
+}
+
+.app > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: calc(var(--space-lg) + env(safe-area-inset-top))
+    calc(var(--space-xl) + env(safe-area-inset-right)) var(--space-lg)
+    calc(var(--space-xl) + env(safe-area-inset-left));
+  gap: var(--space-lg);
+}
+
+.app > header > div {
+  min-width: 0;
+}
+
+.app > header h1 {
+  margin-bottom: var(--space-xs);
+  overflow-wrap: anywhere;
+}
+
+.app > header p {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.app > header button {
+  flex: 0 0 auto;
+  padding: var(--space-sm) var(--space-md);
+}
+
+.app > aside {
+  width: calc(100% - (var(--space-xl) * 2));
+  max-width: 1376px;
+  margin: 0 auto var(--space-lg);
+  padding: var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-left: var(--space-xs) solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--surface-accent-tint);
+}
+
+.app > aside h2 {
+  margin-bottom: var(--space-sm);
+}
+
+.app > aside p,
+.app > aside ol {
+  margin-bottom: var(--space-md);
+}
+
+.app > aside ol {
+  padding-left: var(--space-lg);
+}
+
+.app > aside li + li {
+  margin-top: var(--space-xs);
+}
+
+.app > aside > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.app > aside button {
+  padding: var(--space-sm) var(--space-md);
+}
+
+.app > aside button:first-child {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.app > aside button:first-child:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(0.92);
+}
+
+.workspace {
+  width: 100%;
+  max-width: 1440px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 0 var(--space-xl) var(--space-xl);
+}
+
+.workspace--desktop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: var(--space-lg);
+}
+
+.workspace__map,
+.workspace__control-column,
+.workspace__actions,
+.workspace__selection-color,
+.workspace__country-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace__control-column {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--space-3xl));
+  max-height: calc(100dvh - var(--space-3xl));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: var(--space-lg);
+  padding: var(--focus-offset);
+}
+
+.workspace--compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-lg);
+}
+
+.workspace--compact .workspace__actions,
+.workspace--compact .workspace__map {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1199px) {
+  .app > header {
+    padding-right: calc(var(--space-lg) + env(safe-area-inset-right));
+    padding-left: calc(var(--space-lg) + env(safe-area-inset-left));
+  }
+
+  .app > aside {
+    width: calc(100% - (var(--space-lg) * 2));
+  }
+
+  .workspace {
+    padding-right: var(--space-lg);
+    padding-bottom: var(--space-lg);
+    padding-left: var(--space-lg);
+  }
+}
+
+@media (max-width: 899px) {
+  .workspace--compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace--compact .workspace__actions,
+  .workspace--compact .workspace__map {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .app > header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-right: calc(var(--space-md) + env(safe-area-inset-right));
+    padding-bottom: var(--space-md);
+    padding-left: calc(var(--space-md) + env(safe-area-inset-left));
+    gap: var(--space-md);
+  }
+
+  .app > header button {
+    width: 100%;
+  }
+
+  .app > aside {
+    width: calc(100% - (var(--space-md) * 2));
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+  }
+
+  .app > aside > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace {
+    padding-right: calc(var(--space-md) + env(safe-area-inset-right));
+    padding-bottom: var(--space-md);
+    padding-left: calc(var(--space-md) + env(safe-area-inset-left));
+    gap: var(--space-md);
+  }
+}
