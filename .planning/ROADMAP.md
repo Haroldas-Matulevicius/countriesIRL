@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 14/18 plans executed
+**Plans:** 15/18 plans executed
 
 Plans:
 
@@ -46,7 +46,7 @@ Plans:
 - [x] 01-18-PLAN.md — Gap closure: correct README scope/stack claims before rerunning Plan 01-14
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 01-14-PLAN.md — Rerun the immutable verification-only lint/test/determinism/build gate after 01-18
+- [x] 01-14-PLAN.md — Rerun the immutable verification-only lint/test/determinism/build gate after 01-18
 
 **Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
