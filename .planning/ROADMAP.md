@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 18/22 plans executed
+**Plans:** 19/22 plans executed
 
 Plans:
 
@@ -56,7 +56,7 @@ Plans:
 - [x] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
+- [x] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
 
 **Wave 13** *(blocked on the Wave 12 map-ready fix)*
 - [ ] 01-15-PLAN.md — Automatically generate exact-commit clean-gate and production-preview JSON/log evidence outside repo tooling, then block for human raw-record and remaining-UAT approval
@@ -259,8 +259,7 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Map-Ready Fix** → Execute Plan 01-22, then record the exact implementation commit and its isolated focused/full unfiltered gate
-2. **Phase 1 Full UAT** → Execute Plan 01-15 Task 1 for clean-gate/one-build immutable JSON evidence, then Task 2 for raw-record and remaining manual UAT approval
-3. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
-4. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
-5. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends
+1. **Phase 1 Full UAT** → Execute Plan 01-15 Task 1 for clean-gate/one-build immutable JSON evidence, then Task 2 for raw-record and remaining manual UAT approval
+2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
+3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
+4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready
-stopped_at: Revised Plans 01-22 and 01-15 for exact-commit clean gates and immutable evidence
-last_updated: "2026-07-22T09:20:24-05:00"
-last_activity: 2026-07-22 -- Cleared checker blockers with isolated gates, automatic evidence generation, and human raw-record review
+stopped_at: Completed 01-22-PLAN.md
+last_updated: "2026-07-22T14:53:04.402Z"
+last_activity: 2026-07-22 -- Completed Plan 01-22 traversal deduplication with exact 57-path equivalence and clean gate
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 22
-  completed_plans: 18
-  percent: 82
+  completed_plans: 19
+  percent: 86
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Next plans: 01-22, then 01-15, of 22 in current phase
+Next plans: 01-15, then 01-16 and 01-17, of 22 in current phase
 Execution graph: 22 plans across 15 waves
-Status: Plan 01-22 clean-gated fix precedes Plan 01-15 automatic immutable evidence and blocking human review
-Last activity: 2026-07-22 -- Cleared checker blockers with isolated gates, automatic evidence generation, and human raw-record review
+Status: Plan 01-22 complete and exact-commit clean-gated; Plan 01-15 is next for immutable production evidence and blocking human review
+Last activity: 2026-07-22 -- Completed Plan 01-22 traversal deduplication with exact 57-path equivalence and clean gate
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 82%
 | Phase 01 P19 | 2 min | 1 task | 2 files |
 | Phase 01 P20 | 10 min | 1 task | 3 files |
 | Phase 01 P21 | 2 min | 1 task | 3 files |
+| Phase 01 P22 | 12 min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -120,14 +121,12 @@ Progress: [████████░░] 82%
 
 ### Pending Todos
 
-- Execute Plan 01-22: implement traversal correction, commit it, then record the exact commit passing focused and full unfiltered gates in a detached clean worktree.
 - Execute Plan 01-15 Task 1 to clean-gate/build once and generate immutable JSON/log evidence with an out-of-repo harness; then Task 2 reviews raw passing browser cells and remaining manual UAT.
 - Complete Plans 01-16 and 01-17 deployment and production verification only after Plan 01-15 approval.
 - Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
 
 ### Blockers/Concerns
 
-- Plan 01-15 is blocked on Plan 01-22 because current production map-ready is 533–713ms from redundant geometry traversal; the threshold remains unchanged.
 - The failed Vite development evidence is inflated by React StrictMode and cannot serve as release-performance evidence. The main checkout is also non-authoritative for `eslint .` while nested executable evidence tooling remains untracked.
 - Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
 
@@ -148,6 +147,6 @@ Progress: [████████░░] 82%
 
 ## Session Continuity
 
-Last session: 2026-07-22T09:20:24-05:00
-Stopped at: Revised Plans 01-22 and 01-15 for exact-commit clean gates and immutable evidence
+Last session: 2026-07-22T14:53:03.883Z
+Stopped at: Completed 01-22-PLAN.md
 Resume file: None
