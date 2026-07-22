@@ -27,8 +27,111 @@ export interface TooltipPosition {
 
 interface MeasuredTooltipPosition extends TooltipPosition {
   countryId: string;
+  inputMethod: MapTooltipData['inputMethod'];
   anchorX: number;
   anchorY: number;
+}
+
+export interface TooltipAnchorElement {
+  getBoundingClientRect: () => Pick<
+    DOMRect,
+    'left' | 'top' | 'width' | 'height'
+  >;
+}
+
+interface TooltipMovementEventTarget {
+  addEventListener: (
+    type: 'scroll' | 'resize',
+    listener: EventListener,
+    options?: boolean,
+  ) => void;
+  removeEventListener: (
+    type: 'scroll' | 'resize',
+    listener: EventListener,
+    options?: boolean,
+  ) => void;
+}
+
+interface TooltipResizeObserver {
+  observe: (anchorElement: TooltipAnchorElement) => void;
+  disconnect: () => void;
+}
+
+interface ObserveKeyboardTooltipAnchorOptions {
+  anchorElement: TooltipAnchorElement;
+  onPositionChange: (position: MapTooltipData['position']) => void;
+  eventTarget?: TooltipMovementEventTarget;
+  requestFrame?: (callback: FrameRequestCallback) => number;
+  cancelFrame?: (handle: number) => void;
+  createResizeObserver?: (
+    callback: () => void,
+  ) => TooltipResizeObserver | null;
+}
+
+function getAnchorPosition(
+  anchorElement: TooltipAnchorElement,
+): MapTooltipData['position'] {
+  const bounds = anchorElement.getBoundingClientRect();
+  return {
+    x: bounds.left + bounds.width / 2,
+    y: bounds.top + bounds.height / 2,
+  };
+}
+
+function createDefaultResizeObserver(
+  callback: () => void,
+): TooltipResizeObserver | null {
+  if (typeof ResizeObserver === 'undefined') {
+    return null;
+  }
+
+  const observer = new ResizeObserver(callback);
+  return {
+    observe: (anchorElement): void => {
+      observer.observe(anchorElement as Element);
+    },
+    disconnect: (): void => observer.disconnect(),
+  };
+}
+
+export function observeKeyboardTooltipAnchor({
+  anchorElement,
+  onPositionChange,
+  eventTarget = window,
+  requestFrame = requestAnimationFrame,
+  cancelFrame = cancelAnimationFrame,
+  createResizeObserver = createDefaultResizeObserver,
+}: ObserveKeyboardTooltipAnchorOptions): () => void {
+  let frameHandle: number | null = null;
+  let isActive = true;
+
+  const refreshPosition = (): void => {
+    frameHandle = null;
+    if (isActive) {
+      onPositionChange(getAnchorPosition(anchorElement));
+    }
+  };
+  const schedulePositionRefresh = (): void => {
+    if (isActive && frameHandle === null) {
+      frameHandle = requestFrame(refreshPosition);
+    }
+  };
+  const resizeObserver = createResizeObserver(schedulePositionRefresh);
+
+  eventTarget.addEventListener('scroll', schedulePositionRefresh, true);
+  eventTarget.addEventListener('resize', schedulePositionRefresh);
+  resizeObserver?.observe(anchorElement);
+
+  return (): void => {
+    isActive = false;
+    eventTarget.removeEventListener('scroll', schedulePositionRefresh, true);
+    eventTarget.removeEventListener('resize', schedulePositionRefresh);
+    resizeObserver?.disconnect();
+
+    if (frameHandle !== null) {
+      cancelFrame(frameHandle);
+    }
+  };
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -75,29 +178,43 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
   const [measuredPosition, setMeasuredPosition] =
     useState<MeasuredTooltipPosition | null>(null);
 
-  useLayoutEffect((): void => {
+  useLayoutEffect((): (() => void) | undefined => {
     const tooltip = tooltipRef.current;
     if (data === null || tooltip === null) {
-      return;
+      return undefined;
     }
 
-    const bounds = tooltip.getBoundingClientRect();
-    const position = calculateTooltipPosition({
-      anchorX: data.position.x,
-      anchorY: data.position.y,
-      tooltipWidth: bounds.width,
-      tooltipHeight: bounds.height,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-      inputMethod: data.inputMethod,
-    });
+    const refreshPosition = (anchorPosition: MapTooltipData['position']): void => {
+      const bounds = tooltip.getBoundingClientRect();
+      const position = calculateTooltipPosition({
+        anchorX: anchorPosition.x,
+        anchorY: anchorPosition.y,
+        tooltipWidth: bounds.width,
+        tooltipHeight: bounds.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        inputMethod: data.inputMethod,
+      });
 
-    setMeasuredPosition({
-      ...position,
-      countryId: data.countryId,
-      anchorX: data.position.x,
-      anchorY: data.position.y,
-    });
+      setMeasuredPosition({
+        ...position,
+        countryId: data.countryId,
+        inputMethod: data.inputMethod,
+        anchorX: anchorPosition.x,
+        anchorY: anchorPosition.y,
+      });
+    };
+
+    if (data.inputMethod === 'keyboard') {
+      refreshPosition(getAnchorPosition(data.anchorElement));
+      return observeKeyboardTooltipAnchor({
+        anchorElement: data.anchorElement,
+        onPositionChange: refreshPosition,
+      });
+    }
+
+    refreshPosition(data.position);
+    return undefined;
   }, [data]);
 
   if (data === null) {
@@ -106,8 +223,10 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
 
   const isPositionCurrent =
     measuredPosition?.countryId === data.countryId &&
-    measuredPosition.anchorX === data.position.x &&
-    measuredPosition.anchorY === data.position.y;
+    measuredPosition.inputMethod === data.inputMethod &&
+    (data.inputMethod === 'keyboard' ||
+      (measuredPosition.anchorX === data.position.x &&
+        measuredPosition.anchorY === data.position.y));
   const positionStyle: CSSProperties = isPositionCurrent
     ? { left: measuredPosition.left, top: measuredPosition.top }
     : { left: data.position.x, top: data.position.y, visibility: 'hidden' };

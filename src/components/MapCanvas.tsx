@@ -60,16 +60,22 @@ const FIXED_EUROPE_VIEW_OBJECT: Feature<Polygon> = {
   },
 };
 
-export interface MapTooltipData {
+interface MapTooltipContent {
   countryId: CountryId;
   countryName: string;
   color: string;
-  inputMethod: 'pointer' | 'keyboard';
   position: {
     x: number;
     y: number;
   };
 }
+
+export type MapTooltipData =
+  | (MapTooltipContent & { inputMethod: 'pointer' })
+  | (MapTooltipContent & {
+      inputMethod: 'keyboard';
+      anchorElement: SVGPathElement;
+    });
 
 interface MapCanvasProps {
   features: ReadonlyArray<GeoFeature>;
@@ -159,6 +165,7 @@ function keyboardTooltipData(
     countryName: feature.properties.name,
     color,
     inputMethod: 'keyboard',
+    anchorElement: pathElement,
     position: {
       x: bounds.left + bounds.width / 2,
       y: bounds.top + bounds.height / 2,
