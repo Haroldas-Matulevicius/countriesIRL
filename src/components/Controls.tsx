@@ -61,7 +61,7 @@ export function Controls({
           type="button"
           onClick={onUndo}
           disabled={!isMapReady || !canUndo}
-          title="Undo the most recent color change (Ctrl/Cmd+Z)"
+          title="Undo the most recent color change"
         >
           Undo Color Change
         </button>
@@ -69,7 +69,7 @@ export function Controls({
           type="button"
           onClick={onRedo}
           disabled={!isMapReady || !canRedo}
-          title="Redo the most recently undone color change (Ctrl/Cmd+Shift+Z)"
+          title="Redo the most recently undone color change"
         >
           Redo Color Change
         </button>
