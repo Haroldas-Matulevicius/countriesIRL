@@ -42,6 +42,7 @@ export default function App(): JSX.Element {
   const geoData = useGeoData();
   const {
     onboardingDismissed,
+    error: persistenceError,
     isPersistenceAvailable,
     dismissOnboarding,
   } = useLocalStorage();
@@ -50,13 +51,22 @@ export default function App(): JSX.Element {
   const exportHandlerRef = useRef<() => void>(() => undefined);
   const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
-  const toastCounterRef = useRef(0);
+  const hasInitialStorageError = persistenceError === 'storage-unavailable';
+  const toastCounterRef = useRef(hasInitialStorageError ? 1 : 0);
   const [isHelpVisible, setIsHelpVisible] = useState(
     () => !onboardingDismissed,
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
+  const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
+    hasInitialStorageError
+      ? {
+          id: 'countriesirl-message-1',
+          severity: 'error',
+          message: TOAST_MESSAGES.storageUnavailable,
+        }
+      : null,
+  );
 
   const isMapReady = geoData.status === 'ready';
   const isHelpAvailable = geoData.status !== 'error';
