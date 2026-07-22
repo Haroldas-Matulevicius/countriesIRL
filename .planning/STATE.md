@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 1 local closeout complete; ready for final goal verification
-last_updated: "2026-07-22T18:13:15.399Z"
-last_activity: 2026-07-22 -- Accepted Chrome 150/Edge 150 UAT and closed Phase 1 for localhost use
+status: ready_to_plan
+stopped_at: Phase 1 independently verified and locally complete; Phase 2 queued but not started
+last_updated: 2026-07-22T18:35:25.848Z
+last_activity: 2026-07-22 -- Independent goal verification passed; Phase 1 locally complete
 progress:
   total_phases: 3
   completed_phases: 1
@@ -21,15 +21,15 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 **Core value:** Help non-technical Instagram creators produce accurate, polished European choropleth maps quickly.
-**Current focus:** Phase 1 — Foundation & Modern Map
+**Current focus:** Phase 1 verified closeout complete; Phase 2 region variants are queued but not started
 
 ## Current Position
 
-Phase: 1 of 3 (Foundation & Modern Map)
-Next step: Final Phase 1 goal verification
-Execution graph: 22 plans across 15 waves; all plans closed
-Status: Local Phase 1 implementation and functional acceptance are complete; deployment plans 01-16 and 01-17 are explicitly deferred and do not block verification
-Last activity: 2026-07-22 -- Accepted Chrome 150/Edge 150 UAT and closed Phase 1 for localhost use
+Phase: 1 of 3 complete (Foundation & Modern Map); Phase 2 is next and unstarted
+Next step: When explicitly requested, discuss and plan Phase 2 starting with F7.1–F7.3 World and North America canvas variants
+Execution graph: 22 plans across 15 waves; all plans closed; zero incomplete Phase 1 plans
+Status: Phase 1 independently verified PASS for localhost-only scope — 73/73 active must-haves, 7/7 deployment must-haves deferred, and 18/18 requirements satisfied
+Last activity: 2026-07-22 -- Independent goal verification passed; Phase 1 locally complete with no deployment and no Phase 2 implementation
 
 Progress: [██████████] 100%
 
@@ -123,11 +123,11 @@ Progress: [██████████] 100%
 - [Phase 01 release completion, D-63]: The user explicitly directs that Phase 1 stop gating on millisecond timing and finish on functional correctness. Map-ready, color, undo, redo, export-duration, and other performance samples plus earlier harness timeouts are advisory diagnostics only. Final code review PASS, UI audit 24/24, 145 source tests, deterministic GeoJSON/build, 57-path integrity, Plan 01-21 browser/PNG evidence, accepted persistence/history/storage/accessibility/offline behavior, and concise current-HEAD Chrome 150/Edge 150 functional smoke determine Plan 01-15. Functional stability, no crashes, clean console/product behavior, responsive correctness, and exact export correctness remain blocking. The immutable failed timing evidence at commit c449e6e must not be rewritten and no CDP timing artifact is required.
 - [Phase 01 final functional approval]: The user directly supplied `approved` for Plan 01-15. — Chrome 150 and Edge 150 are accepted as PASS with 57 unique non-empty labeled paths, complete local workflows, clean runtime behavior, and identical exact PNG hash `682b99c8c37c6189bea1d0bae09199c31da2a8fad5010e620ff12f6de3bab399`.
 - [Phase 01 local-only closeout]: Plans 01-16 and 01-17 are closed as deferred by user choice. — No Vercel authentication, linking, deployment, production verification, or production URL occurred; optional future deployment does not block local Phase 1 completion.
+- [Phase 01 final goal verification]: Independent goal-backward verification passed for the approved localhost-only scope. — All 73 active must-haves and all 18 Phase 1 requirements are satisfied; the seven deployment-only must-haves are explicitly deferred under Plans 01-16 and 01-17, with no product-tree drift, deployment, or Phase 2 work.
 
 ### Pending Todos
 
-- Run final Phase 1 goal verification with the GSD verifier.
-- Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
+- When explicitly requested, plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
 - If the user later requests hosting, reopen the optional Vercel deployment and production-verification runbooks under new explicit authorization.
 
 ### Blockers/Concerns
@@ -153,5 +153,5 @@ Progress: [██████████] 100%
 ## Session Continuity
 
 Last session: 2026-07-22
-Stopped at: Phase 1 local closeout complete; ready for final goal verification
-Resume file: None — run final Phase 1 verifier
+Stopped at: Phase 1 independently verified and locally complete; Phase 2 queued but not started
+Resume file: None — begin Phase 2 discussion/planning only on explicit request
