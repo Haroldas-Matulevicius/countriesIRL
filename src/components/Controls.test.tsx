@@ -24,6 +24,7 @@ describe('Controls shortcut labels', () => {
 
     expect(markup).toContain('title="Undo the most recent color change"');
     expect(markup).toContain('title="Redo the most recently undone color change"');
+    expect(markup).toContain('data-save-load-control="true"');
     expect(markup).not.toMatch(/Ctrl|Cmd|⌘/i);
   });
 });

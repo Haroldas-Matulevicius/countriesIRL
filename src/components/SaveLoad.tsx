@@ -16,6 +16,7 @@ import type {
 import { MAX_MAP_NAME_LENGTH } from '../constants/config';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
+const SAVE_LOAD_CONTROL_SELECTOR = '[data-save-load-control="true"]';
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   'input:not([disabled])',
@@ -69,6 +70,11 @@ export interface LoadFeedback {
   severity: SaveLoadStatusSeverity;
 }
 
+export interface ModalFocusTarget {
+  isConnected: boolean;
+  focus: () => void;
+}
+
 interface FormattedSavedDate {
   display: string;
   dateTime?: string;
@@ -90,6 +96,24 @@ function formatSavedDate(timestamp: number): FormattedSavedDate {
 
 function getSavedMapFocusKey(savedMap: SavedMap): string {
   return `${savedMap.name.length}:${savedMap.name}:${savedMap.timestamp}`;
+}
+
+export function restoreSaveLoadFocus(
+  opener: ModalFocusTarget | null,
+  currentControl: ModalFocusTarget | null,
+  focusMap: () => void,
+): void {
+  if (opener?.isConnected) {
+    opener.focus();
+    return;
+  }
+
+  if (currentControl?.isConnected) {
+    currentControl.focus();
+    return;
+  }
+
+  focusMap();
 }
 
 export function getLoadFeedback(
@@ -180,10 +204,14 @@ export function SaveLoad({
 
     return (): void => {
       if (shouldRestoreOpenerRef.current) {
-        openerRef.current?.focus();
+        restoreSaveLoadFocus(
+          openerRef.current,
+          document.querySelector<HTMLElement>(SAVE_LOAD_CONTROL_SELECTOR),
+          onFocusMap,
+        );
       }
     };
-  }, [refreshSavedMaps]);
+  }, [onFocusMap, refreshSavedMaps]);
 
   useEffect((): void => {
     const pendingFocus = pendingDeleteFocusRef.current;

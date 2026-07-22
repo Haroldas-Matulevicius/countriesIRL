@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { STORAGE_KEY } from '../constants/config';
 import { createStorageAdapter } from '../utils/storage';
-import { getLoadFeedback } from './SaveLoad';
+import { getLoadFeedback, restoreSaveLoadFocus } from './SaveLoad';
 import { ToastRegion } from './ToastRegion';
 
 class LoadFeedbackStorage implements Storage {
@@ -84,5 +84,31 @@ describe('SaveLoad load feedback', () => {
       message: 'Saved map loaded.',
       severity: 'success',
     });
+  });
+});
+
+describe('SaveLoad focus restoration', () => {
+  it('focuses the current responsive control when the original opener disconnected', () => {
+    const originalOpener = { isConnected: false, focus: vi.fn() };
+    const currentControl = { isConnected: true, focus: vi.fn() };
+    const focusMap = vi.fn();
+
+    restoreSaveLoadFocus(originalOpener, currentControl, focusMap);
+
+    expect(originalOpener.focus).not.toHaveBeenCalled();
+    expect(currentControl.focus).toHaveBeenCalledOnce();
+    expect(focusMap).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the map when neither control is connected', () => {
+    const originalOpener = { isConnected: false, focus: vi.fn() };
+    const currentControl = { isConnected: false, focus: vi.fn() };
+    const focusMap = vi.fn();
+
+    restoreSaveLoadFocus(originalOpener, currentControl, focusMap);
+
+    expect(originalOpener.focus).not.toHaveBeenCalled();
+    expect(currentControl.focus).not.toHaveBeenCalled();
+    expect(focusMap).toHaveBeenCalledOnce();
   });
 });

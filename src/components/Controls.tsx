@@ -82,6 +82,7 @@ export function Controls({
         </button>
         <button
           type="button"
+          data-save-load-control="true"
           onClick={onOpenSaveLoad}
           disabled={!isMapReady || !isStorageAvailable}
         >
