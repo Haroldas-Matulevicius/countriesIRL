@@ -1,5 +1,5 @@
 import { geoMercator, geoPath } from 'd3';
-import type { Feature, FeatureCollection, Polygon } from 'geojson';
+import type { Feature, Polygon } from 'geojson';
 
 import { MAP_EXTENT, MAP_VIEWBOX_SIZE } from '../constants/config';
 import type { GeoFeature } from '../types/map';
@@ -25,17 +25,54 @@ const FIXED_EUROPE_VIEW_OBJECT: Feature<Polygon> = {
   },
 };
 
-function createFeatureCollection(
-  features: ReadonlyArray<GeoFeature>,
-): FeatureCollection<GeoFeature['geometry'], GeoFeature['properties']> {
-  return {
-    type: 'FeatureCollection',
-    features: [...features],
-  };
-}
-
 export function hasFiniteProjectedBounds(bounds: ProjectedBounds): boolean {
   return bounds.every((point) => point.every(Number.isFinite));
+}
+
+function aggregateFiniteProjectedBounds(
+  pathGenerator: ReturnType<typeof geoPath>,
+  features: ReadonlyArray<GeoFeature>,
+): ProjectedBounds | null {
+  let aggregateBounds: ProjectedBounds | null = null;
+
+  features.forEach((feature): void => {
+    try {
+      const featureBounds = pathGenerator.bounds(feature);
+
+      if (!hasFiniteProjectedBounds(featureBounds)) {
+        return;
+      }
+
+      if (aggregateBounds === null) {
+        aggregateBounds = [
+          [featureBounds[0][0], featureBounds[0][1]],
+          [featureBounds[1][0], featureBounds[1][1]],
+        ];
+        return;
+      }
+
+      aggregateBounds[0][0] = Math.min(
+        aggregateBounds[0][0],
+        featureBounds[0][0],
+      );
+      aggregateBounds[0][1] = Math.min(
+        aggregateBounds[0][1],
+        featureBounds[0][1],
+      );
+      aggregateBounds[1][0] = Math.max(
+        aggregateBounds[1][0],
+        featureBounds[1][0],
+      );
+      aggregateBounds[1][1] = Math.max(
+        aggregateBounds[1][1],
+        featureBounds[1][1],
+      );
+    } catch {
+      return;
+    }
+  });
+
+  return aggregateBounds;
 }
 
 export function createSafeMapPath(
@@ -43,14 +80,9 @@ export function createSafeMapPath(
   feature: GeoFeature,
 ): string {
   try {
-    const bounds = pathGenerator.bounds(feature);
     const pathData = pathGenerator(feature);
 
-    if (
-      !hasFiniteProjectedBounds(bounds) ||
-      pathData === null ||
-      INVALID_PATH_DATA_PATTERN.test(pathData)
-    ) {
+    if (pathData === null || INVALID_PATH_DATA_PATTERN.test(pathData)) {
       return '';
     }
 
@@ -72,34 +104,28 @@ export function createFixedEuropeProjection(
   );
 
   if (features.length > 0) {
-    const pathGenerator = geoPath(projection);
-    const projectableFeatures = features.filter(
-      (feature): boolean => createSafeMapPath(pathGenerator, feature).length > 0,
+    const projectedBounds = aggregateFiniteProjectedBounds(
+      geoPath(projection),
+      features,
     );
 
-    if (projectableFeatures.length > 0) {
-      const projectedBounds = pathGenerator.bounds(
-        createFeatureCollection(projectableFeatures),
-      );
+    if (projectedBounds !== null) {
+      const projectedCenter = [
+        (projectedBounds[0][0] + projectedBounds[1][0]) / 2,
+        (projectedBounds[0][1] + projectedBounds[1][1]) / 2,
+      ] as const;
+      const extentCenter = [
+        (MAP_EXTENT[0][0] + MAP_EXTENT[1][0]) / 2,
+        (MAP_EXTENT[0][1] + MAP_EXTENT[1][1]) / 2,
+      ] as const;
+      const translation = projection.translate();
+      const centeredTranslation = [
+        translation[0] + extentCenter[0] - projectedCenter[0],
+        translation[1] + extentCenter[1] - projectedCenter[1],
+      ] as const;
 
-      if (hasFiniteProjectedBounds(projectedBounds)) {
-        const projectedCenter = [
-          (projectedBounds[0][0] + projectedBounds[1][0]) / 2,
-          (projectedBounds[0][1] + projectedBounds[1][1]) / 2,
-        ] as const;
-        const extentCenter = [
-          (MAP_EXTENT[0][0] + MAP_EXTENT[1][0]) / 2,
-          (MAP_EXTENT[0][1] + MAP_EXTENT[1][1]) / 2,
-        ] as const;
-        const translation = projection.translate();
-        const centeredTranslation = [
-          translation[0] + extentCenter[0] - projectedCenter[0],
-          translation[1] + extentCenter[1] - projectedCenter[1],
-        ] as const;
-
-        if (centeredTranslation.every(Number.isFinite)) {
-          projection.translate([...centeredTranslation]);
-        }
+      if (centeredTranslation.every(Number.isFinite)) {
+        projection.translate([...centeredTranslation]);
       }
     }
   }

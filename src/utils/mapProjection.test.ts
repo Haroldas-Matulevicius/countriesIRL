@@ -126,7 +126,14 @@ function createMalformedFeature(
     properties: { name: id },
     geometry: {
       type: 'Polygon',
-      coordinates: [[[0, 0], [1, 0], [invalidCoordinate, 1], [0, 0]]],
+      coordinates: [
+        [
+          [invalidCoordinate, 0],
+          [invalidCoordinate, 1],
+          [invalidCoordinate, 2],
+          [invalidCoordinate, 0],
+        ],
+      ],
     },
   };
 }
@@ -228,7 +235,7 @@ describe('createSafeMapPath', (): void => {
     { label: 'NaN path data', result: 'MNaN,0Z', expected: '' },
     { label: 'Infinity path data', result: 'MInfinity,0Z', expected: '' },
   ])('calls the generator once for $label without a bounds pass', ({ result, expected }): void => {
-    const pathCall = vi.fn((_feature: GeoFeature): string | null => result);
+    const pathCall = vi.fn((): string | null => result);
     const boundsCall = vi.fn((): [[number, number], [number, number]] => [
       [0, 0],
       [1, 1],
@@ -248,7 +255,7 @@ describe('createSafeMapPath', (): void => {
   });
 
   it('contains a thrown generator call without attempting bounds', (): void => {
-    const pathCall = vi.fn((_feature: GeoFeature): string | null => {
+    const pathCall = vi.fn((): string | null => {
       throw new Error('Malformed geometry');
     });
     const boundsCall = vi.fn((): [[number, number], [number, number]] => [
