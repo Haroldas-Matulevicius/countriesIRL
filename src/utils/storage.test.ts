@@ -199,6 +199,58 @@ describe('createStorageAdapter', () => {
     });
   });
 
+  it('returns load warnings only for the selected record', () => {
+    const storage = new FakeStorage();
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        { name: 'Clean map', colors: { FRA: '#123456' }, timestamp: 200 },
+        { name: 'Corrupt map', colors: { DEU: 'not-a-color' }, timestamp: 100 },
+      ]),
+    );
+
+    const adapter = createStorageAdapter(storage);
+
+    expect(adapter.list()).toEqual({
+      ok: true,
+      value: [
+        { name: 'Clean map', colors: { FRA: '#123456' }, timestamp: 200 },
+        { name: 'Corrupt map', colors: {}, timestamp: 100 },
+      ],
+      warnings: [{ code: 'corrupt-data', recordIndex: 1 }],
+    });
+    expect(adapter.load('Clean map', new Set(['FRA', 'DEU']))).toEqual({
+      ok: true,
+      value: { FRA: '#123456' },
+      warnings: [],
+    });
+    expect(adapter.load('Corrupt map', new Set(['FRA', 'DEU']))).toEqual({
+      ok: true,
+      value: {},
+      warnings: [{ code: 'corrupt-data', recordIndex: 1 }],
+    });
+  });
+
+  it('warns when stale country IDs are removed from the selected map', () => {
+    const storage = new FakeStorage();
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          name: 'Stale map',
+          colors: { FRA: '#123456', RETIRED: '#654321' },
+          timestamp: 100,
+        },
+      ]),
+    );
+
+    expect(createStorageAdapter(storage).load('Stale map', new Set(['FRA']))).toEqual({
+      ok: true,
+      value: { FRA: '#123456' },
+      warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
+    });
+  });
+
   it('deduplicates exact and trim-equivalent names before load or delete', () => {
     const storage = new FakeStorage();
     storage.setItem(
@@ -227,10 +279,7 @@ describe('createStorageAdapter', () => {
     expect(adapter.load(' Alpha ', new Set(['FRA', 'DEU', 'ITA']))).toEqual({
       ok: true,
       value: { FRA: '#111111' },
-      warnings: [
-        { code: 'corrupt-data', recordIndex: 1 },
-        { code: 'corrupt-data', recordIndex: 2 },
-      ],
+      warnings: [],
     });
     expect(adapter.delete('  Alpha ')).toEqual({
       ok: true,

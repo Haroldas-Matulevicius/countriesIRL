@@ -79,6 +79,44 @@ describe('SaveLoad load feedback', () => {
     expect(markup).toContain(feedback.message);
   });
 
+  it('uses success feedback when another saved record is corrupt', () => {
+    const storage = new LoadFeedbackStorage();
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          name: 'Clean map',
+          colors: { FRA: '#123456' },
+          timestamp: 200,
+        },
+        {
+          name: 'Corrupt map',
+          colors: { DEU: 'not-a-color' },
+          timestamp: 100,
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load(
+      'Clean map',
+      new Set(['FRA', 'DEU']),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: { FRA: '#123456' },
+      warnings: [],
+    });
+    if (!result.ok) {
+      throw new Error('Expected the clean map to load.');
+    }
+
+    expect(getLoadFeedback(result.warnings)).toEqual({
+      message: 'Saved map loaded.',
+      severity: 'success',
+    });
+  });
+
   it('uses success feedback only when the load has no warnings', () => {
     expect(getLoadFeedback([])).toEqual({
       message: 'Saved map loaded.',

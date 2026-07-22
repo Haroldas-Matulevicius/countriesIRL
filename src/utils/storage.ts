@@ -39,6 +39,16 @@ type MapNameResult =
   | { ok: true; value: string }
   | { ok: false; reason: 'invalid-name' | 'name-too-long' };
 
+interface ParsedSavedMap {
+  map: SavedMap;
+  recordIndex: number;
+}
+
+interface ParsedSavedMaps {
+  records: ReadonlyArray<ParsedSavedMap>;
+  warnings: ReadonlyArray<StorageWarning>;
+}
+
 function getDefaultStorage(): Storage | null {
   try {
     return typeof window === 'undefined' ? null : window.localStorage;
@@ -94,6 +104,7 @@ function normalizeColorMap(
     }
 
     if (validCountryIds !== undefined && !validCountryIds.has(countryId)) {
+      isCorrupt = true;
       continue;
     }
 
@@ -151,24 +162,21 @@ function normalizeSavedMap(
   };
 }
 
-function parseSavedMaps(
-  serialized: string,
-  validCountryIds?: ReadonlySet<string>,
-): { maps: ReadonlyArray<SavedMap>; warnings: ReadonlyArray<StorageWarning> } {
+function parseSavedMaps(serialized: string): ParsedSavedMaps {
   let parsed: unknown;
 
   try {
     parsed = JSON.parse(serialized) as unknown;
   } catch {
-    return { maps: [], warnings: [createCorruptWarning()] };
+    return { records: [], warnings: [createCorruptWarning()] };
   }
 
   if (!Array.isArray(parsed)) {
-    return { maps: [], warnings: [createCorruptWarning()] };
+    return { records: [], warnings: [createCorruptWarning()] };
   }
 
   const warnings: StorageWarning[] = [];
-  const maps: SavedMap[] = [];
+  const savedMapRecords: ParsedSavedMap[] = [];
   const normalizedNames = new Set<string>();
   const records = parsed.slice(0, MAX_SAVED_MAPS);
 
@@ -177,7 +185,7 @@ function parseSavedMaps(
   }
 
   records.forEach((record, recordIndex) => {
-    const map = normalizeSavedMap(record, recordIndex, warnings, validCountryIds);
+    const map = normalizeSavedMap(record, recordIndex, warnings);
     if (map === null) {
       return;
     }
@@ -188,10 +196,10 @@ function parseSavedMaps(
     }
 
     normalizedNames.add(map.name);
-    maps.push(map);
+    savedMapRecords.push({ map, recordIndex });
   });
 
-  return { maps, warnings };
+  return { records: savedMapRecords, warnings };
 }
 
 function isQuotaExceededError(error: unknown): boolean {
@@ -229,9 +237,7 @@ export function createStorageAdapter(
     }
   }
 
-  function readMaps(
-    validCountryIds?: ReadonlySet<string>,
-  ): StorageResult<ReadonlyArray<SavedMap>> {
+  function readParsedMaps(): StorageResult<ReadonlyArray<ParsedSavedMap>> {
     const readResult = read(STORAGE_KEY);
     if (!readResult.ok) {
       return readResult;
@@ -241,8 +247,21 @@ export function createStorageAdapter(
       return { ok: true, value: [], warnings: [] };
     }
 
-    const parsed = parseSavedMaps(readResult.value, validCountryIds);
-    return { ok: true, value: parsed.maps, warnings: parsed.warnings };
+    const parsed = parseSavedMaps(readResult.value);
+    return { ok: true, value: parsed.records, warnings: parsed.warnings };
+  }
+
+  function readMaps(): StorageResult<ReadonlyArray<SavedMap>> {
+    const parsedResult = readParsedMaps();
+    if (!parsedResult.ok) {
+      return parsedResult;
+    }
+
+    return {
+      ok: true,
+      value: parsedResult.value.map((record) => record.map),
+      warnings: parsedResult.warnings,
+    };
   }
 
   function writeMaps(
@@ -320,17 +339,34 @@ export function createStorageAdapter(
       return nameResult;
     }
 
-    const listResult = readMaps(validCountryIds);
-    if (!listResult.ok) {
-      return listResult;
+    const parsedResult = readParsedMaps();
+    if (!parsedResult.ok) {
+      return parsedResult;
     }
 
-    const savedMap = listResult.value.find((map) => map.name === nameResult.value);
-    if (savedMap === undefined) {
+    const savedMapRecord = parsedResult.value.find(
+      ({ map }) => map.name === nameResult.value,
+    );
+    if (savedMapRecord === undefined) {
       return { ok: false, reason: 'map-not-found' };
     }
 
-    return { ok: true, value: savedMap.colors, warnings: listResult.warnings };
+    const colorResult = normalizeColorMap(
+      savedMapRecord.map.colors,
+      validCountryIds,
+    );
+    if (colorResult === null) {
+      return { ok: false, reason: 'storage-unavailable' };
+    }
+
+    const warnings = parsedResult.warnings.filter(
+      (warning) => warning.recordIndex === savedMapRecord.recordIndex,
+    );
+    if (colorResult.isCorrupt && warnings.length === 0) {
+      warnings.push(createCorruptWarning(savedMapRecord.recordIndex));
+    }
+
+    return { ok: true, value: colorResult.colors, warnings };
   }
 
   function deleteMap(name: string): StorageResult<ReadonlyArray<SavedMap>> {
