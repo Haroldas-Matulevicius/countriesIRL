@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 18/21 plans executed
+**Plans:** 18/22 plans executed
 
 Plans:
 
@@ -56,12 +56,15 @@ Plans:
 - [x] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-15-PLAN.md — Verify source-only discovery and all current-code UAT locally in installed Chrome 150 and Edge 150; record other browser certification as deferred/unverified and the Europe presentation as user-approved
+- [ ] 01-22-PLAN.md — Gap closure: replace the five-traversal projection regression with one finite bounds pass plus one final safe path pass, preserving exact 57-path output and malformed-geometry safety
 
-**Wave 13** *(blocked on Wave 12 completion)*
-- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+**Wave 13** *(blocked on the Wave 12 map-ready fix)*
+- [ ] 01-15-PLAN.md — Rerun every current-code UAT check against `npm run build` + `npm run preview`, including controlled cold/warm Chrome 150 and Edge 150 map-ready series with every sample <500ms
 
 **Wave 14** *(blocked on Wave 13 completion)*
+- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+
+**Wave 15** *(blocked on Wave 14 completion)*
 - [ ] 01-17-PLAN.md — Block on production title/Vite/data/browser/network verification, then publish README
 
 Cross-cutting constraints:
@@ -71,6 +74,7 @@ Cross-cutting constraints:
 - Effective white is canonical: selecting an uncolored country leaves White active and natively disabled; applying another preset transfers that active disabled state, and active-color attempts create no history, status, or color timing mark.
 - Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
 - Default automated test discovery is source-scoped to `src/**/*.test.{ts,tsx}` and excludes `.claude/**` agent worktrees.
+- Map-ready release evidence uses a production build served by Vite preview, controls five cold and five warm cache samples per installed browser, records transfer/cache metadata, reports browser launch/bootstrap separately, and keeps every sample strictly below 500ms.
 - Phase 1 release browser acceptance is local-browser-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and all previous-version certification remain explicitly unverified/deferred by user choice and must never be reported as passed.
 - Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, both installed-browser cells, the recorded Natural Earth Europe approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
@@ -87,8 +91,8 @@ Cross-cutting constraints:
 - Exact white-background 1080×1080 PNG export using html2canvas
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
 - One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
-- Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, and focus helpers
-- Measured <500ms map and <100ms effective color/undo/redo checks in installed Chrome 150 and Edge 150, with Firefox/Safari/previous versions recorded as unverified/deferred, plus a production Vercel URL
+- Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, focus helpers, and projection traversal/equivalence safety
+- Measured production-preview map-ready evidence with five cold and five warm samples per installed Chrome 150 and Edge 150, every sample <500ms with transfer/cache metadata and separate launch/bootstrap reporting; <100ms effective color/undo/redo checks; deferred browsers recorded unverified; plus a production Vercel URL
 
 ### Key Decisions
 
@@ -103,6 +107,7 @@ Cross-cutting constraints:
 - [x] Phase 1 browser certification limited by user choice to installed Chrome 150 and Edge 150; Firefox/Safari/previous versions remain unverified/deferred
 - [x] Ship Europe first, then prioritize World and North America canvas variants immediately after Phase 1
 - [x] Human Vercel authorization before automated deployment
+- [x] Keep the <500ms per-sample map-ready threshold and correct redundant geometry traversal rather than weakening acceptance
 
 ### Out of Scope (Phase 1)
 
@@ -112,6 +117,7 @@ Cross-cutting constraints:
 - SVG export, batch/timelapse export, ZIP workflows
 - Cloud sync, authentication, sharing URLs, analytics, or server infrastructure
 - World and North America canvas variants are out of Phase 1 implementation but are the highest-priority next-phase work; other non-European maps, native mobile app, hatching/patterns, and advanced palette hotkeys remain later scope
+- GeoJSON simplification and lazy html2canvas loading are not required for the map-ready gap closure and may not replace the targeted traversal correction
 
 ---
 
@@ -220,7 +226,7 @@ Cross-cutting constraints:
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | Historical border data sparse/inaccurate | Medium | Start with best-documented regions (Poland, Balkans); use academic sources; label uncertain periods |
-| Map rendering performance slow | High | Test with 50+ regions; use stable SVG joins and cache projection/path geometry |
+| Map rendering performance slow | High | Aggregate finite projected bounds once, generate each final safe path once, preserve stable SVG joins, and certify every controlled production-preview cold/warm sample below 500ms |
 | Centering projection distorts far regions | Medium | Use Azimuthal Equidistant; document limitations; offer "full world view" option |
 | Browser storage quota exceeded | Low | Limit saved maps to 10 and surface typed quota/unavailable errors |
 | Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2; iterate UI based on feedback |
@@ -251,8 +257,8 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Full UAT** → Execute pending Plan 01-15 with all current-code checks in installed Chrome 150 and Edge 150
-2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
-3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
-4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first: World and North America canvas variants immediately after the Europe-first release
-5. **Phase 2 Advanced Features** → Then confirm historical data, centering, and legend decisions
+1. **Phase 1 Map-Ready Fix** → Execute Plan 01-22 and prove one finite per-feature bounds pass plus one final safe path pass with exact 57-path equivalence
+2. **Phase 1 Full UAT** → Rerun Plan 01-15 from a production build/preview with controlled cold/warm Chrome 150 and Edge 150 evidence; keep every sample <500ms
+3. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
+4. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
+5. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends

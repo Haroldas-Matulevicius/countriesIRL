@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready
-stopped_at: Synchronized Plan 01-15 for local Chrome 150/Edge 150 UAT
-last_updated: "2026-07-22T12:48:18.828Z"
-last_activity: 2026-07-22 -- Synchronized Plan 01-15 with explicit release and region-priority decisions
+stopped_at: Planned Plan 01-22 map-ready traversal fix before Plan 01-15 production-preview rerun
+last_updated: "2026-07-22T09:00:19-05:00"
+last_activity: 2026-07-22 -- Planned the proven map-ready traversal correction and production-preview benchmark rerun
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 21
+  total_plans: 22
   completed_plans: 18
-  percent: 86
+  percent: 82
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Next plans: 01-15 of 21 in current phase
-Execution graph: 21 plans across 14 waves
-Status: Plan 01-15 synchronized and ready for local Chrome 150/Edge 150 UAT
-Last activity: 2026-07-22 -- Synchronized Plan 01-15 with explicit release and region-priority decisions
+Next plans: 01-22, then 01-15, of 22 in current phase
+Execution graph: 22 plans across 15 waves
+Status: Map-ready gap diagnosed and planned; Plan 01-22 must complete before the production-preview Plan 01-15 rerun
+Last activity: 2026-07-22 -- Planned the proven map-ready traversal correction and production-preview benchmark rerun
 
-Progress: [█████████░] 86%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -52,9 +52,9 @@ Progress: [█████████░] 86%
 | Phase 01 P13 | 11 min | 2 tasks | 5 files |
 | Phase 01 P18 | 2 min | 1 task | 1 file |
 | Phase 01 P14 | 3 min | 1 task | 0 files |
-| Phase 01 P19 | 2 min | 1 tasks | 2 files |
-| Phase 01 P20 | 10 min | 1 tasks | 3 files |
-| Phase 01 P21 | 2 min | 1 tasks | 3 files |
+| Phase 01 P19 | 2 min | 1 task | 2 files |
+| Phase 01 P20 | 10 min | 1 task | 3 files |
+| Phase 01 P21 | 2 min | 1 task | 3 files |
 
 ## Accumulated Context
 
@@ -114,17 +114,21 @@ Progress: [█████████░] 86%
 - [Phase 01]: The user explicitly approved the final Chrome 150 and Edge 150 objective evidence for Plan 01-21. — The evidence was generated from current HEAD 805ab14, both exact local browser routes passed, and all four PNGs passed integrity checks.
 - [Phase 01]: Phase 1 browser acceptance is local Chrome and Edge only. — This later explicit user decision supersedes remote and broader current/previous browser-matrix acceptance for Phase 1.
 - [Phase 01]: Europe ships first, with World and North America variants next. — Regional expansion follows the initial Europe release rather than delaying it.
+- [Phase 01 map-ready gap closure]: Preserve D-53's strict per-sample <500ms threshold and replace e2f9190's five geometry traversals with one finite per-feature projected-bounds aggregation plus one final safe path generation. — The production counterfactual passed 14/14 Chrome/Edge samples at 257–388ms with byte-identical 57 paths and unchanged translation.
+- [Phase 01 map-ready acceptance]: Plan 01-15 uses `npm run build` plus `npm run preview`, records five controlled cold and five controlled warm samples per installed browser with transfer/cache metadata, defines map-ready as map-data-start through painted interactive SVG, and reports browser launch/bootstrap separately. — Development StrictMode timing and optional GeoJSON/html2canvas optimizations do not replace the targeted fix or weaken the threshold.
 
 ### Pending Todos
 
-- Rerun Plan 01-15 with every existing current-code UAT check in installed Chrome 150 and Edge 150; record Firefox/Safari/previous versions as unverified/deferred rather than passed.
-- Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
+- Execute Plan 01-22: add traversal/equivalence/invalid-geometry regressions and implement aggregate finite bounds plus one final safe path generation.
+- Rerun Plan 01-15 from the production build/preview with every current-code UAT check, five cold and five warm map-ready samples per installed browser, and complete cache/transfer/launch metadata.
+- Complete Plans 01-16 and 01-17 deployment and production verification only after Plan 01-15 approval.
 - Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
 
 ### Blockers/Concerns
 
+- Plan 01-15 is blocked on Plan 01-22 because current production map-ready is 533–713ms from redundant geometry traversal; the threshold remains unchanged.
+- The failed Vite development evidence is inflated by React StrictMode's duplicate mount layout effect and cannot serve as release-performance evidence.
 - Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
-- Plan 01-15 remains pending execution and must retain every current-code UAT check in both installed release browsers.
 
 ## Known Constraints
 
@@ -136,9 +140,12 @@ Progress: [█████████░] 86%
 - PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-15 full UAT.
 - Default Vitest acceptance evidence must contain source tests only; `.claude/**` worktree copies are excluded.
 - Effective-white and active-color no-op attempts must not create history, success announcements, or color-start timing marks.
+- Map-ready acceptance must use a production build/preview, controlled cold and warm cache series, raw per-sample values and metadata, and a strict <500ms result for every sample.
+- Browser process launch and pre-data bootstrap are reported separately from the `countriesirl-map-load-start` to painted `countriesirl-map-ready` product measure.
+- Optional GeoJSON simplification and lazy html2canvas loading are not required for this gap and may not displace the diagnosed traversal correction.
 
 ## Session Continuity
 
-Last session: 2026-07-22T12:46:57.226Z
-Stopped at: Synchronized Plan 01-15 for local Chrome 150/Edge 150 UAT
+Last session: 2026-07-22T09:00:19-05:00
+Stopped at: Planned Plan 01-22 map-ready traversal fix before Plan 01-15 production-preview rerun
 Resume file: None
