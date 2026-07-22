@@ -42,6 +42,28 @@ function readStyleSheet(relativePath: string): string {
 }
 
 describe('component theme tokens', (): void => {
+  it('keeps preset labels complete and non-breaking in the mobile grid', (): void => {
+    const controlsCss = readStyleSheet('./Controls.css');
+    const gridRule = controlsCss.match(
+      /\.color-picker__preset-grid\s*\{([^}]*)\}/u,
+    )?.[1] ?? '';
+    const presetRule = controlsCss.match(
+      /\.color-picker__preset\s*\{([^}]*)\}/u,
+    )?.[1] ?? '';
+    const nameRule = controlsCss.match(
+      /\.color-picker__preset-name\s*\{([^}]*)\}/u,
+    )?.[1] ?? '';
+
+    expect(gridRule).toContain('grid-template-columns: repeat(5, minmax(0, 1fr));');
+    expect(gridRule).toContain('gap: var(--space-xs) 0;');
+    expect(presetRule).toContain('min-height: var(--space-3xl);');
+    expect(presetRule).toContain('padding: var(--space-xs) 0;');
+    expect(nameRule).toContain('width: max-content;');
+    expect(nameRule).toContain('overflow-wrap: normal;');
+    expect(nameRule).toContain('white-space: nowrap;');
+    expect(nameRule).not.toContain('overflow-wrap: anywhere;');
+  });
+
   it('keeps component colors tokenized while fixed colors stay in theme.css', (): void => {
     const mapCanvasCss = readStyleSheet('./MapCanvas.css');
     const controlsCss = readStyleSheet('./Controls.css');

@@ -155,8 +155,8 @@
 
 .color-picker__preset-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(var(--space-2xl), 1fr));
-  gap: var(--space-sm);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-xs) 0;
 }
 
 .color-picker__preset {
@@ -166,7 +166,7 @@
   justify-content: flex-start;
   min-width: 0;
   min-height: var(--space-3xl);
-  padding: var(--space-xs);
+  padding: var(--space-xs) 0;
   flex-direction: column;
   gap: var(--space-xs);
   overflow: hidden;
@@ -182,11 +182,12 @@
 }
 
 .color-picker__preset-name {
-  max-width: 100%;
+  width: max-content;
+  max-width: none;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 .color-picker__preset--active {
@@ -567,7 +568,7 @@
   }
 
   .color-picker__preset-grid {
-    grid-template-columns: repeat(5, minmax(var(--space-2xl), 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .country-list__header,
