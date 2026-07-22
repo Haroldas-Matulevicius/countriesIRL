@@ -144,7 +144,7 @@
   z-index: 20;
   display: flex;
   width: max-content;
-  max-width: min(360px, calc(100vw - (var(--space-md) * 2)));
+  max-width: min(360px, calc(100vw - (var(--space-sm) * 2)));
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--tooltip-border);
   border-radius: var(--radius-control);

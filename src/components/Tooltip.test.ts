@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { TOOLTIP_SPACING } from '../constants/config';
 import type { GeoFeature } from '../types/map';
 import {
   keyboardTooltipData,
@@ -257,7 +258,8 @@ describe('observeKeyboardTooltipAnchor', () => {
 });
 
 describe('tooltip measurement', () => {
-  it('uses a stable viewport-safe origin before actual measurement', () => {
+  it('uses the approved 8px spacing at the stable measurement origin', () => {
+    expect(TOOLTIP_SPACING).toBe(8);
     expect(getTooltipMeasurementPosition()).toEqual({ left: 8, top: 8 });
   });
 });
@@ -274,7 +276,7 @@ describe('calculateTooltipPosition', () => {
         viewportHeight: 640,
         inputMethod: 'pointer',
       }),
-    ).toEqual({ left: 112, top: 112 });
+    ).toEqual({ left: 108, top: 108 });
   });
 
   it('flips pointer tooltips at the right and bottom edges', () => {
@@ -289,7 +291,7 @@ describe('calculateTooltipPosition', () => {
       inputMethod: 'pointer',
     });
 
-    expect(position).toEqual({ left: 218, top: 558 });
+    expect(position).toEqual({ left: 222, top: 562 });
     expect(position.left + tooltipWidth).toBeLessThanOrEqual(352);
   });
 
@@ -304,7 +306,23 @@ describe('calculateTooltipPosition', () => {
         viewportHeight: 640,
         inputMethod: 'pointer',
       }),
-    ).toEqual({ left: 10, top: 112 });
+    ).toEqual({ left: 14, top: 108 });
+  });
+
+  it('contains the maximum mobile tooltip width inside 8px margins', () => {
+    const tooltipWidth = 360 - TOOLTIP_SPACING * 2;
+    const position = calculateTooltipPosition({
+      anchorX: 359,
+      anchorY: 320,
+      tooltipWidth,
+      tooltipHeight: 80,
+      viewportWidth: 360,
+      viewportHeight: 640,
+      inputMethod: 'pointer',
+    });
+
+    expect(position.left).toBe(TOOLTIP_SPACING);
+    expect(position.left + tooltipWidth).toBe(360 - TOOLTIP_SPACING);
   });
 
   it('flips keyboard tooltips below top-edge anchors and clamps horizontally', () => {
@@ -318,6 +336,6 @@ describe('calculateTooltipPosition', () => {
         viewportHeight: 640,
         inputMethod: 'keyboard',
       }),
-    ).toEqual({ left: 8, top: 16 });
+    ).toEqual({ left: 8, top: 12 });
   });
 });

@@ -13,3 +13,5 @@ export const MAP_EXTENT = [
 export const EXPORT_FRAME_SIZE = 540;
 export const EXPORT_SCALE = 2;
 export const EXPORT_SIZE = 1080;
+
+export const TOOLTIP_SPACING = 8;

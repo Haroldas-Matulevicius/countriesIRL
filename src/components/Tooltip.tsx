@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
+import { TOOLTIP_SPACING } from '../constants/config';
 import type { MapTooltipData } from './MapCanvas';
 
-const TOOLTIP_OFFSET = 12;
-const VIEWPORT_MARGIN = 8;
+const TOOLTIP_OFFSET = TOOLTIP_SPACING;
+const VIEWPORT_MARGIN = TOOLTIP_SPACING;
 
 interface TooltipProps {
   data: MapTooltipData | null;
