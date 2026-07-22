@@ -26,6 +26,28 @@ import { exportMapPng } from './utils/export';
 const EMPTY_COUNTRIES: ReadonlyArray<GeoFeature> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
 
+export function createSelectionAnnouncement(
+  selectedIds: ReadonlySet<CountryId>,
+  countryLookup: ReadonlyMap<CountryId, GeoFeature>,
+): string {
+  if (selectedIds.size === 0) {
+    return TOAST_MESSAGES.noSelection;
+  }
+
+  if (selectedIds.size === 1) {
+    const selectedId = selectedIds.values().next().value;
+    const countryName =
+      selectedId === undefined
+        ? undefined
+        : countryLookup.get(selectedId)?.properties.name;
+    return countryName === undefined
+      ? TOAST_MESSAGES.selectionCount(1)
+      : `${countryName}. ${TOAST_MESSAGES.selectionCount(1)}`;
+  }
+
+  return TOAST_MESSAGES.selectionCount(selectedIds.size);
+}
+
 export default function App(): JSX.Element {
   const {
     state: { colors, selectedIds },
@@ -51,6 +73,7 @@ export default function App(): JSX.Element {
   const exportHandlerRef = useRef<() => void>(() => undefined);
   const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
+  const hasInitializedSelectionAnnouncementRef = useRef(false);
   const hasInitialStorageError = persistenceError === 'storage-unavailable';
   const toastCounterRef = useRef(hasInitialStorageError ? 1 : 0);
   const [isHelpVisible, setIsHelpVisible] = useState(
@@ -58,6 +81,7 @@ export default function App(): JSX.Element {
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
     hasInitialStorageError
       ? {
@@ -145,6 +169,22 @@ export default function App(): JSX.Element {
 
     return (): void => cancelAnimationFrame(frame);
   }, [focusMap, isMapReady, layout]);
+
+  useEffect((): void => {
+    if (!isMapReady) {
+      hasInitializedSelectionAnnouncementRef.current = false;
+      return;
+    }
+
+    if (!hasInitializedSelectionAnnouncementRef.current) {
+      hasInitializedSelectionAnnouncementRef.current = true;
+      return;
+    }
+
+    setSelectionAnnouncement(
+      createSelectionAnnouncement(selectedIds, countryLookup),
+    );
+  }, [countryLookup, isMapReady, selectedIds]);
 
   const persistHelpDismissal = useCallback((): void => {
     const result = dismissOnboarding();
@@ -343,6 +383,15 @@ export default function App(): JSX.Element {
         />
       ) : null}
 
+      <p
+        className="selection-live-region"
+        data-selection-live-region="true"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {selectionAnnouncement}
+      </p>
       <ToastRegion message={toastMessage} onDismiss={handleDismissToast} />
     </div>
   );

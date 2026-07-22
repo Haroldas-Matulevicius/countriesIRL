@@ -77,7 +77,7 @@ export function SelectionPanel({
 
   return (
     <section className="selection-panel" aria-labelledby="selection-panel-heading">
-      <div className="selection-panel__summary" aria-live="polite">
+      <div className="selection-panel__summary">
         {selectedCount === 1 ? (
           <>
             <h2 id="selection-panel-heading">{visibleCountries[0]?.name}</h2>
