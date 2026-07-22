@@ -6,8 +6,8 @@ import {
 import type { ChangeEvent } from 'react';
 
 import type { CountryId, GeoFeature } from '../types/map';
-import { DEFAULT_COLOR } from '../constants/colors';
 import { useMapState } from '../hooks/useMapState';
+import { getEffectiveCountryColor } from '../utils/colors';
 
 interface CountryListProps {
   countries: ReadonlyArray<GeoFeature>;
@@ -86,7 +86,7 @@ export function CountryList({
 
       <ul className="country-list__items">
         {sortedCountries.map((country) => {
-          const countryColor = colors[country.id] ?? DEFAULT_COLOR;
+          const countryColor = getEffectiveCountryColor(colors, country.id);
           const countryName = country.properties.name;
 
           return (

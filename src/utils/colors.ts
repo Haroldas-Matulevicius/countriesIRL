@@ -1,6 +1,7 @@
 import { COLOR_PRESETS, DEFAULT_COLOR } from '../constants/colors';
 import type { ColorMap } from '../types/map';
 import type { ColorNormalizationResult } from '../types/ui';
+import { isSafeStableCountryId } from './countryIds';
 
 const HEX_COLOR_PATTERN = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 const RGB_COLOR_PATTERN = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/;
@@ -59,10 +60,38 @@ export function isPresetColor(input: string): boolean {
   return result.ok && PRESET_COLOR_VALUES.has(result.value);
 }
 
+export function createEmptyColorMap(): Record<string, string> {
+  return Object.create(null) as Record<string, string>;
+}
+
+export function getEffectiveCountryColor(
+  colors: ColorMap,
+  countryId: string,
+): string {
+  if (
+    !isSafeStableCountryId(countryId) ||
+    !Object.prototype.hasOwnProperty.call(colors, countryId)
+  ) {
+    return DEFAULT_COLOR;
+  }
+
+  const rawColor: unknown = Reflect.get(colors, countryId);
+  if (typeof rawColor !== 'string') {
+    return DEFAULT_COLOR;
+  }
+
+  const colorResult = normalizeColor(rawColor);
+  return colorResult.ok ? colorResult.value : DEFAULT_COLOR;
+}
+
 export function canonicalizeColorMap(colors: ColorMap): ColorMap {
-  const canonicalColors: Record<string, string> = {};
+  const canonicalColors = createEmptyColorMap();
 
   for (const [countryId, rawColor] of Object.entries(colors)) {
+    if (!isSafeStableCountryId(countryId) || typeof rawColor !== 'string') {
+      continue;
+    }
+
     const colorResult = normalizeColor(rawColor);
     if (colorResult.ok && colorResult.value !== DEFAULT_COLOR) {
       canonicalColors[countryId] = colorResult.value;
@@ -82,11 +111,11 @@ export function hasEffectiveColorChange(
     return false;
   }
 
-  return countryIds.some((countryId) => {
-    const currentResult = normalizeColor(colors[countryId] ?? DEFAULT_COLOR);
-    const currentColor = currentResult.ok ? currentResult.value : DEFAULT_COLOR;
-    return currentColor !== colorResult.value;
-  });
+  return countryIds.some(
+    (countryId) =>
+      isSafeStableCountryId(countryId) &&
+      getEffectiveCountryColor(colors, countryId) !== colorResult.value,
+  );
 }
 
 export function applyColorToCountries(
@@ -99,9 +128,14 @@ export function applyColorToCountries(
     return colors;
   }
 
-  const nextColors: Record<string, string> = { ...canonicalizeColorMap(colors) };
+  const nextColors = createEmptyColorMap();
+  Object.assign(nextColors, canonicalizeColorMap(colors));
 
   for (const countryId of countryIds) {
+    if (!isSafeStableCountryId(countryId)) {
+      continue;
+    }
+
     if (colorResult.value === DEFAULT_COLOR) {
       delete nextColors[countryId];
     } else {
@@ -113,8 +147,10 @@ export function applyColorToCountries(
 }
 
 export function areColorMapsEqual(left: ColorMap, right: ColorMap): boolean {
-  const leftCountryIds = Object.keys(left);
-  const rightCountryIds = Object.keys(right);
+  const canonicalLeft = canonicalizeColorMap(left);
+  const canonicalRight = canonicalizeColorMap(right);
+  const leftCountryIds = Object.keys(canonicalLeft);
+  const rightCountryIds = Object.keys(canonicalRight);
 
   if (leftCountryIds.length !== rightCountryIds.length) {
     return false;
@@ -122,7 +158,7 @@ export function areColorMapsEqual(left: ColorMap, right: ColorMap): boolean {
 
   return leftCountryIds.every(
     (countryId) =>
-      Object.prototype.hasOwnProperty.call(right, countryId) &&
-      left[countryId] === right[countryId],
+      Object.prototype.hasOwnProperty.call(canonicalRight, countryId) &&
+      canonicalLeft[countryId] === canonicalRight[countryId],
   );
 }

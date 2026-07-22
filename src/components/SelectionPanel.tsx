@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 
 import type { CountryId, GeoFeature } from '../types/map';
-import { DEFAULT_COLOR } from '../constants/colors';
 import { useMapState } from '../hooks/useMapState';
+import { getEffectiveCountryColor } from '../utils/colors';
 
 const EMPTY_SELECTION_HEADING = 'Select countries to color';
 const EMPTY_SELECTION_BODY =
@@ -53,8 +53,8 @@ export function SelectionPanel({
 
   const selectedColors = useMemo(
     () =>
-      selectedCountries.map(
-        (country) => colors[country.id] ?? DEFAULT_COLOR,
+      selectedCountries.map((country) =>
+        getEffectiveCountryColor(colors, country.id),
       ),
     [colors, selectedCountries],
   );

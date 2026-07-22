@@ -18,6 +18,7 @@ import {
   applyColorToCountries,
   areColorMapsEqual,
   canonicalizeColorMap,
+  createEmptyColorMap,
   hasEffectiveColorChange,
   normalizeColor,
 } from '../utils/colors';
@@ -104,7 +105,7 @@ function commitColors(
     return state;
   }
 
-  const snapshot = { ...nextColors };
+  const snapshot = canonicalizeColorMap(nextColors);
   const branch = state.history.slice(0, state.historyIndex + 1);
   const history = [...branch, snapshot].slice(-(HISTORY_LIMIT + 1));
 
@@ -133,7 +134,7 @@ function replaceSelectedIds(
 }
 
 export function createInitialMapState(): MapState {
-  const colors = {};
+  const colors = createEmptyColorMap();
 
   return {
     colors,

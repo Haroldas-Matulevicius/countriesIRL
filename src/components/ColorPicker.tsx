@@ -10,9 +10,13 @@ import type {
   MouseEvent,
 } from 'react';
 
-import { COLOR_PRESETS, DEFAULT_COLOR } from '../constants/colors';
+import { COLOR_PRESETS } from '../constants/colors';
 import { useMapState } from '../hooks/useMapState';
-import { hasEffectiveColorChange, normalizeColor } from '../utils/colors';
+import {
+  getEffectiveCountryColor,
+  hasEffectiveColorChange,
+  normalizeColor,
+} from '../utils/colors';
 import { TOAST_MESSAGES } from './ToastRegion';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
@@ -127,7 +131,7 @@ export function ColorPicker({
               selectedCount > 0 &&
               selectedCountryIds.every(
                 (countryId) =>
-                  (colors[countryId] ?? DEFAULT_COLOR) === preset.value,
+                  getEffectiveCountryColor(colors, countryId) === preset.value,
               );
 
             return (

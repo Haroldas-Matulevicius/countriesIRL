@@ -107,6 +107,44 @@ describe('createStorageAdapter', () => {
     });
   });
 
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'rejects reserved color-map ID %s at save and load boundaries',
+    (reservedId) => {
+      const saveStorage = new FakeStorage();
+      const ownReservedColors = JSON.parse(
+        `{"${reservedId}":"#2563EB"}`,
+      ) as Record<string, string>;
+
+      expect(
+        createStorageAdapter(saveStorage, () => 100).save(
+          'Reserved save',
+          ownReservedColors,
+        ),
+      ).toMatchObject({
+        ok: true,
+        value: { savedMap: { colors: {} } },
+        warnings: [{ code: 'corrupt-data' }],
+      });
+
+      const loadStorage = new FakeStorage();
+      loadStorage.setItem(
+        STORAGE_KEY,
+        `[{"name":"Reserved load","colors":{"${reservedId}":"#2563EB","FRA":"#DC2626"},"timestamp":100}]`,
+      );
+
+      expect(
+        createStorageAdapter(loadStorage).load(
+          'Reserved load',
+          new Set([reservedId, 'FRA']),
+        ),
+      ).toEqual({
+        ok: true,
+        value: { FRA: '#DC2626' },
+        warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
+      });
+    },
+  );
+
   it('replaces an exact trimmed-name match and moves it to newest', () => {
     const storage = new FakeStorage();
     const timestamps = [100, 200, 300];

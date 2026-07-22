@@ -7,10 +7,10 @@ import {
 } from '../constants/config';
 import type { ColorMap } from '../types/map';
 import type { SavedMap, StorageResult, StorageWarning } from '../types/ui';
-import { normalizeColor } from './colors';
+import { createEmptyColorMap, normalizeColor } from './colors';
+import { isSafeStableCountryId } from './countryIds';
 
 const MAX_STORED_COLOR_ENTRIES = 512;
-const UNSAFE_RECORD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 export interface SaveMapValue {
   savedMap: SavedMap;
@@ -89,16 +89,12 @@ function normalizeColorMap(
     return null;
   }
 
-  const colors: Record<string, string> = {};
+  const colors = createEmptyColorMap();
   const entries = Object.entries(value);
   let isCorrupt = entries.length > MAX_STORED_COLOR_ENTRIES;
 
   for (const [countryId, rawColor] of entries.slice(0, MAX_STORED_COLOR_ENTRIES)) {
-    if (
-      countryId.trim().length === 0 ||
-      UNSAFE_RECORD_KEYS.has(countryId) ||
-      typeof rawColor !== 'string'
-    ) {
+    if (!isSafeStableCountryId(countryId) || typeof rawColor !== 'string') {
       isCorrupt = true;
       continue;
     }

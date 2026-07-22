@@ -4,6 +4,7 @@ import {
   applyColorToCountries,
   areColorMapsEqual,
   canonicalizeColorMap,
+  getEffectiveCountryColor,
   hasEffectiveColorChange,
   normalizeColor,
 } from './colors';
@@ -84,6 +85,27 @@ describe('effective color changes', (): void => {
       }),
     ).toEqual({ FR: '#AABBCC' });
   });
+
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'keeps reserved ID %s out of color reads, writes, and change detection',
+    (reservedId): void => {
+      const ownReservedColors = JSON.parse(
+        `{"${reservedId}":"#2563EB","FR":"#DC2626"}`,
+      ) as Record<string, string>;
+      const inheritedColors = Object.create({
+        [reservedId]: '#2563EB',
+      }) as Record<string, string>;
+      const canonicalColors = canonicalizeColorMap(ownReservedColors);
+
+      expect(canonicalColors).toEqual({ FR: '#DC2626' });
+      expect(Object.getPrototypeOf(canonicalColors)).toBeNull();
+      expect(getEffectiveCountryColor(ownReservedColors, reservedId)).toBe('#FFFFFF');
+      expect(getEffectiveCountryColor(inheritedColors, reservedId)).toBe('#FFFFFF');
+      expect(hasEffectiveColorChange(inheritedColors, [reservedId], '#DC2626')).toBe(false);
+      expect(applyColorToCountries({}, [reservedId], '#DC2626')).toEqual({});
+      expect(areColorMapsEqual({}, inheritedColors)).toBe(true);
+    },
+  );
 });
 
 describe('areColorMapsEqual', (): void => {

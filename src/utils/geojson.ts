@@ -6,16 +6,7 @@ import type {
   GeoJsonWarning,
   GeoJsonWarningCode,
 } from '../types/map';
-
-const SENTINEL_IDS = new Set([
-  '-99',
-  '99',
-  'N/A',
-  'NA',
-  'NULL',
-  'UNKNOWN',
-  'UNRESOLVED',
-]);
+import { normalizeStableCountryId } from './countryIds';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -74,20 +65,14 @@ function createWarning(
 function readFeatureId(
   feature: Record<string, unknown>,
 ): { ok: true; id: string } | { ok: false; code: 'missing-id' | 'sentinel-id' } {
-  if (typeof feature.id !== 'string') {
+  if (typeof feature.id !== 'string' || feature.id.trim().length === 0) {
     return { ok: false, code: 'missing-id' };
   }
 
-  const id = feature.id.trim();
-  if (id.length === 0) {
-    return { ok: false, code: 'missing-id' };
-  }
-
-  if (SENTINEL_IDS.has(id.toUpperCase())) {
-    return { ok: false, code: 'sentinel-id' };
-  }
-
-  return { ok: true, id };
+  const id = normalizeStableCountryId(feature.id);
+  return id === null
+    ? { ok: false, code: 'sentinel-id' }
+    : { ok: true, id };
 }
 
 function readFeatureName(

@@ -144,6 +144,27 @@ describe('mapStateReducer color history', (): void => {
     expect(loadedState.history).toEqual([{ IT: '#16A34A', ES: '#AABBCC' }]);
   });
 
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'rejects reserved color-map ID %s in reducer writes and loaded state',
+    (reservedId): void => {
+      const reservedColors = JSON.parse(
+        `{"${reservedId}":"#2563EB","FR":"#DC2626"}`,
+      ) as Record<string, string>;
+      const loadedState = mapStateReducer(createInitialMapState(), {
+        type: 'LOAD_STATE',
+        payload: { colors: reservedColors },
+      });
+      const editedState = mapStateReducer(loadedState, {
+        type: 'SET_COLOR',
+        payload: { countryId: reservedId, color: '#16A34A' },
+      });
+
+      expect(loadedState.colors).toEqual({ FR: '#DC2626' });
+      expect(Object.getPrototypeOf(loadedState.colors)).toBeNull();
+      expect(editedState).toBe(loadedState);
+    },
+  );
+
   it('normalizes before provider change detection, timing, and dispatch preparation', (): void => {
     performance.clearMarks('countriesirl-color-start');
     performance.mark('countriesirl-color-start');

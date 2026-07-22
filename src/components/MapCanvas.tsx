@@ -20,10 +20,10 @@ import type {
 } from '../types/map';
 import {
   DEFAULT_BORDER_COLOR,
-  DEFAULT_COLOR,
   SELECTED_BORDER_COLOR,
 } from '../constants/colors';
 import { MAP_VIEWBOX_SIZE } from '../constants/config';
+import { getEffectiveCountryColor } from '../utils/colors';
 import { createFixedEuropeProjection } from '../utils/mapProjection';
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
@@ -258,7 +258,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
             pointerTooltipData(
               event,
               feature,
-              colorsRef.current[feature.id] ?? DEFAULT_COLOR,
+              getEffectiveCountryColor(colorsRef.current, feature.id),
             ),
           );
         })
@@ -267,7 +267,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
             pointerTooltipData(
               event,
               feature,
-              colorsRef.current[feature.id] ?? DEFAULT_COLOR,
+              getEffectiveCountryColor(colorsRef.current, feature.id),
             ),
           );
         })
@@ -279,7 +279,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
                 event.currentTarget,
                 document.activeElement,
                 feature,
-                colorsRef.current[feature.id] ?? DEFAULT_COLOR,
+                getEffectiveCountryColor(colorsRef.current, feature.id),
               ),
             );
             return;
@@ -301,7 +301,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
             keyboardTooltipData(
               event.currentTarget,
               feature,
-              colorsRef.current[feature.id] ?? DEFAULT_COLOR,
+              getEffectiveCountryColor(colorsRef.current, feature.id),
             ),
           );
         })
@@ -408,7 +408,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
         .selectAll<SVGPathElement, GeoFeature>(COUNTRY_PATH_SELECTOR)
         .attr(
           'fill',
-          (feature): string => colors[feature.id] ?? DEFAULT_COLOR,
+          (feature): string => getEffectiveCountryColor(colors, feature.id),
         )
         .attr('stroke', (feature): string =>
           selectedIds.has(feature.id)
@@ -427,7 +427,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
           String(selectedIds.has(feature.id)),
         )
         .attr('aria-label', (feature): string => {
-          const color = colors[feature.id] ?? DEFAULT_COLOR;
+          const color = getEffectiveCountryColor(colors, feature.id);
           return `${feature.properties.name}, current color ${color}`;
         })
         .attr('tabindex', (feature): number =>
@@ -437,7 +437,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
       countries
         .select<SVGTitleElement>('title')
         .text((feature): string => {
-          const color = colors[feature.id] ?? DEFAULT_COLOR;
+          const color = getEffectiveCountryColor(colors, feature.id);
           return `${feature.properties.name}, ${color}`;
         });
 

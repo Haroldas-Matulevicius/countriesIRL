@@ -80,6 +80,24 @@ describe('normalizeGeoJson', (): void => {
     });
   });
 
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'rejects reserved stable ID %s during normalization',
+    (reservedId): void => {
+      const result = normalizeGeoJson(
+        createCollection([
+          createFeature('ESP', 'Spain'),
+          createFeature(reservedId, 'Reserved'),
+        ]),
+      );
+
+      expect(result).toMatchObject({
+        ok: true,
+        features: [{ id: 'ESP' }],
+        warnings: [{ featureIndex: 1, code: 'sentinel-id' }],
+      });
+    },
+  );
+
   it.each([
     {
       label: 'non-feature values',
