@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 19/22 plans executed
+**Plans:** 20/22 plans executed
 
 Plans:
 
@@ -59,7 +59,7 @@ Plans:
 - [x] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
 
 **Wave 13** *(blocked on the completed Wave 12 product/gate evidence)*
-- [ ] 01-15-PLAN.md — Reconcile accepted final code/UI/test/build/browser evidence and close local release acceptance with concise current-HEAD functional smoke in Chrome 150 and Edge 150; timing observations are non-blocking per D-63
+- [x] 01-15-PLAN.md — Reconcile accepted final code/UI/test/build/browser evidence and close local release acceptance with concise current-HEAD functional smoke in Chrome 150 and Edge 150; timing observations are non-blocking per D-63
 
 **Wave 14** *(blocked on Plan 01-15 functional approval)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
@@ -263,7 +263,7 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Functional UAT** → Execute revised Plan 01-15: reconcile accepted final evidence, verify the immutable timing record remains unchanged/non-blocking, and complete concise current-HEAD Chrome 150/Edge 150 functional smoke with clean browser cells and no timing thresholds
-2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 only after Plan 01-15 functional approval
+1. **Phase 1 Deployment Authorization** → Execute Plan 01-16 only after its separate explicit human authorization; link and deploy exactly once without reopening the approved functional UAT
+2. **Phase 1 Production Verification** → Execute Plan 01-17 after deployment to verify production title, Vite assets, GeoJSON, browser behavior, network state, and README publication
 3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
 4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends
