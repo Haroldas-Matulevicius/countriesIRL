@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import indexHtml from '../index.html?raw';
 import { VITEST_EXCLUDE, VITEST_INCLUDE } from '../vitest.config';
 
 const discoveredSourceTests = Object.keys(
@@ -20,5 +21,13 @@ describe('Vitest project scope', () => {
           (filePath.endsWith('.test.ts') || filePath.endsWith('.test.tsx')),
       ),
     ).toBe(true);
+  });
+});
+
+describe('Application shell assets', () => {
+  it('declares the same-origin SVG favicon', () => {
+    expect(indexHtml).toContain(
+      '<link rel="icon" type="image/svg+xml" href="/favicon.svg" />',
+    );
   });
 });

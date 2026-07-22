@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>CountriesIRL map</title>
+  <rect width="32" height="32" rx="7" fill="#111827" />
+  <path
+    d="M7 9.5 13 7l6 2 6-2v15.5l-6 2-6-2-6 2Z"
+    fill="none"
+    stroke="#f9fafb"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+  />
+  <path
+    d="M13 7v15.5M19 9v15.5"
+    fill="none"
+    stroke="#818cf8"
+    stroke-linecap="round"
+    stroke-width="2"
+  />
+</svg>
