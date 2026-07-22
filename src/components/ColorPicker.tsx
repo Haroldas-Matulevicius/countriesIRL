@@ -150,7 +150,7 @@ export function ColorPicker({
                   style={{ backgroundColor: preset.value }}
                   aria-hidden="true"
                 />
-                <span>{preset.name}</span>
+                <span className="color-picker__preset-name">{preset.name}</span>
                 {isActive ? (
                   <span className="color-picker__active-check" aria-hidden="true">
                     ✓

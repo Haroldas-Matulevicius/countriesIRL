@@ -66,6 +66,9 @@ describe('ColorPicker', () => {
       expect(presetButtons[index]).toContain(
         `aria-label="Apply ${preset.name}"`,
       );
+      expect(markup).toContain(
+        `<span class="color-picker__preset-name">${preset.name}</span>`,
+      );
       expect(presetButtons[index]).toMatch(NATIVE_DISABLED_ATTRIBUTE);
     });
 

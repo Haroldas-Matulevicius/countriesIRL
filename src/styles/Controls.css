@@ -181,11 +181,12 @@
   border-radius: var(--radius-control);
 }
 
-.color-picker__preset > span:nth-child(2) {
+.color-picker__preset-name {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
 }
 
 .color-picker__preset--active {
