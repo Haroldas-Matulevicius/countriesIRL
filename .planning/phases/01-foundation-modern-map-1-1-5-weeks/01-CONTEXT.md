@@ -9,7 +9,7 @@
 
 Deliver a production-ready, browser-only CountriesIRL Phase 1 MVP: a modern European SVG map that non-technical Instagram creators can interactively select and color, including single and bulk color assignment, bounded undo/redo, reset, local save/load/delete, first-use help, responsive tablet support, exact 1080×1080 PNG export, basic accessibility and dark-theme behavior, and deployment to Vercel.
 
-This phase also establishes the React/TypeScript/Vite application shell, the normalized Natural Earth GeoJSON asset and validation boundary, the project component/hook/utility structure, automated utility/state tests, and production build/lint verification. It does not add historical borders, flexible centering, regional zoom presets, legends, batch export, or other Phase 2+ capabilities.
+This phase also establishes the React/TypeScript/Vite application shell, the normalized Natural Earth GeoJSON asset and validation boundary, the project component/hook/utility structure, automated utility/state tests, and production build/lint verification. It does not add historical borders, flexible centering, regional zoom presets, legends, World or North America canvas variants, batch export, or other Phase 2+ capabilities.
 
 The checked-in repository currently contains planning and guidance documents only; no product source, package manifest, tests, or map data exist. Existing `CLAUDE.md` and `.planning/coding-rules/*.md` files are current authority and must not be regenerated or overwritten wholesale. Update a rule file only if implementation introduces or corrects a lasting project convention.
 
@@ -28,7 +28,7 @@ The checked-in repository currently contains planning and guidance documents onl
 - D-07: Use browser `localStorage` for map save/load/delete; no backend, authentication, mandatory login, or server infrastructure.
 - D-08: Deploy the static Vite app to Vercel and make a shareable production URL part of Phase 1 completion.
 - D-09: Use plain component-scoped CSS plus CSS custom properties in `theme.css`; do not add Tailwind or CSS-in-JS.
-- D-10: Target current Chrome, Firefox, Safari, and Edge (last two versions); no IE11 support.
+- D-10: The long-term compatibility target remains current Chrome, Firefox, Safari, and Edge plus their previous versions; no IE11 support. Phase 1 release certification is explicitly narrowed by D-61 and must not imply that deferred browsers were tested.
 
 ### Application and File Architecture
 - D-11: Preserve the PRD subsystem layout: `src/types`, `src/components`, `src/hooks`, `src/utils`, `src/styles`, `src/constants`, and `public/data/europe-modern.geojson`.
@@ -94,6 +94,10 @@ The checked-in repository currently contains planning and guidance documents onl
 - D-59: Existing coding-rule documents are authoritative. Do not replace them from templates; make only targeted, reviewed updates when implementation establishes a durable new rule or corrects a demonstrated technical error.
 - D-60: Completion includes a production Vercel deployment, a working shareable URL, no required `.env.local`, and no product-code dependency on Vercel environment variables.
 
+### Release Acceptance and Next Priority
+- D-61: For this Phase 1 release, browser acceptance is local-browser-only and requires the currently installed Chrome 150 and Edge 150. Firefox, Safari, Chrome previous, Edge previous, Firefox previous, and Safari previous remain explicitly unverified/deferred by user choice; they must not be recorded as passed or certified and do not block this release.
+- D-62: The user approves shipping Europe first and accepts the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release. World and North America canvas variants are the highest-priority next-phase/backlog work immediately after Phase 1, but no region-variant implementation belongs in Phase 1.
+
 ### Claude's Discretion
 - Choose the exact current package patch versions compatible with React 18, Vite, the installed Node runtime, and the locked stack.
 - Choose the deterministic Natural Earth preprocessing procedure, exact Europe/transcontinental inclusion policy, and stable ID fallback order while preserving the fixed data source and normalized runtime contract.
@@ -158,7 +162,7 @@ The checked-in repository currently contains planning and guidance documents onl
 - SVG export and other editable/export formats beyond the locked PNG deliverable.
 - Palette-color hotkeys and advanced keyboard shortcuts beyond basic accessibility.
 - Advanced styling such as hatching, patterns, in-country labels, or animated transitions.
-- Non-European regions, a native mobile app, real-time collaboration, cloud sync, authentication, share URLs, analytics, and AI palette suggestions.
+- World and North America canvas variants are explicitly deferred from Phase 1 and promoted to the highest-priority next-phase/backlog work per D-62; all other non-European regions, a native mobile app, real-time collaboration, cloud sync, authentication, share URLs, analytics, and AI palette suggestions remain deferred.
 - Server functions, databases, and secret/environment-variable-driven product behavior.
 
 </deferred>

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Amended Phase 1 UAT acceptance after completed deep-review fixes
-last_updated: "2026-07-22T03:23:52.000Z"
-last_activity: 2026-07-21 -- Amended Plans 01-21/01-15 and validation for completed deep-review fixes
+status: ready
+stopped_at: Synchronized Plan 01-15 for local Chrome 150/Edge 150 UAT
+last_updated: "2026-07-22T12:48:18.828Z"
+last_activity: 2026-07-22 -- Synchronized Plan 01-15 with explicit release and region-priority decisions
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 21
-  completed_plans: 17
-  percent: 81
+  completed_plans: 18
+  percent: 86
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Next plans: 01-21 of 21 in current phase
+Next plans: 01-15 of 21 in current phase
 Execution graph: 21 plans across 14 waves
-Status: Ready to execute revised Plan 01-21 focused acceptance
-Last activity: 2026-07-21 -- Synchronized focused/full UAT acceptance with completed deep-review fixes
+Status: Plan 01-15 synchronized and ready for local Chrome 150/Edge 150 UAT
+Last activity: 2026-07-22 -- Synchronized Plan 01-15 with explicit release and region-priority decisions
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
@@ -54,13 +54,14 @@ Progress: [████████░░] 81%
 | Phase 01 P14 | 3 min | 1 task | 0 files |
 | Phase 01 P19 | 2 min | 1 tasks | 2 files |
 | Phase 01 P20 | 10 min | 1 tasks | 3 files |
+| Phase 01 P21 | 2 min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 - [Phase 1]: React 18, strict TypeScript, Vite, D3 SVG, html2canvas, and localStorage are the locked MVP stack.
-- [Phase 1]: Natural Earth 5.1.1 default POV requires presentation acceptance before deployment.
+- [Phase 1]: The user approved the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release.
 - [Phase 1]: Offline means bundled same-origin assets and continued use after load; no service worker or fresh disconnected reload requirement.
 - [Phase 1]: Responsive composition uses one active matchMedia-selected React workspace with viewport-correct DOM and focus order.
 - [Phase 1]: Historical borders, flexible centering, and legends remain deferred to Phase 2.
@@ -104,38 +105,40 @@ Progress: [████████░░] 81%
 - [Phase 01]: Use the existing responsive React branch order directly; CSS grids size and wrap that branch without order declarations or duplicate-workspace hiding.
 - [Phase 01 gap closure]: Preset buttons must expose their own native disabled state when zero countries are selected, matching the custom controls rather than relying only on the disabled fieldset.
 - [Phase 01 gap closure]: Chromium export must append/connect the download anchor before click, await a bounded handoff only after successful click, then remove the anchor, revoke the object URL, and remove the frame in `finally`; click failure uses the same `finally` immediately. Plan 01-20 updates the durable export coding rule and its two-entry Last updated history.
-- [Phase 01 gap closure]: Browser acceptance uses exact local browsers directly or BrowserStack Local/an explicitly approved equivalent tunnel that first proves the remote browser can load the local Vite app. Tunnel tooling remains external and never enters the product dependency graph.
+- [Phase 01 release acceptance]: Browser certification for this release is local-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and previous-version certification are explicitly unverified/deferred by user choice and must not be reported as passed.
 - [Phase 01 deep review]: Treat absent color entries as effective white, keep the selected active preset natively disabled, and suppress active-color no-ops before dispatch so they create no history, success feedback, or `countriesirl-color-start` mark.
 - [Phase 01 deep review]: Preserve valid saved-map subsets while surfacing warning-severity load feedback; an unavailable initial onboarding read creates an immediate assertive storage alert without blocking editing/export.
 - [Phase 01 deep review]: Limit default Vitest discovery to `src/**/*.test.{ts,tsx}` and exclude `.claude/**` so agent-worktree copies cannot inflate or contaminate acceptance evidence.
 - [Phase 01 deep review]: Measure and clamp/flip tooltips inside viewport margins; if responsive remount disconnects the Saved Maps opener, restore focus to the currently mounted `Save or Load Maps` control, then fall back to the map.
+- [Next phase priority]: Ship Europe first, then immediately add World and North America canvas variants before the remaining historical/centering/legend backlog; keep all region-variant implementation out of Phase 1.
+- [Phase 01]: The user explicitly approved the final Chrome 150 and Edge 150 objective evidence for Plan 01-21. — The evidence was generated from current HEAD 805ab14, both exact local browser routes passed, and all four PNGs passed integrity checks.
+- [Phase 01]: Phase 1 browser acceptance is local Chrome and Edge only. — This later explicit user decision supersedes remote and broader current/previous browser-matrix acceptance for Phase 1.
+- [Phase 01]: Europe ships first, with World and North America variants next. — Regional expansion follows the initial Europe release rather than delaying it.
 
 ### Pending Todos
 
-- Complete revised Plan 01-21 full source-scoped gate plus preflighted Chrome 150/Edge 150 White→Red active-disabled/no-op and two-download checkpoint.
-- Rerun Plan 01-15 with source-only discovery evidence, partial-corrupt/startup storage checks, 360px tooltip edges, 1200px modal-focus remounts, revised active-color semantics, and all eight exact browser routes.
+- Rerun Plan 01-15 with every existing current-code UAT check in installed Chrome 150 and Edge 150; record Firefox/Safari/previous versions as unverified/deferred rather than passed.
 - Complete Plans 01-16 and 01-17 deployment and production verification after UAT approval.
-- Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
+- Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
 
 ### Blockers/Concerns
 
-- Safari/current-previous browser availability and Natural Earth 5.1.1 POV approval remain blocking human checkpoint items, not diagnosed product defects.
-- Remote browser results require a successful BrowserStack Local or approved equivalent tunnel preflight to the local Vite app before acceptance.
-- Chrome 150 and Edge 150 native active-preset/no-op and two-download acceptance remains pending Plan 01-21; source tests now cover effective-white canonicalization, active disabled state, no history/status dispatch, and timing-mark suppression.
+- Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
+- Plan 01-15 remains pending execution and must retain every current-code UAT check in both installed release browsers.
 
 ## Known Constraints
 
 - Browser storage must handle capacity, quota, unavailable, corrupt-data, and partial-valid-load cases with distinct feedback.
 - Small territories and exclaves remain selectable through the country list.
-- Safari current/previous testing may require macOS or BrowserStack.
-- BrowserStack Local or equivalent is human test tooling only and must not modify package.json, source, Vite configuration, runtime behavior, or deployment dependencies.
+- Phase 1 release acceptance uses only the currently installed local Chrome 150 and Edge 150; no remote-browser route or tunnel is required.
+- World and North America canvas variants are excluded from Phase 1 code changes and retained as the highest-priority next-phase work.
 - Vercel production deployment requires a later human authorization checkpoint.
-- PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-21 native-download verification.
+- PNG output must remain exactly 1080×1080, opaque white, map-only, and theme/device-pixel-ratio independent during Plan 01-15 full UAT.
 - Default Vitest acceptance evidence must contain source tests only; `.claude/**` worktree copies are excluded.
 - Effective-white and active-color no-op attempts must not create history, success announcements, or color-start timing marks.
 
 ## Session Continuity
 
-Last session: 2026-07-22T03:23:52.000Z
-Stopped at: Amended Phase 1 UAT acceptance after completed deep-review fixes
+Last session: 2026-07-22T12:46:57.226Z
+Stopped at: Synchronized Plan 01-15 for local Chrome 150/Edge 150 UAT
 Resume file: None

@@ -5,12 +5,12 @@ status: approved
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-07-21
-updated: 2026-07-21
+updated: 2026-07-22
 ---
 
 # Phase 1 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution, including the completed deep-review fixes and the Plan 01-21 → 01-15 UAT acceptance chain.
+> Per-phase validation contract for feedback sampling during execution, including the completed deep-review fixes and the Plan 01-21 → 01-15 local Chrome 150/Edge 150 UAT acceptance chain.
 
 ---
 
@@ -35,10 +35,10 @@ updated: 2026-07-21
 - **Plan 01-14 verification-only gate (Wave 9):** Historical full dependency/security/documentation/lint/TypeScript/test/deterministic-data/build/clean-diff gate passed before source-scoping.
 - **Plans 01-19 and 01-20 UAT gap fixes (Wave 10):** Native preset disabling and Chromium download lifecycle fixes are complete, including focused tests and the durable export rule update.
 - **Completed deep review after Wave 10:** Source-only Vitest discovery, saved-map deduplication, partial-load warning feedback, effective-white no-op suppression, startup storage alerting, truthful shortcut labels, tooltip clamping/flipping, and responsive-remount modal focus restoration are implemented and covered by source tests.
-- **Plan 01-21 focused regression gate (Wave 11):** Run the full source-scoped automated suite; preflight exact Chrome 150 and Edge 150 by local-direct access or BrowserStack Local/approved equivalent tunnel; prove any remote browser loads the local Vite URL; then block on zero-selection disabling, White→Red active-disabled transitions, side-effect-free active attempts, and two completed native downloads per browser.
-- **Plan 01-15 full UAT rerun (Wave 12):** Verify source-only discovery, rerun all twelve browser/data steps after Plan 01-21 approval, and explicitly exercise partial-corrupt load warnings, blocked startup storage alerting, 360px tooltip edges, 1200px modal-focus remounts, and revised active-color semantics. Preflight every matrix cell using an exact local browser or proven BrowserStack Local/approved tunnel route. BrowserStack/Safari availability and Natural Earth POV approval remain human checkpoint items, not product defects.
-- **Before `/gsd:verify-work`:** Full suite, Plan 01-15 browser matrix/UAT, and Plans 01-16/01-17 deployment verification must be complete.
-- **Max feedback latency:** 60 seconds for automated checks; browser compatibility/timing is a blocking human matrix.
+- **Plan 01-21 focused regression gate (Wave 11):** Run the full source-scoped automated suite in the installed Chrome 150 and Edge 150; then block on zero-selection disabling, White→Red active-disabled transitions, side-effect-free active attempts, and two completed native downloads per browser.
+- **Plan 01-15 full UAT rerun (Wave 12):** Verify source-only discovery and preserve every existing current-code browser check after Plan 01-21 approval, explicitly exercising partial-corrupt load warnings, blocked startup storage alerting, 360px tooltip edges, 1200px modal-focus remounts, revised active-color semantics, performance, stress, persistence, export, accessibility, responsive behavior, and the offline boundary in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and previous-version certification are explicitly unverified/deferred by user choice rather than passed. Natural Earth 5.1.1 Europe presentation approval is already recorded and is not reopened.
+- **Before `/gsd:verify-work`:** Full suite, Plan 01-15 two-browser local UAT, and Plans 01-16/01-17 deployment verification must be complete.
+- **Max feedback latency:** 60 seconds for automated checks; installed-browser compatibility/timing is a blocking human check.
 
 ---
 
@@ -64,7 +64,7 @@ updated: 2026-07-21
 | Preset controls and effective-white no-ops | Presets originally lacked native zero-selection disabling; deep review then established that the active effective color itself must remain disabled and side-effect free. | 01-19 + BL-03 → 01-21 | Zero selection disables all ten. Selecting an uncolored country leaves White active/disabled and nine alternatives enabled. Applying Red makes Red active/disabled and enables White. Active attempts create no history, success, or `countriesirl-color-start` residue in focused tests, Chrome 150, and Edge 150. |
 | Chromium PNG download | Chrome 150 and Edge 150 received complete PNG bytes but native download ended canceled while UI announced success; immediate anchor removal/object-URL revocation was the lifecycle under test. | 01-20 → 01-21 | Connected click initiation, bounded awaited post-click handoff, finally cleanup after handoff, immediate click-failure cleanup, durable rule correction, and two completed downloads in each affected browser while output remains exact. |
 | Deep-review browser behavior | Partial-load feedback, startup storage alerting, source-only discovery, tooltip edges, and responsive-remount focus require explicit acceptance beyond unit tests. | BL-02/BL-04/WR-01/WR-03/WR-04 → 01-15 | Exact warning/alert feedback, source-only verbose discovery, 360px top/right/bottom tooltip containment, and focus restoration in both directions across 1200px all pass. |
-| Browser/data availability | Safari/current-previous access and Natural Earth 5.1.1 POV approval remain unresolved human checkpoint work. | 01-15 | These are not product defects. Remote browsers require a proven BrowserStack Local/approved equivalent tunnel route to the local Vite app before acceptance. |
+| Release browser/data scope | The user narrowed this release to installed Chrome 150 and Edge 150 and approved the current Natural Earth 5.1.1 Europe presentation. | 01-15 | Run all current-code UAT in both installed browsers. Record Firefox, Safari, and previous versions as unverified/deferred, never passed; record Europe presentation approval without reopening it. |
 
 ---
 
@@ -89,7 +89,7 @@ updated: 2026-07-21
 | 01-19-01 | 19 | 10 | F1.3/F1.4/NFR5/NFR11 | T-01-54/T-01-55 | Explicit native disabled state prevents zero-selection preset activation | component/static | `npm run test:run -- src/components/ColorPicker.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | yes | complete |
 | 01-20-01 | 20 | 10 | F5.1/F5.3/NFR4/NFR5 | T-01-56/T-01-57/T-01-58 | Connected click, bounded handoff, finally cleanup, immediate click-failure cleanup, and synchronized durable rule | unit/build | `npm run test:run -- src/utils/export.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | yes | complete |
 | 01-21-01 | 21 | 11 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | T-01-59/T-01-60/T-01-61 | Source-scoped full gate plus exact-browser active-disabled/no-op and two-download regression | full/browser | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | external | pending |
-| 01-15-01 | 15 | 12 | all phase requirements | T-01-38/T-01-39/T-01-40/T-01-41/T-01-42 | Complete deep-review and measured UAT through recorded local-direct or proven tunneled routes | full/browser/human | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | external | pending |
+| 01-15-01 | 15 | 12 | all phase requirements | T-01-38/T-01-39/T-01-40/T-01-42 | Complete deep-review and measured UAT locally in installed Chrome 150 and Edge 150, with deferred browsers explicitly unverified | full/browser/human | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | external | pending |
 | 01-16-01 | 16 | 13 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
 | 01-17-01 | 17 | 14 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
 
@@ -119,7 +119,7 @@ The post-deep-review source-scoped baseline passes 11 files and 98 tests. Plan 0
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Exact-browser local/tunnel preflight | NFR5 | Remote browser evidence is invalid until the intended local Vite app is reachable | Plans 01-21 and 01-15: record local-direct or BrowserStack Local/approved equivalent route, exact version/build, URL, and successful title/map load |
+| Installed-browser local preflight | NFR5 | Release evidence must identify the exact local browsers actually accepted | Plans 01-21 and 01-15: record local-direct route, exact Chrome 150 and Edge 150 version/build, local URL, and successful title/map load |
 | Focused active-preset/download regressions in Chrome 150 and Edge 150 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | Native disabled/no-op behavior and Chromium download-manager lifecycle cannot be proven by Node unit tests | Plan 01-21 verifies White→Red active transitions, no history/status/timing residue, and two downloads per browser |
 | Five-country flow and persisted onboarding dismissal/reopen | NFR5/NFR6 | Usability, focus, and reload behavior | Plan 01-15 step 1 |
 | Revised active-color semantics | F1.3/F1.4/NFR1/NFR2/NFR11 | Native control state and absence of browser-visible side effects require observation | Plan 01-15 steps 2–3 and matrix step 10 |
@@ -128,9 +128,9 @@ The post-deep-review source-scoped baseline passes 11 files and 98 tests. Plan 0
 | Save/load plus partial-corrupt, malformed, startup-blocked, blocked-write, and quota storage | F6.1/F6.2 | Browser origin storage and feedback translation | Plan 01-15 steps 5–6 |
 | Exact PNG pixels, opacity, contents, parity, and <3 seconds | F5.1/F5.3/NFR4 | Downloaded binary and rasterization require inspection | Plan 01-15 step 7 |
 | One active responsive workspace, 360px tooltip edges, 1200px modal focus remount, dark theme, 200% zoom, reduced motion | NFR7/NFR11 | Responsive composition, viewport geometry, and media preferences | Plan 01-15 steps 8–9 |
-| Chrome/Firefox/Edge/Safari current and previous matrix | NFR5/NFR7/NFR11 | Cross-engine/browser behavior | Plan 01-15 step 10 after per-cell route preflight |
+| Installed Chrome 150 and Edge 150 release matrix | NFR5/NFR7/NFR11 | Native browser behavior still requires direct observation | Plan 01-15 step 10; Firefox, Safari, and previous versions are explicitly unverified/deferred by user choice |
 | Already-loaded offline behavior with no runtime third-party requests | NFR5 | Network inspection and loaded-session behavior | Plan 01-15 step 11; fresh disconnected reload excluded |
-| Natural Earth 5.1.1 default POV/inclusion acceptance | F1.1 | Geopolitical presentation requires approval | Plan 01-15 step 12 |
+| Natural Earth 5.1.1 Europe presentation decision record | F1.1 | Geopolitical presentation required explicit user approval | User approval is already recorded; Plan 01-15 step 12 confirms the accepted dataset/README are unchanged and does not reopen approval |
 | Vercel account authorization | NFR5 | Human identity flow | Plan 01-16 Task 1 |
 | Production title/Vite entry/non-empty GeoJSON plus browser/network approval | F5.1/NFR5 | External deployment content and same-origin behavior | Plan 01-17 Task 1 checkpoint |
 
@@ -144,15 +144,15 @@ The post-deep-review source-scoped baseline passes 11 files and 98 tests. Plan 0
 - [x] Plan 01-14 remains the historical verification-only gate; WR-01 corrects its over-broad test discovery for all subsequent gates.
 - [x] Plans 01-19 and 01-20 completed the original preset/download product gaps.
 - [x] Deep-review BL-01 through BL-04 and WR-01 through WR-04 are implemented and mapped to automated or browser acceptance.
-- [x] Plan 01-21 blocks on a local-direct or proven tunneled exact-browser preflight, revised active-color no-op evidence, and two completed Chrome 150/Edge 150 downloads before Plan 01-15.
-- [x] Plan 01-15 requires source-only discovery evidence, all deep-review manual checks, every browser matrix route/version, and successful local-app preflight.
-- [x] BrowserStack Local or equivalent remains external test tooling, not a product dependency.
+- [x] Plan 01-21 completed installed local Chrome 150/Edge 150 preflight, revised active-color no-op evidence, and two completed downloads per browser before Plan 01-15.
+- [x] Plan 01-15 requires source-only discovery evidence and every existing current-code UAT check in both installed browsers.
+- [x] Firefox, Safari, and previous-version certification are explicitly unverified/deferred by user choice, not silently passed and not release blockers.
 - [x] Measured map/interaction thresholds use multiple browser samples and exclude active-color no-ops.
 - [x] Partial-corrupt load warning, malformed JSON, blocked startup read, blocked writes, and quota storage UAT are mandatory.
-- [x] Browser compatibility matrix includes current and previous Chrome, Firefox, Edge, and Safari.
-- [x] BrowserStack/Safari availability and Natural Earth POV remain human checkpoint items rather than product defects.
+- [x] Release compatibility matrix contains installed Chrome 150 and Edge 150 only; all deferred browser cells remain visibly unverified.
+- [x] Natural Earth 5.1.1 Europe presentation approval is recorded as complete, and World/North America variants remain outside Phase 1 implementation.
 - [x] Offline boundary excludes fresh disconnected reload and service workers.
 - [x] No watch-mode flags are used in acceptance commands.
 - [x] `nyquist_compliant: true` and `wave_0_complete: true` are set in frontmatter.
 
-**Approval:** approved 2026-07-21; synchronized with the completed deep-review fixes and revised 01-21 → 01-15 source-scope/active-color/storage/tooltip/focus acceptance chain.
+**Approval:** approved 2026-07-22; synchronized with the completed deep-review fixes, installed Chrome 150/Edge 150 release acceptance, explicit deferred-browser status, and recorded Natural Earth Europe approval.

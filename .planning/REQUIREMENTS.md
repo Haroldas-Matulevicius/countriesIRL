@@ -1,7 +1,7 @@
 # CountriesIRL Map Generator — Requirements
 
 **Scope:** MVP (European focus)  
-**Last updated:** 2026-07-21
+**Last updated:** 2026-07-22
 
 ---
 
@@ -56,6 +56,12 @@
 - [x] **F6.1** Save map configuration locally (browser storage or file download)
 - [x] **F6.2** Load previously saved map
 - **F6.3** Share map URL (optional for V1, nice-to-have)
+
+### F7: Region Canvas Variants (Highest Priority After Phase 1)
+
+- **F7.1** Provide a World canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a world dataset/view.
+- **F7.2** Provide a North America canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a North America dataset/view.
+- **F7.3** Let the creator choose Europe, World, or North America without changing the approved Europe-first Phase 1 release behavior.
 
 ---
 
@@ -131,6 +137,13 @@
 
 ---
 
+## Phase 1 Release Acceptance
+
+- [ ] All existing Phase 1 current-code UAT checks pass locally in the currently installed Chrome 150 and Edge 150.
+- [ ] Firefox, Safari, and previous-version certification is explicitly recorded as unverified/deferred by user choice, never as passed or implicitly certified.
+- [x] The user approved the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release.
+- [ ] World and North America canvas variants remain outside Phase 1 implementation and are the highest-priority next-phase/backlog requirements (F7.1–F7.3).
+
 ## Acceptance Criteria (MVP)
 
 - [ ] User can open tool, color 5+ countries in <2 minutes
@@ -146,7 +159,7 @@
 
 ## Out of Scope (V2)
 
-- Non-European regions (Asia, Africa, Americas)
+- Non-European regions other than the approved next-priority World and North America canvas variants
 - Real-time collaboration/sharing
 - Advanced styling (hatching patterns, labels inside countries)
 - Animated map transitions

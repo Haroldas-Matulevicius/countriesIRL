@@ -1,7 +1,7 @@
 # CountriesIRL Map Generator — Roadmap
 
 **Target:** MVP in 4–6 weeks  
-**Focus:** European maps with historical borders
+**Focus:** Europe-first release, then World and North America canvas variants, followed by historical borders
 
 ---
 
@@ -11,7 +11,7 @@
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 17/21 plans executed
+**Plans:** 18/21 plans executed
 
 Plans:
 
@@ -53,10 +53,10 @@ Plans:
 - [x] 01-20-PLAN.md — Gap closure: preserve Chromium PNG download lifecycle and correct the durable export rule
 
 **Wave 11** *(blocked on both Wave 10 fixes)*
-- [ ] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
+- [x] 01-21-PLAN.md — Preflight exact Chrome 150/Edge 150, prove White→Red active-disabled no-op semantics, and complete two native downloads per browser
 
 **Wave 12** *(blocked on Wave 11 completion)*
-- [ ] 01-15-PLAN.md — Verify source-only test discovery and complete deep-review storage/tooltip/focus/active-color UAT, the eight-browser matrix, offline boundary, and data POV acceptance
+- [ ] 01-15-PLAN.md — Verify source-only discovery and all current-code UAT locally in installed Chrome 150 and Edge 150; record other browser certification as deferred/unverified and the Europe presentation as user-approved
 
 **Wave 13** *(blocked on Wave 12 completion)*
 - [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
@@ -71,8 +71,8 @@ Cross-cutting constraints:
 - Effective white is canonical: selecting an uncolored country leaves White active and natively disabled; applying another preset transfers that active disabled state, and active-color attempts create no history, status, or color timing mark.
 - Existing coding rules remain authoritative and receive targeted corrections when implementation proves a durable rule change, including the connected-anchor/bounded-handoff/finally-cleanup export lifecycle.
 - Default automated test discovery is source-scoped to `src/**/*.test.{ts,tsx}` and excludes `.claude/**` agent worktrees.
-- Remote browser acceptance requires BrowserStack Local or an explicitly approved equivalent tunnel to prove the exact browser can load the local Vite app; tunnel tooling never becomes a product dependency.
-- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, the eight-cell compatibility matrix, Natural Earth presentation approval, and Vercel production verification.
+- Phase 1 release browser acceptance is local-browser-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and all previous-version certification remain explicitly unverified/deferred by user choice and must never be reported as passed.
+- Production acceptance requires the verification-only full gate, measured browser thresholds, mandatory storage recovery/failures, responsive tooltip/focus checks, both installed-browser cells, the recorded Natural Earth Europe approval, and Vercel production verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
 - Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees; modal focus restoration follows the currently mounted responsive control after a 1200px remount.
 
@@ -88,7 +88,7 @@ Cross-cutting constraints:
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
 - One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
 - Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, and focus helpers
-- Measured <500ms map and <100ms effective color/undo/redo browser checks, current/previous browser matrix, and production Vercel URL
+- Measured <500ms map and <100ms effective color/undo/redo checks in installed Chrome 150 and Edge 150, with Firefox/Safari/previous versions recorded as unverified/deferred, plus a production Vercel URL
 
 ### Key Decisions
 
@@ -99,7 +99,9 @@ Cross-cutting constraints:
 - [x] localStorage with no backend, authentication, or mandatory login
 - [x] Plain component-scoped CSS plus theme custom properties
 - [x] Offline boundary: bundled same-origin/no runtime third-party requests; no fresh disconnected reload or service worker
-- [x] Natural Earth 5.1.1 default POV with blocking presentation acceptance
+- [x] Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion approved by the user for this release
+- [x] Phase 1 browser certification limited by user choice to installed Chrome 150 and Edge 150; Firefox/Safari/previous versions remain unverified/deferred
+- [x] Ship Europe first, then prioritize World and North America canvas variants immediately after Phase 1
 - [x] Human Vercel authorization before automated deployment
 
 ### Out of Scope (Phase 1)
@@ -109,16 +111,21 @@ Cross-cutting constraints:
 - Legend generation or legend styling UI
 - SVG export, batch/timelapse export, ZIP workflows
 - Cloud sync, authentication, sharing URLs, analytics, or server infrastructure
-- Non-European maps, native mobile app, hatching/patterns, or advanced palette hotkeys
+- World and North America canvas variants are out of Phase 1 implementation but are the highest-priority next-phase work; other non-European maps, native mobile app, hatching/patterns, and advanced palette hotkeys remain later scope
 
 ---
 
-## Phase 2: Advanced Features (1.5–2 weeks)
+## Phase 2: Region Variants & Advanced Features (1.5–2 weeks)
 
-**Goal:** Historical borders, flexible map centering, legend generation, zoom levels.
+**Goal:** Immediately add World and North America canvas variants after the Europe-first release, then continue with historical borders, flexible map centering, legend generation, and zoom levels.
+
+**Highest-priority requirements:** F7.1, F7.2, F7.3
 
 ### Deliverables
 
+- World canvas variant using the established coloring, history, persistence, accessibility, and exact-PNG workflows
+- North America canvas variant using the established coloring, history, persistence, accessibility, and exact-PNG workflows
+- Europe/World/North America canvas selection without changing the approved Phase 1 Europe presentation
 - Historical border datasets (GeoJSON for 1400s, 1700s, 1800s, 1900s, modern)
 - Time period selector UI
 - Map re-render on period change
@@ -166,7 +173,7 @@ Cross-cutting constraints:
 
 ### Testing
 
-- Manual testing across browsers (Chrome, Firefox, Safari, Edge)
+- Deferred compatibility certification for Firefox, Safari, and previous browser versions when those environments become available; Phase 1 does not claim these passed
 - Load testing (100+ map loads, rapid color changes)
 - Historical border accuracy spot-check
 - Export quality verification
@@ -174,7 +181,7 @@ Cross-cutting constraints:
 
 ### Out of Scope (Phase 3)
 
-- Non-European regions
+- Non-European regions beyond the approved World and North America canvas variants
 - Advanced analytics/tracking
 - User authentication
 
@@ -244,7 +251,8 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Focused Acceptance** → Run `/gsd:execute-phase 1 --gaps-only` to complete revised Plan 01-21
-2. **Phase 1 Full UAT Rerun** → Resume Plan 01-15 only after Plan 01-21 approval
+1. **Phase 1 Full UAT** → Execute pending Plan 01-15 with all current-code checks in installed Chrome 150 and Edge 150
+2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 after Plan 01-15 approval
 3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
-4. **Phase 2 Discussion** → Confirm historical data and centering decisions after Phase 1 closes
+4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first: World and North America canvas variants immediately after the Europe-first release
+5. **Phase 2 Advanced Features** → Then confirm historical data, centering, and legend decisions
