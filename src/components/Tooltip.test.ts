@@ -8,6 +8,7 @@ import {
 } from './MapCanvas';
 import {
   calculateTooltipPosition,
+  getTooltipMeasurementPosition,
   observeKeyboardTooltipAnchor,
   type TooltipAnchorElement,
 } from './Tooltip';
@@ -255,6 +256,12 @@ describe('observeKeyboardTooltipAnchor', () => {
   });
 });
 
+describe('tooltip measurement', () => {
+  it('uses a stable viewport-safe origin before actual measurement', () => {
+    expect(getTooltipMeasurementPosition()).toEqual({ left: 8, top: 8 });
+  });
+});
+
 describe('calculateTooltipPosition', () => {
   it('places pointer tooltips down and right when space is available', () => {
     expect(
@@ -271,17 +278,19 @@ describe('calculateTooltipPosition', () => {
   });
 
   it('flips pointer tooltips at the right and bottom edges', () => {
-    expect(
-      calculateTooltipPosition({
-        anchorX: 350,
-        anchorY: 630,
-        tooltipWidth: 120,
-        tooltipHeight: 60,
-        viewportWidth: 360,
-        viewportHeight: 640,
-        inputMethod: 'pointer',
-      }),
-    ).toEqual({ left: 218, top: 558 });
+    const tooltipWidth = 120;
+    const position = calculateTooltipPosition({
+      anchorX: 350,
+      anchorY: 630,
+      tooltipWidth,
+      tooltipHeight: 60,
+      viewportWidth: 360,
+      viewportHeight: 640,
+      inputMethod: 'pointer',
+    });
+
+    expect(position).toEqual({ left: 218, top: 558 });
+    expect(position.left + tooltipWidth).toBeLessThanOrEqual(352);
   });
 
   it('clamps a wide tooltip within a 360px viewport', () => {

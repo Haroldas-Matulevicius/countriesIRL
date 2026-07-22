@@ -150,6 +150,7 @@
   position: fixed;
   z-index: 20;
   display: flex;
+  width: max-content;
   max-width: min(360px, calc(100vw - (var(--space-md) * 2)));
   padding: var(--space-sm) var(--space-md);
   border: 1px solid #d1d5db;

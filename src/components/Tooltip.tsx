@@ -25,6 +25,13 @@ export interface TooltipPosition {
   top: number;
 }
 
+export function getTooltipMeasurementPosition(): TooltipPosition {
+  return {
+    left: VIEWPORT_MARGIN,
+    top: VIEWPORT_MARGIN,
+  };
+}
+
 interface MeasuredTooltipPosition extends TooltipPosition {
   countryId: string;
   inputMethod: MapTooltipData['inputMethod'];
@@ -229,7 +236,7 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
         measuredPosition.anchorY === data.position.y));
   const positionStyle: CSSProperties = isPositionCurrent
     ? { left: measuredPosition.left, top: measuredPosition.top }
-    : { left: data.position.x, top: data.position.y, visibility: 'hidden' };
+    : { ...getTooltipMeasurementPosition(), visibility: 'hidden' };
 
   return (
     <div
