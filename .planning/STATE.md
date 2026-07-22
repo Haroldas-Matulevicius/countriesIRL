@@ -27,6 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 Phase: 1 of 3 (Foundation & Modern Map)
 Plan: 14 of 18 in current phase
+Execution graph: 18 plans across 12 waves
 Status: Ready to execute
 Last activity: 2026-07-22 -- Phase 01 planning complete
 
@@ -100,7 +101,7 @@ Progress: [███████░░░] 72%
 
 ### Pending Todos
 
-- Execute README-only gap plan 01-18, then rerun the immutable Plan 01-14 quality gate.
+- Execute Wave 8 README-only gap plan 01-18, then rerun Plan 01-14 in Wave 9 before Waves 10–12.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
 ### Blockers/Concerns

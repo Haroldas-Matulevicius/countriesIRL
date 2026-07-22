@@ -44,15 +44,17 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 01-18-PLAN.md — Gap closure: correct README scope/stack claims before rerunning Plan 01-14
-- [ ] 01-14-PLAN.md — Rerun the immutable verification-only lint/test/determinism/build gate after 01-18
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
+- [ ] 01-14-PLAN.md — Rerun the immutable verification-only lint/test/determinism/build gate after 01-18
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+- [ ] 01-15-PLAN.md — Blocking measured UAT, mandatory storage failures, eight-browser matrix, offline boundary, and data POV acceptance
 
 **Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+
+**Wave 12** *(blocked on Wave 11 completion)*
 - [ ] 01-17-PLAN.md — Block on production title/Vite/data/browser/network verification, then publish README
 
 Cross-cutting constraints:

@@ -30,7 +30,8 @@ updated: 2026-07-21
 
 - **After every task commit:** Run the directly affected focused test plus `npm run lint`; component-only tasks run lint plus strict TypeScript.
 - **After every implementation wave:** Run `npm run test:run && npm run build` once all wave dependencies exist.
-- **Plan 01-14 verification-only gate:** Run the full suite and require a clean diff; failures route to `/gsd:plan-phase 1 --gaps` rather than inline fixes.
+- **Plan 01-18 README gap closure (Wave 8):** Correct documentation only, then commit.
+- **Plan 01-14 verification-only gate (Wave 9):** Run the full suite and require a clean diff; failures route to `/gsd:plan-phase 1 --gaps` rather than inline fixes.
 - **Before `/gsd:verify-work`:** Full suite, Plan 01-15 browser matrix/UAT, and Plans 01-16/01-17 deployment verification must be complete.
 - **Max feedback latency:** 60 seconds for automated checks; browser compatibility/timing is a blocking human matrix.
 
@@ -51,9 +52,10 @@ updated: 2026-07-21
 | 01-12-02 | 12 | 6 | NFR5 | T-01-30 | Root index.html and React provider bootstrap | static/build | `npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | ❌ W0 | pending |
 | 01-12-03 | 12 | 6 | F1.1-F1.6/F5.1/F6.1/F6.2 | T-01-30/T-01-32 | One-way integration and persisted onboarding | integration/build | `npm run test:run && npm run lint && npm run build` | ❌ W0 | pending |
 | 01-13-01 | 13 | 7 | NFR5/NFR6/NFR7/NFR11 | T-01-45 | Styles wire after composition without CSS reordering | static/build | `npm run lint && npm run build` | ❌ W0 | pending |
-| 01-14-01 | 14 | 8 | all phase requirements | T-01-36/T-01-46 | Verification-only clean-diff gate | full | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ❌ W0 | pending |
-| 01-16-01 | 16 | 10 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
-| 01-17-01 | 17 | 11 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
+| 01-18-01 | 18 | 8 | NFR5/NFR6/NFR7 | T-01-51/T-01-52 | README-only scope/stack correction before quality-gate rerun | documentation/full | README source assertions plus `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ✅ | pending |
+| 01-14-01 | 14 | 9 | all phase requirements | T-01-36/T-01-46 | Verification-only clean-diff gate | full | `npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build` | ❌ W0 | pending |
+| 01-16-01 | 16 | 11 | NFR5 | T-01-41 | Human-authorized Vercel identity | CLI/human | `npx --yes vercel@56.4.1 whoami` | external | pending |
+| 01-17-01 | 17 | 12 | F5.1/NFR5 | T-01-47/T-01-48 | Automated title/module/non-empty FeatureCollection prechecks plus blocking production browser/network approval | network/human | production root/data Python assertions plus checkpoint | external | pending |
 
 ---
 
