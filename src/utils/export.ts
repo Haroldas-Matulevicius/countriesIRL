@@ -14,6 +14,7 @@ const PNG_MIME_TYPE = 'image/png';
 const SVG_VIEWBOX = `0 0 ${EXPORT_SIZE} ${EXPORT_SIZE}`;
 const SVG_PRESERVE_ASPECT_RATIO = 'xMidYMid meet';
 const EXPORT_BORDER_WIDTH = '1';
+const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 
 const EDITOR_STATE_CLASSES = [
   'selected',
@@ -100,6 +101,12 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
   });
 }
 
+function waitForDownloadHandoff(): Promise<void> {
+  return new Promise<void>((resolve): void => {
+    setTimeout(resolve, DOWNLOAD_HANDOFF_DELAY_MS);
+  });
+}
+
 export function createExportFilename(date: Date = new Date()): string {
   const isoDate = date.toISOString().slice(0, 10);
   return `${EXPORT_FILENAME_PREFIX}${isoDate}.png`;
@@ -164,6 +171,7 @@ export async function exportMapPng(
       downloadAnchor.setAttribute('download', filename);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
+      await waitForDownloadHandoff();
     } catch {
       return { ok: false, reason: 'encoding-failed' };
     }

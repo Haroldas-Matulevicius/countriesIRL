@@ -1,0 +1,259 @@
+# Coding Rules: Export (PNG Export via html2canvas)
+
+**Read when touching:** exportMapPng utility, PNG quality, size contracts, error handling, filename format.
+
+---
+
+## Size Contract: 1080×1080
+
+**Every exported PNG must be exactly 1080×1080 pixels.** Instagram square format.
+
+**This is non-negotiable.** If export is 1080×1079 or 1081×1080, the check fails.
+
+```typescript
+// ✅ Good — explicit width/height before export
+const canvas = await html2canvas(clone, {
+  backgroundColor: '#ffffff',
+  scale: 2,  // 2x DPI for crispness
+  width: 1080,
+  height: 1080,
+});
+
+// At this point, canvas.width === 1080 and canvas.height === 1080
+```
+
+**DPI scaling for quality.** html2canvas default `scale: 1` renders at screen DPI (~96 DPI). Instagram posts are often viewed at 1.5–2x pixel density. Use `scale: 2` to render at 192 DPI, then canvas.toBlob() downsamples to 1080×1080 for download.
+
+```typescript
+// ✅ Good — 2x scale for crisp output
+const canvas = await html2canvas(clone, {
+  scale: 2,  // Renders at 2x internally, then downsampled
+  width: 540,  // Effective size is 540×2 = 1080
+  height: 540,
+});
+```
+
+**Never hardcode dimensions in the SVG itself.** The SVG should render at any size; we control the final size via html2canvas options.
+
+---
+
+## html2canvas Contract
+
+**Export signature:**
+
+```typescript
+async function exportMapPng(
+  source: HTMLElement,
+  date?: Date,
+): Promise<ExportResult>
+```
+
+**Flow:**
+
+1. **Find and clone the SVG.** Don't modify the original (the creator may export again).
+2. **Create a temporary HTML frame.** Append the map-only clone to the document body offscreen.
+3. **Call html2canvas.** Capture the 540×540 HTML frame at scale 2.
+4. **Validate and encode.** Require an exact 1080×1080 canvas, then use `canvas.toBlob()`.
+5. **Connect the download anchor.** Create the object URL and anchor, set `href` and `download`, then append the anchor to `document.body` before calling `click()`.
+6. **Await browser handoff after a truthful click.** Only after `click()` returns successfully, await one named, bounded 100ms macrotask before resolving success.
+7. **Clean in `finally`.** After the handoff, remove the anchor, revoke the object URL, and remove the frame. If `click()` throws, skip the handoff wait and use the same `finally` immediately.
+
+```typescript
+const DOWNLOAD_HANDOFF_DELAY_MS = 100;
+
+function waitForDownloadHandoff(): Promise<void> {
+  return new Promise<void>((resolve): void => {
+    setTimeout(resolve, DOWNLOAD_HANDOFF_DELAY_MS);
+  });
+}
+
+let downloadAnchor: HTMLAnchorElement | null = null;
+let objectUrl: string | null = null;
+
+try {
+  objectUrl = URL.createObjectURL(blob);
+  downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute('href', objectUrl);
+  downloadAnchor.setAttribute('download', filename);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  await waitForDownloadHandoff();
+  return { ok: true, filename };
+} finally {
+  try {
+    downloadAnchor?.remove();
+  } finally {
+    try {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } finally {
+      exportFrame.remove();
+    }
+  }
+}
+```
+
+**Do not remove a successfully clicked anchor or revoke its object URL synchronously.** Chromium may not finish handing the native download to its download manager before the current task ends. Success is truthful only after the connected click succeeds and the bounded handoff completes.
+
+**Always contain expected failures.** html2canvas, PNG encoding, object-URL creation, or anchor click can fail; return the typed `ExportResult` reason while `finally` releases every resource.
+
+---
+
+## Filename Format
+
+**Format:** `CountriesIRL_<YYYY-MM-DD>.png`
+
+```typescript
+const filename = `CountriesIRL_${new Date().toISOString().split('T')[0]}`;
+// Results in: "CountriesIRL_2026-07-21.png"
+```
+
+**Don't include the user's map name in the filename.** The export utility doesn't know the map name (that's in localStorage, not the export function). Phase 2 can add optional custom naming.
+
+**No spaces or special characters.** Keep it clean for non-technical users' file systems.
+
+---
+
+## Error Handling
+
+**Errors in export should alert the user but not crash the app.**
+
+```typescript
+// ✅ Good — user gets feedback
+const handleExport = async () => {
+  try {
+    await exportMapPng(svgRef.current, filename);
+    alert('Map exported successfully!');
+  } catch (error) {
+    alert('Export failed. See console for details.');
+    console.error(error);
+  }
+};
+
+// ❌ Bad — silent failure, user has no idea
+const handleExport = async () => {
+  await exportMapPng(svgRef.current, filename).catch(() => {});
+};
+```
+
+**Common failures:**
+
+| Error | Cause | Mitigation |
+|---|---|---|
+| "SVG element not found" | svgRef.current is null | Ensure MapCanvas is rendered before export button is enabled |
+| "Canvas blob creation failed" | Browser out of memory | Rare; recommend refreshing the page |
+| Network timeout | html2canvas trying to fetch resources | Avoid external image URLs in SVG; embed base64 or use data URIs |
+
+---
+
+## Background Color Contract
+
+**Always export with a white background (`#ffffff`).**
+
+```typescript
+const canvas = await html2canvas(clone, {
+  backgroundColor: '#ffffff',  // NOT transparent, NOT light gray
+  scale: 2,
+});
+```
+
+**Why white?** Instagram's square format looks best with a white background. Users can overlay it on any background in their editor. Transparent PNGs (alpha channel) are harder for non-technical creators to work with.
+
+**If Phase 2 adds a legend, include it in the export.** Legend should be part of the SVG before calling exportMapPng.
+
+---
+
+## Performance & Timeouts
+
+**Export should complete in <3 seconds.** If it takes longer, the UX feels broken.
+
+**html2canvas is synchronous.** It blocks the main thread. For Phase 1 (1080×1080, single SVG), this is acceptable. Phase 2 might offload to a Web Worker if batch exports (timelapse) are too slow.
+
+**No progress bars in Phase 1.** Just a loading spinner or disabled button state.
+
+```typescript
+const [exporting, setExporting] = useState(false);
+
+const handleExport = async () => {
+  setExporting(true);
+  try {
+    await exportMapPng(svgRef.current, filename);
+    alert('Exported!');
+  } catch (error) {
+    alert('Export failed.');
+  } finally {
+    setExporting(false);
+  }
+};
+
+return (
+  <button onClick={handleExport} disabled={exporting}>
+    {exporting ? '📥 Exporting...' : '📥 Export PNG'}
+  </button>
+);
+```
+
+---
+
+## Browser Compatibility
+
+**html2canvas works in all modern browsers.** No IE11, but Phase 1 doesn't support IE anyway.
+
+**CORS issues.** If the SVG ever includes external images (Phase 2+), they must be same-origin or have CORS headers. html2canvas can't export cross-origin images.
+
+**Canvas size limit.** Most browsers cap canvas at ~16384×16384. 1080×1080 is nowhere near that, so no issue.
+
+---
+
+## Testing
+
+**Manual export tests:**
+
+- [ ] Color 5 countries
+- [ ] Click "Export PNG"
+- [ ] File downloads as `CountriesIRL_<date>.png`
+- [ ] File is exactly 1080×1080 pixels (check image properties)
+- [ ] Image quality is crisp (not blurry, not pixelated)
+- [ ] Colors match the map on screen
+- [ ] Upload to Instagram; confirm it displays correctly in feed
+
+**Edge cases:**
+
+- [ ] Export twice in a row (both files should have the same name, second one should ask to overwrite)
+- [ ] Export, then change colors, export again (both should have updated colors)
+- [ ] Export with no countries colored (should export white map, not error)
+
+---
+
+## Phase 2: Batch Timelapse Export
+
+**Future contract for Phase 2:**
+
+```typescript
+// Batch export 10 images of Lithuania's borders, 1500–1750, 25-year intervals
+const images = await exportTimelapsePngs({
+  focusCountry: 'LT',
+  focusColor: '#FF0000',
+  otherColor: '#FFFFFF',
+  startYear: 1500,
+  endYear: 1750,
+  interval: 25,
+});
+
+// Returns: [Promise<Blob>, Promise<Blob>, ..., Promise<Blob>]
+// Resolves when all 10 PNGs are downloaded
+```
+
+**Each image will be:**
+- Named: `CountriesIRL_LT_1500.png`, `CountriesIRL_LT_1525.png`, ...
+- Size: 1080×1080
+- Content: Lithuania highlighted in red, all other countries in white
+
+**Delivered as a ZIP file** for convenience (user can unzip → upload to Instagram).
+
+---
+
+*Last updated: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup. Prior: 2026-07-21 — initial Phase 1 export rules.*
+
+*Full edit history: `git log -p -- .planning/coding-rules/export.md`.*
