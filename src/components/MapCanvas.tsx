@@ -136,7 +136,7 @@ function isSvgPathElement(
   return target instanceof SVGPathElement;
 }
 
-function pointerTooltipData(
+export function pointerTooltipData(
   event: PointerEvent,
   feature: GeoFeature,
   color: string,
@@ -153,7 +153,7 @@ function pointerTooltipData(
   };
 }
 
-function keyboardTooltipData(
+export function keyboardTooltipData(
   pathElement: SVGPathElement,
   feature: GeoFeature,
   color: string,
@@ -171,6 +171,17 @@ function keyboardTooltipData(
       y: bounds.top + bounds.height / 2,
     },
   };
+}
+
+export function pointerLeaveTooltipData(
+  pathElement: SVGPathElement,
+  activeElement: Element | null,
+  feature: GeoFeature,
+  color: string,
+): MapTooltipData | null {
+  return activeElement === pathElement
+    ? keyboardTooltipData(pathElement, feature, color)
+    : null;
 }
 
 export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
@@ -289,12 +300,18 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
             ),
           );
         })
-        .on('pointerleave.map', (event: PointerEvent): void => {
+        .on('pointerleave.map', (event: PointerEvent, feature): void => {
           if (isSvgPathElement(event.currentTarget)) {
             event.currentTarget.classList.remove(HOVERED_CLASS);
-            if (document.activeElement === event.currentTarget) {
-              return;
-            }
+            callbacksRef.current.onTooltipChange(
+              pointerLeaveTooltipData(
+                event.currentTarget,
+                document.activeElement,
+                feature,
+                colorsRef.current[feature.id] ?? DEFAULT_COLOR,
+              ),
+            );
+            return;
           }
           callbacksRef.current.onTooltipChange(null);
         })
