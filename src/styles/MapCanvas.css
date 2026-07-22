@@ -1,0 +1,192 @@
+.map-workspace {
+  min-width: 0;
+}
+
+.map-workspace__label {
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-label);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+
+.map-workspace__square {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-large);
+  background: var(--map-surface);
+  box-shadow: var(--map-shadow);
+  color: #111827;
+  isolation: isolate;
+}
+
+.map-export-source,
+.map-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--map-surface);
+}
+
+.map-canvas {
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+.country-path {
+  cursor: pointer;
+  stroke: var(--map-border-default);
+  stroke-linejoin: round;
+  stroke-width: 1px;
+  transition:
+    fill var(--motion-fast) ease-out,
+    stroke var(--motion-fast) ease-out,
+    stroke-width var(--motion-fast) ease-out,
+    filter var(--motion-fast) ease-out;
+}
+
+.country-path.hovered:not(.focused) {
+  stroke: var(--map-border-hover);
+  stroke-width: 1px;
+  filter: brightness(0.96);
+}
+
+.country-path.selected:not(.focused) {
+  stroke: var(--map-border-selected);
+  stroke-width: 2px;
+}
+
+.country-path.focused,
+.country-path:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-dasharray: var(--space-sm) var(--space-xs);
+  stroke-width: 3px;
+  filter: none;
+}
+
+[aria-hidden="true"] .country-path,
+.map-export-source[data-export-mode="true"] .country-path {
+  stroke: var(--map-border-default);
+  stroke-dasharray: none;
+  stroke-width: 1px;
+  filter: none;
+  transition: none;
+}
+
+.map-workspace__loading,
+.map-fatal-error {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: var(--space-xl);
+  background: var(--map-surface);
+  color: #111827;
+  text-align: center;
+}
+
+.map-workspace__loading p,
+.map-fatal-error p {
+  max-width: 560px;
+  margin-bottom: var(--space-md);
+}
+
+.map-workspace__skeleton {
+  display: grid;
+  width: min(64%, 360px);
+  margin-bottom: var(--space-lg);
+  gap: var(--space-sm);
+}
+
+.map-workspace__skeleton span {
+  display: block;
+  min-height: var(--space-md);
+  border-radius: var(--radius-control);
+  background: #e5e7eb;
+}
+
+.map-workspace__skeleton span:nth-child(2) {
+  width: 75%;
+}
+
+.map-workspace__skeleton span:nth-child(3) {
+  width: 48%;
+}
+
+.map-workspace__warning {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  left: var(--space-md);
+  z-index: 2;
+  margin-bottom: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-control);
+  background: var(--warning-tint);
+  color: var(--warning);
+  font-size: var(--font-label);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+
+.map-fatal-error h2 {
+  margin-bottom: var(--space-sm);
+}
+
+.map-fatal-error button {
+  padding: var(--space-sm) var(--space-md);
+}
+
+.map-tooltip {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  max-width: min(360px, calc(100vw - (var(--space-md) * 2)));
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-control);
+  background: #111827;
+  color: #f9fafb;
+  pointer-events: none;
+  transform: translate(var(--space-sm), var(--space-sm));
+  flex-direction: column;
+  gap: var(--space-xs);
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
+}
+
+.map-tooltip[data-input-method="keyboard"] {
+  transform: translate(-50%, calc(-100% - var(--space-sm)));
+}
+
+.map-tooltip__country {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-tooltip__color {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+}
+
+@media (max-width: 767px) {
+  .map-workspace__loading,
+  .map-fatal-error {
+    padding: var(--space-md);
+  }
+
+  .map-workspace__warning {
+    top: var(--space-sm);
+    right: var(--space-sm);
+    left: var(--space-sm);
+  }
+}
