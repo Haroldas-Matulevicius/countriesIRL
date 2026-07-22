@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready
-stopped_at: Ready to execute revised Plan 01-15 functional acceptance
-last_updated: "2026-07-22T00:00:00.000Z"
-last_activity: 2026-07-22 -- Revised Phase 1 release planning so timing is advisory and functional acceptance can finish
+status: verifying
+stopped_at: Phase 1 local closeout complete; ready for final goal verification
+last_updated: "2026-07-22T18:13:15.399Z"
+last_activity: 2026-07-22 -- Accepted Chrome 150/Edge 150 UAT and closed Phase 1 for localhost use
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 22
-  completed_plans: 19
-  percent: 86
+  completed_plans: 22
+  percent: 33
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,12 +26,12 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Next plans: 01-15, then 01-16 and 01-17, of 22 in current phase
-Execution graph: 22 plans across 15 waves
-Status: Revised Plan 01-15 is ready for final local functional acceptance; Plans 01-16 and 01-17 remain unauthorized until that approval
-Last activity: 2026-07-22 -- Applied explicit D-63 release instruction: timing diagnostics do not block Phase 1
+Next step: Final Phase 1 goal verification
+Execution graph: 22 plans across 15 waves; all plans closed
+Status: Local Phase 1 implementation and functional acceptance are complete; deployment plans 01-16 and 01-17 are explicitly deferred and do not block verification
+Last activity: 2026-07-22 -- Accepted Chrome 150/Edge 150 UAT and closed Phase 1 for localhost use
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -56,6 +56,9 @@ Progress: [█████████░] 86%
 | Phase 01 P20 | 10 min | 1 task | 3 files |
 | Phase 01 P21 | 2 min | 1 task | 3 files |
 | Phase 01 P22 | 12 min | 1 task | 2 files |
+| Phase 01 P15 | closeout-only | 2 tasks | 4 metadata files |
+| Phase 01 P16 | deferred | 0 executed tasks | 2 metadata files |
+| Phase 01 P17 | deferred | 0 executed tasks | 3 metadata files |
 
 ## Accumulated Context
 
@@ -118,19 +121,21 @@ Progress: [█████████░] 86%
 - [Phase 01 map-ready gap closure]: Replace e2f9190's five geometry traversals with one finite per-feature projected-bounds aggregation plus one final safe path generation while preserving exact 57-path output. — Plan 01-22 completed and clean-gated this functional correction.
 - [Phase 01 evidence integrity]: Authoritative lint/full-test/data/type/build gates run in detached clean worktrees of the exact recorded commit; immutable historical evidence remains unchanged.
 - [Phase 01 release completion, D-63]: The user explicitly directs that Phase 1 stop gating on millisecond timing and finish on functional correctness. Map-ready, color, undo, redo, export-duration, and other performance samples plus earlier harness timeouts are advisory diagnostics only. Final code review PASS, UI audit 24/24, 145 source tests, deterministic GeoJSON/build, 57-path integrity, Plan 01-21 browser/PNG evidence, accepted persistence/history/storage/accessibility/offline behavior, and concise current-HEAD Chrome 150/Edge 150 functional smoke determine Plan 01-15. Functional stability, no crashes, clean console/product behavior, responsive correctness, and exact export correctness remain blocking. The immutable failed timing evidence at commit c449e6e must not be rewritten and no CDP timing artifact is required.
+- [Phase 01 final functional approval]: The user directly supplied `approved` for Plan 01-15. — Chrome 150 and Edge 150 are accepted as PASS with 57 unique non-empty labeled paths, complete local workflows, clean runtime behavior, and identical exact PNG hash `682b99c8c37c6189bea1d0bae09199c31da2a8fad5010e620ff12f6de3bab399`.
+- [Phase 01 local-only closeout]: Plans 01-16 and 01-17 are closed as deferred by user choice. — No Vercel authentication, linking, deployment, production verification, or production URL occurred; optional future deployment does not block local Phase 1 completion.
 
 ### Pending Todos
 
-- Execute revised Plan 01-15: reconcile accepted final evidence, confirm current product-tree integrity, preserve failed timing evidence unchanged, and complete concise current-HEAD Chrome 150/Edge 150 functional smoke with clean browser cells and no timing thresholds.
-- Complete Plans 01-16 and 01-17 deployment and production verification only after Plan 01-15 functional approval.
+- Run final Phase 1 goal verification with the GSD verifier.
 - Plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
+- If the user later requests hosting, reopen the optional Vercel deployment and production-verification runbooks under new explicit authorization.
 
 ### Blockers/Concerns
 
-- No timing-related Phase 1 blocker remains under D-63. The recorded Chrome timing misses, incomplete Edge timing harness, and earlier harness timeouts remain immutable non-blocking diagnostic observations.
-- Plan 01-15 still blocks on clean functional Chrome 150 and Edge 150 cells: exactly 57 unique non-empty paths, stable core workflow, no crashes, no console/runtime/required-product-network errors, and correct responsive/persistence/history/export behavior.
-- Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
-- Plans 01-16 and 01-17 remain unauthorized until Plan 01-15 functional approval; no deployment has occurred.
+- No local Phase 1 blocker remains.
+- Timing misses, incomplete timing harness work, and earlier harness timeouts remain immutable non-blocking diagnostic observations under D-63.
+- Firefox, Safari, and previous-version certification remain intentionally deferred/unverified and must not be reported as passed.
+- Vercel deployment and production verification are deferred optional future work; no production URL exists or is claimed.
 
 ## Known Constraints
 
@@ -138,8 +143,8 @@ Progress: [█████████░] 86%
 - Small territories and exclaves remain selectable through the country list.
 - Phase 1 release acceptance uses only the currently installed local Chrome 150 and Edge 150; no remote-browser route or tunnel is required.
 - World and North America canvas variants are excluded from Phase 1 code changes and retained as the highest-priority next-phase work.
-- Vercel production deployment requires a later human authorization checkpoint.
-- PNG output must remain exactly 1080×1080, opaque white, centered, map-only, and theme/device-pixel-ratio independent during Plan 01-15 functional UAT.
+- Vercel production deployment is optional future work and requires new explicit human authorization before any authentication, linking, or deploy command.
+- PNG output must remain exactly 1080×1080, opaque white, centered, map-only, and theme/device-pixel-ratio independent.
 - Default Vitest acceptance evidence contains source tests only; `.claude/**` worktree copies are excluded.
 - Effective-white and active-color no-op attempts must not create history, success announcements, or color-start timing marks.
 - Performance marks and immutable timing records remain available for diagnosis, but no threshold or CDP timing artifact determines Phase 1 release readiness.
@@ -148,5 +153,5 @@ Progress: [█████████░] 86%
 ## Session Continuity
 
 Last session: 2026-07-22
-Stopped at: Ready to execute revised Plan 01-15 functional acceptance
-Resume file: .planning/phases/01-foundation-modern-map-1-1-5-weeks/01-15-PLAN.md
+Stopped at: Phase 1 local closeout complete; ready for final goal verification
+Resume file: None — run final Phase 1 verifier

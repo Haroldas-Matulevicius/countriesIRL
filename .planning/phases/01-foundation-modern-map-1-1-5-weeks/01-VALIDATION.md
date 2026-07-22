@@ -1,7 +1,7 @@
 ---
 phase: 1
 slug: foundation-modern-map-1-1-5-weeks
-status: approved
+status: complete
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-07-21
@@ -10,7 +10,7 @@ updated: 2026-07-22
 
 # Phase 1 — Validation Strategy
 
-> Final Phase 1 validation contract: accepted final review/test/build/browser evidence plus a concise current-HEAD Chrome 150 and Edge 150 functional smoke. Timing remains diagnostic and non-blocking per D-63.
+> Final Phase 1 validation result: accepted review/test/build/browser evidence plus user-approved Chrome 150 and Edge 150 functional smoke. Timing remains diagnostic and non-blocking per D-63; deployment is deferred per D-64.
 
 ---
 
@@ -23,7 +23,7 @@ Phase 1 release acceptance is functional, not threshold-timing based.
 - **Not required:** a passing CDP timing artifact, a fixed count of timing samples, completion of the earlier timing harness, or `overallPass: true` from the immutable failed timing record.
 - **Immutable history:** `.planning/ui-reviews/01-15-production-preview-rerun/acceptance-evidence.json` and `clean-gate.log`, committed at `c449e6e`, remain read-only failed timing evidence. They must not be edited, replaced, deleted, normalized, or described as passing.
 
-This boundary implements locked decision D-63 while retaining D-55 functional stability, D-58 quality gates, D-61 browser scope, D-62 Europe approval, exact export correctness, and all accepted safety/recovery evidence.
+This boundary implements D-63 while retaining D-55 functional stability, D-58 quality gates, D-61 browser scope, D-62 Europe approval, exact export correctness, and all accepted safety/recovery evidence. D-64 closes deployment and production verification as deferred optional future work.
 
 ---
 
@@ -79,7 +79,7 @@ Build current HEAD once, serve it with `npm run preview`, and run the following 
 7. Already-loaded offline color/persistence continuity without disconnected reload.
 8. No crash, console error/warning from valid product data, runtime exception, failed required same-origin product request, duplicate path, or missing path.
 
-The smoke records one functional PASS/FAIL cell per browser in `01-15-SUMMARY.md`. No timing threshold is captured or enforced. Incidental timing values may be mentioned only as advisory observations.
+The accepted smoke records PASS for both browser cells in `01-15-SUMMARY.md`. The user directly approved that evidence without a closeout rerun. No timing threshold is captured or enforced; incidental timing values remain advisory observations.
 
 ---
 
@@ -123,10 +123,10 @@ No observation may be deleted or rewritten as passing. D-63 changes disposition,
 | 01-20-01 | 20 | 10 | F5.1/F5.3/NFR4/NFR5 | Focused export/type/build | Accepted download behavior | complete |
 | 01-21-01 | 21 | 11 | F1.3/F1.4/F5.1/F5.3/NFR4/NFR5/NFR11 | Objective exact-browser/PNG evidence | Explicit user approval | complete |
 | 01-22-01 | 22 | 12 | F1.1/F5.1/NFR1/NFR5 | Focused traversal tests plus clean npm ci/lint/145 tests/data/type/build | None required | complete |
-| 01-15-01 | 15 | 13 | all Phase 1 requirements | Product-tree/evidence/immutable-record integrity checks | None | pending |
-| 01-15-02 | 15 | 13 | all Phase 1 requirements | Current build and immutable-record checks | Clean Chrome 150 and Edge 150 functional cells | pending |
-| 01-16-01 | 16 | 14 | NFR5 | Vercel identity/link/deploy inspection | Authorization | pending |
-| 01-17-01 | 17 | 15 | F5.1/NFR5 | Production root/data assertions | Production browser/network verification | pending |
+| 01-15-01 | 15 | 13 | all Phase 1 requirements | Product-tree/evidence/immutable-record integrity checks | None | complete |
+| 01-15-02 | 15 | 13 | all Phase 1 requirements | Accepted current-build and immutable-record checks | Direct user approval of clean Chrome 150 and Edge 150 functional cells | complete |
+| 01-16-01 | 16 | 14 | NFR5 | Not run; Vercel deployment remains optional future work | User chose localhost-only closeout | deferred/closed |
+| 01-17-01 | 17 | 15 | F5.1/NFR5 | Not run; no production origin exists | User chose localhost-only closeout | deferred/closed |
 
 ---
 
@@ -138,9 +138,11 @@ No observation may be deleted or rewritten as passing. D-63 changes disposition,
 - [x] Persistence/history/storage/accessibility/responsive/offline/no-crash evidence remains part of the release contract.
 - [x] D-63 makes timing values and harness timeouts advisory rather than release-blocking.
 - [x] Immutable failed timing evidence remains truthful, read-only, and non-blocking.
-- [x] Plan 01-15 requires a concise current-HEAD functional smoke in both installed browsers with clean console/product state.
+- [x] Plan 01-15 records user-approved PASS cells in both installed browsers with clean console/product state and exact PNG hash `682b99c8c37c6189bea1d0bae09199c31da2a8fad5010e620ff12f6de3bab399`.
 - [x] No CDP timing artifact, timing threshold, sample count, or `overallPass` timing field is required.
 - [x] Deferred browsers remain unverified and the Natural Earth Europe presentation remains approved.
+- [x] Plans 01-16 and 01-17 are deferred/closed for localhost-only completion; no production URL is claimed.
+- [x] F7.1–F7.3 remain preserved for Phase 2 without implementation in Phase 1.
 - [x] `nyquist_compliant: true` and `wave_0_complete: true` remain set.
 
-**Approval:** planning revised by explicit user decision D-63 on 2026-07-22. Execute Plan 01-15 functional acceptance next; do not mark it complete or deploy during planning.
+**Approval:** the user directly supplied `approved` for Plan 01-15 and selected localhost-only Phase 1 completion on 2026-07-22. Phase 1 is ready for final goal verification.

@@ -2,7 +2,7 @@
 
 **Gathered:** 2026-07-21
 **Revised:** 2026-07-22
-**Status:** Ready for final functional acceptance planning
+**Status:** Local Phase 1 closeout complete; ready for final goal verification
 **Source:** PRD Express Path (`.planning/CODEX_PROMPT.md`) with locked supplemental authority from `.planning/PHASE1_CODEX_BRIEF.md` and explicit user release instruction D-63
 
 <domain>
@@ -99,6 +99,7 @@ The checked-in repository currently contains the completed Phase 1 product plus 
 - D-61: For this Phase 1 release, browser acceptance is local-browser-only and requires the currently installed Chrome 150 and Edge 150. Firefox, Safari, Chrome previous, Edge previous, Firefox previous, and Safari previous remain explicitly unverified/deferred by user choice; they must not be recorded as passed or certified and do not block this release.
 - D-62: The user approves shipping Europe first and accepts the current Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion for this release. World and North America canvas variants are the highest-priority next-phase/backlog work immediately after Phase 1, but no region-variant implementation belongs in Phase 1.
 - D-63: Phase 1 completion is not gated by millisecond timing. Map-ready, color, undo, redo, and other recorded performance samples are advisory diagnostics, not release blockers. Earlier threshold failures and external-harness timeouts remain immutable documented observations and must not be rewritten as passing evidence. Plan 01-15 closes from the accepted final code review, final 24/24 UI audit, 145-source-test/deterministic-data/build evidence, exact 57-path integrity, Plan 01-21 browser/PNG evidence, accepted persistence/history/storage/accessibility/offline coverage, and a concise current-HEAD functional smoke in installed Chrome 150 and Edge 150. Functional stability, no crashes, clean console/product behavior, 57-path integrity, responsive correctness, and exact PNG correctness remain blocking. No CDP timing artifact or timing threshold is a prerequisite.
+- D-64: The user directly approved Plan 01-15 and selected localhost-only Phase 1 completion. This later instruction supersedes D-08 and D-60 only for the Phase 1 completion boundary: Plans 01-16 and 01-17 are closed as explicitly deferred, no Vercel authentication/deployment/production verification occurs, and no production URL is claimed. Vercel remains optional future work requiring new explicit authorization. F7.1–F7.3 remain preserved for Phase 2 and no region-variant implementation begins during closeout.
 
 ### Claude's Discretion
 - Choose the exact current package patch versions compatible with React 18, Vite, the installed Node runtime, and the locked stack.

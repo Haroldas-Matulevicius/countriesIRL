@@ -30,9 +30,9 @@ Saved maps and onboarding state remain local to the current browser and origin. 
 - html2canvas 1.4.1 for deterministic PNG capture
 - Browser localStorage for saved maps and onboarding state
 - Bundled same-origin Natural Earth 5.1.1 boundary data
-- Vercel as the locked deployment target
+- Vercel as an optional future static deployment target
 
-Production deployment and shareable-URL verification are assigned to Plans 01-16 and 01-17. This README does not claim a production URL before those gates complete.
+Phase 1 is complete for localhost use. Production deployment and shareable-URL verification were explicitly deferred by user choice; this README does not claim a deployed or verified production URL.
 
 ## Developer setup
 

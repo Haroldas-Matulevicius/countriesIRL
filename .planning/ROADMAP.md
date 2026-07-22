@@ -1,17 +1,17 @@
 # CountriesIRL Map Generator — Roadmap
 
 **Target:** MVP in 4–6 weeks  
-**Focus:** Europe-first release, then World and North America canvas variants, followed by historical borders
+**Focus:** Locally completed Europe-first release, then World and North America canvas variants, followed by historical borders
 
 ---
 
 ## Phase 1: Foundation & Modern Map (1–1.5 weeks)
 
-**Goal:** A production-ready browser-only editor where non-technical creators can select and color one or many modern European countries, use 50-action undo/redo and local persistence, recover from loading/storage/export errors, work across desktop/tablet/secondary-mobile layouts, and download an exact 1080×1080 PNG from a shareable Vercel URL.
+**Goal:** A locally release-ready browser-only editor where non-technical creators can select and color one or many modern European countries, use 50-action undo/redo and local persistence, recover from loading/storage/export errors, work across desktop/tablet/secondary-mobile layouts, and download an exact 1080×1080 PNG. Public deployment remains optional future work.
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F5.1, F5.3, F6.1, F6.2, NFR1, NFR2, NFR4, NFR5, NFR6, NFR7, NFR10, NFR11]
 
-**Plans:** 19/22 plans executed
+**Plans:** 22/22 plans complete
 
 Plans:
 
@@ -59,13 +59,13 @@ Plans:
 - [x] 01-22-PLAN.md — Gap closure: replace the five-traversal regression, prove exact 57-path/safety equivalence, and pass focused plus full unfiltered gates in a clean worktree of the exact commit
 
 **Wave 13** *(blocked on the completed Wave 12 product/gate evidence)*
-- [ ] 01-15-PLAN.md — Reconcile accepted final code/UI/test/build/browser evidence and close local release acceptance with concise current-HEAD functional smoke in Chrome 150 and Edge 150; timing observations are non-blocking per D-63
+- [x] 01-15-PLAN.md — Closed by direct user approval: Chrome 150 and Edge 150 functional PASS, exact 57-path integrity, accepted local workflows, and identical exact PNG output; timing remains advisory per D-63
 
-**Wave 14** *(blocked on Plan 01-15 functional approval)*
-- [ ] 01-16-PLAN.md — Authorize, non-interactively link, deploy exactly once, and inspect Vercel read-only
+**Wave 14** *(optional deployment runbook)*
+- [x] 01-16-PLAN.md — Closed as deferred by user choice; no Vercel authentication, linking, deployment, or production URL; optional future work only
 
-**Wave 15** *(blocked on Wave 14 completion)*
-- [ ] 01-17-PLAN.md — Block on production title/Vite/data/browser/network verification, then publish README
+**Wave 15** *(optional post-deployment runbook)*
+- [x] 01-17-PLAN.md — Closed as deferred by user choice; no production-origin verification or URL publication; optional future work only
 
 Cross-cutting constraints:
 - All country state, D3 joins, persistence, and selection use normalized stable country IDs; display names are labels only.
@@ -80,6 +80,7 @@ Cross-cutting constraints:
 - Authoritative functional acceptance still requires stable/no-crash behavior, exactly 57 unique non-empty paths, clean console/runtime/product-network state, correct history/persistence/storage recovery, responsive/accessibility/offline behavior, and exact PNG correctness.
 - The immutable failed timing evidence committed at `c449e6e` must not be rewritten, overwritten, deleted, or represented as passing.
 - Phase 1 release browser acceptance is local-browser-only in the currently installed Chrome 150 and Edge 150. Firefox, Safari, and all previous-version certification remain explicitly unverified/deferred by user choice and must never be reported as passed.
+- Plans 01-16 and 01-17 are closed as deferred for localhost-only Phase 1 completion. Vercel deployment remains optional future work requiring a new explicit authorization and does not block final local goal verification.
 - Offline capability means bundled same-origin assets, no runtime third-party requests, and continued operation after load; fresh disconnected reload is not required and no service worker is included.
 - Responsive DOM/focus order comes from one active matchMedia-selected React workspace, never CSS reordering or duplicate hidden trees; modal focus restoration follows the currently mounted responsive control after a 1200px remount.
 
@@ -95,8 +96,8 @@ Cross-cutting constraints:
 - Persisted first-use onboarding dismissal, reopenable help, and complete loading/warning/error/success states
 - One-active-workspace desktop/tablet/secondary-mobile layouts including 360px tooltip containment, responsive modal focus restoration, and dark UI chrome
 - Source-scoped unit tests for reducer/history, color, GeoJSON, storage, export, startup feedback, tooltips, focus helpers, and projection traversal/equivalence safety
-- Final accepted evidence inventory: code review PASS, UI audit 24/24, 145 source tests, deterministic GeoJSON/build, exact 57-path integrity, Plan 01-21 browser/PNG evidence, functional persistence/history/storage/accessibility/offline coverage, and current-HEAD Chrome 150/Edge 150 smoke
-- Immutable failed timing evidence retained as a non-blocking diagnostic record, followed by a production Vercel URL after Plans 01-16 and 01-17
+- Final accepted evidence inventory: code review PASS, UI audit 24/24, 145 source tests, deterministic GeoJSON/build, exact 57-path integrity, Plan 01-21 browser/PNG evidence, functional persistence/history/storage/accessibility/offline coverage, and approved Chrome 150/Edge 150 smoke
+- Immutable failed timing evidence retained as a non-blocking diagnostic record; Vercel deployment and production verification are explicitly deferred optional future work
 
 ### Key Decisions
 
@@ -110,7 +111,8 @@ Cross-cutting constraints:
 - [x] Natural Earth 5.1.1 Europe presentation and documented transcontinental inclusion approved by the user for this release
 - [x] Phase 1 browser certification limited by user choice to installed Chrome 150 and Edge 150; Firefox/Safari/previous versions remain unverified/deferred
 - [x] Ship Europe first, then prioritize World and North America canvas variants immediately after Phase 1
-- [x] Human Vercel authorization before automated deployment
+- [x] Require new explicit human authorization before any optional future Vercel deployment
+- [x] Close Phase 1 for localhost use; Plans 01-16 and 01-17 are deferred and do not block local completion
 - [x] Correct the redundant geometry traversal while preserving exact 57-path output and final functional behavior
 - [x] Use isolated exact-commit clean gates and retain immutable non-executable evidence without rewriting failed historical records
 - [x] D-63 supersedes threshold-based release gating: timing data remains advisory; functional stability, no-crash/error behavior, path integrity, responsive/accessibility/offline correctness, and exact export correctness determine local acceptance
@@ -263,7 +265,6 @@ Week 5+:    Phase 4 (Iterations & Feedback)
 
 ## Next Steps
 
-1. **Phase 1 Functional UAT** → Execute revised Plan 01-15: reconcile accepted final evidence, verify the immutable timing record remains unchanged/non-blocking, and complete concise current-HEAD Chrome 150/Edge 150 functional smoke with clean browser cells and no timing thresholds
-2. **Phase 1 Deployment** → Complete Plans 01-16 and 01-17 only after Plan 01-15 functional approval
-3. **Phase 1 Verification** → Run `/gsd:verify-work 1` after all Phase 1 summaries exist
-4. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends
+1. **Phase 1 Verification** → Run final `/gsd:verify-work 1` goal verification against the completed local summaries and accepted evidence
+2. **Phase 2 Region Variants** → Plan F7.1–F7.3 first, then historical data, centering, and legends
+3. **Optional Future Deployment** → Only if explicitly requested later, reopen Plans 01-16 and 01-17 for Vercel authorization, one deployment, production verification, and URL publication
