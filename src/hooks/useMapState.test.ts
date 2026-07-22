@@ -6,6 +6,7 @@ import type { MapAction, MapState } from '../types/map';
 import {
   createInitialMapState,
   mapStateReducer,
+  prepareColorInteraction,
   recordColorInteractionIfChanged,
 } from '../providers/MapStateProvider';
 import { useMapState } from './useMapState';
@@ -63,11 +64,42 @@ describe('mapStateReducer color history', (): void => {
     expect(mapStateReducer(coloredState, { type: 'REDO' })).toBe(coloredState);
   });
 
+  it('stores only canonical colors and rejects equivalent or invalid reducer inputs', (): void => {
+    const initialState = createInitialMapState();
+    const coloredState = mapStateReducer(initialState, {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: '  #dc2626  ' },
+    });
+    const rgbState = mapStateReducer(coloredState, {
+      type: 'SET_COLORS',
+      payload: { countryIds: ['DE'], color: ' rgb(1, 2, 3) ' },
+    });
+
+    expect(coloredState.colors).toEqual({ FR: '#DC2626' });
+    expect(rgbState.colors).toEqual({ FR: '#DC2626', DE: '#010203' });
+    expect(
+      mapStateReducer(coloredState, {
+        type: 'SET_COLOR',
+        payload: { countryId: 'FR', color: 'rgb(220, 38, 38)' },
+      }),
+    ).toBe(coloredState);
+    expect(
+      mapStateReducer(coloredState, {
+        type: 'SET_COLOR',
+        payload: { countryId: 'FR', color: 'not-a-color' },
+      }),
+    ).toBe(coloredState);
+  });
+
   it('stores effective white by deleting entries without no-op history', (): void => {
     const initialState = createInitialMapState();
     const noOpWhiteState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: '#FFFFFF' },
+      payload: { countryId: 'FR', color: ' #fff ' },
+    });
+    const noOpRgbWhiteState = mapStateReducer(initialState, {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: 'rgb(255, 255, 255)' },
     });
     const coloredState = mapStateReducer(initialState, {
       type: 'SET_COLORS',
@@ -79,6 +111,7 @@ describe('mapStateReducer color history', (): void => {
     });
 
     expect(noOpWhiteState).toBe(initialState);
+    expect(noOpRgbWhiteState).toBe(initialState);
     expect(partiallyClearedState.colors).toEqual({ DE: '#DC2626' });
     expect(partiallyClearedState.history).toHaveLength(3);
     expect(mapStateReducer(partiallyClearedState, { type: 'UNDO' }).colors).toEqual({
@@ -93,31 +126,43 @@ describe('mapStateReducer color history', (): void => {
     ).toBe(partiallyClearedState);
   });
 
-  it('canonicalizes effective white out of loaded baselines', (): void => {
+  it('canonicalizes supported colors and omits white or invalid loaded values', (): void => {
     const loadedState = mapStateReducer(createInitialMapState(), {
       type: 'LOAD_STATE',
       payload: {
-        colors: { FR: '#FFFFFF', DE: '#ffffff', IT: '#16A34A' },
+        colors: {
+          FR: '#fff',
+          DE: 'rgb(255, 255, 255)',
+          IT: ' #16a34a ',
+          ES: '#abc',
+          PL: 'not-a-color',
+        },
       },
     });
 
-    expect(loadedState.colors).toEqual({ IT: '#16A34A' });
-    expect(loadedState.history).toEqual([{ IT: '#16A34A' }]);
+    expect(loadedState.colors).toEqual({ IT: '#16A34A', ES: '#AABBCC' });
+    expect(loadedState.history).toEqual([{ IT: '#16A34A', ES: '#AABBCC' }]);
   });
 
-  it('records timing only for effective color changes and clears stale marks', (): void => {
+  it('normalizes before provider change detection, timing, and dispatch preparation', (): void => {
     performance.clearMarks('countriesirl-color-start');
     performance.mark('countriesirl-color-start');
 
-    expect(recordColorInteractionIfChanged({}, ['FR'], '#FFFFFF')).toBe(false);
+    expect(prepareColorInteraction({}, ['FR'], '#fff')).toBeNull();
+    expect(prepareColorInteraction({}, ['FR'], 'rgb(255, 255, 255)')).toBeNull();
+    expect(
+      prepareColorInteraction({ FR: '#DC2626' }, ['FR'], '  #dc2626  '),
+    ).toBeNull();
+    expect(prepareColorInteraction({}, ['FR'], 'not-a-color')).toBeNull();
     expect(
       performance.getEntriesByName('countriesirl-color-start', 'mark'),
     ).toHaveLength(0);
 
-    expect(recordColorInteractionIfChanged({}, ['FR'], '#DC2626')).toBe(true);
+    expect(prepareColorInteraction({}, ['FR'], ' rgb(1, 2, 3) ')).toBe('#010203');
     expect(
       performance.getEntriesByName('countriesirl-color-start', 'mark'),
     ).toHaveLength(1);
+    expect(recordColorInteractionIfChanged({}, ['FR'], '#010203')).toBe(true);
 
     performance.clearMarks('countriesirl-color-start');
   });

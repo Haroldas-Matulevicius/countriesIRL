@@ -59,14 +59,17 @@ export function isPresetColor(input: string): boolean {
   return result.ok && PRESET_COLOR_VALUES.has(result.value);
 }
 
-function isDefaultColor(color: string): boolean {
-  return color.toUpperCase() === DEFAULT_COLOR;
-}
-
 export function canonicalizeColorMap(colors: ColorMap): ColorMap {
-  return Object.fromEntries(
-    Object.entries(colors).filter(([, color]) => !isDefaultColor(color)),
-  );
+  const canonicalColors: Record<string, string> = {};
+
+  for (const [countryId, rawColor] of Object.entries(colors)) {
+    const colorResult = normalizeColor(rawColor);
+    if (colorResult.ok && colorResult.value !== DEFAULT_COLOR) {
+      canonicalColors[countryId] = colorResult.value;
+    }
+  }
+
+  return canonicalColors;
 }
 
 export function hasEffectiveColorChange(
@@ -74,10 +77,16 @@ export function hasEffectiveColorChange(
   countryIds: ReadonlyArray<string>,
   color: string,
 ): boolean {
-  const targetColor = isDefaultColor(color) ? DEFAULT_COLOR : color;
-  return countryIds.some(
-    (countryId) => (colors[countryId] ?? DEFAULT_COLOR) !== targetColor,
-  );
+  const colorResult = normalizeColor(color);
+  if (!colorResult.ok) {
+    return false;
+  }
+
+  return countryIds.some((countryId) => {
+    const currentResult = normalizeColor(colors[countryId] ?? DEFAULT_COLOR);
+    const currentColor = currentResult.ok ? currentResult.value : DEFAULT_COLOR;
+    return currentColor !== colorResult.value;
+  });
 }
 
 export function applyColorToCountries(
@@ -85,13 +94,18 @@ export function applyColorToCountries(
   countryIds: ReadonlyArray<string>,
   color: string,
 ): ColorMap {
+  const colorResult = normalizeColor(color);
+  if (!colorResult.ok) {
+    return colors;
+  }
+
   const nextColors: Record<string, string> = { ...canonicalizeColorMap(colors) };
 
   for (const countryId of countryIds) {
-    if (isDefaultColor(color)) {
+    if (colorResult.value === DEFAULT_COLOR) {
       delete nextColors[countryId];
     } else {
-      nextColors[countryId] = color;
+      nextColors[countryId] = colorResult.value;
     }
   }
 

@@ -55,13 +55,34 @@ describe('normalizeColor', (): void => {
 });
 
 describe('effective color changes', (): void => {
-  it('treats missing entries as white and deletes white assignments', (): void => {
+  it('treats every supported white form as default and deletes assignments', (): void => {
     const colors = { FR: '#DC2626', DE: '#FFFFFF' };
 
-    expect(hasEffectiveColorChange(colors, ['IT'], '#FFFFFF')).toBe(false);
+    expect(hasEffectiveColorChange(colors, ['IT'], '#fff')).toBe(false);
+    expect(hasEffectiveColorChange(colors, ['IT'], ' rgb(255, 255, 255) ')).toBe(false);
     expect(hasEffectiveColorChange(colors, ['FR', 'IT'], '#FFFFFF')).toBe(true);
-    expect(applyColorToCountries(colors, ['FR', 'IT'], '#FFFFFF')).toEqual({});
+    expect(applyColorToCountries(colors, ['FR', 'IT'], ' #fff ')).toEqual({});
     expect(canonicalizeColorMap(colors)).toEqual({ FR: '#DC2626' });
+  });
+
+  it('canonicalizes equivalent raw colors and rejects invalid strings', (): void => {
+    const colors = { FR: '#DC2626' };
+
+    expect(hasEffectiveColorChange(colors, ['FR'], '  #dc2626  ')).toBe(false);
+    expect(hasEffectiveColorChange(colors, ['FR'], 'rgb(220, 38, 38)')).toBe(false);
+    expect(hasEffectiveColorChange(colors, ['FR'], 'not-a-color')).toBe(false);
+    expect(applyColorToCountries({}, ['FR'], ' rgb(1, 2, 3) ')).toEqual({
+      FR: '#010203',
+    });
+    expect(applyColorToCountries(colors, ['FR'], 'not-a-color')).toBe(colors);
+    expect(
+      canonicalizeColorMap({
+        FR: ' #abc ',
+        DE: 'rgb(255, 255, 255)',
+        IT: '#ffffff',
+        ES: 'not-a-color',
+      }),
+    ).toEqual({ FR: '#AABBCC' });
   });
 });
 

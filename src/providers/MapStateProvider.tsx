@@ -19,6 +19,7 @@ import {
   areColorMapsEqual,
   canonicalizeColorMap,
   hasEffectiveColorChange,
+  normalizeColor,
 } from '../utils/colors';
 
 const COLOR_START_MARK = 'countriesirl-color-start';
@@ -51,19 +52,31 @@ function markInteraction(markName: string): void {
   performance.mark(markName);
 }
 
+export function prepareColorInteraction(
+  colors: ColorMap,
+  countryIds: ReadonlyArray<CountryId>,
+  color: string,
+): string | null {
+  performance.clearMarks(COLOR_START_MARK);
+  const colorResult = normalizeColor(color);
+
+  if (
+    !colorResult.ok ||
+    !hasEffectiveColorChange(colors, countryIds, colorResult.value)
+  ) {
+    return null;
+  }
+
+  performance.mark(COLOR_START_MARK);
+  return colorResult.value;
+}
+
 export function recordColorInteractionIfChanged(
   colors: ColorMap,
   countryIds: ReadonlyArray<CountryId>,
   color: string,
 ): boolean {
-  performance.clearMarks(COLOR_START_MARK);
-
-  if (!hasEffectiveColorChange(colors, countryIds, color)) {
-    return false;
-  }
-
-  performance.mark(COLOR_START_MARK);
-  return true;
+  return prepareColorInteraction(colors, countryIds, color) !== null;
 }
 
 function areSelectionsEqual(
@@ -251,11 +264,19 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
 
   const setColor = useCallback(
     (countryId: CountryId, color: string): boolean => {
-      if (!recordColorInteractionIfChanged(state.colors, [countryId], color)) {
+      const canonicalColor = prepareColorInteraction(
+        state.colors,
+        [countryId],
+        color,
+      );
+      if (canonicalColor === null) {
         return false;
       }
 
-      dispatch({ type: 'SET_COLOR', payload: { countryId, color } });
+      dispatch({
+        type: 'SET_COLOR',
+        payload: { countryId, color: canonicalColor },
+      });
       return true;
     },
     [state.colors],
@@ -263,11 +284,19 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
 
   const setColors = useCallback(
     (countryIds: ReadonlyArray<CountryId>, color: string): boolean => {
-      if (!recordColorInteractionIfChanged(state.colors, countryIds, color)) {
+      const canonicalColor = prepareColorInteraction(
+        state.colors,
+        countryIds,
+        color,
+      );
+      if (canonicalColor === null) {
         return false;
       }
 
-      dispatch({ type: 'SET_COLORS', payload: { countryIds, color } });
+      dispatch({
+        type: 'SET_COLORS',
+        payload: { countryIds, color: canonicalColor },
+      });
       return true;
     },
     [state.colors],
