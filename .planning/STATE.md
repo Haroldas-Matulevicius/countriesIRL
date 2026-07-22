@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-12-PLAN.md
-last_updated: "2026-07-22T00:12:02.850Z"
+stopped_at: Completed 01-13-PLAN.md
+last_updated: "2026-07-22T00:29:37.920Z"
 last_activity: 2026-07-22
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 17
-  completed_plans: 12
-  percent: 71
+  completed_plans: 13
+  percent: 76
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 13 of 17 in current phase
+Plan: 14 of 17 in current phase
 Status: Ready to execute
 Last activity: 2026-07-22
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 76%
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: [███████░░░] 71%
 | Phase 01 P08 | 7 min | 3 tasks | 5 files |
 | Phase 01 P10 | 8 min | 1 task | 1 file |
 | Phase 01 P12 | 9 min | 3 tasks | 4 files |
+| Phase 01 P13 | 11 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Progress: [███████░░░] 71%
 - [Phase 01]: Use one matchMedia-owned desktop/compact hook and conditionally mount only the viewport-correct workspace DOM order. — Preserves focus order without CSS reordering or hidden duplicate workspaces.
 - [Phase 01]: Keep map, GeoJSON, persistence, toast, and export state above responsive presentation branches. — Viewport changes remount presentation only and preserve creator colors, history, selection, and feedback.
 - [Phase 01]: Persist onboarding dismissal through useLocalStorage while Show Help only changes session presentation state. — Reopening guidance must not delete the durable first-use dismissal marker.
+- [Phase 01]: Keep all four stylesheet imports in main.tsx in theme, App, MapCanvas, Controls order so components never create cascade-order drift.
+- [Phase 01]: Keep fixed white map and neutral boundary tokens outside dark-theme overrides, while only application chrome follows prefers-color-scheme.
+- [Phase 01]: Use the existing responsive React branch order directly; CSS grids size and wrap that branch without order declarations or duplicate-workspace hiding.
 
 ### Pending Todos
 
@@ -111,6 +115,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-22T00:10:15.540Z
-Stopped at: Completed 01-12-PLAN.md
+Last session: 2026-07-22T00:29:37.910Z
+Stopped at: Completed 01-13-PLAN.md
 Resume file: None
