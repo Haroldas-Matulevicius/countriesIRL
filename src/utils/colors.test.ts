@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { areColorMapsEqual, normalizeColor } from './colors';
+import {
+  applyColorToCountries,
+  areColorMapsEqual,
+  canonicalizeColorMap,
+  hasEffectiveColorChange,
+  normalizeColor,
+} from './colors';
 
 describe('normalizeColor', (): void => {
   it.each([
@@ -45,6 +51,17 @@ describe('normalizeColor', (): void => {
 
     expect(result.ok).toBe(false);
     expect('value' in result).toBe(false);
+  });
+});
+
+describe('effective color changes', (): void => {
+  it('treats missing entries as white and deletes white assignments', (): void => {
+    const colors = { FR: '#DC2626', DE: '#FFFFFF' };
+
+    expect(hasEffectiveColorChange(colors, ['IT'], '#FFFFFF')).toBe(false);
+    expect(hasEffectiveColorChange(colors, ['FR', 'IT'], '#FFFFFF')).toBe(true);
+    expect(applyColorToCountries(colors, ['FR', 'IT'], '#FFFFFF')).toEqual({});
+    expect(canonicalizeColorMap(colors)).toEqual({ FR: '#DC2626' });
   });
 });
 

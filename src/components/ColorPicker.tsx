@@ -12,7 +12,7 @@ import type {
 
 import { COLOR_PRESETS, DEFAULT_COLOR } from '../constants/colors';
 import { useMapState } from '../hooks/useMapState';
-import { normalizeColor } from '../utils/colors';
+import { hasEffectiveColorChange, normalizeColor } from '../utils/colors';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
 const CUSTOM_COLOR_PLACEHOLDER = '#RRGGBB or rgb(0, 0, 0)';
@@ -52,6 +52,13 @@ export function ColorPicker({
   );
   const hasCustomDraft = customDraft.trim().length > 0;
   const hasInvalidCustomDraft = hasCustomDraft && !customColorResult.ok;
+  const hasCustomColorChange =
+    customColorResult.ok &&
+    hasEffectiveColorChange(
+      colors,
+      selectedCountryIds,
+      customColorResult.value,
+    );
 
   const handlePresetClick = useCallback(
     (event: MouseEvent<HTMLButtonElement>): void => {
@@ -62,8 +69,9 @@ export function ColorPicker({
         return;
       }
 
-      setColors(selectedCountryIds, colorValue);
-      onStatus(buildAppliedMessage(colorName, selectedCountryIds.length));
+      if (setColors(selectedCountryIds, colorValue)) {
+        onStatus(buildAppliedMessage(colorName, selectedCountryIds.length));
+      }
     },
     [onStatus, selectedCountryIds, setColors],
   );
@@ -87,7 +95,10 @@ export function ColorPicker({
         return;
       }
 
-      setColors(selectedCountryIds, customColorResult.value);
+      if (!setColors(selectedCountryIds, customColorResult.value)) {
+        return;
+      }
+
       setCustomDraft(customColorResult.value);
       onStatus(
         buildAppliedMessage(
@@ -131,7 +142,7 @@ export function ColorPicker({
                 data-color-name={preset.name}
                 aria-label={`Apply ${preset.name}`}
                 aria-pressed={isActive}
-                disabled={controlsDisabled}
+                disabled={controlsDisabled || isActive}
                 onClick={handlePresetClick}
               >
                 <span
@@ -185,7 +196,7 @@ export function ColorPicker({
 
         <button
           type="submit"
-          disabled={controlsDisabled || !customColorResult.ok}
+          disabled={controlsDisabled || !hasCustomColorChange}
         >
           Apply Custom Color
         </button>

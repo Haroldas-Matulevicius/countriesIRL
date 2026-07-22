@@ -1,3 +1,4 @@
+import { DEFAULT_COLOR } from '../constants/colors';
 import {
   MAX_MAP_NAME_LENGTH,
   MAX_SAVED_MAPS,
@@ -102,7 +103,9 @@ function normalizeColorMap(
       continue;
     }
 
-    colors[countryId] = colorResult.value;
+    if (colorResult.value !== DEFAULT_COLOR) {
+      colors[countryId] = colorResult.value;
+    }
   }
 
   return { colors, isCorrupt };

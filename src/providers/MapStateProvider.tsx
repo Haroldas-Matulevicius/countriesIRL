@@ -14,7 +14,12 @@ import type {
   SelectedCountryIds,
 } from '../types/map';
 import { HISTORY_LIMIT } from '../constants/config';
-import { areColorMapsEqual } from '../utils/colors';
+import {
+  applyColorToCountries,
+  areColorMapsEqual,
+  canonicalizeColorMap,
+  hasEffectiveColorChange,
+} from '../utils/colors';
 
 const COLOR_START_MARK = 'countriesirl-color-start';
 const UNDO_START_MARK = 'countriesirl-undo-start';
@@ -29,8 +34,8 @@ export interface MapStateContextValue {
   replaceSelection: (countryIds: ReadonlyArray<CountryId>) => void;
   toggleSelection: (countryId: CountryId) => void;
   clearSelection: () => void;
-  setColor: (countryId: CountryId, color: string) => void;
-  setColors: (countryIds: ReadonlyArray<CountryId>, color: string) => void;
+  setColor: (countryId: CountryId, color: string) => boolean;
+  setColors: (countryIds: ReadonlyArray<CountryId>, color: string) => boolean;
   resetColors: () => void;
   undo: () => void;
   redo: () => void;
@@ -44,6 +49,21 @@ export const MapStateContext = createContext<MapStateContextValue | undefined>(
 function markInteraction(markName: string): void {
   performance.clearMarks(markName);
   performance.mark(markName);
+}
+
+export function recordColorInteractionIfChanged(
+  colors: ColorMap,
+  countryIds: ReadonlyArray<CountryId>,
+  color: string,
+): boolean {
+  performance.clearMarks(COLOR_START_MARK);
+
+  if (!hasEffectiveColorChange(colors, countryIds, color)) {
+    return false;
+  }
+
+  performance.mark(COLOR_START_MARK);
+  return true;
 }
 
 function areSelectionsEqual(
@@ -113,20 +133,24 @@ export function createInitialMapState(): MapState {
 export function mapStateReducer(state: MapState, action: MapAction): MapState {
   switch (action.type) {
     case 'SET_COLOR':
-      return commitColors(state, {
-        ...state.colors,
-        [action.payload.countryId]: action.payload.color,
-      });
+      return commitColors(
+        state,
+        applyColorToCountries(
+          state.colors,
+          [action.payload.countryId],
+          action.payload.color,
+        ),
+      );
 
-    case 'SET_COLORS': {
-      const nextColors = { ...state.colors };
-
-      for (const countryId of action.payload.countryIds) {
-        nextColors[countryId] = action.payload.color;
-      }
-
-      return commitColors(state, nextColors);
-    }
+    case 'SET_COLORS':
+      return commitColors(
+        state,
+        applyColorToCountries(
+          state.colors,
+          action.payload.countryIds,
+          action.payload.color,
+        ),
+      );
 
     case 'RESET_ALL':
       return commitColors(state, {});
@@ -187,7 +211,7 @@ export function mapStateReducer(state: MapState, action: MapAction): MapState {
       return replaceSelectedIds(state, []);
 
     case 'LOAD_STATE': {
-      const colors = { ...action.payload.colors };
+      const colors = canonicalizeColorMap(action.payload.colors);
 
       return {
         ...state,
@@ -225,17 +249,28 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
     dispatch({ type: 'CLEAR_SELECTION' });
   }, []);
 
-  const setColor = useCallback((countryId: CountryId, color: string): void => {
-    markInteraction(COLOR_START_MARK);
-    dispatch({ type: 'SET_COLOR', payload: { countryId, color } });
-  }, []);
+  const setColor = useCallback(
+    (countryId: CountryId, color: string): boolean => {
+      if (!recordColorInteractionIfChanged(state.colors, [countryId], color)) {
+        return false;
+      }
+
+      dispatch({ type: 'SET_COLOR', payload: { countryId, color } });
+      return true;
+    },
+    [state.colors],
+  );
 
   const setColors = useCallback(
-    (countryIds: ReadonlyArray<CountryId>, color: string): void => {
-      markInteraction(COLOR_START_MARK);
+    (countryIds: ReadonlyArray<CountryId>, color: string): boolean => {
+      if (!recordColorInteractionIfChanged(state.colors, countryIds, color)) {
+        return false;
+      }
+
       dispatch({ type: 'SET_COLORS', payload: { countryIds, color } });
+      return true;
     },
-    [],
+    [state.colors],
   );
 
   const resetColors = useCallback((): void => {

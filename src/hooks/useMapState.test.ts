@@ -6,6 +6,7 @@ import type { MapAction, MapState } from '../types/map';
 import {
   createInitialMapState,
   mapStateReducer,
+  recordColorInteractionIfChanged,
 } from '../providers/MapStateProvider';
 import { useMapState } from './useMapState';
 
@@ -60,6 +61,65 @@ describe('mapStateReducer color history', (): void => {
     ).toBe(coloredState);
     expect(mapStateReducer(initialState, { type: 'UNDO' })).toBe(initialState);
     expect(mapStateReducer(coloredState, { type: 'REDO' })).toBe(coloredState);
+  });
+
+  it('stores effective white by deleting entries without no-op history', (): void => {
+    const initialState = createInitialMapState();
+    const noOpWhiteState = mapStateReducer(initialState, {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: '#FFFFFF' },
+    });
+    const coloredState = mapStateReducer(initialState, {
+      type: 'SET_COLORS',
+      payload: { countryIds: ['FR', 'DE'], color: '#DC2626' },
+    });
+    const partiallyClearedState = mapStateReducer(coloredState, {
+      type: 'SET_COLORS',
+      payload: { countryIds: ['FR', 'IT'], color: '#FFFFFF' },
+    });
+
+    expect(noOpWhiteState).toBe(initialState);
+    expect(partiallyClearedState.colors).toEqual({ DE: '#DC2626' });
+    expect(partiallyClearedState.history).toHaveLength(3);
+    expect(mapStateReducer(partiallyClearedState, { type: 'UNDO' }).colors).toEqual({
+      FR: '#DC2626',
+      DE: '#DC2626',
+    });
+    expect(
+      mapStateReducer(partiallyClearedState, {
+        type: 'SET_COLORS',
+        payload: { countryIds: ['FR', 'IT'], color: '#FFFFFF' },
+      }),
+    ).toBe(partiallyClearedState);
+  });
+
+  it('canonicalizes effective white out of loaded baselines', (): void => {
+    const loadedState = mapStateReducer(createInitialMapState(), {
+      type: 'LOAD_STATE',
+      payload: {
+        colors: { FR: '#FFFFFF', DE: '#ffffff', IT: '#16A34A' },
+      },
+    });
+
+    expect(loadedState.colors).toEqual({ IT: '#16A34A' });
+    expect(loadedState.history).toEqual([{ IT: '#16A34A' }]);
+  });
+
+  it('records timing only for effective color changes and clears stale marks', (): void => {
+    performance.clearMarks('countriesirl-color-start');
+    performance.mark('countriesirl-color-start');
+
+    expect(recordColorInteractionIfChanged({}, ['FR'], '#FFFFFF')).toBe(false);
+    expect(
+      performance.getEntriesByName('countriesirl-color-start', 'mark'),
+    ).toHaveLength(0);
+
+    expect(recordColorInteractionIfChanged({}, ['FR'], '#DC2626')).toBe(true);
+    expect(
+      performance.getEntriesByName('countriesirl-color-start', 'mark'),
+    ).toHaveLength(1);
+
+    performance.clearMarks('countriesirl-color-start');
   });
 
   it('traverses snapshots with undo and redo', (): void => {

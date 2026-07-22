@@ -82,6 +82,31 @@ describe('createStorageAdapter', () => {
     });
   });
 
+  it('omits effective-white entries when saving and loading maps', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage, () => 100);
+
+    expect(
+      adapter.save('White is default', {
+        FRA: '#FFFFFF',
+        DEU: '#ffffff',
+        ITA: '#16A34A',
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        savedMap: { colors: { ITA: '#16A34A' } },
+      },
+    });
+    expect(
+      adapter.load('White is default', new Set(['FRA', 'DEU', 'ITA'])),
+    ).toEqual({
+      ok: true,
+      value: { ITA: '#16A34A' },
+      warnings: [],
+    });
+  });
+
   it('replaces an exact trimmed-name match and moves it to newest', () => {
     const storage = new FakeStorage();
     const timestamps = [100, 200, 300];

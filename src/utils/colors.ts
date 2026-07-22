@@ -1,4 +1,4 @@
-import { COLOR_PRESETS } from '../constants/colors';
+import { COLOR_PRESETS, DEFAULT_COLOR } from '../constants/colors';
 import type { ColorMap } from '../types/map';
 import type { ColorNormalizationResult } from '../types/ui';
 
@@ -57,6 +57,45 @@ export function normalizeColor(input: string): ColorNormalizationResult {
 export function isPresetColor(input: string): boolean {
   const result = normalizeColor(input);
   return result.ok && PRESET_COLOR_VALUES.has(result.value);
+}
+
+function isDefaultColor(color: string): boolean {
+  return color.toUpperCase() === DEFAULT_COLOR;
+}
+
+export function canonicalizeColorMap(colors: ColorMap): ColorMap {
+  return Object.fromEntries(
+    Object.entries(colors).filter(([, color]) => !isDefaultColor(color)),
+  );
+}
+
+export function hasEffectiveColorChange(
+  colors: ColorMap,
+  countryIds: ReadonlyArray<string>,
+  color: string,
+): boolean {
+  const targetColor = isDefaultColor(color) ? DEFAULT_COLOR : color;
+  return countryIds.some(
+    (countryId) => (colors[countryId] ?? DEFAULT_COLOR) !== targetColor,
+  );
+}
+
+export function applyColorToCountries(
+  colors: ColorMap,
+  countryIds: ReadonlyArray<string>,
+  color: string,
+): ColorMap {
+  const nextColors: Record<string, string> = { ...canonicalizeColorMap(colors) };
+
+  for (const countryId of countryIds) {
+    if (isDefaultColor(color)) {
+      delete nextColors[countryId];
+    } else {
+      nextColors[countryId] = color;
+    }
+  }
+
+  return nextColors;
 }
 
 export function areColorMapsEqual(left: ColorMap, right: ColorMap): boolean {
