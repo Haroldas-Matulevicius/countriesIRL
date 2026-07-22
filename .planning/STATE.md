@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-13-PLAN.md
-last_updated: "2026-07-22T00:38:57.790Z"
-last_activity: 2026-07-22 -- Phase 01 planning complete
+stopped_at: Completed 01-18-PLAN.md; Plan 01-14 ready
+last_updated: "2026-07-22T00:50:32.981Z"
+last_activity: 2026-07-22 -- Plan 01-18 README gap closed; Plan 01-14 ready
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 18
-  completed_plans: 13
-  percent: 72
+  completed_plans: 14
+  percent: 78
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -29,9 +29,9 @@ Phase: 1 of 3 (Foundation & Modern Map)
 Plan: 14 of 18 in current phase
 Execution graph: 18 plans across 12 waves
 Status: Ready to execute
-Last activity: 2026-07-22 -- Phase 01 planning complete
+Last activity: 2026-07-22 -- Plan 01-18 README gap closed; Plan 01-14 ready
 
-Progress: [███████░░░] 72%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [███████░░░] 72%
 | Phase 01 P10 | 8 min | 1 task | 1 file |
 | Phase 01 P12 | 9 min | 3 tasks | 4 files |
 | Phase 01 P13 | 11 min | 2 tasks | 5 files |
+| Phase 01 P18 | 2 min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -101,12 +102,12 @@ Progress: [███████░░░] 72%
 
 ### Pending Todos
 
-- Execute Wave 8 README-only gap plan 01-18, then rerun Plan 01-14 in Wave 9 before Waves 10–12.
+- Rerun Plan 01-14 in Wave 9 before Waves 10–12.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
 ### Blockers/Concerns
 
-- Plan 01-14 is blocked only by stale root README claims; code, tests, build, GeoJSON determinism, and security gates passed. Plan 01-18 closes the documentation gap.
+- None. Plan 01-18 closed the stale README gap, and the exact Plan 01-14 lint/test/GeoJSON/build/clean-diff gate passes.
 
 ## Known Constraints
 
@@ -117,6 +118,6 @@ Progress: [███████░░░] 72%
 
 ## Session Continuity
 
-Last session: 2026-07-22T00:29:37.910Z
-Stopped at: Completed 01-13-PLAN.md
+Last session: 2026-07-22T00:50:32.971Z
+Stopped at: Completed 01-18-PLAN.md; Plan 01-14 ready
 Resume file: None
