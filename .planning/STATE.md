@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 01-13-PLAN.md
-last_updated: "2026-07-22T00:29:37.920Z"
-last_activity: 2026-07-22
+last_updated: "2026-07-22T00:38:57.790Z"
+last_activity: 2026-07-22 -- Phase 01 planning complete
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 17
+  total_plans: 18
   completed_plans: 13
-  percent: 76
+  percent: 72
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -26,11 +26,11 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 ## Current Position
 
 Phase: 1 of 3 (Foundation & Modern Map)
-Plan: 14 of 17 in current phase
+Plan: 14 of 18 in current phase
 Status: Ready to execute
-Last activity: 2026-07-22
+Last activity: 2026-07-22 -- Phase 01 planning complete
 
-Progress: [████████░░] 76%
+Progress: [███████░░░] 72%
 
 ## Performance Metrics
 
@@ -100,11 +100,12 @@ Progress: [████████░░] 76%
 
 ### Pending Todos
 
+- Execute README-only gap plan 01-18, then rerun the immutable Plan 01-14 quality gate.
 - Historical border data sourcing and geopolitical POV policy remain Phase 2 kickoff decisions.
 
 ### Blockers/Concerns
 
-None.
+- Plan 01-14 is blocked only by stale root README claims; code, tests, build, GeoJSON determinism, and security gates passed. Plan 01-18 closes the documentation gap.
 
 ## Known Constraints
 
