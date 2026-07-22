@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready
-stopped_at: Completed 01-22-PLAN.md
-last_updated: "2026-07-22T14:53:04.402Z"
-last_activity: 2026-07-22 -- Completed Plan 01-22 traversal deduplication with exact 57-path equivalence and clean gate
+status: blocked
+stopped_at: Blocked during 01-15 Task 1 raw production acceptance
+last_updated: "2026-07-22T15:20:39.650Z"
+last_activity: 2026-07-22 -- Recorded immutable failed Plan 01-15 production evidence at commit c449e6e
 progress:
   total_phases: 3
   completed_phases: 0
@@ -28,8 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 Phase: 1 of 3 (Foundation & Modern Map)
 Next plans: 01-15, then 01-16 and 01-17, of 22 in current phase
 Execution graph: 22 plans across 15 waves
-Status: Plan 01-22 complete and exact-commit clean-gated; Plan 01-15 is next for immutable production evidence and blocking human review
-Last activity: 2026-07-22 -- Completed Plan 01-22 traversal deduplication with exact 57-path equivalence and clean gate
+Status: Plan 01-15 blocked on failed raw production evidence; Plans 01-16 and 01-17 are not authorized
+Last activity: 2026-07-22 -- Recorded immutable failed Plan 01-15 production evidence at commit c449e6e
 
 Progress: [█████████░] 86%
 
@@ -129,6 +129,7 @@ Progress: [█████████░] 86%
 
 - The failed Vite development evidence is inflated by React StrictMode and cannot serve as release-performance evidence. The main checkout is also non-authoritative for `eslint .` while nested executable evidence tooling remains untracked.
 - Firefox, Safari, and previous-version certification are intentionally deferred/unverified by user choice and are not Phase 1 release blockers or passed cells.
+- Plan 01-15 blocked: Chrome raw acceptance failed one map-ready sample (523.9ms), seven color samples and two redo samples exceeded 100ms; Edge browser record remained incomplete after three external-harness attempts. Immutable evidence commit c449e6e; do not deploy or execute 01-16.
 
 ## Known Constraints
 
@@ -147,6 +148,6 @@ Progress: [█████████░] 86%
 
 ## Session Continuity
 
-Last session: 2026-07-22T14:53:03.883Z
-Stopped at: Completed 01-22-PLAN.md
-Resume file: None
+Last session: 2026-07-22T15:18:59.191Z
+Stopped at: Blocked during 01-15 Task 1 raw production acceptance
+Resume file: .planning/ui-reviews/01-15-production-preview-rerun/acceptance-evidence.json
