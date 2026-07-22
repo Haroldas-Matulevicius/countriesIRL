@@ -8,11 +8,9 @@ import {
 } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import {
-  geoMercator,
   geoPath,
   select,
 } from 'd3';
-import type { Feature, Polygon } from 'geojson';
 
 import type {
   ColorMap,
@@ -25,7 +23,8 @@ import {
   DEFAULT_COLOR,
   SELECTED_BORDER_COLOR,
 } from '../constants/colors';
-import { MAP_EXTENT, MAP_VIEWBOX_SIZE } from '../constants/config';
+import { MAP_VIEWBOX_SIZE } from '../constants/config';
+import { createFixedEuropeProjection } from '../utils/mapProjection';
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const MAP_READY_MEASURE = 'countriesirl-map-ready';
@@ -42,23 +41,6 @@ const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
 const DEFAULT_STROKE_WIDTH = '1';
 const SELECTED_STROKE_WIDTH = '2';
-
-const FIXED_EUROPE_VIEW_OBJECT: Feature<Polygon> = {
-  type: 'Feature',
-  properties: {},
-  geometry: {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [-25, 34],
-        [45, 34],
-        [45, 72],
-        [-25, 72],
-        [-25, 34],
-      ],
-    ],
-  },
-};
 
 interface MapTooltipContent {
   countryId: CountryId;
@@ -232,18 +214,7 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
       const countriesLayer = select(svgElement).select<SVGGElement>(
         '[data-layer="countries"]',
       );
-      const projection = geoMercator()
-        .fitExtent(
-          [
-            [MAP_EXTENT[0][0], MAP_EXTENT[0][1]],
-            [MAP_EXTENT[1][0], MAP_EXTENT[1][1]],
-          ],
-          FIXED_EUROPE_VIEW_OBJECT,
-        )
-        .clipExtent([
-          [0, 0],
-          [MAP_VIEWBOX_SIZE, MAP_VIEWBOX_SIZE],
-        ]);
+      const projection = createFixedEuropeProjection(alphabeticalFeatures);
       const pathGenerator = geoPath(projection);
       const countryIndexById = new Map<CountryId, number>(
         alphabeticalFeatures.map(
