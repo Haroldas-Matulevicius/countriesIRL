@@ -19,12 +19,13 @@ import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
 import { useGeoData } from './hooks/useGeoData';
+import type { WorldCountryMetadata } from './hooks/useGeoData';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useMapState } from './hooks/useMapState';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
 
-const EMPTY_COUNTRIES: ReadonlyArray<GeoFeature> = [];
+const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
 
 export function createSelectionAnnouncement(
@@ -97,9 +98,9 @@ export default function App(): JSX.Element {
   const isHelpAvailable = geoData.status !== 'error';
   const isHelpRendered = isHelpAvailable && isHelpVisible;
   const countries =
-    geoData.status === 'ready' ? geoData.features : EMPTY_COUNTRIES;
+    geoData.status === 'ready' ? geoData.countryMetadata : EMPTY_COUNTRIES;
   const countryLookup =
-    geoData.status === 'ready' ? geoData.lookup : EMPTY_COUNTRY_LOOKUP;
+    geoData.status === 'ready' ? geoData.coreLookup : EMPTY_COUNTRY_LOOKUP;
   const validCountryIds = useMemo<ReadonlySet<CountryId>>(
     () => new Set(countries.map((country) => country.id)),
     [countries],
