@@ -1,7 +1,7 @@
 # CountriesIRL Map Generator — Roadmap
 
 **Target:** MVP in 4–6 weeks  
-**Focus:** Locally completed Europe-first release, then World and North America canvas variants, followed by historical borders
+**Focus:** Locally completed Europe-first release, then a unified world composition platform with reviewed historical borders
 
 ---
 
@@ -131,42 +131,123 @@ Cross-cutting constraints:
 
 ---
 
-## Phase 2: Region Variants & Advanced Features (1.5–2 weeks)
+## Phase 2: Region Variants & Advanced Features (1.5–2 weeks engineering estimate; historical evidence may extend this)
 
-**Goal:** Immediately add World and North America canvas variants after the Europe-first release, then continue with historical borders, flexible map centering, legend generation, and zoom levels.
+**Goal:** Transform the fixed-Europe editor into one browser-only, horizontally wrapping full-world composition canvas where creators can pan, zoom, Locate any of 195 core states, choose four evidence-approved historical snapshots with explicit modern fallback, edit and position an export-safe in-canvas legend, save/load complete compositions, and export the exact visible 1080×1080 viewport while preserving Phase 1 coloring, bounded color history, recovery, accessibility, responsive ownership, and local-only behavior.
 
-**Highest-priority requirements:** F7.1, F7.2, F7.3
+**Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
+
+**Status:** Planned — execution not started. The separate Europe/World/North America selector wording is superseded by Phase 2 decision D-01: one wrapped world camera can frame every regional or global composition.
+
+**Plans:** 28 plans across 14 waves
+
+Plans:
+
+**Wave 1**
+- [ ] 02-01-PLAN.md — Establish exact-pinned build/browser validation and preserve the Phase 1 baseline
+- [ ] 02-02-PLAN.md — Define shared camera, scene, snapshot, legend, persistence, and export contracts
+
+**Wave 2**
+- [ ] 02-03-PLAN.md — Add the separate complete-composition state provider
+- [ ] 02-04-PLAN.md — Generate the reviewed deterministic 195-state/248-unit modern world asset
+- [ ] 02-06-PLAN.md — Implement and test wrapped-world camera/projection mathematics
+- [ ] 02-10-PLAN.md — Implement deterministic scene composition and legend algorithms
+
+**Wave 3**
+- [ ] 02-05-PLAN.md — Validate and load the bundled world manifest/asset at runtime
+- [ ] 02-11-PLAN.md — Build the accessible export-safe SVG legend editor and overlay
+- [ ] 02-12-PLAN.md — Build the provenance-gated historical engine, validator, and cached loader
+
+**Wave 4**
+- [ ] 02-07-PLAN.md — Wire D3 zoom, transform-only wrapped worlds, and one logical accessible country copy
+- [ ] 02-13-PLAN.md — Curate and factually approve the 1492 snapshot for all six regions
+- [ ] 02-14-PLAN.md — Curate and factually approve the 1700 snapshot for all six regions
+- [ ] 02-15-PLAN.md — Curate and factually approve the 1815 snapshot for all six regions
+- [ ] 02-16-PLAN.md — Curate and factually approve the 1914 snapshot for all six regions
+
+**Wave 5**
+- [ ] 02-08-PLAN.md — Add accessible Zoom/Pan/Reset View controls
+- [ ] 02-09-PLAN.md — Add world country search, Select Visible, and separate Locate workflow
+- [ ] 02-17-PLAN.md — Promote only the four approved historical assets into the production catalog
+
+**Wave 6**
+- [ ] 02-18-PLAN.md — Integrate period selection, fallback status, complete-state crossfade, and period-aware tooltips
+- [ ] 02-19-PLAN.md — Upgrade localStorage to validated V2 complete compositions with V1 migration
+
+**Wave 7**
+- [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions, migration copy, and confirmations
+- [ ] 02-21-PLAN.md — Extend exact PNG export to current camera, history scene, legend, and safe filenames
+
+**Wave 8**
+- [ ] 02-22-PLAN.md — Update exact global actions, header, onboarding, and safe status copy
+
+**Wave 9**
+- [ ] 02-23-PLAN.md — Compose the complete one-DOM responsive world editor and atomic load/export flows
+
+**Wave 10**
+- [ ] 02-24-PLAN.md — Apply the binding map-first liquid-glass UI, responsive, and accessibility contract
+
+**Wave 11**
+- [ ] 02-25-PLAN.md — Obtain exact human review for durable coding-rule corrections
+
+**Wave 12**
+- [ ] 02-26-PLAN.md — Apply approved frontend/data/export/storage coding-rule updates
+
+**Wave 13**
+- [ ] 02-27-PLAN.md — Complete Chrome/Edge E2E coverage and the full source/data/build/browser gate
+
+**Wave 14**
+- [ ] 02-28-PLAN.md — Complete physical-touch, visual, screen-reader, historical, and exact-export acceptance
+
+Cross-cutting constraints:
+- One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector may be added.
+- The primary interactive set is exactly 195 core states. Dependencies/territories remain visible and use reviewed parent inheritance or neutral policy; disputed/indeterminate units do not gain an unreviewed claim perspective.
+- Camera movement is semantic composition state but never part of color Undo/Redo. Reset View affects only the camera; Locate never selects or colors.
+- Historical selector entries are curated snapshots, not a continuous year slider. Only source/license/factual-review-approved assets are production-visible; worldwide modern fallback and boundary context are explicit.
+- Historical data work is separately evidence-gated because the 1.5–2 week engineering estimate cannot truthfully guarantee four accurate six-region snapshots without source and reviewer proof.
+- The legend is an export-safe SVG layer outside the camera transform. It includes every active non-white effective color or blocks export; no blur/filter/foreignObject or silent omission is allowed.
+- Complete saves retain colors, semantic camera, period, legend metadata/style/position, and visible settings under the existing max-10 local-only policy. Phase 1 records migrate in memory and rewrite only on explicit save.
+- Export freezes the last painted camera frame and selected scene synchronously, preserves the legend and date-line composition, strips every editor indicator, and retains exact opaque 1080×1080/DPR-independent/connected-anchor cleanup guarantees.
+- The approved UI-SPEC is binding: one active responsive DOM, exact copy/tokens/breakpoints, restrained glass only on approved editor chrome, opaque export scene, reduced-motion/transparency/contrast/forced-color fallbacks, and 360px/200% containment.
+- The phase remains browser-only and localhost-only. Deployment, authentication, cloud sync, sharing URLs, backend/API/server work, environment secrets, animation timelines, video/batch export, geometry morphing, textures, overlays, political POV switching, and artificial island markers remain outside scope.
 
 ### Deliverables
 
-- World canvas variant using the established coloring, history, persistence, accessibility, and exact-PNG workflows
-- North America canvas variant using the established coloring, history, persistence, accessibility, and exact-PNG workflows
-- Europe/World/North America canvas selection without changing the approved Phase 1 Europe presentation
-- Historical border datasets (GeoJSON for 1400s, 1700s, 1800s, 1900s, modern)
-- Time period selector UI
-- Map re-render on period change
-- Flexible map centering (select any country → re-project map)
-- Regional zoom levels (EU, EU+Middle East, Europe+Russia)
-- Auto-legend generation
-- Legend position & styling UI
-- Undo/redo for color changes
+- Exact-pinned mapshaper and installed-browser Playwright validation boundary
+- Strict shared composition contracts and separate composition provider
+- Reproducible Natural Earth 5.1.1 hybrid world asset with exact 195 core states, 248 visible units, and reviewed parent/neutral policy
+- Transform-only wrapped world camera with pointer/trackpad/pinch input, semantic controls, Reset View, and Locate
+- One logical accessible path per entity plus decorative wrapped copies
+- Deterministic effective scene and legend models
+- Export-safe editable SVG legend with label/order/theme/size/opacity/border/corner/custom controls and overflow blocking
+- Provenance-gated historical engine plus approved 1492, 1700, 1815, and 1914 overlays for Poland-Lithuania, Hungary, Balkans, Iberia, and Scandinavia
+- Persistent historical coverage/fallback status, period-aware tooltips, and accessible complete-state crossfade
+- Versioned V2 complete-composition local persistence with safe Phase 1 migration
+- Exact current-viewport PNG export including legend and historical/fallback state
+- Binding map-first responsive UI implementation and targeted durable coding-rule updates
+- Full source/data/history/build/Chrome/Edge automation plus explicit physical-touch, visual, screen-reader, historical, and exact-export human acceptance
 
 ### Key Decisions
 
-- [ ] Historical data sources (Natural Earth, Wikidata, custom tracing?)
-- [ ] Projection for centering (Azimuthal Equidistant recommended)
-- [ ] Legend positioning algorithm (avoid overlap with country data)
+- [x] One horizontally wrapping full-world canvas supersedes separate regional modes
+- [x] New compositions open at centered whole-world fit
+- [x] Fixed square Mercator plus transform-only D3 zoom satisfies wrapping and pole clamping
+- [x] Exactly 195 core states are selectable; reviewed dependencies inherit parent colors where clear
+- [x] Natural Earth's default POV remains authoritative; no claim switcher
+- [x] Camera state is separate from color history and persists semantically
+- [x] Historical time uses reviewed snapshots with explicit modern fallback
+- [x] Legend is an SVG composition layer outside the camera transform
+- [x] Saved maps become versioned complete local compositions
+- [x] Runtime remains localhost/browser-only with no backend or deployment
+- [x] Historical release claims require deterministic provenance plus blocking factual approval
 
-### Data Collection
+### Out of Scope (Phase 2)
 
-- Curate/create historical borders for:
-  - Poland (1400–present)
-  - Lithuania (1200–present, if available)
-  - Hungary (1300–present)
-  - Balkans: Serbia, Croatia, Bosnia (1400–present)
-  - Iberia: Spain, Portugal (1400–present)
-  - Scandinavia: Sweden, Norway, Denmark (1400–present)
-- Validate against historical atlases
+- Separate Europe/World/North America modes or a region selector
+- Animation timelines, camera keyframes, animated borders/fills/glows, geometry morphing, slideshows, frame sequences, MP4/video, batch/timelapse export, ZIP workflows
+- Pattern/texture fills, advanced shadows/glows, external images/flags/logos/arrows, full freeform design controls
+- User-selectable political claim perspectives, artificial small-island markers, inset maps
+- SVG export, cloud sync, authentication, sharing URLs, analytics, public deployment, production-origin verification, backend/API/server infrastructure, and environment secrets
 
 ---
 
@@ -197,7 +278,7 @@ Cross-cutting constraints:
 
 ### Out of Scope (Phase 3)
 
-- Non-European regions beyond the approved World and North America canvas variants
+- Non-European regions beyond the unified world canvas delivered in Phase 2
 - Advanced analytics/tracking
 - User authentication
 
@@ -235,11 +316,11 @@ Cross-cutting constraints:
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Historical border data sparse/inaccurate | Medium | Start with best-documented regions (Poland, Balkans); use academic sources; label uncertain periods |
-| Map rendering performance varies by browser/machine | Medium | Preserve immutable diagnostic samples and performance marks for later optimization; do not block Phase 1 when functional Chrome/Edge cells, 57-path integrity, no-crash/error behavior, and exact export correctness pass per D-63 |
-| Centering projection distorts far regions | Medium | Use Azimuthal Equidistant; document limitations; offer "full world view" option |
-| Browser storage quota exceeded | Low | Limit saved maps to 10 and surface typed quota/unavailable errors |
-| Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2; iterate UI based on feedback |
+| Historical border data sparse/inaccurate | High | Use deterministic source manifests, exact hashes/licenses, cross-checks, six-region review atlases, and blocking factual approval before production promotion |
+| Map rendering performance varies by browser/machine | Medium | Generate paths once, move the camera by transform only, cache snapshots, preserve diagnostics, and block only on the explicit warm-switch NFR3 plus functional stability |
+| Wrapped camera/export parity drifts | High | Use one constrained camera transform, synchronous freeze/finalize transaction, Pacific/date-line E2E, and exact downloaded PNG inspection |
+| Browser storage quota/corruption | Low | Preserve max-10 typed partial recovery, bounded nested validation, V1 in-memory migration, and explicit creator feedback |
+| Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2/3 and iterate within the locked product boundary |
 
 ---
 
@@ -248,25 +329,27 @@ Cross-cutting constraints:
 - **GeoJSON libraries:** D3 geo APIs and `@types/geojson`
 - **UI framework:** React 18
 - **Export library:** html2canvas
-- **Data sources:** Natural Earth (free/public domain), Wikidata and historical sources in later phases
+- **Build-time data:** exact-pinned mapshaper
+- **Browser validation:** exact-pinned Playwright Test using installed Chrome and Edge channels
+- **Data sources:** Natural Earth 5.1.1 plus source/license/reviewer-approved historical evidence
 
 ---
 
 ## Timeline (Estimated)
 
 ```
-Week 1–2:   Phase 1 (Foundation)
-Week 2–3.5: Phase 2 (Advanced Features)
-Week 3.5–5: Phase 3 (Polish & Launch)
-Week 5+:    Phase 4 (Iterations & Feedback)
+Week 1–2:   Phase 1 (Foundation) — complete
+Week 2–3.5: Phase 2 engineering platform and integration
+Additional: Historical asset curation/review as evidence availability requires
+Week 3.5–5: Phase 3 polish/launch after Phase 2 acceptance
 ```
 
-**Target launch:** End of week 5 (2026-08-25)
+The original 1.5–2 week Phase 2 estimate applies to the engineering platform only. It is not a truthful fixed estimate for four source-complete, licensed, factually reviewed historical snapshots across six regions.
 
 ---
 
 ## Next Steps
 
-1. **Phase 2 Region Variants — queued, not started** → When explicitly requested, discuss and plan F7.1–F7.3 first, then historical data, centering, and legends
-2. **Optional Future Deployment** → Only if explicitly requested later, reopen Plans 01-16 and 01-17 for Vercel authorization, one deployment, production verification, and URL publication
-3. **Phase 1 Maintenance** → Preserve the verified product baseline and advisory timing history unless a later authorized product change requires revalidation
+1. **Execute Phase 2** → Run `/gsd:execute-phase 2`; Waves 1–4 establish validation, contracts, world/camera/legend/history foundations and parallel historical curation.
+2. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
+3. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.
