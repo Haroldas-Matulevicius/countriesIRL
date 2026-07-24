@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL camera fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      #root {
+        width: 720px;
+        height: 720px;
+      }
+
+      .map-export-source,
+      .map-canvas {
+        display: block;
+        width: 720px;
+        height: 720px;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement, useCallback, useRef, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { MapCanvas } from '/src/components/MapCanvas.tsx';
+      import {
+        createCameraController,
+      } from '/src/hooks/useCameraController.ts';
+      import { useGeoData } from '/src/hooks/useGeoData.ts';
+
+      function CameraFixture() {
+        const geoData = useGeoData();
+        const mapRef = useRef(null);
+        const [selectedIds, setSelectedIds] = useState(new Set());
+        const factoryCallsRef = useRef(0);
+        const activeLeaseRef = useRef(null);
+        const controllerFactory = useCallback((driver) => {
+          factoryCallsRef.current += 1;
+          return createCameraController(driver);
+        }, []);
+        const selectCountry = useCallback((countryId) => {
+          setSelectedIds(new Set([countryId]));
+        }, []);
+        const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+        window.__cameraFixture = {
+          get controllerFactoryCalls() {
+            return factoryCallsRef.current;
+          },
+          get selectedCount() {
+            return selectedIds.size;
+          },
+          readCamera: () => mapRef.current?.readCurrentCamera() ?? null,
+          locate: (countryId) => mapRef.current?.locate(countryId),
+          resetView: () => mapRef.current?.resetView(),
+          freeze: () => {
+            activeLeaseRef.current = mapRef.current?.freezeAndSnapshot() ?? null;
+            return activeLeaseRef.current?.camera ?? null;
+          },
+          release: () => {
+            activeLeaseRef.current?.release();
+            activeLeaseRef.current = null;
+          },
+          getExportSourceConnected: () =>
+            mapRef.current?.getExportSource()?.isConnected ?? false,
+          focusCountry: (countryId) => mapRef.current?.focusCountry(countryId),
+        };
+
+        if (geoData.status !== 'ready') {
+          return createElement('p', { role: 'status' }, geoData.status);
+        }
+
+        return createElement(MapCanvas, {
+          ref: mapRef,
+          features: geoData.features,
+          colors: {},
+          selectedIds,
+          onSelectCountry: selectCountry,
+          onClearSelection: clearSelection,
+          onTooltipChange: () => undefined,
+          controllerFactory,
+        });
+      }
+
+      createRoot(document.getElementById('root')).render(createElement(CameraFixture));
+    </script>
+  </body>
+</html>
