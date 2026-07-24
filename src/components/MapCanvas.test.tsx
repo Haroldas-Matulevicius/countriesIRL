@@ -1,0 +1,187 @@
+import { zoomIdentity, type ZoomTransform } from 'd3';
+import type { Polygon } from 'geojson';
+import { describe, expect, it, vi } from 'vitest';
+
+import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import type { GeoFeature } from '../types/map';
+import {
+  createCameraController,
+  type CameraControllerDriver,
+} from '../hooks/useCameraController';
+import { cameraToTransform, transformToCamera } from '../utils/camera';
+
+const FRANCE: GeoFeature = {
+  type: 'Feature',
+  id: 'FRA',
+  properties: { name: 'France' },
+  geometry: {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-5, 42],
+        [8, 42],
+        [8, 51],
+        [-5, 51],
+        [-5, 42],
+      ],
+    ] as Polygon['coordinates'],
+  },
+};
+
+interface DriverHarness {
+  readonly driver: CameraControllerDriver;
+  readonly getPaintedTransform: () => ZoomTransform;
+  readonly getInputEnabled: () => boolean;
+  readonly runTransitionFrame: (transform: ZoomTransform) => void;
+  readonly finishTransition: () => void;
+  readonly commitCamera: ReturnType<typeof vi.fn>;
+  readonly interrupt: ReturnType<typeof vi.fn>;
+  readonly cancelFrame: ReturnType<typeof vi.fn>;
+  readonly cleanup: ReturnType<typeof vi.fn>;
+}
+
+function createDriverHarness(): DriverHarness {
+  let paintedTransform = cameraToTransform(INITIAL_WORLD_CAMERA);
+  let isInputEnabled = true;
+  let transitionFrame: ((transform: ZoomTransform) => void) | null = null;
+  let transitionEnd: (() => void) | null = null;
+  const commitCamera = vi.fn();
+  const interrupt = vi.fn();
+  const cancelFrame = vi.fn();
+  const cleanup = vi.fn();
+
+  return {
+    driver: {
+      readPaintedTransform: (): ZoomTransform => paintedTransform,
+      paintTransform: (transform): void => {
+        paintedTransform = transform;
+      },
+      setInputEnabled: (isEnabled): void => {
+        isInputEnabled = isEnabled;
+      },
+      interrupt,
+      cancelFrame,
+      transitionTo: (target, onFrame, onEnd): void => {
+        transitionFrame = onFrame;
+        transitionEnd = onEnd;
+        onFrame(target);
+      },
+      getFeature: (countryId): GeoFeature | undefined =>
+        countryId === FRANCE.id ? FRANCE : undefined,
+      commitCamera,
+      cleanup,
+    },
+    getPaintedTransform: (): ZoomTransform => paintedTransform,
+    getInputEnabled: (): boolean => isInputEnabled,
+    runTransitionFrame: (transform): void => transitionFrame?.(transform),
+    finishTransition: (): void => transitionEnd?.(),
+    commitCamera,
+    interrupt,
+    cancelFrame,
+    cleanup,
+  };
+}
+
+describe('live camera controller', (): void => {
+  it('updates the visible transform for wheel frames and commits only when settled', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const wheelTransform = zoomIdentity.translate(-320, -180).scale(2);
+
+    controller.onGestureFrame(wheelTransform);
+
+    expect(harness.getPaintedTransform()).toMatchObject({
+      k: 2,
+      x: -320,
+      y: -180,
+    });
+    expect(harness.commitCamera).not.toHaveBeenCalled();
+
+    controller.onGestureEnd(wheelTransform);
+
+    expect(harness.commitCamera).toHaveBeenCalledTimes(1);
+    expect(harness.commitCamera).toHaveBeenLastCalledWith(
+      transformToCamera(harness.getPaintedTransform()),
+    );
+  });
+
+  it('animates Locate through the shared constrained transition boundary', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+
+    controller.locate(FRANCE.id);
+
+    expect(harness.getPaintedTransform().k).toBeGreaterThanOrEqual(2);
+    expect(harness.commitCamera).not.toHaveBeenCalled();
+
+    harness.finishTransition();
+
+    expect(harness.commitCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('freezes the last painted frame, settles it, and renews input after release', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const visibleTransform = zoomIdentity.translate(-540, -270).scale(3);
+    controller.onGestureFrame(visibleTransform);
+
+    const lease = controller.freezeAndSnapshot();
+
+    expect(harness.getInputEnabled()).toBe(false);
+    expect(harness.interrupt).toHaveBeenCalledTimes(1);
+    expect(harness.cancelFrame).toHaveBeenCalledTimes(1);
+    expect(lease.camera).toEqual(transformToCamera(visibleTransform));
+    expect(controller.readCurrentCamera()).toEqual(lease.camera);
+    expect(harness.commitCamera).toHaveBeenLastCalledWith(lease.camera);
+
+    lease.release();
+    controller.onGestureFrame(zoomIdentity.translate(-120, 0).scale(2));
+
+    expect(harness.getInputEnabled()).toBe(true);
+    expect(harness.getPaintedTransform()).toMatchObject({ k: 2, x: -120, y: 0 });
+  });
+
+  it('keeps nested and repeated lease release exact-once in effect', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const firstLease = controller.freezeAndSnapshot();
+    const secondLease = controller.freezeAndSnapshot();
+
+    firstLease.release();
+    firstLease.release();
+    expect(harness.getInputEnabled()).toBe(false);
+
+    secondLease.release();
+    secondLease.release();
+    expect(harness.getInputEnabled()).toBe(true);
+  });
+
+  it('renews input after a thrown frozen callback releases from finally', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const lease = controller.freezeAndSnapshot();
+
+    expect((): void => {
+      try {
+        throw new Error('capture failed');
+      } finally {
+        lease.release();
+      }
+    }).toThrow('capture failed');
+
+    expect(harness.getInputEnabled()).toBe(true);
+  });
+
+  it('cleans pending work and handlers without leaving input locked', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    controller.freezeAndSnapshot();
+
+    controller.destroy();
+
+    expect(harness.getInputEnabled()).toBe(true);
+    expect(harness.interrupt).toHaveBeenCalled();
+    expect(harness.cancelFrame).toHaveBeenCalled();
+    expect(harness.cleanup).toHaveBeenCalledTimes(1);
+  });
+});
