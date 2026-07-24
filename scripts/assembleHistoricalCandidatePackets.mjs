@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import process from 'node:process';
 
 const FIXED_DOS_TIME = 0;
