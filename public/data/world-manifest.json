@@ -1,0 +1,1921 @@
+{
+  "schemaVersion": 1,
+  "naturalEarth": {
+    "version": "5.1.1",
+    "license": "Public domain",
+    "licenseUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "pointOfView": "Natural Earth default/de facto Admin 0 countries point of view",
+    "sources": [
+      {
+        "id": "natural-earth-admin-0-50m",
+        "resolution": "1:50m",
+        "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson",
+        "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb"
+      },
+      {
+        "id": "natural-earth-admin-0-10m",
+        "resolution": "1:10m",
+        "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_10m_admin_0_countries.geojson",
+        "sha256": "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255"
+      }
+    ]
+  },
+  "policy": {
+    "coreDefinition": "193 UN member states plus the Holy See and State of Palestine",
+    "coreStateCount": 195,
+    "runtimeUnitCount": 248,
+    "coreSelectable": true,
+    "nonCoreSelectable": false,
+    "parentInheritance": "Only reviewed clear dependencies inherit a core-state color through parentCoreId.",
+    "neutralUnits": "Disputed, indeterminate, and ambiguous associated units remain visible, neutral, and non-selectable.",
+    "runtimeNetwork": "The browser loads only the committed same-origin world asset; upstream URLs are build-time provenance."
+  },
+  "sourceIdExceptions": [
+    {
+      "coreId": "SSD",
+      "sourceId": "SDS",
+      "matchField": "ISO_A3",
+      "matchValue": "SSD",
+      "reason": "Natural Earth ADM0_A3 differs from the canonical ISO alpha-3 key."
+    },
+    {
+      "coreId": "PSE",
+      "sourceId": "PSX",
+      "matchField": "ISO_A3",
+      "matchValue": "PSE",
+      "reason": "Natural Earth ADM0_A3 differs from the canonical ISO alpha-3 key."
+    },
+    {
+      "coreId": "FRA",
+      "sourceId": "FRA",
+      "matchField": "ADM0_A3",
+      "matchValue": "FRA",
+      "reason": "Natural Earth ISO_A3 is a sentinel; ADM0_A3 is the reviewed join."
+    },
+    {
+      "coreId": "NOR",
+      "sourceId": "NOR",
+      "matchField": "ADM0_A3",
+      "matchValue": "NOR",
+      "reason": "Natural Earth ISO_A3 is a sentinel; ADM0_A3 is the reviewed join."
+    },
+    {
+      "coreId": "CYP",
+      "sourceId": "CYP",
+      "matchField": "ADM0_A3",
+      "matchValue": "CYP",
+      "excludedSourceIds": [
+        "CYN"
+      ],
+      "reason": "Join the Cyprus country feature, not the separate Northern Cyprus unit."
+    }
+  ],
+  "coreStates": [
+    {
+      "id": "AFG",
+      "name": "Afghanistan",
+      "sourceId": "AFG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AFG"
+    },
+    {
+      "id": "AGO",
+      "name": "Angola",
+      "sourceId": "AGO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AGO"
+    },
+    {
+      "id": "ALB",
+      "name": "Albania",
+      "sourceId": "ALB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ALB"
+    },
+    {
+      "id": "AND",
+      "name": "Andorra",
+      "sourceId": "AND",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AND"
+    },
+    {
+      "id": "ARE",
+      "name": "United Arab Emirates",
+      "sourceId": "ARE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ARE"
+    },
+    {
+      "id": "ARG",
+      "name": "Argentina",
+      "sourceId": "ARG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ARG"
+    },
+    {
+      "id": "ARM",
+      "name": "Armenia",
+      "sourceId": "ARM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ARM"
+    },
+    {
+      "id": "ATG",
+      "name": "Antigua and Barbuda",
+      "sourceId": "ATG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ATG"
+    },
+    {
+      "id": "AUS",
+      "name": "Australia",
+      "sourceId": "AUS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AUS"
+    },
+    {
+      "id": "AUT",
+      "name": "Austria",
+      "sourceId": "AUT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AUT"
+    },
+    {
+      "id": "AZE",
+      "name": "Azerbaijan",
+      "sourceId": "AZE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "AZE"
+    },
+    {
+      "id": "BDI",
+      "name": "Burundi",
+      "sourceId": "BDI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BDI"
+    },
+    {
+      "id": "BEL",
+      "name": "Belgium",
+      "sourceId": "BEL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BEL"
+    },
+    {
+      "id": "BEN",
+      "name": "Benin",
+      "sourceId": "BEN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BEN"
+    },
+    {
+      "id": "BFA",
+      "name": "Burkina Faso",
+      "sourceId": "BFA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BFA"
+    },
+    {
+      "id": "BGD",
+      "name": "Bangladesh",
+      "sourceId": "BGD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BGD"
+    },
+    {
+      "id": "BGR",
+      "name": "Bulgaria",
+      "sourceId": "BGR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BGR"
+    },
+    {
+      "id": "BHR",
+      "name": "Bahrain",
+      "sourceId": "BHR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BHR"
+    },
+    {
+      "id": "BHS",
+      "name": "Bahamas",
+      "sourceId": "BHS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BHS"
+    },
+    {
+      "id": "BIH",
+      "name": "Bosnia and Herzegovina",
+      "sourceId": "BIH",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BIH"
+    },
+    {
+      "id": "BLR",
+      "name": "Belarus",
+      "sourceId": "BLR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BLR"
+    },
+    {
+      "id": "BLZ",
+      "name": "Belize",
+      "sourceId": "BLZ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BLZ"
+    },
+    {
+      "id": "BOL",
+      "name": "Bolivia",
+      "sourceId": "BOL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BOL"
+    },
+    {
+      "id": "BRA",
+      "name": "Brazil",
+      "sourceId": "BRA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BRA"
+    },
+    {
+      "id": "BRB",
+      "name": "Barbados",
+      "sourceId": "BRB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BRB"
+    },
+    {
+      "id": "BRN",
+      "name": "Brunei Darussalam",
+      "sourceId": "BRN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BRN"
+    },
+    {
+      "id": "BTN",
+      "name": "Bhutan",
+      "sourceId": "BTN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BTN"
+    },
+    {
+      "id": "BWA",
+      "name": "Botswana",
+      "sourceId": "BWA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "BWA"
+    },
+    {
+      "id": "CAF",
+      "name": "Central African Republic",
+      "sourceId": "CAF",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CAF"
+    },
+    {
+      "id": "CAN",
+      "name": "Canada",
+      "sourceId": "CAN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CAN"
+    },
+    {
+      "id": "CHE",
+      "name": "Switzerland",
+      "sourceId": "CHE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CHE"
+    },
+    {
+      "id": "CHL",
+      "name": "Chile",
+      "sourceId": "CHL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CHL"
+    },
+    {
+      "id": "CHN",
+      "name": "China",
+      "sourceId": "CHN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CHN"
+    },
+    {
+      "id": "CIV",
+      "name": "Côte d'Ivoire",
+      "sourceId": "CIV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CIV"
+    },
+    {
+      "id": "CMR",
+      "name": "Cameroon",
+      "sourceId": "CMR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CMR"
+    },
+    {
+      "id": "COD",
+      "name": "Democratic Republic of the Congo",
+      "sourceId": "COD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "COD"
+    },
+    {
+      "id": "COG",
+      "name": "Republic of the Congo",
+      "sourceId": "COG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "COG"
+    },
+    {
+      "id": "COL",
+      "name": "Colombia",
+      "sourceId": "COL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "COL"
+    },
+    {
+      "id": "COM",
+      "name": "Comoros",
+      "sourceId": "COM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "COM"
+    },
+    {
+      "id": "CPV",
+      "name": "Republic of Cabo Verde",
+      "sourceId": "CPV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CPV"
+    },
+    {
+      "id": "CRI",
+      "name": "Costa Rica",
+      "sourceId": "CRI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CRI"
+    },
+    {
+      "id": "CUB",
+      "name": "Cuba",
+      "sourceId": "CUB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CUB"
+    },
+    {
+      "id": "CYP",
+      "name": "Cyprus",
+      "sourceId": "CYP",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CYP"
+    },
+    {
+      "id": "CZE",
+      "name": "Czech Republic",
+      "sourceId": "CZE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "CZE"
+    },
+    {
+      "id": "DEU",
+      "name": "Germany",
+      "sourceId": "DEU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DEU"
+    },
+    {
+      "id": "DJI",
+      "name": "Djibouti",
+      "sourceId": "DJI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DJI"
+    },
+    {
+      "id": "DMA",
+      "name": "Dominica",
+      "sourceId": "DMA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DMA"
+    },
+    {
+      "id": "DNK",
+      "name": "Denmark",
+      "sourceId": "DNK",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DNK"
+    },
+    {
+      "id": "DOM",
+      "name": "Dominican Republic",
+      "sourceId": "DOM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DOM"
+    },
+    {
+      "id": "DZA",
+      "name": "Algeria",
+      "sourceId": "DZA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "DZA"
+    },
+    {
+      "id": "ECU",
+      "name": "Ecuador",
+      "sourceId": "ECU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ECU"
+    },
+    {
+      "id": "EGY",
+      "name": "Egypt",
+      "sourceId": "EGY",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "EGY"
+    },
+    {
+      "id": "ERI",
+      "name": "Eritrea",
+      "sourceId": "ERI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ERI"
+    },
+    {
+      "id": "ESP",
+      "name": "Spain",
+      "sourceId": "ESP",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ESP"
+    },
+    {
+      "id": "EST",
+      "name": "Estonia",
+      "sourceId": "EST",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "EST"
+    },
+    {
+      "id": "ETH",
+      "name": "Ethiopia",
+      "sourceId": "ETH",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ETH"
+    },
+    {
+      "id": "FIN",
+      "name": "Finland",
+      "sourceId": "FIN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "FIN"
+    },
+    {
+      "id": "FJI",
+      "name": "Fiji",
+      "sourceId": "FJI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "FJI"
+    },
+    {
+      "id": "FRA",
+      "name": "France",
+      "sourceId": "FRA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "FRA"
+    },
+    {
+      "id": "FSM",
+      "name": "Federated States of Micronesia",
+      "sourceId": "FSM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "FSM"
+    },
+    {
+      "id": "GAB",
+      "name": "Gabon",
+      "sourceId": "GAB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GAB"
+    },
+    {
+      "id": "GBR",
+      "name": "United Kingdom",
+      "sourceId": "GBR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GBR"
+    },
+    {
+      "id": "GEO",
+      "name": "Georgia",
+      "sourceId": "GEO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GEO"
+    },
+    {
+      "id": "GHA",
+      "name": "Ghana",
+      "sourceId": "GHA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GHA"
+    },
+    {
+      "id": "GIN",
+      "name": "Guinea",
+      "sourceId": "GIN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GIN"
+    },
+    {
+      "id": "GMB",
+      "name": "The Gambia",
+      "sourceId": "GMB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GMB"
+    },
+    {
+      "id": "GNB",
+      "name": "Guinea-Bissau",
+      "sourceId": "GNB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GNB"
+    },
+    {
+      "id": "GNQ",
+      "name": "Equatorial Guinea",
+      "sourceId": "GNQ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GNQ"
+    },
+    {
+      "id": "GRC",
+      "name": "Greece",
+      "sourceId": "GRC",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GRC"
+    },
+    {
+      "id": "GRD",
+      "name": "Grenada",
+      "sourceId": "GRD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GRD"
+    },
+    {
+      "id": "GTM",
+      "name": "Guatemala",
+      "sourceId": "GTM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GTM"
+    },
+    {
+      "id": "GUY",
+      "name": "Guyana",
+      "sourceId": "GUY",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "GUY"
+    },
+    {
+      "id": "HND",
+      "name": "Honduras",
+      "sourceId": "HND",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "HND"
+    },
+    {
+      "id": "HRV",
+      "name": "Croatia",
+      "sourceId": "HRV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "HRV"
+    },
+    {
+      "id": "HTI",
+      "name": "Haiti",
+      "sourceId": "HTI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "HTI"
+    },
+    {
+      "id": "HUN",
+      "name": "Hungary",
+      "sourceId": "HUN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "HUN"
+    },
+    {
+      "id": "IDN",
+      "name": "Indonesia",
+      "sourceId": "IDN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "IDN"
+    },
+    {
+      "id": "IND",
+      "name": "India",
+      "sourceId": "IND",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "IND"
+    },
+    {
+      "id": "IRL",
+      "name": "Ireland",
+      "sourceId": "IRL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "IRL"
+    },
+    {
+      "id": "IRN",
+      "name": "Iran",
+      "sourceId": "IRN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "IRN"
+    },
+    {
+      "id": "IRQ",
+      "name": "Iraq",
+      "sourceId": "IRQ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "IRQ"
+    },
+    {
+      "id": "ISL",
+      "name": "Iceland",
+      "sourceId": "ISL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ISL"
+    },
+    {
+      "id": "ISR",
+      "name": "Israel",
+      "sourceId": "ISR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ISR"
+    },
+    {
+      "id": "ITA",
+      "name": "Italy",
+      "sourceId": "ITA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ITA"
+    },
+    {
+      "id": "JAM",
+      "name": "Jamaica",
+      "sourceId": "JAM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "JAM"
+    },
+    {
+      "id": "JOR",
+      "name": "Jordan",
+      "sourceId": "JOR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "JOR"
+    },
+    {
+      "id": "JPN",
+      "name": "Japan",
+      "sourceId": "JPN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "JPN"
+    },
+    {
+      "id": "KAZ",
+      "name": "Kazakhstan",
+      "sourceId": "KAZ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KAZ"
+    },
+    {
+      "id": "KEN",
+      "name": "Kenya",
+      "sourceId": "KEN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KEN"
+    },
+    {
+      "id": "KGZ",
+      "name": "Kyrgyzstan",
+      "sourceId": "KGZ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KGZ"
+    },
+    {
+      "id": "KHM",
+      "name": "Cambodia",
+      "sourceId": "KHM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KHM"
+    },
+    {
+      "id": "KIR",
+      "name": "Kiribati",
+      "sourceId": "KIR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KIR"
+    },
+    {
+      "id": "KNA",
+      "name": "Saint Kitts and Nevis",
+      "sourceId": "KNA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KNA"
+    },
+    {
+      "id": "KOR",
+      "name": "Republic of Korea",
+      "sourceId": "KOR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KOR"
+    },
+    {
+      "id": "KWT",
+      "name": "Kuwait",
+      "sourceId": "KWT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "KWT"
+    },
+    {
+      "id": "LAO",
+      "name": "Lao PDR",
+      "sourceId": "LAO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LAO"
+    },
+    {
+      "id": "LBN",
+      "name": "Lebanon",
+      "sourceId": "LBN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LBN"
+    },
+    {
+      "id": "LBR",
+      "name": "Liberia",
+      "sourceId": "LBR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LBR"
+    },
+    {
+      "id": "LBY",
+      "name": "Libya",
+      "sourceId": "LBY",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LBY"
+    },
+    {
+      "id": "LCA",
+      "name": "Saint Lucia",
+      "sourceId": "LCA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LCA"
+    },
+    {
+      "id": "LIE",
+      "name": "Liechtenstein",
+      "sourceId": "LIE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LIE"
+    },
+    {
+      "id": "LKA",
+      "name": "Sri Lanka",
+      "sourceId": "LKA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LKA"
+    },
+    {
+      "id": "LSO",
+      "name": "Lesotho",
+      "sourceId": "LSO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LSO"
+    },
+    {
+      "id": "LTU",
+      "name": "Lithuania",
+      "sourceId": "LTU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LTU"
+    },
+    {
+      "id": "LUX",
+      "name": "Luxembourg",
+      "sourceId": "LUX",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LUX"
+    },
+    {
+      "id": "LVA",
+      "name": "Latvia",
+      "sourceId": "LVA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "LVA"
+    },
+    {
+      "id": "MAR",
+      "name": "Morocco",
+      "sourceId": "MAR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MAR"
+    },
+    {
+      "id": "MCO",
+      "name": "Monaco",
+      "sourceId": "MCO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MCO"
+    },
+    {
+      "id": "MDA",
+      "name": "Moldova",
+      "sourceId": "MDA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MDA"
+    },
+    {
+      "id": "MDG",
+      "name": "Madagascar",
+      "sourceId": "MDG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MDG"
+    },
+    {
+      "id": "MDV",
+      "name": "Maldives",
+      "sourceId": "MDV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MDV"
+    },
+    {
+      "id": "MEX",
+      "name": "Mexico",
+      "sourceId": "MEX",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MEX"
+    },
+    {
+      "id": "MHL",
+      "name": "Marshall Islands",
+      "sourceId": "MHL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MHL"
+    },
+    {
+      "id": "MKD",
+      "name": "North Macedonia",
+      "sourceId": "MKD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MKD"
+    },
+    {
+      "id": "MLI",
+      "name": "Mali",
+      "sourceId": "MLI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MLI"
+    },
+    {
+      "id": "MLT",
+      "name": "Malta",
+      "sourceId": "MLT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MLT"
+    },
+    {
+      "id": "MMR",
+      "name": "Myanmar",
+      "sourceId": "MMR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MMR"
+    },
+    {
+      "id": "MNE",
+      "name": "Montenegro",
+      "sourceId": "MNE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MNE"
+    },
+    {
+      "id": "MNG",
+      "name": "Mongolia",
+      "sourceId": "MNG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MNG"
+    },
+    {
+      "id": "MOZ",
+      "name": "Mozambique",
+      "sourceId": "MOZ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MOZ"
+    },
+    {
+      "id": "MRT",
+      "name": "Mauritania",
+      "sourceId": "MRT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MRT"
+    },
+    {
+      "id": "MUS",
+      "name": "Mauritius",
+      "sourceId": "MUS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MUS"
+    },
+    {
+      "id": "MWI",
+      "name": "Malawi",
+      "sourceId": "MWI",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MWI"
+    },
+    {
+      "id": "MYS",
+      "name": "Malaysia",
+      "sourceId": "MYS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "MYS"
+    },
+    {
+      "id": "NAM",
+      "name": "Namibia",
+      "sourceId": "NAM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NAM"
+    },
+    {
+      "id": "NER",
+      "name": "Niger",
+      "sourceId": "NER",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NER"
+    },
+    {
+      "id": "NGA",
+      "name": "Nigeria",
+      "sourceId": "NGA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NGA"
+    },
+    {
+      "id": "NIC",
+      "name": "Nicaragua",
+      "sourceId": "NIC",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NIC"
+    },
+    {
+      "id": "NLD",
+      "name": "Netherlands",
+      "sourceId": "NLD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NLD"
+    },
+    {
+      "id": "NOR",
+      "name": "Norway",
+      "sourceId": "NOR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NOR"
+    },
+    {
+      "id": "NPL",
+      "name": "Nepal",
+      "sourceId": "NPL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NPL"
+    },
+    {
+      "id": "NRU",
+      "name": "Nauru",
+      "sourceId": "NRU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NRU"
+    },
+    {
+      "id": "NZL",
+      "name": "New Zealand",
+      "sourceId": "NZL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "NZL"
+    },
+    {
+      "id": "OMN",
+      "name": "Oman",
+      "sourceId": "OMN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "OMN"
+    },
+    {
+      "id": "PAK",
+      "name": "Pakistan",
+      "sourceId": "PAK",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PAK"
+    },
+    {
+      "id": "PAN",
+      "name": "Panama",
+      "sourceId": "PAN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PAN"
+    },
+    {
+      "id": "PER",
+      "name": "Peru",
+      "sourceId": "PER",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PER"
+    },
+    {
+      "id": "PHL",
+      "name": "Philippines",
+      "sourceId": "PHL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PHL"
+    },
+    {
+      "id": "PLW",
+      "name": "Palau",
+      "sourceId": "PLW",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PLW"
+    },
+    {
+      "id": "PNG",
+      "name": "Papua New Guinea",
+      "sourceId": "PNG",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PNG"
+    },
+    {
+      "id": "POL",
+      "name": "Poland",
+      "sourceId": "POL",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "POL"
+    },
+    {
+      "id": "PRK",
+      "name": "Dem. Rep. Korea",
+      "sourceId": "PRK",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PRK"
+    },
+    {
+      "id": "PRT",
+      "name": "Portugal",
+      "sourceId": "PRT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PRT"
+    },
+    {
+      "id": "PRY",
+      "name": "Paraguay",
+      "sourceId": "PRY",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "PRY"
+    },
+    {
+      "id": "PSE",
+      "name": "Palestine",
+      "sourceId": "PSX",
+      "sourceMatchField": "ISO_A3",
+      "sourceMatchValue": "PSE"
+    },
+    {
+      "id": "QAT",
+      "name": "Qatar",
+      "sourceId": "QAT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "QAT"
+    },
+    {
+      "id": "ROU",
+      "name": "Romania",
+      "sourceId": "ROU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ROU"
+    },
+    {
+      "id": "RUS",
+      "name": "Russian Federation",
+      "sourceId": "RUS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "RUS"
+    },
+    {
+      "id": "RWA",
+      "name": "Rwanda",
+      "sourceId": "RWA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "RWA"
+    },
+    {
+      "id": "SAU",
+      "name": "Saudi Arabia",
+      "sourceId": "SAU",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SAU"
+    },
+    {
+      "id": "SDN",
+      "name": "Sudan",
+      "sourceId": "SDN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SDN"
+    },
+    {
+      "id": "SEN",
+      "name": "Senegal",
+      "sourceId": "SEN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SEN"
+    },
+    {
+      "id": "SGP",
+      "name": "Singapore",
+      "sourceId": "SGP",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SGP"
+    },
+    {
+      "id": "SLB",
+      "name": "Solomon Islands",
+      "sourceId": "SLB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SLB"
+    },
+    {
+      "id": "SLE",
+      "name": "Sierra Leone",
+      "sourceId": "SLE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SLE"
+    },
+    {
+      "id": "SLV",
+      "name": "El Salvador",
+      "sourceId": "SLV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SLV"
+    },
+    {
+      "id": "SMR",
+      "name": "San Marino",
+      "sourceId": "SMR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SMR"
+    },
+    {
+      "id": "SOM",
+      "name": "Somalia",
+      "sourceId": "SOM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SOM"
+    },
+    {
+      "id": "SRB",
+      "name": "Serbia",
+      "sourceId": "SRB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SRB"
+    },
+    {
+      "id": "SSD",
+      "name": "South Sudan",
+      "sourceId": "SDS",
+      "sourceMatchField": "ISO_A3",
+      "sourceMatchValue": "SSD"
+    },
+    {
+      "id": "STP",
+      "name": "São Tomé and Principe",
+      "sourceId": "STP",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "STP"
+    },
+    {
+      "id": "SUR",
+      "name": "Suriname",
+      "sourceId": "SUR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SUR"
+    },
+    {
+      "id": "SVK",
+      "name": "Slovakia",
+      "sourceId": "SVK",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SVK"
+    },
+    {
+      "id": "SVN",
+      "name": "Slovenia",
+      "sourceId": "SVN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SVN"
+    },
+    {
+      "id": "SWE",
+      "name": "Sweden",
+      "sourceId": "SWE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SWE"
+    },
+    {
+      "id": "SWZ",
+      "name": "Kingdom of eSwatini",
+      "sourceId": "SWZ",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SWZ"
+    },
+    {
+      "id": "SYC",
+      "name": "Seychelles",
+      "sourceId": "SYC",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SYC"
+    },
+    {
+      "id": "SYR",
+      "name": "Syria",
+      "sourceId": "SYR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "SYR"
+    },
+    {
+      "id": "TCD",
+      "name": "Chad",
+      "sourceId": "TCD",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TCD"
+    },
+    {
+      "id": "TGO",
+      "name": "Togo",
+      "sourceId": "TGO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TGO"
+    },
+    {
+      "id": "THA",
+      "name": "Thailand",
+      "sourceId": "THA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "THA"
+    },
+    {
+      "id": "TJK",
+      "name": "Tajikistan",
+      "sourceId": "TJK",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TJK"
+    },
+    {
+      "id": "TKM",
+      "name": "Turkmenistan",
+      "sourceId": "TKM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TKM"
+    },
+    {
+      "id": "TLS",
+      "name": "Timor-Leste",
+      "sourceId": "TLS",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TLS"
+    },
+    {
+      "id": "TON",
+      "name": "Tonga",
+      "sourceId": "TON",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TON"
+    },
+    {
+      "id": "TTO",
+      "name": "Trinidad and Tobago",
+      "sourceId": "TTO",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TTO"
+    },
+    {
+      "id": "TUN",
+      "name": "Tunisia",
+      "sourceId": "TUN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TUN"
+    },
+    {
+      "id": "TUR",
+      "name": "Turkey",
+      "sourceId": "TUR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TUR"
+    },
+    {
+      "id": "TUV",
+      "name": "Tuvalu",
+      "sourceId": "TUV",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TUV"
+    },
+    {
+      "id": "TZA",
+      "name": "Tanzania",
+      "sourceId": "TZA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "TZA"
+    },
+    {
+      "id": "UGA",
+      "name": "Uganda",
+      "sourceId": "UGA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "UGA"
+    },
+    {
+      "id": "UKR",
+      "name": "Ukraine",
+      "sourceId": "UKR",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "UKR"
+    },
+    {
+      "id": "URY",
+      "name": "Uruguay",
+      "sourceId": "URY",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "URY"
+    },
+    {
+      "id": "USA",
+      "name": "United States",
+      "sourceId": "USA",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "USA"
+    },
+    {
+      "id": "UZB",
+      "name": "Uzbekistan",
+      "sourceId": "UZB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "UZB"
+    },
+    {
+      "id": "VAT",
+      "name": "Vatican",
+      "sourceId": "VAT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "VAT"
+    },
+    {
+      "id": "VCT",
+      "name": "Saint Vincent and the Grenadines",
+      "sourceId": "VCT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "VCT"
+    },
+    {
+      "id": "VEN",
+      "name": "Venezuela",
+      "sourceId": "VEN",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "VEN"
+    },
+    {
+      "id": "VNM",
+      "name": "Vietnam",
+      "sourceId": "VNM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "VNM"
+    },
+    {
+      "id": "VUT",
+      "name": "Vanuatu",
+      "sourceId": "VUT",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "VUT"
+    },
+    {
+      "id": "WSM",
+      "name": "Samoa",
+      "sourceId": "WSM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "WSM"
+    },
+    {
+      "id": "YEM",
+      "name": "Yemen",
+      "sourceId": "YEM",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "YEM"
+    },
+    {
+      "id": "ZAF",
+      "name": "South Africa",
+      "sourceId": "ZAF",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ZAF"
+    },
+    {
+      "id": "ZMB",
+      "name": "Zambia",
+      "sourceId": "ZMB",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ZMB"
+    },
+    {
+      "id": "ZWE",
+      "name": "Zimbabwe",
+      "sourceId": "ZWE",
+      "sourceMatchField": "ADM0_A3",
+      "sourceMatchValue": "ZWE"
+    }
+  ],
+  "nonCoreUnits": [
+    {
+      "id": "ABW",
+      "name": "Aruba",
+      "sourceId": "ABW",
+      "sourceType": "Country",
+      "parentCoreId": "NLD",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "AIA",
+      "name": "Anguilla",
+      "sourceId": "AIA",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "ALD",
+      "name": "Åland Islands",
+      "sourceId": "ALD",
+      "sourceType": "Country",
+      "parentCoreId": "FIN",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "ASM",
+      "name": "American Samoa",
+      "sourceId": "ASM",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "ATA",
+      "name": "Antarctica",
+      "sourceId": "ATA",
+      "sourceType": "Indeterminate",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "ATC",
+      "name": "Ashmore and Cartier Islands",
+      "sourceId": "ATC",
+      "sourceType": "Dependency",
+      "parentCoreId": "AUS",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "ATF",
+      "name": "French Southern and Antarctic Lands",
+      "sourceId": "ATF",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "BLM",
+      "name": "Saint-Barthélemy",
+      "sourceId": "BLM",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "BMU",
+      "name": "Bermuda",
+      "sourceId": "BMU",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "COK",
+      "name": "Cook Islands",
+      "sourceId": "COK",
+      "sourceType": "Dependency",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "CUW",
+      "name": "Curaçao",
+      "sourceId": "CUW",
+      "sourceType": "Country",
+      "parentCoreId": "NLD",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "CYM",
+      "name": "Cayman Islands",
+      "sourceId": "CYM",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "CYN",
+      "name": "Northern Cyprus",
+      "sourceId": "CYN",
+      "sourceType": "Sovereign country",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "FLK",
+      "name": "Falkland Islands / Malvinas",
+      "sourceId": "FLK",
+      "sourceType": "Disputed",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "FRO",
+      "name": "Faeroe Islands",
+      "sourceId": "FRO",
+      "sourceType": "Dependency",
+      "parentCoreId": "DNK",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "GGY",
+      "name": "Guernsey",
+      "sourceId": "GGY",
+      "sourceType": "Country",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "GRL",
+      "name": "Greenland",
+      "sourceId": "GRL",
+      "sourceType": "Country",
+      "parentCoreId": "DNK",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "GUM",
+      "name": "Guam",
+      "sourceId": "GUM",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "HKG",
+      "name": "Hong Kong",
+      "sourceId": "HKG",
+      "sourceType": "Country",
+      "parentCoreId": "CHN",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "HMD",
+      "name": "Heard I. and McDonald Islands",
+      "sourceId": "HMD",
+      "sourceType": "Dependency",
+      "parentCoreId": "AUS",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "IMN",
+      "name": "Isle of Man",
+      "sourceId": "IMN",
+      "sourceType": "Country",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "IOA",
+      "name": "Indian Ocean Territories",
+      "sourceId": "IOA",
+      "sourceType": "Dependency",
+      "parentCoreId": "AUS",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "IOT",
+      "name": "British Indian Ocean Territory",
+      "sourceId": "IOT",
+      "sourceType": "Disputed",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "JEY",
+      "name": "Jersey",
+      "sourceId": "JEY",
+      "sourceType": "Country",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "KAS",
+      "name": "Siachen Glacier",
+      "sourceId": "KAS",
+      "sourceType": "Indeterminate",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "KOS",
+      "name": "Kosovo",
+      "sourceId": "KOS",
+      "sourceType": "Disputed",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "MAC",
+      "name": "Macao",
+      "sourceId": "MAC",
+      "sourceType": "Country",
+      "parentCoreId": "CHN",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "MAF",
+      "name": "Saint-Martin",
+      "sourceId": "MAF",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "MNP",
+      "name": "Northern Mariana Islands",
+      "sourceId": "MNP",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "MSR",
+      "name": "Montserrat",
+      "sourceId": "MSR",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "NCL",
+      "name": "New Caledonia",
+      "sourceId": "NCL",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "NFK",
+      "name": "Norfolk Island",
+      "sourceId": "NFK",
+      "sourceType": "Dependency",
+      "parentCoreId": "AUS",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "NIU",
+      "name": "Niue",
+      "sourceId": "NIU",
+      "sourceType": "Dependency",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "PCN",
+      "name": "Pitcairn Islands",
+      "sourceId": "PCN",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "PRI",
+      "name": "Puerto Rico",
+      "sourceId": "PRI",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "PYF",
+      "name": "French Polynesia",
+      "sourceId": "PYF",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "SAH",
+      "name": "Western Sahara",
+      "sourceId": "SAH",
+      "sourceType": "Indeterminate",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "SGS",
+      "name": "South Georgia and the Islands",
+      "sourceId": "SGS",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "SHN",
+      "name": "Saint Helena",
+      "sourceId": "SHN",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "SOL",
+      "name": "Somaliland",
+      "sourceId": "SOL",
+      "sourceType": "Sovereign country",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "SPM",
+      "name": "Saint Pierre and Miquelon",
+      "sourceId": "SPM",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "SXM",
+      "name": "Sint Maarten",
+      "sourceId": "SXM",
+      "sourceType": "Country",
+      "parentCoreId": "NLD",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "TCA",
+      "name": "Turks and Caicos Islands",
+      "sourceId": "TCA",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "TWN",
+      "name": "Taiwan",
+      "sourceId": "TWN",
+      "sourceType": "Sovereign country",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "VGB",
+      "name": "British Virgin Islands",
+      "sourceId": "VGB",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "VIR",
+      "name": "United States Virgin Islands",
+      "sourceId": "VIR",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "WLF",
+      "name": "Wallis and Futuna Islands",
+      "sourceId": "WLF",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    }
+  ],
+  "supplements": [
+    {
+      "id": "CLP",
+      "name": "Clipperton Island",
+      "sourceId": "CLP",
+      "sourceType": "Dependency",
+      "parentCoreId": "FRA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "CSI",
+      "name": "Coral Sea Islands",
+      "sourceId": "CSI",
+      "sourceType": "Dependency",
+      "parentCoreId": "AUS",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "ESB",
+      "name": "Dhekelia",
+      "sourceId": "ESB",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "GIB",
+      "name": "Gibraltar",
+      "sourceId": "GIB",
+      "sourceType": "Disputed",
+      "parentCoreId": null,
+      "isSelectable": false,
+      "colorPolicy": "neutral"
+    },
+    {
+      "id": "UMI",
+      "name": "United States Minor Outlying Islands",
+      "sourceId": "UMI",
+      "sourceType": "Dependency",
+      "parentCoreId": "USA",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    },
+    {
+      "id": "WSB",
+      "name": "Akrotiri",
+      "sourceId": "WSB",
+      "sourceType": "Dependency",
+      "parentCoreId": "GBR",
+      "isSelectable": false,
+      "colorPolicy": "inherit-parent"
+    }
+  ]
+}
