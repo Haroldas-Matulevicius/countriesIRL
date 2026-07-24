@@ -37,7 +37,7 @@ patterns-established:
   - "Historical interaction pattern: modern-core and approved historical entities are selectable; dependencies inherit; disputed and neutral units cannot be selected."
   - "Approval pattern: exact six-region source and factual decisions bind reviewer identity and exact evidence hashes."
 requirements-completed: [F2.1, F2.2, F2.4, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR9, NFR11]
-duration: 13 min
+duration: 19 min
 completed: 2026-07-24
 ---
 
@@ -47,9 +47,9 @@ completed: 2026-07-24
 
 ## Performance
 
-- **Duration:** 13 min
+- **Duration:** 19 min
 - **Started:** 2026-07-24T16:48:58Z
-- **Completed:** 2026-07-24T17:01:56Z
+- **Completed:** 2026-07-24T17:07:37Z
 - **Tasks:** 2
 - **Files modified:** 5
 
@@ -66,6 +66,7 @@ Each task was committed atomically:
 
 1. **Task 1: Define the single canvas handle, effective-scene, and complete-composition contracts** - `5ebc73f` (`feat`)
 2. **Task 2: Lock camera and snapshot constants** - `1e51de8` (`feat`)
+3. **Task 1 contract clarification: State the idempotent outermost-finally lease lifecycle** - `2c40ec2` (`docs`)
 
 ## Files Created/Modified
 
@@ -121,7 +122,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - All five created/modified product files exist in the isolated worktree.
-- Task commits `5ebc73f` and `1e51de8` exist in git history.
+- Task commits `5ebc73f`, `1e51de8`, and `2c40ec2` exist in git history.
 - No `STATE.md` or `ROADMAP.md` changes were made.
 
 ---
