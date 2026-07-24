@@ -6,7 +6,14 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: ['dist/**', 'coverage/**', '.vercel/**', '.claude/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      '.vercel/**',
+      '.artifacts/**',
+      '.planning/**',
+      '.claude/**',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommended,
@@ -22,7 +29,11 @@ export default defineConfig(
     },
   },
   {
-    files: ['*.config.{js,ts}'],
+    files: [
+      '*.config.{js,ts}',
+      'scripts/**/*.mjs',
+      'tests/e2e/**/*.ts',
+    ],
     languageOptions: {
       globals: globals.node,
     },

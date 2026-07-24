@@ -3,6 +3,7 @@ dist/
 coverage/
 .vite/
 .vercel/
+.artifacts/playwright/
 
 *.log
 npm-debug.log*
