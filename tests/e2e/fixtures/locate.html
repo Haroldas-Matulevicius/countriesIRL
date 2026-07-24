@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL Locate fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        font-family: sans-serif;
+      }
+
+      #root > main {
+        display: grid;
+        grid-template-columns: minmax(0, 540px) minmax(320px, 1fr);
+        gap: 24px;
+        padding: 24px;
+      }
+
+      .map-export-source,
+      .map-canvas {
+        display: block;
+        width: 540px;
+        height: 540px;
+        touch-action: none;
+      }
+
+      .fixture-controls {
+        display: grid;
+        gap: 24px;
+        align-content: start;
+      }
+
+      .country-list__items,
+      .locate-country__options {
+        max-height: 240px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import {
+        createElement as h,
+        useCallback,
+        useRef,
+      } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { CountryList } from '/src/components/CountryList.tsx';
+      import { LocateCountry } from '/src/components/LocateCountry.tsx';
+      import { MapCanvas } from '/src/components/MapCanvas.tsx';
+      import { useGeoData } from '/src/hooks/useGeoData.ts';
+      import { useMapState } from '/src/hooks/useMapState.ts';
+      import {
+        createCameraController,
+      } from '/src/hooks/useCameraController.ts';
+      import { MapStateProvider } from '/src/providers/MapStateProvider.tsx';
+
+      function LocateFixture() {
+        const geoData = useGeoData();
+        const mapRef = useRef(null);
+        const locateCallsRef = useRef(0);
+        const controllerFactoryCallsRef = useRef(0);
+        const {
+          state,
+          selectCountry,
+          clearSelection,
+        } = useMapState();
+        const controllerFactory = useCallback((driver) => {
+          controllerFactoryCallsRef.current += 1;
+          return createCameraController(driver);
+        }, []);
+        const locateCountry = useCallback((countryId) => {
+          locateCallsRef.current += 1;
+          mapRef.current?.locate(countryId);
+        }, []);
+
+        window.__locateFixture = {
+          get controllerFactoryCalls() {
+            return controllerFactoryCallsRef.current;
+          },
+          get locateCalls() {
+            return locateCallsRef.current;
+          },
+          readMapState: () => ({
+            selectedIds: [...state.selectedIds].sort(),
+            colors: { ...state.colors },
+            historyIndex: state.historyIndex,
+            historyLength: state.history.length,
+          }),
+          readCamera: () => mapRef.current?.readCurrentCamera() ?? null,
+        };
+
+        if (geoData.status !== 'ready') {
+          return h('p', { role: 'status' }, geoData.status);
+        }
+
+        return h(
+          'main',
+          null,
+          h(MapCanvas, {
+            ref: mapRef,
+            features: geoData.features,
+            colors: state.colors,
+            selectedIds: state.selectedIds,
+            onSelectCountry: selectCountry,
+            onClearSelection: clearSelection,
+            onTooltipChange: () => undefined,
+            controllerFactory,
+          }),
+          h(
+            'div',
+            { className: 'fixture-controls' },
+            h(CountryList, { countries: geoData.countryMetadata }),
+            h(LocateCountry, {
+              countries: geoData.countryMetadata,
+              onLocate: locateCountry,
+            }),
+          ),
+        );
+      }
+
+      createRoot(document.getElementById('root')).render(
+        h(MapStateProvider, null, h(LocateFixture)),
+      );
+    </script>
+  </body>
+</html>

@@ -153,6 +153,7 @@ export function LocateCountry({
   const popupId = `${comboboxId}-popup`;
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const suppressNextFocusOpenRef = useRef(false);
   const [state, dispatch] = useReducer(
     (currentState: LocateState, action: LocateAction): LocateState => {
       const optionCount =
@@ -197,6 +198,11 @@ export function LocateCountry({
   );
 
   const handleInputFocus = useCallback((): void => {
+    if (suppressNextFocusOpenRef.current) {
+      suppressNextFocusOpenRef.current = false;
+      return;
+    }
+
     dispatch({ type: 'open' });
   }, []);
 
@@ -249,6 +255,7 @@ export function LocateCountry({
 
   const handleClear = useCallback((): void => {
     dispatch({ type: 'clear' });
+    suppressNextFocusOpenRef.current = true;
     inputRef.current?.focus();
   }, []);
 
