@@ -2,18 +2,14 @@ import { useState } from 'react';
 import type { Ref } from 'react';
 
 import type { MapCanvasHandle } from '../types/composition';
-import type {
-  ColorMap,
-  CountryId,
-  GeoDataState,
-  SelectedCountryIds,
-} from '../types/map';
+import type { ColorMap, CountryId, SelectedCountryIds } from '../types/map';
+import type { WorldGeoDataState } from '../hooks/useGeoData';
 import { FatalErrorState } from './FatalErrorState';
 import { MapCanvas, type MapTooltipData } from './MapCanvas';
 import { Tooltip } from './Tooltip';
 
 interface MapWorkspaceProps {
-  geoData: GeoDataState;
+  geoData: WorldGeoDataState;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;

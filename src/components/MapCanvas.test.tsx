@@ -286,6 +286,6 @@ describe('wrapped effective scene model', (): void => {
 
     expect(features).toHaveLength(248);
     expect(model.filter((path) => path.kind === 'logical')).toHaveLength(195);
-    expect(new Set(model.map((path) => path.sceneUnitId))).toHaveLength(248);
+    expect(new Set(model.map((path) => path.sceneUnitId)).size).toBe(248);
   });
 });

@@ -8,31 +8,30 @@ import {
   useRef,
 } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import {
-  geoPath,
-  select,
-} from 'd3';
+import { geoPath, select } from 'd3';
 
 import type { CameraState, MapCanvasHandle } from '../types/composition';
 import type {
   ColorMap,
   CountryId,
   GeoFeature,
+  SceneFeature,
   SelectedCountryIds,
 } from '../types/map';
+import {
+  DEFAULT_BORDER_COLOR,
+  DEFAULT_COLOR,
+  SELECTED_BORDER_COLOR,
+} from '../constants/colors';
+import { MAP_VIEWBOX_SIZE } from '../constants/config';
 import {
   useCameraController,
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
-import {
-  DEFAULT_BORDER_COLOR,
-  SELECTED_BORDER_COLOR,
-} from '../constants/colors';
-import { MAP_VIEWBOX_SIZE } from '../constants/config';
 import { getEffectiveCountryColor } from '../utils/colors';
 import {
-  createFixedEuropeProjection,
   createSafeMapPath,
+  createWorldProjection,
 } from '../utils/mapProjection';
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
@@ -43,13 +42,18 @@ const UNDO_START_MARK = 'countriesirl-undo-start';
 const UNDO_VISIBLE_MEASURE = 'countriesirl-undo-visible';
 const REDO_START_MARK = 'countriesirl-redo-start';
 const REDO_VISIBLE_MEASURE = 'countriesirl-redo-visible';
-const COUNTRY_PATH_SELECTOR = 'path.country-path';
+const SCENE_PATH_SELECTOR = 'path.scene-path';
+const LOGICAL_PATH_SELECTOR = 'path.country-path[data-path-kind="logical"]';
+const SCENE_PATH_CLASS = 'scene-path';
 const COUNTRY_PATH_CLASS = 'country-path';
+const DECORATIVE_PATH_CLASS = 'country-path--decorative';
+const NON_SELECTABLE_PATH_CLASS = 'map-unit-path';
 const SELECTED_CLASS = 'selected';
 const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
 const DEFAULT_STROKE_WIDTH = '1';
 const SELECTED_STROKE_WIDTH = '2';
+const WRAP_OFFSETS = [-MAP_VIEWBOX_SIZE, 0, MAP_VIEWBOX_SIZE] as const;
 
 interface MapTooltipContent {
   countryId: CountryId;
@@ -69,7 +73,7 @@ export type MapTooltipData =
     });
 
 export interface MapCanvasProps {
-  features: ReadonlyArray<GeoFeature>;
+  features: ReadonlyArray<SceneFeature>;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
@@ -88,6 +92,18 @@ interface MapCanvasCallbacks {
 interface PerformanceMeasurePair {
   startMark: string;
   measureName: string;
+}
+
+export interface WrappedScenePath {
+  readonly key: string;
+  readonly sceneUnitId: string;
+  readonly entityId: CountryId;
+  readonly feature: SceneFeature;
+  readonly offsetX: number;
+  readonly kind: 'logical' | 'decorative';
+  readonly isAccessible: boolean;
+  readonly isFocusable: boolean;
+  readonly isPrimaryVisual: boolean;
 }
 
 const INTERACTION_MEASURES: ReadonlyArray<PerformanceMeasurePair> = [
@@ -129,13 +145,49 @@ function isSvgPathElement(
   return target instanceof SVGPathElement;
 }
 
+function getInteractionId(feature: SceneFeature): CountryId {
+  return feature.entityId;
+}
+
+export function createWrappedSceneModel(
+  features: ReadonlyArray<SceneFeature>,
+): ReadonlyArray<WrappedScenePath> {
+  return features.flatMap((feature): ReadonlyArray<WrappedScenePath> =>
+    WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
+      const isPrimaryVisual = offsetX === 0;
+      const isLogical = feature.isSelectable && isPrimaryVisual;
+      return {
+        key: `${feature.id}:${offsetX}`,
+        sceneUnitId: feature.id,
+        entityId: feature.entityId,
+        feature,
+        offsetX,
+        kind: isLogical ? 'logical' : 'decorative',
+        isAccessible: isLogical,
+        isFocusable: isLogical,
+        isPrimaryVisual,
+      };
+    }),
+  );
+}
+
+export function getSceneFeatureColor(
+  feature: SceneFeature,
+  colors: ColorMap,
+): string {
+  return feature.colorOwnerId === null
+    ? DEFAULT_COLOR
+    : getEffectiveCountryColor(colors, feature.colorOwnerId);
+}
+
 export function pointerTooltipData(
   event: PointerEvent,
   feature: GeoFeature,
   color: string,
+  countryId: CountryId = feature.id,
 ): MapTooltipData {
   return {
-    countryId: feature.id,
+    countryId,
     countryName: feature.properties.name,
     color,
     inputMethod: 'pointer',
@@ -150,11 +202,12 @@ export function keyboardTooltipData(
   pathElement: SVGPathElement,
   feature: GeoFeature,
   color: string,
+  countryId: CountryId = feature.id,
 ): MapTooltipData {
   const bounds = pathElement.getBoundingClientRect();
 
   return {
-    countryId: feature.id,
+    countryId,
     countryName: feature.properties.name,
     color,
     inputMethod: 'keyboard',
@@ -171,9 +224,10 @@ export function pointerLeaveTooltipData(
   activeElement: Element | null,
   feature: GeoFeature,
   color: string,
+  countryId: CountryId = feature.id,
 ): MapTooltipData | null {
   return activeElement === pathElement
-    ? keyboardTooltipData(pathElement, feature, color)
+    ? keyboardTooltipData(pathElement, feature, color, countryId)
     : null;
 }
 
@@ -211,8 +265,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     });
     const focusCountry = useCallback((countryId: CountryId): void => {
       const source = exportSourceRef.current;
+      const escapedCountryId = CSS.escape(countryId);
       const path = source?.querySelector<SVGPathElement>(
-        `path.country-path[data-country-id="${CSS.escape(countryId)}"]`,
+        `${LOGICAL_PATH_SELECTOR}[data-country-id="${escapedCountryId}"]`,
       );
       path?.focus({ preventScroll: true });
     }, []);
@@ -231,120 +286,158 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       [cameraController, focusCountry],
     );
 
-    colorsRef.current = colors;
-    callbacksRef.current = {
-      onSelectCountry,
-      onClearSelection,
-      onTooltipChange,
-    };
+    useLayoutEffect((): void => {
+      colorsRef.current = colors;
+      callbacksRef.current = {
+        onSelectCountry,
+        onClearSelection,
+        onTooltipChange,
+      };
+    }, [colors, onClearSelection, onSelectCountry, onTooltipChange]);
 
-    const alphabeticalFeatures = useMemo<ReadonlyArray<GeoFeature>>(
+    const selectableFeatures = useMemo<ReadonlyArray<SceneFeature>>(
       () =>
-        [...features].sort(
-          (first, second): number =>
-            first.properties.name.localeCompare(second.properties.name) ||
-            first.id.localeCompare(second.id),
-        ),
+        features
+          .filter((feature): boolean => feature.isSelectable)
+          .sort(
+            (first, second): number =>
+              first.properties.name.localeCompare(second.properties.name) ||
+              first.entityId.localeCompare(second.entityId),
+          ),
+      [features],
+    );
+    const wrappedScene = useMemo(
+      () => createWrappedSceneModel(features),
       [features],
     );
 
     useLayoutEffect((): (() => void) | undefined => {
       const svgElement = svgRef.current;
-      if (svgElement === null || alphabeticalFeatures.length === 0) {
+      if (svgElement === null || wrappedScene.length === 0) {
         return undefined;
       }
 
       const countriesLayer = select(svgElement).select<SVGGElement>(
         '[data-layer="countries"]',
       );
-      const projection = createFixedEuropeProjection(alphabeticalFeatures);
+      const projection = createWorldProjection();
       const pathGenerator = geoPath(projection);
       const countryIndexById = new Map<CountryId, number>(
-        alphabeticalFeatures.map(
-          (feature, index): [CountryId, number] => [feature.id, index],
+        selectableFeatures.map(
+          (feature, index): [CountryId, number] => [feature.entityId, index],
         ),
       );
 
-      const countries = countriesLayer
-        .selectAll<SVGPathElement, GeoFeature>(COUNTRY_PATH_SELECTOR)
-        .data(alphabeticalFeatures, (feature): CountryId => feature.id)
+      const paths = countriesLayer
+        .selectAll<SVGPathElement, WrappedScenePath>(SCENE_PATH_SELECTOR)
+        .data(wrappedScene, (path): string => path.key)
         .join(
-          (enter) => {
-            const paths = enter
-              .append('path')
-              .attr('class', COUNTRY_PATH_CLASS)
-              .attr('role', 'option')
-              .attr('data-country-id', (feature): CountryId => feature.id)
-              .attr('vector-effect', 'non-scaling-stroke');
-
-            paths.append('title');
-            return paths;
-          },
+          (enter) => enter.append('path').attr('vector-effect', 'non-scaling-stroke'),
           (update) => update,
           (exit) => exit.remove(),
         )
-        .attr('d', (feature): string => createSafeMapPath(pathGenerator, feature))
-        .on('click.map', (event: MouseEvent, feature): void => {
-          event.stopPropagation();
-          activeCountryIdRef.current = feature.id;
-          countries.attr(
-            'tabindex',
-            (candidate): number => (candidate.id === feature.id ? 0 : -1),
-          );
-          callbacksRef.current.onSelectCountry(feature.id);
+        .attr('class', (path): string => {
+          const interactionClass = path.feature.isSelectable
+            ? path.kind === 'logical'
+              ? COUNTRY_PATH_CLASS
+              : DECORATIVE_PATH_CLASS
+            : NON_SELECTABLE_PATH_CLASS;
+          return `${SCENE_PATH_CLASS} ${interactionClass}`;
         })
-        .on('pointerenter.map', (event: PointerEvent, feature): void => {
+        .attr('data-path-kind', (path): string => path.kind)
+        .attr('data-primary-unit', (path): string => String(path.isPrimaryVisual))
+        .attr('data-scene-unit-id', (path): string | null =>
+          path.isPrimaryVisual ? path.sceneUnitId : null,
+        )
+        .attr('data-country-id', (path): CountryId | null =>
+          path.kind === 'logical' ? path.entityId : null,
+        )
+        .attr('transform', (path): string => `translate(${path.offsetX} 0)`)
+        .attr('d', (path): string =>
+          createSafeMapPath(pathGenerator, path.feature),
+        )
+        .attr('role', (path): string | null =>
+          path.isAccessible ? 'option' : null,
+        )
+        .attr('aria-hidden', (path): string | null =>
+          path.isAccessible ? null : 'true',
+        )
+        .attr('focusable', (path): string =>
+          path.isFocusable ? 'true' : 'false',
+        )
+        .attr('tabindex', -1)
+        .on('click.map', (event: MouseEvent, path): void => {
+          if (!path.feature.isSelectable) {
+            return;
+          }
+          event.stopPropagation();
+          activeCountryIdRef.current = path.entityId;
+          paths.attr('tabindex', (candidate): number =>
+            candidate.kind === 'logical' && candidate.entityId === path.entityId
+              ? 0
+              : -1,
+          );
+          callbacksRef.current.onSelectCountry(path.entityId);
+          if (path.kind === 'decorative') {
+            focusCountry(path.entityId);
+          }
+        })
+        .on('pointerenter.map', (event: PointerEvent, path): void => {
           if (isSvgPathElement(event.currentTarget)) {
             event.currentTarget.classList.add(HOVERED_CLASS);
           }
           callbacksRef.current.onTooltipChange(
             pointerTooltipData(
               event,
-              feature,
-              getEffectiveCountryColor(colorsRef.current, feature.id),
+              path.feature,
+              getSceneFeatureColor(path.feature, colorsRef.current),
+              getInteractionId(path.feature),
             ),
           );
         })
-        .on('pointermove.map', (event: PointerEvent, feature): void => {
+        .on('pointermove.map', (event: PointerEvent, path): void => {
           callbacksRef.current.onTooltipChange(
             pointerTooltipData(
               event,
-              feature,
-              getEffectiveCountryColor(colorsRef.current, feature.id),
+              path.feature,
+              getSceneFeatureColor(path.feature, colorsRef.current),
+              getInteractionId(path.feature),
             ),
           );
         })
-        .on('pointerleave.map', (event: PointerEvent, feature): void => {
+        .on('pointerleave.map', (event: PointerEvent, path): void => {
           if (isSvgPathElement(event.currentTarget)) {
             event.currentTarget.classList.remove(HOVERED_CLASS);
             callbacksRef.current.onTooltipChange(
               pointerLeaveTooltipData(
                 event.currentTarget,
                 document.activeElement,
-                feature,
-                getEffectiveCountryColor(colorsRef.current, feature.id),
+                path.feature,
+                getSceneFeatureColor(path.feature, colorsRef.current),
+                getInteractionId(path.feature),
               ),
             );
             return;
           }
           callbacksRef.current.onTooltipChange(null);
         })
-        .on('focus.map', (event: FocusEvent, feature): void => {
-          if (!isSvgPathElement(event.currentTarget)) {
+        .on('focus.map', (event: FocusEvent, path): void => {
+          if (!path.isFocusable || !isSvgPathElement(event.currentTarget)) {
             return;
           }
-
-          activeCountryIdRef.current = feature.id;
-          countries.attr(
-            'tabindex',
-            (candidate): number => (candidate.id === feature.id ? 0 : -1),
+          activeCountryIdRef.current = path.entityId;
+          paths.attr('tabindex', (candidate): number =>
+            candidate.kind === 'logical' && candidate.entityId === path.entityId
+              ? 0
+              : -1,
           );
           event.currentTarget.classList.add(FOCUSED_CLASS);
           callbacksRef.current.onTooltipChange(
             keyboardTooltipData(
               event.currentTarget,
-              feature,
-              getEffectiveCountryColor(colorsRef.current, feature.id),
+              path.feature,
+              getSceneFeatureColor(path.feature, colorsRef.current),
+              path.entityId,
             ),
           );
         })
@@ -354,8 +447,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           }
           callbacksRef.current.onTooltipChange(null);
         })
-        .on('keydown.map', (event: KeyboardEvent, feature): void => {
-          const currentIndex = countryIndexById.get(feature.id);
+        .on('keydown.map', (event: KeyboardEvent, path): void => {
+          if (!path.isFocusable) {
+            return;
+          }
+          const currentIndex = countryIndexById.get(path.entityId);
           if (currentIndex === undefined) {
             return;
           }
@@ -368,21 +464,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               break;
             case 'ArrowRight':
             case 'ArrowDown':
-              nextIndex = Math.min(
-                alphabeticalFeatures.length - 1,
-                currentIndex + 1,
-              );
+              nextIndex = Math.min(selectableFeatures.length - 1, currentIndex + 1);
               break;
             case 'Home':
               nextIndex = 0;
               break;
             case 'End':
-              nextIndex = alphabeticalFeatures.length - 1;
+              nextIndex = selectableFeatures.length - 1;
               break;
             case 'Enter':
             case ' ':
               event.preventDefault();
-              callbacksRef.current.onSelectCountry(feature.id);
+              callbacksRef.current.onSelectCountry(path.entityId);
               return;
             case 'Escape':
               event.preventDefault();
@@ -393,21 +486,18 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           }
 
           event.preventDefault();
-          const nextFeature = alphabeticalFeatures[nextIndex];
+          const nextFeature = selectableFeatures[nextIndex];
           if (nextFeature === undefined) {
             return;
           }
-
-          activeCountryIdRef.current = nextFeature.id;
-          countries.attr(
-            'tabindex',
-            (candidate): number =>
-              candidate.id === nextFeature.id ? 0 : -1,
+          activeCountryIdRef.current = nextFeature.entityId;
+          paths.attr('tabindex', (candidate): number =>
+            candidate.kind === 'logical' &&
+            candidate.entityId === nextFeature.entityId
+              ? 0
+              : -1,
           );
-          countries
-            .filter((candidate): boolean => candidate.id === nextFeature.id)
-            .node()
-            ?.focus();
+          focusCountry(nextFeature.entityId);
         });
 
       if (!mapReadyMeasuredRef.current) {
@@ -415,73 +505,77 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           measureAndConsume(MAP_LOAD_START_MARK, MAP_READY_MEASURE);
           mapReadyMeasuredRef.current = true;
         });
-
         return (): void => {
           cancelPaintMeasurement();
-          countries.on('.map', null);
-          countries.interrupt();
+          paths.on('.map', null);
+          paths.interrupt();
         };
       }
 
       return (): void => {
-        countries.on('.map', null);
-        countries.interrupt();
+        paths.on('.map', null);
+        paths.interrupt();
       };
-    }, [alphabeticalFeatures]);
+    }, [focusCountry, selectableFeatures, wrappedScene]);
 
     useEffect((): (() => void) | undefined => {
       const svgElement = svgRef.current;
-      if (svgElement === null || alphabeticalFeatures.length === 0) {
+      if (svgElement === null || wrappedScene.length === 0) {
         return undefined;
       }
 
       const validIds = new Set(
-        alphabeticalFeatures.map((feature): CountryId => feature.id),
+        selectableFeatures.map((feature): CountryId => feature.entityId),
       );
       if (
         activeCountryIdRef.current === null ||
         !validIds.has(activeCountryIdRef.current)
       ) {
-        activeCountryIdRef.current = alphabeticalFeatures[0]?.id ?? null;
+        activeCountryIdRef.current = selectableFeatures[0]?.entityId ?? null;
       }
-
       const activeCountryId = activeCountryIdRef.current;
-      const countries = select(svgElement)
+      const paths = select(svgElement)
         .select<SVGGElement>('[data-layer="countries"]')
-        .selectAll<SVGPathElement, GeoFeature>(COUNTRY_PATH_SELECTOR)
-        .attr(
-          'fill',
-          (feature): string => getEffectiveCountryColor(colors, feature.id),
+        .selectAll<SVGPathElement, WrappedScenePath>(SCENE_PATH_SELECTOR)
+        .attr('fill', (path): string =>
+          getSceneFeatureColor(path.feature, colors),
         )
-        .attr('stroke', (feature): string =>
-          selectedIds.has(feature.id)
+        .attr('stroke', (path): string =>
+          path.feature.isSelectable && selectedIds.has(path.entityId)
             ? SELECTED_BORDER_COLOR
             : DEFAULT_BORDER_COLOR,
         )
-        .attr('stroke-width', (feature): string =>
-          selectedIds.has(feature.id)
+        .attr('stroke-width', (path): string =>
+          path.feature.isSelectable && selectedIds.has(path.entityId)
             ? SELECTED_STROKE_WIDTH
             : DEFAULT_STROKE_WIDTH,
         )
-        .classed(SELECTED_CLASS, (feature): boolean =>
-          selectedIds.has(feature.id),
+        .classed(
+          SELECTED_CLASS,
+          (path): boolean =>
+            path.feature.isSelectable && selectedIds.has(path.entityId),
         )
-        .attr('aria-selected', (feature): string =>
-          String(selectedIds.has(feature.id)),
+        .attr('aria-selected', (path): string | null =>
+          path.isAccessible ? String(selectedIds.has(path.entityId)) : null,
         )
-        .attr('aria-label', (feature): string => {
-          const color = getEffectiveCountryColor(colors, feature.id);
-          return `${feature.properties.name}, current color ${color}`;
+        .attr('aria-label', (path): string | null => {
+          if (!path.isAccessible) {
+            return null;
+          }
+          const color = getSceneFeatureColor(path.feature, colors);
+          return `${path.feature.properties.name}, current color ${color}`;
         })
-        .attr('tabindex', (feature): number =>
-          feature.id === activeCountryId ? 0 : -1,
+        .attr('tabindex', (path): number =>
+          path.kind === 'logical' && path.entityId === activeCountryId ? 0 : -1,
         );
 
-      countries
-        .select<SVGTitleElement>('title')
-        .text((feature): string => {
-          const color = getEffectiveCountryColor(colors, feature.id);
-          return `${feature.properties.name}, ${color}`;
+      paths.selectAll('title').remove();
+      paths
+        .filter((path): boolean => path.isAccessible)
+        .append('title')
+        .text((path): string => {
+          const color = getSceneFeatureColor(path.feature, colors);
+          return `${path.feature.properties.name}, ${color}`;
         });
 
       return runAfterPaint((): void => {
@@ -491,12 +585,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           },
         );
       });
-    }, [alphabeticalFeatures, colors, selectedIds]);
+    }, [colors, selectableFeatures, selectedIds, wrappedScene]);
 
     const handleBackgroundClick = useCallback(
       (event: ReactMouseEvent<SVGSVGElement>): void => {
         const target = event.target;
-        if (target instanceof Element && target.closest(COUNTRY_PATH_SELECTOR)) {
+        if (target instanceof Element && target.closest(SCENE_PATH_SELECTOR)) {
           return;
         }
         onClearSelection();
@@ -512,7 +606,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           viewBox={`0 0 ${MAP_VIEWBOX_SIZE} ${MAP_VIEWBOX_SIZE}`}
           preserveAspectRatio="xMidYMid meet"
           role="listbox"
-          aria-label="Interactive map of modern Europe"
+          aria-label="Interactive map of the world"
           aria-multiselectable="true"
           onClick={handleBackgroundClick}
         >
