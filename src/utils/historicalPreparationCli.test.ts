@@ -53,12 +53,19 @@ async function runCli(
     });
     let stdout = '';
     let stderr = '';
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string): void => {
+    const stdoutStream = child.stdout;
+    const stderrStream = child.stderr;
+    if (stdoutStream === null || stderrStream === null) {
+      child.kill();
+      rejectPromise(new Error('Historical CLI process did not expose piped output streams.'));
+      return;
+    }
+    stdoutStream.setEncoding('utf8');
+    stderrStream.setEncoding('utf8');
+    stdoutStream.on('data', (chunk: string): void => {
       stdout += chunk;
     });
-    child.stderr.on('data', (chunk: string): void => {
+    stderrStream.on('data', (chunk: string): void => {
       stderr += chunk;
     });
     child.once('error', rejectPromise);
