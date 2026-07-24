@@ -180,6 +180,7 @@ export function LegendEditor({
     Readonly<Record<string, string>>
   >({});
   const draggedColorRef = useRef<string | null>(null);
+  const validationSignatureRef = useRef<string | null>(null);
 
   useEffect((): void => {
     const entriesByColor = new Map(
@@ -215,9 +216,14 @@ export function LegendEditor({
     return validateLegend(validationLegend, effectiveColors, bounds);
   }, [activeEntries, bounds, effectiveColors, legend]);
 
+  const validationSignature = JSON.stringify(validation);
+
   useEffect((): void => {
-    onValidationChange(validation);
-  }, [onValidationChange, validation]);
+    if (validationSignatureRef.current !== validationSignature) {
+      validationSignatureRef.current = validationSignature;
+      onValidationChange(validation);
+    }
+  }, [onValidationChange, validation, validationSignature]);
 
   const blockingMessage = validation.ok
     ? null
