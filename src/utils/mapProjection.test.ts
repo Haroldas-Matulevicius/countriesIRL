@@ -15,7 +15,7 @@ import {
 
 const EXPECTED_COUNTRY_COUNT = 57;
 const INVALID_PATH_DATA_PATTERN = /(?:NaN|Infinity)/u;
-const NUMBER_TOLERANCE = 8;
+const NUMBER_TOLERANCE = 7;
 
 function loadEuropeFeatures(): ReadonlyArray<GeoFeature> {
   const input: unknown = JSON.parse(europeGeoJson);

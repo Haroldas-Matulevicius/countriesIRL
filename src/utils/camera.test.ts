@@ -67,19 +67,19 @@ const FIJI_FEATURE = createMultiPolygonFeature('FJI', [
   [
     [
       [177, -20],
-      [180, -20],
-      [180, -15],
       [177, -15],
+      [179.5, -15],
+      [179.5, -20],
       [177, -20],
     ],
   ],
   [
     [
-      [-180, -19],
-      [-178, -19],
+      [-179.5, -19],
+      [-179.5, -16],
       [-178, -16],
-      [-180, -16],
-      [-180, -19],
+      [-178, -19],
+      [-179.5, -19],
     ],
   ],
 ]);
@@ -96,11 +96,11 @@ const RUSSIA_FEATURE = createMultiPolygonFeature('RUS', [
   ],
   [
     [
-      [-180, 60],
-      [-170, 60],
+      [-179.5, 60],
+      [-179.5, 70],
       [-170, 70],
-      [-180, 70],
-      [-180, 60],
+      [-170, 60],
+      [-179.5, 60],
     ],
   ],
 ]);
@@ -256,13 +256,13 @@ describe('camera zoom and pan helpers', (): void => {
   });
 
   it.each([
-    { direction: 'right' as const, axis: 'x' as const, sign: 1 },
-    { direction: 'left' as const, axis: 'x' as const, sign: -1 },
-    { direction: 'up' as const, axis: 'y' as const, sign: 1 },
-    { direction: 'down' as const, axis: 'y' as const, sign: -1 },
+    { direction: 'right' as const, axis: 'x' as const, transformSign: -1 },
+    { direction: 'left' as const, axis: 'x' as const, transformSign: 1 },
+    { direction: 'up' as const, axis: 'y' as const, transformSign: 1 },
+    { direction: 'down' as const, axis: 'y' as const, transformSign: -1 },
   ])(
     'moves the visible camera one pan step $direction',
-    ({ direction, axis, sign }): void => {
+    ({ direction, axis, transformSign }): void => {
       const initialTransform = cameraToTransform(
         { zoom: 4, centerLongitude: 0, centerLatitude: 0 },
         projection,
@@ -275,7 +275,7 @@ describe('camera zoom and pan helpers', (): void => {
           : pannedTransform.y - initialTransform.y;
 
       expect(actualTransformDelta).toBeCloseTo(
-        -sign * expectedScreenStep,
+        transformSign * expectedScreenStep,
         NUMBER_TOLERANCE,
       );
       expectCanonicalTransform(pannedTransform);
