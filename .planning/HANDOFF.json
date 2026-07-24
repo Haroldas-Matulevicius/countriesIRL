@@ -1,0 +1,132 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-24T14:05:35.489Z",
+  "phase": "02",
+  "phase_name": "Region Variants & Advanced Features",
+  "phase_dir": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks",
+  "plan": null,
+  "task": null,
+  "total_tasks": 72,
+  "status": "paused_ready_to_execute",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Complete Phase 2 technical research and validation architecture",
+      "status": "done",
+      "commit": "c434e7a"
+    },
+    {
+      "id": 2,
+      "name": "Create and verify approved Phase 2 UI design contract",
+      "status": "done",
+      "commit": "563cf28"
+    },
+    {
+      "id": 3,
+      "name": "Create initial Phase 2 executable plans and internal verification revisions",
+      "status": "done",
+      "commit": "6ec6998"
+    },
+    {
+      "id": 4,
+      "name": "Run Codex Sol 5.6 and Fable cross-AI plan reviews",
+      "status": "done",
+      "commit": "51748f7"
+    },
+    {
+      "id": 5,
+      "name": "Replan from reviews and pass final GSD plan checker",
+      "status": "done",
+      "commit": "88b068b"
+    },
+    {
+      "id": 6,
+      "name": "Finalize Phase 2 planned state",
+      "status": "done",
+      "commit": "6561419"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 7,
+      "name": "Execute 36 Phase 2 plans across 18 waves with GSD executor agents",
+      "status": "not_started"
+    },
+    {
+      "id": 8,
+      "name": "Complete non-autonomous source-rights, historical factual-review, documentation-patch, and final acceptance checkpoints",
+      "status": "not_started"
+    },
+    {
+      "id": 9,
+      "name": "Run post-execution GSD verification and gap closure if required",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "Approve or reject the exact coding-rule and authority-document proposal patches in Plan 02-25",
+      "context": "CLAUDE.md forbids saving coding-rule changes before the exact patch is reviewed.",
+      "blocking": true
+    },
+    {
+      "action": "Provide qualified non-executor source/license review and six-region decisions for the four historical snapshots in Plan 02-33",
+      "context": "Historical source approvals must be bound to exact manifest, archive, input/tracing, and evidence hashes.",
+      "blocking": true
+    },
+    {
+      "action": "Provide qualified factual historical review for all snapshot candidates in Plan 02-34",
+      "context": "No historical snapshot may be promoted or counted delivered without six-region factual approval bound to exact bytes.",
+      "blocking": true
+    },
+    {
+      "action": "Complete the exact-SHA browser, accessibility, physical-touch, historical, and PNG acceptance matrix in Plan 02-28",
+      "context": "Mandatory unavailable cells do not pass; acceptance must remain bound to the verified clean-worktree SHA.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Use one horizontally wrapping full-world canvas rather than separate Europe, World, and North America modes.",
+      "rationale": "The locked D-01 unified camera model supersedes the older roadmap selector wording and supports arbitrary regional framing.",
+      "phase": "02"
+    },
+    {
+      "decision": "Use a restrained, map-first liquid-glass visual system only on selected editor chrome.",
+      "rationale": "The approved UI-SPEC targets a minimal, organized, intentional product feel while keeping the export scene opaque and deterministic.",
+      "phase": "02"
+    },
+    {
+      "decision": "Keep historical work in Phase 2 behind explicit source, license, tracing, factual-review, durable-approval, and promotion gates.",
+      "rationale": "This preserves the requested scope without falsely claiming blocked or unreviewed snapshots as delivered.",
+      "phase": "02"
+    },
+    {
+      "decision": "Curator-approved historical entities are selectable and colorable in the active scene while browser search and Locate remain limited to the 195 modern core states.",
+      "rationale": "This resolves the review gap consistently with D-22 while retaining the core-state browsing contract.",
+      "phase": "02"
+    },
+    {
+      "decision": "Final automated evidence must run in a detached clean worktree at the exact recorded commit with a fresh npm install.",
+      "rationale": "Dirty-worktree or untracked files must not influence release evidence.",
+      "phase": "02"
+    }
+  ],
+  "uncommitted_files": [
+    ".claude/",
+    ".planning/CODEX_PROMPT.md",
+    ".planning/CODING_RULES.md",
+    ".planning/PHASE1_CODEX_BRIEF.md",
+    ".planning/coding-rules/data.md",
+    ".planning/coding-rules/frontend.md",
+    ".planning/coding-rules/general.md",
+    ".planning/coding-rules/storage.md",
+    ".planning/debug/",
+    ".planning/phases/01-foundation-modern-map-1-1-5-weeks/01-UI-REVIEW.md",
+    ".planning/ui-reviews/",
+    "CLAUDE.md"
+  ],
+  "next_action": "Start a fresh context/session in this repository and run /gsd-execute-phase 2. Use GSD executor agents only. Prefer the Sol 5.6 runtime if it exposes the GSD Skill/Agent tools; otherwise use the configured GSD executor model rather than emulating GSD manually. Do not execute from the planning session that created this handoff.",
+  "context_notes": "Phase 2 planning is complete and independently reviewed. Final plan set: 36 plans, 18 waves, 72 tasks. The final gsd-plan-checker returned VERIFICATION PASSED with 41/41 requirement IDs, D-01 through D-29, 72/72 validation mappings, zero dependency cycles, zero same-wave conflicts, and no BLOCKER/WARNING. Research, UI-SPEC, REVIEWS, PATTERNS, VALIDATION, ROADMAP, STATE, and all PLAN files are committed. Product implementation has not started. Preserve all pre-existing untracked Phase 1/planning evidence; do not delete or absorb it casually."
+}
