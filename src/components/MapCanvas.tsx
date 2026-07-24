@@ -2,6 +2,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,12 +13,17 @@ import {
   select,
 } from 'd3';
 
+import type { CameraState, MapCanvasHandle } from '../types/composition';
 import type {
   ColorMap,
   CountryId,
   GeoFeature,
   SelectedCountryIds,
 } from '../types/map';
+import {
+  useCameraController,
+  type CameraControllerFactory,
+} from '../hooks/useCameraController';
 import {
   DEFAULT_BORDER_COLOR,
   SELECTED_BORDER_COLOR,
@@ -62,13 +68,15 @@ export type MapTooltipData =
       anchorElement: SVGPathElement;
     });
 
-interface MapCanvasProps {
+export interface MapCanvasProps {
   features: ReadonlyArray<GeoFeature>;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onTooltipChange: (data: MapTooltipData | null) => void;
+  onCameraCommit?: (camera: CameraState) => void;
+  controllerFactory?: CameraControllerFactory;
 }
 
 interface MapCanvasCallbacks {
@@ -169,7 +177,7 @@ export function pointerLeaveTooltipData(
     : null;
 }
 
-export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
+export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
       features,
@@ -178,10 +186,14 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
       onSelectCountry,
       onClearSelection,
       onTooltipChange,
+      onCameraCommit,
+      controllerFactory,
     }: MapCanvasProps,
-    exportSourceRef,
+    mapCanvasRef,
   ): JSX.Element {
+    const exportSourceRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
+    const cameraLayerRef = useRef<SVGGElement>(null);
     const activeCountryIdRef = useRef<CountryId | null>(null);
     const mapReadyMeasuredRef = useRef(false);
     const colorsRef = useRef(colors);
@@ -190,6 +202,34 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
       onClearSelection,
       onTooltipChange,
     });
+    const cameraController = useCameraController({
+      svgRef,
+      cameraLayerRef,
+      features,
+      onCameraCommit,
+      controllerFactory,
+    });
+    const focusCountry = useCallback((countryId: CountryId): void => {
+      const source = exportSourceRef.current;
+      const path = source?.querySelector<SVGPathElement>(
+        `path.country-path[data-country-id="${CSS.escape(countryId)}"]`,
+      );
+      path?.focus({ preventScroll: true });
+    }, []);
+
+    useImperativeHandle(
+      mapCanvasRef,
+      (): MapCanvasHandle => ({
+        readCurrentCamera: cameraController.readCurrentCamera,
+        freezeAndSnapshot: cameraController.freezeAndSnapshot,
+        resetView: cameraController.resetView,
+        locate: cameraController.locate,
+        restore: cameraController.restore,
+        focusCountry,
+        getExportSource: (): HTMLDivElement | null => exportSourceRef.current,
+      }),
+      [cameraController, focusCountry],
+    );
 
     colorsRef.current = colors;
     callbacksRef.current = {
@@ -476,7 +516,9 @@ export const MapCanvas = forwardRef<HTMLDivElement, MapCanvasProps>(
           aria-multiselectable="true"
           onClick={handleBackgroundClick}
         >
-          <g data-layer="countries" />
+          <g ref={cameraLayerRef} data-layer="camera">
+            <g data-layer="countries" />
+          </g>
         </svg>
       </div>
     );

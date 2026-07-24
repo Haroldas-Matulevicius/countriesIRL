@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 
+import type { MapCanvasHandle } from './types/composition';
 import type { CountryId, GeoFeature } from './types/map';
 import type { ToastMessage } from './types/ui';
 import { AppHeader } from './components/AppHeader';
@@ -69,7 +70,7 @@ export default function App(): JSX.Element {
     dismissOnboarding,
   } = useLocalStorage();
   const layout = useResponsiveLayout();
-  const exportSourceRef = useRef<HTMLDivElement>(null);
+  const exportSourceRef = useRef<MapCanvasHandle>(null);
   const exportHandlerRef = useRef<() => void>(() => undefined);
   const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
@@ -142,7 +143,7 @@ export default function App(): JSX.Element {
   }, []);
 
   const focusMap = useCallback((): boolean => {
-    const mapSource = exportSourceRef.current;
+    const mapSource = exportSourceRef.current?.getExportSource();
     const focusTarget =
       mapSource?.querySelector<SVGPathElement>(
         'path.country-path[tabindex="0"]',
@@ -256,7 +257,7 @@ export default function App(): JSX.Element {
       return;
     }
 
-    const exportSource = exportSourceRef.current;
+    const exportSource = exportSourceRef.current?.getExportSource() ?? null;
     if (exportSource === null) {
       showExportFailure();
       return;

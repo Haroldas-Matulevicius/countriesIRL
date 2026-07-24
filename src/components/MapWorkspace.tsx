@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Ref } from 'react';
 
+import type { MapCanvasHandle } from '../types/composition';
 import type {
   ColorMap,
   CountryId,
@@ -15,7 +16,7 @@ interface MapWorkspaceProps {
   geoData: GeoDataState;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
-  exportSourceRef: Ref<HTMLDivElement>;
+  exportSourceRef: Ref<MapCanvasHandle>;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onReload: () => void;
