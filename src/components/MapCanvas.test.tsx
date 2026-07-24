@@ -3,11 +3,15 @@ import type { Polygon } from 'geojson';
 import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
-import type { GeoFeature } from '../types/map';
+import type { GeoFeature, SceneFeature } from '../types/map';
 import {
   createCameraController,
   type CameraControllerDriver,
 } from '../hooks/useCameraController';
+import {
+  createWrappedSceneModel,
+  getSceneFeatureColor,
+} from './MapCanvas';
 import { cameraToTransform, transformToCamera } from '../utils/camera';
 
 const FRANCE: GeoFeature = {
@@ -183,5 +187,105 @@ describe('live camera controller', (): void => {
     expect(harness.interrupt).toHaveBeenCalled();
     expect(harness.cancelFrame).toHaveBeenCalled();
     expect(harness.cleanup).toHaveBeenCalledTimes(1);
+  });
+});
+
+function createSceneFeature(
+  id: string,
+  interactionMode: SceneFeature['interactionMode'],
+): SceneFeature {
+  const base = {
+    ...FRANCE,
+    id: `unit-${id}`,
+    sourceFeatureId: `source-${id}`,
+    entityId: id,
+    boundaryMode: 'modern' as const,
+    provenanceId: 'fixture',
+  };
+
+  if (interactionMode === 'modern-core' || interactionMode === 'historical-entity') {
+    return {
+      ...base,
+      interactionMode,
+      colorOwnerId: id,
+      isSelectable: true,
+    };
+  }
+
+  if (interactionMode === 'inherited-dependency') {
+    return {
+      ...base,
+      interactionMode,
+      colorOwnerId: 'FRA',
+      isSelectable: false,
+    };
+  }
+
+  return {
+    ...base,
+    interactionMode,
+    colorOwnerId: null,
+    isSelectable: false,
+  };
+}
+
+describe('wrapped effective scene model', (): void => {
+  it('creates one logical path and two decorative repeats per selectable entity', (): void => {
+    const model = createWrappedSceneModel([
+      createSceneFeature('FRA', 'modern-core'),
+      createSceneFeature('HIST-PLC', 'historical-entity'),
+    ]);
+
+    expect(model).toHaveLength(6);
+    expect(model.filter((path) => path.kind === 'logical')).toHaveLength(2);
+    expect(model.filter((path) => path.kind === 'decorative')).toHaveLength(4);
+    expect(
+      model.filter((path) => path.kind === 'logical').map((path) => path.entityId),
+    ).toEqual(['FRA', 'HIST-PLC']);
+    expect(
+      model.filter((path) => path.kind === 'decorative').every(
+        (path) => path.isAccessible === false && path.isFocusable === false,
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps inherited, disputed, and neutral geometry unfocusable', (): void => {
+    const model = createWrappedSceneModel([
+      createSceneFeature('ABW', 'inherited-dependency'),
+      createSceneFeature('DISPUTED', 'disputed'),
+      createSceneFeature('NEUTRAL', 'neutral'),
+    ]);
+
+    expect(model).toHaveLength(9);
+    expect(model.every((path) => path.kind === 'decorative')).toBe(true);
+    expect(model.every((path) => !path.isAccessible && !path.isFocusable)).toBe(
+      true,
+    );
+  });
+
+  it('uses entity colors for selectable history and parent colors for dependencies', (): void => {
+    const historical = createSceneFeature('HIST-PLC', 'historical-entity');
+    const dependency = createSceneFeature('ABW', 'inherited-dependency');
+    const neutral = createSceneFeature('NEUTRAL', 'neutral');
+    const colors = { 'HIST-PLC': '#AA0000', FRA: '#0000AA' };
+
+    expect(getSceneFeatureColor(historical, colors)).toBe('#AA0000');
+    expect(getSceneFeatureColor(dependency, colors)).toBe('#0000AA');
+    expect(getSceneFeatureColor(neutral, colors)).toBe('#FFFFFF');
+  });
+
+  it('models the reviewed modern world as 195 logical options and 248 units', (): void => {
+    const selectable = Array.from({ length: 195 }, (_, index) =>
+      createSceneFeature(`CORE-${index}`, 'modern-core'),
+    );
+    const nonSelectable = Array.from({ length: 53 }, (_, index) =>
+      createSceneFeature(`UNIT-${index}`, 'neutral'),
+    );
+    const features = [...selectable, ...nonSelectable];
+    const model = createWrappedSceneModel(features);
+
+    expect(features).toHaveLength(248);
+    expect(model.filter((path) => path.kind === 'logical')).toHaveLength(195);
+    expect(new Set(model.map((path) => path.sceneUnitId))).toHaveLength(248);
   });
 });
