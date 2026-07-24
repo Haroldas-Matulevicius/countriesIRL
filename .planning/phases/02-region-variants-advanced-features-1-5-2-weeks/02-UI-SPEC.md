@@ -1,10 +1,11 @@
 ---
 phase: 2
 slug: region-variants-advanced-features-1-5-2-weeks
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-24
+reviewed_at: 2026-07-24T10:22:13Z
 ---
 
 # Phase 2 — UI Design Contract
