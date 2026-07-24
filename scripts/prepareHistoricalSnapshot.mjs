@@ -265,6 +265,22 @@ function readUncertainties(value, label) {
   return [...value];
 }
 
+function readBlockers(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 32) {
+    throw new Error('Blocked source manifest must contain explicit blockers.');
+  }
+  const blockers = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (!isBoundedString(item) || seen.has(item)) {
+      throw new Error('Blocked source manifest contains an invalid or duplicate blocker.');
+    }
+    seen.add(item);
+    blockers.push(item);
+  }
+  return blockers;
+}
+
 function readReviewer(value, label) {
   if (
     !isRecord(value) ||
@@ -341,8 +357,23 @@ function readSourceManifest(value, snapshotId) {
   if (!isRecord(value.preparation)) {
     throw new Error('Source manifest preparation mode is invalid.');
   }
+  const isBlocked = value.readinessStatus === 'blocked';
+  let blockers = [];
   let preparation;
-  if (value.preparation.mode === 'vector-extraction') {
+  if (isBlocked) {
+    if (
+      value.deliveryCounted !== false ||
+      value.preparation.mode !== 'blocked' ||
+      !isBoundedString(value.preparation.reason)
+    ) {
+      throw new Error('Blocked source manifest must be non-delivered with an explicit reason.');
+    }
+    blockers = readBlockers(value.blockers);
+    preparation = {
+      mode: 'blocked',
+      reason: value.preparation.reason,
+    };
+  } else if (value.preparation.mode === 'vector-extraction') {
     preparation = {
       mode: 'vector-extraction',
       extractionSpecification: readHashReference(
@@ -365,7 +396,7 @@ function readSourceManifest(value, snapshotId) {
       ),
     };
   } else {
-    throw new Error('Source manifest preparation mode must be vector-extraction or manual-trace.');
+    throw new Error('Source manifest preparation mode must be vector-extraction, manual-trace, or blocked.');
   }
 
   if (!Array.isArray(value.regions) || value.regions.length !== REGION_IDS.length) {
@@ -373,21 +404,33 @@ function readSourceManifest(value, snapshotId) {
   }
   const regions = [];
   const seenRegions = new Set();
+  let blockedRegionCount = 0;
   for (const region of value.regions) {
     if (!isRecord(region) || !REGION_ID_SET.has(region.regionId) || seenRegions.has(region.regionId)) {
       throw new Error('Source manifest contains a missing, merged, duplicate, or invalid region.');
     }
     seenRegions.add(region.regionId);
     const evidencePath = normalizeLocalPath(region.evidencePath);
+    const isBlockedRegion =
+      isBlocked && (region.disposition === 'blocked' || region.disposition === 'conditional');
+    const hasExpectedRights = isBlocked
+      ? region.rightsDisposition === 'review-required'
+      : region.rightsDisposition === 'approved';
     if (
       evidencePath === null ||
       !isSha256(region.evidenceSha256) ||
-      region.rightsDisposition !== 'approved' ||
+      !hasExpectedRights ||
       !isBoundedString(region.license) ||
       !(region.attribution === null || isBoundedString(region.attribution)) ||
       !isIsoDate(region.retrievedOn)
     ) {
-      throw new Error(`Source rights record for ${region.regionId} is not approved and complete.`);
+      throw new Error(`Source rights record for ${region.regionId} is not complete for its readiness state.`);
+    }
+    if (isBlocked && !isBlockedRegion) {
+      throw new Error(`Blocked source region ${region.regionId} must be conditional or blocked.`);
+    }
+    if (region.disposition === 'blocked') {
+      blockedRegionCount += 1;
     }
     readUncertainties(region.uncertainties, `source ${region.regionId}`);
     regions.push({ ...region, evidencePath });
@@ -395,10 +438,15 @@ function readSourceManifest(value, snapshotId) {
   if (REGION_IDS.some((regionId) => !seenRegions.has(regionId))) {
     throw new Error('Source manifest is missing one of the six required regions.');
   }
+  if (isBlocked && blockedRegionCount === 0) {
+    throw new Error('Blocked source manifest must identify at least one blocked region.');
+  }
 
   return {
     snapshotId,
     asOf: expectedDate,
+    readinessStatus: isBlocked ? 'blocked' : 'ready',
+    blockers,
     evidenceArchive,
     inputGeometry,
     preparation,
@@ -633,7 +681,12 @@ async function validateSourceReadiness(options) {
   }
 
   let preparation;
-  if (manifest.preparation.mode === 'vector-extraction') {
+  if (manifest.preparation.mode === 'blocked') {
+    preparation = {
+      mode: 'blocked',
+      reason: manifest.preparation.reason,
+    };
+  } else if (manifest.preparation.mode === 'vector-extraction') {
     const specificationBytes = await validateHashReference(
       manifest.preparation.extractionSpecification,
       'Extraction specification',
@@ -740,6 +793,11 @@ async function validateSourceApprovalBundle(options) {
     throw new Error('--source-approval is required before candidate generation or checks.');
   }
   const readiness = await validateSourceReadiness(options);
+  if (readiness.preparation.mode === 'blocked') {
+    throw new Error(
+      `${readiness.snapshotId} blocked source packet cannot receive source approval or generate a candidate.`,
+    );
+  }
   const sourceApprovalPath = resolveArgumentPath(options.sourceApproval);
   const sourceApprovalBytes = await readBoundedFile(
     sourceApprovalPath,
@@ -1153,6 +1211,14 @@ async function run() {
 
   if (options.validateSources) {
     const bundle = await validateSourceReadiness(options);
+    if (bundle.preparation.mode === 'blocked') {
+      globalThis.console.info(
+        `${bundle.snapshotId} blocked source packet hashes passed offline.`,
+      );
+      throw new Error(
+        `${bundle.snapshotId} source readiness remains blocked: ${bundle.manifest.blockers.join(', ')}.`,
+      );
+    }
     globalThis.console.info(
       `${bundle.snapshotId} ${bundle.preparation.mode} source readiness passed offline.`,
     );

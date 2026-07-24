@@ -3,3 +3,6 @@ public/data/world-manifest.json text eol=lf
 public/data/world-modern.geojson text eol=lf
 public/data/snapshots/*.json text eol=lf
 public/data/snapshots/*.geojson text eol=lf
+sources/historical/*.json text eol=lf
+sources/historical/*.geojson text eol=lf
+sources/historical/*.zip binary

@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "snapshotId": "1815",
+  "asOf": "1815-12-31",
+  "readinessStatus": "blocked",
+  "candidateGeometryStatus": "not-generated",
+  "reason": "A six-region candidate cannot be generated until independent rights and qualified factual/topology review resolve every blocker.",
+  "coverageContainersCreatePoliticalEntities": false,
+  "longitudeDomain": "[-180,180]",
+  "sourceBoundaryArcsSeparatedFromGeneratedMaskEdges": true,
+  "generatedMaskEdgesPresent": false,
+  "replacedModernSourceFeatureIds": [],
+  "features": [],
+  "blockers": [
+    "RIGHTS_REVIEW_REQUIRED",
+    "ARCHE_EXACT_RECORD_NOT_FROZEN",
+    "SERBIA_TRANSITIONAL_AUTONOMY_GEOMETRY_MISSING",
+    "SWEDEN_NORWAY_SOURCE_NAME_GEOMETRY_MISMATCH",
+    "PARTITION_AND_CROWNLAND_TOPOLOGY_UNAPPROVED"
+  ]
+}

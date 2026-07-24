@@ -146,6 +146,47 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     },
   );
 
+  it('validates blocked packet hashes without treating the snapshot as delivered', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    manifest.readinessStatus = 'blocked';
+    manifest.deliveryCounted = false;
+    manifest.blockers = [
+      'RIGHTS_REVIEW_REQUIRED',
+      'SOURCE_GEOMETRY_MISSING',
+    ];
+    manifest.preparation = {
+      mode: 'blocked',
+      reason: 'Independent rights and factual review remain incomplete.',
+    };
+    const regions = manifest.regions as Array<Record<string, unknown>>;
+    regions.forEach((region, index): void => {
+      region.disposition = index === 0 ? 'blocked' : 'conditional';
+      region.rightsDisposition = 'review-required';
+      region.attribution = null;
+    });
+    await writeJsonRecord(fixture.sourcesPath, manifest);
+
+    const blocked = await runCli(fixture, [
+      ...sourceArguments(fixture),
+      '--validate-sources',
+    ]);
+
+    expect(blocked.status).not.toBe(0);
+    expect(blocked.stdout).toContain('blocked source packet hashes passed offline');
+    expect(blocked.stderr).toContain('source readiness remains blocked');
+    expect(blocked.stderr).toContain('RIGHTS_REVIEW_REQUIRED');
+    expect(await fileExists(fixture.outputPath)).toBe(false);
+
+    await writeFile(fixture.inputPath, 'changed blocked input\n', 'utf8');
+    const drifted = await runCli(fixture, [
+      ...sourceArguments(fixture),
+      '--validate-sources',
+    ]);
+    expect(drifted.status).not.toBe(0);
+    expect(drifted.stderr).toContain('Input geometry SHA-256 drifted');
+  });
+
   it('rejects missing rights and canonical archive-member drift', async (): Promise<void> => {
     const fixture = await createFixture('vector-extraction');
     const manifest = await readJsonRecord(fixture.sourcesPath);
