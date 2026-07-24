@@ -5,6 +5,7 @@ import type {
   GeoJsonNormalizationResult,
   GeoJsonWarning,
   GeoJsonWarningCode,
+  SceneFeature,
 } from '../types/map';
 import { normalizeStableCountryId } from './countryIds';
 
@@ -33,8 +34,8 @@ function isPosition(value: unknown): value is Position {
   return (
     longitude >= MIN_LONGITUDE &&
     longitude <= MAX_LONGITUDE &&
-    latitude > MIN_LATITUDE &&
-    latitude < MAX_LATITUDE
+    latitude >= MIN_LATITUDE &&
+    latitude <= MAX_LATITUDE
   );
 }
 
@@ -127,6 +128,151 @@ function readFeatureGeometry(
   return { ok: false, code: 'unsupported-geometry' };
 }
 
+type SceneFeatureMetadata =
+  | {
+      readonly sourceFeatureId: string;
+      readonly entityId: string;
+      readonly boundaryMode: SceneFeature['boundaryMode'];
+      readonly provenanceId: string;
+      readonly interactionMode: 'modern-core' | 'historical-entity';
+      readonly colorOwnerId: string;
+      readonly isSelectable: true;
+    }
+  | {
+      readonly sourceFeatureId: string;
+      readonly entityId: string;
+      readonly boundaryMode: SceneFeature['boundaryMode'];
+      readonly provenanceId: string;
+      readonly interactionMode: 'inherited-dependency';
+      readonly colorOwnerId: string;
+      readonly isSelectable: false;
+    }
+  | {
+      readonly sourceFeatureId: string;
+      readonly entityId: string;
+      readonly boundaryMode: SceneFeature['boundaryMode'];
+      readonly provenanceId: string;
+      readonly interactionMode: 'disputed' | 'neutral';
+      readonly colorOwnerId: null;
+      readonly isSelectable: false;
+    };
+
+export type SceneGeoJsonNormalizationResult =
+  | {
+      readonly ok: true;
+      readonly features: ReadonlyArray<SceneFeature>;
+      readonly warnings: ReadonlyArray<GeoJsonWarning>;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: 'invalid-collection' | 'no-valid-features';
+      readonly warnings: ReadonlyArray<GeoJsonWarning>;
+    };
+
+function readRequiredIdentifier(value: unknown): string | null {
+  return normalizeStableCountryId(value);
+}
+
+function readBoundaryMode(value: unknown): SceneFeature['boundaryMode'] | null {
+  return value === 'modern' ||
+    value === 'historical' ||
+    value === 'modern-fallback'
+    ? value
+    : null;
+}
+
+function readSceneFeatureMetadata(
+  feature: Record<string, unknown>,
+): SceneFeatureMetadata | null {
+  const sourceFeatureId = readRequiredIdentifier(feature.sourceFeatureId);
+  const entityId = readRequiredIdentifier(feature.entityId);
+  const boundaryMode = readBoundaryMode(feature.boundaryMode);
+  const provenanceId = readRequiredIdentifier(feature.provenanceId);
+  const colorOwnerId =
+    feature.colorOwnerId === null
+      ? null
+      : readRequiredIdentifier(feature.colorOwnerId);
+
+  if (
+    sourceFeatureId === null ||
+    entityId === null ||
+    boundaryMode === null ||
+    provenanceId === null ||
+    typeof feature.isSelectable !== 'boolean'
+  ) {
+    return null;
+  }
+
+  if (
+    feature.interactionMode === 'modern-core' &&
+    feature.isSelectable &&
+    colorOwnerId === entityId &&
+    boundaryMode !== 'historical'
+  ) {
+    return {
+      sourceFeatureId,
+      entityId,
+      colorOwnerId,
+      isSelectable: true,
+      interactionMode: 'modern-core',
+      boundaryMode,
+      provenanceId,
+    };
+  }
+
+  if (
+    feature.interactionMode === 'historical-entity' &&
+    feature.isSelectable &&
+    colorOwnerId === entityId &&
+    boundaryMode === 'historical'
+  ) {
+    return {
+      sourceFeatureId,
+      entityId,
+      colorOwnerId,
+      isSelectable: true,
+      interactionMode: 'historical-entity',
+      boundaryMode,
+      provenanceId,
+    };
+  }
+
+  if (
+    feature.interactionMode === 'inherited-dependency' &&
+    !feature.isSelectable &&
+    colorOwnerId !== null
+  ) {
+    return {
+      sourceFeatureId,
+      entityId,
+      colorOwnerId,
+      isSelectable: false,
+      interactionMode: 'inherited-dependency',
+      boundaryMode,
+      provenanceId,
+    };
+  }
+
+  if (
+    (feature.interactionMode === 'disputed' ||
+      feature.interactionMode === 'neutral') &&
+    !feature.isSelectable &&
+    feature.colorOwnerId === null
+  ) {
+    return {
+      sourceFeatureId,
+      entityId,
+      colorOwnerId: null,
+      isSelectable: false,
+      interactionMode: feature.interactionMode,
+      boundaryMode,
+      provenanceId,
+    };
+  }
+
+  return null;
+}
+
 export function normalizeGeoJson(input: unknown): GeoJsonNormalizationResult {
   if (
     !isRecord(input) ||
@@ -173,6 +319,71 @@ export function normalizeGeoJson(input: unknown): GeoJsonNormalizationResult {
     features.push({
       type: 'Feature',
       id: idResult.id,
+      properties: { name: nameResult.name },
+      geometry: geometryResult.geometry,
+    });
+  });
+
+  return features.length > 0
+    ? { ok: true, features, warnings }
+    : { ok: false, reason: 'no-valid-features', warnings };
+}
+
+export function normalizeSceneGeoJson(
+  input: unknown,
+): SceneGeoJsonNormalizationResult {
+  if (
+    !isRecord(input) ||
+    input.type !== 'FeatureCollection' ||
+    !Array.isArray(input.features)
+  ) {
+    return { ok: false, reason: 'invalid-collection', warnings: [] };
+  }
+
+  const features: SceneFeature[] = [];
+  const warnings: GeoJsonWarning[] = [];
+  const acceptedIds = new Set<string>();
+
+  input.features.forEach((candidate, featureIndex): void => {
+    if (!isRecord(candidate) || candidate.type !== 'Feature') {
+      warnings.push(createWarning(featureIndex, 'invalid-feature'));
+      return;
+    }
+
+    const idResult = readFeatureId(candidate);
+    if (!idResult.ok) {
+      warnings.push(createWarning(featureIndex, idResult.code));
+      return;
+    }
+
+    if (acceptedIds.has(idResult.id)) {
+      warnings.push(createWarning(featureIndex, 'duplicate-id'));
+      return;
+    }
+
+    const nameResult = readFeatureName(candidate);
+    if (!nameResult.ok) {
+      warnings.push(createWarning(featureIndex, 'missing-name'));
+      return;
+    }
+
+    const geometryResult = readFeatureGeometry(candidate);
+    if (!geometryResult.ok) {
+      warnings.push(createWarning(featureIndex, geometryResult.code));
+      return;
+    }
+
+    const metadata = readSceneFeatureMetadata(candidate);
+    if (metadata === null) {
+      warnings.push(createWarning(featureIndex, 'invalid-feature'));
+      return;
+    }
+
+    acceptedIds.add(idResult.id);
+    features.push({
+      type: 'Feature',
+      id: idResult.id,
+      ...metadata,
       properties: { name: nameResult.name },
       geometry: geometryResult.geometry,
     });

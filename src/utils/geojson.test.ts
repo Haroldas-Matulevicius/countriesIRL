@@ -54,7 +54,7 @@ function createSceneFeature({
   name = 'France',
   sourceFeatureId = 'FRA',
   entityId = 'FRA',
-  colorOwnerId = 'FRA',
+  colorOwnerId = entityId,
   isSelectable = true,
   interactionMode = 'modern-core',
   boundaryMode = 'modern',
