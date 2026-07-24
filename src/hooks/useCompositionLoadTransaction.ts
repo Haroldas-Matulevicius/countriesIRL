@@ -22,6 +22,7 @@ export type CompositionLoadFailureReason =
   | Extract<CompositionLoadOutcome, { readonly ok: false }>['reason']
   | 'snapshot-resolution-failed'
   | 'map-canvas-unavailable'
+  | 'camera-restore-blocked'
   | 'cancelled';
 
 export type CompositionLoadTransactionOutcome =
@@ -144,6 +145,9 @@ export function createCompositionLoadTransaction(
     requestVersion += 1;
     activeController?.abort();
     activeController = null;
+    if (state.status === 'loading') {
+      updateState({ status: 'idle' });
+    }
   };
 
   return {
@@ -246,10 +250,24 @@ export function createCompositionLoadTransaction(
       const focusCountryId =
         selectedIds[0] ?? scene.selectableEntityIds.values().next().value;
 
+      let didRestoreCamera: boolean;
+      try {
+        didRestoreCamera = mapCanvasHandle.restore(snapshot.camera);
+      } catch {
+        didRestoreCamera = false;
+      }
+      if (!didRestoreCamera) {
+        activeController = null;
+        return finish({
+          ok: false,
+          reason: 'camera-restore-blocked',
+          storageWarnings: storedResult.warnings,
+        });
+      }
+
       dependencies.loadColors(snapshot.colors);
       dependencies.loadComposition(toComposition(snapshot));
       dependencies.replaceSelection(selectedIds);
-      mapCanvasHandle.restore(snapshot.camera);
       if (focusCountryId !== undefined) {
         mapCanvasHandle.focusCountry(focusCountryId);
       }

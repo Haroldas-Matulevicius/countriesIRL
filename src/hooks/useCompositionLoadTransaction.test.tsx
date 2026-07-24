@@ -208,10 +208,10 @@ describe('createCompositionLoadTransaction', (): void => {
     expect(calls).toEqual([
       'storage:validated',
       'snapshot:resolve:false',
+      'visible:restore',
       'colors:load-and-reset-history',
       'composition:load',
       'selection:hist:polish-lithuanian-commonwealth',
-      'visible:restore',
       'visible:focus:hist:polish-lithuanian-commonwealth',
       'baseline:19',
       'status:one-outcome',
@@ -279,6 +279,29 @@ describe('createCompositionLoadTransaction', (): void => {
     expect(missingCanvas.markBaseline).not.toHaveBeenCalled();
   });
 
+  it('fails atomically when an active export freeze blocks camera restore', async (): Promise<void> => {
+    const calls: string[] = [];
+    const handle = createHandle('visible', calls);
+    vi.mocked(handle.restore).mockReturnValue(false);
+    const dependencies = createDependencies({
+      getMapCanvasHandle: vi.fn(() => handle),
+    });
+
+    await expect(
+      createCompositionLoadTransaction(dependencies).load('Frozen view'),
+    ).resolves.toEqual({
+      ok: false,
+      reason: 'camera-restore-blocked',
+      storageWarnings: [],
+    });
+
+    expect(handle.restore).toHaveBeenCalledOnce();
+    expect(dependencies.loadColors).not.toHaveBeenCalled();
+    expect(dependencies.loadComposition).not.toHaveBeenCalled();
+    expect(dependencies.replaceSelection).not.toHaveBeenCalled();
+    expect(dependencies.markBaseline).not.toHaveBeenCalled();
+  });
+
   it('cancels superseded and disposed intents without stale mutations or status', async (): Promise<void> => {
     const firstScene = createDeferred<EffectiveScene>();
     const secondScene = createDeferred<EffectiveScene>();
@@ -308,6 +331,28 @@ describe('createCompositionLoadTransaction', (): void => {
 
     expect(dependencies.loadColors).toHaveBeenCalledTimes(1);
     expect(dependencies.onOutcome).toHaveBeenCalledTimes(1);
+
+    const cancelledScene = createDeferred<EffectiveScene>();
+    const cancelledDependencies = createDependencies({
+      resolveScene: vi.fn(() => cancelledScene.promise),
+    });
+    const cancelledTransaction = createCompositionLoadTransaction(
+      cancelledDependencies,
+    );
+    const cancelledLoad = cancelledTransaction.load('Cancelled');
+    expect(cancelledTransaction.getState()).toEqual({
+      status: 'loading',
+      name: 'Cancelled',
+    });
+    cancelledTransaction.cancel();
+    expect(cancelledTransaction.getState()).toEqual({ status: 'idle' });
+    cancelledScene.resolve(createScene('1700', ['FRA']));
+    await expect(cancelledLoad).resolves.toEqual({
+      ok: false,
+      reason: 'cancelled',
+      storageWarnings: [],
+    });
+    expect(cancelledTransaction.getState()).toEqual({ status: 'idle' });
 
     const disposedScene = createDeferred<EffectiveScene>();
     const disposedDependencies = createDependencies({
