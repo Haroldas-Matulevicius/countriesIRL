@@ -13,6 +13,7 @@ import { AppHeader } from './components/AppHeader';
 import { ColorPicker } from './components/ColorPicker';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
+import { LocateCountry } from './components/LocateCountry';
 import { MapWorkspace } from './components/MapWorkspace';
 import { OnboardingBanner } from './components/OnboardingBanner';
 import { SaveLoad } from './components/SaveLoad';
@@ -225,6 +226,19 @@ export default function App(): JSX.Element {
     [countryLookup, selectCountry],
   );
 
+  const handleLocateCountry = useCallback(
+    (countryId: CountryId): void => {
+      const country = countryLookup.get(countryId);
+      if (country === undefined) {
+        return;
+      }
+
+      exportSourceRef.current?.locate(countryId);
+      showStatus(`Centered on ${country.properties.name}.`, 'info');
+    },
+    [countryLookup, showStatus],
+  );
+
   const handleUndo = useCallback((): void => {
     undo();
     showStatus(TOAST_MESSAGES.undo, 'info');
@@ -334,6 +348,11 @@ export default function App(): JSX.Element {
   const countryList = (
     <div className="workspace__country-list">
       <CountryList countries={countries} isDisabled={!isMapReady} />
+      <LocateCountry
+        countries={countries}
+        isDisabled={!isMapReady}
+        onLocate={handleLocateCountry}
+      />
     </div>
   );
 
