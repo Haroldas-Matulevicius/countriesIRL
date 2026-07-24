@@ -284,7 +284,7 @@ const DRAG_CLICK_DISTANCE = 4;
 const MERCATOR_MAX_LATITUDE = 85.05112878;
 ```
 
-`MIN_ZOOM = 1` is mathematically required to prevent more than one complete world copy from fitting horizontally. `MAX_ZOOM = 24` is an implementation starting point that still needs browser usability evidence. [CITED: https://d3js.org/d3-zoom] [ASSUMED]
+`MIN_ZOOM = 1` is mathematically required to prevent more than one complete world copy from fitting horizontally. `MAX_ZOOM = 24` is the resolved implementation value; Chrome/Edge/smallest-state acceptance may reject it only through an explicit corrective gap-closure plan. [CITED: https://d3js.org/d3-zoom] [RESOLVED]
 
 ```typescript
 // Derived from D3's documented transform matrix and custom constrain API.
@@ -442,7 +442,7 @@ Generate parent candidates from Natural Earth at build time, then compare exact 
 
 Do not automatically inherit colors for Natural Earth `TYPE='Disputed'` or `TYPE='Indeterminate'`. Keep Antarctica, Kosovo, Northern Cyprus, Siachen Glacier, Somaliland, Taiwan, Western Sahara, Falkland Islands, British Indian Ocean Territory, and Gibraltar non-selectable and neutral unless a later explicit political-policy decision says otherwise. [VERIFIED: official Natural Earth source + D-14]
 
-Cook Islands and Niue require an explicit product decision because Natural Earth assigns New Zealand sovereignty while their constitutional status is more nuanced than an ordinary dependency; the safe default is visible, non-selectable, and no inherited color until approved. [ASSUMED]
+Cook Islands and Niue follow the resolved ambiguous-association policy: visible, non-selectable, and no inherited color unless a reviewed manifest mapping is explicitly approved. [RESOLVED]
 
 ### Deterministic Validation
 
@@ -465,7 +465,7 @@ The runtime validator must allow latitude exactly ±90 because valid world/Antar
 
 ### Recommended Snapshot Catalog
 
-Target exact snapshots `1492`, `1700`, `1815`, and `1914`, plus `modern`, because they align with the requested late-1400s/1700s/1800s/1900s coverage and are available as candidate research years. Treat this year set as provisional until each asset passes source/license/historical review. [ASSUMED]
+Target exact snapshots `1492`, `1700`, `1815`, and `1914`, plus `modern`. The years are the resolved implementation catalog, while every historical entry remains excluded from production until its source/license/historical review and atomic promotion pass. [RESOLVED]
 
 Each snapshot manifest entry must include:
 
@@ -488,7 +488,7 @@ interface SnapshotManifestEntry {
 }
 ```
 
-Only `historian-reviewed` entries should appear in the normal selector; draft/source-reviewed assets can remain behind development fixtures. [ASSUMED]
+Only `historian-reviewed` entries appear in the normal selector; draft/source-reviewed assets remain development evidence and cannot be promoted. [VERIFIED: UI-SPEC and approval-gated plans]
 
 ### Composition Model
 
@@ -529,11 +529,11 @@ interface LegendState {
 }
 ```
 
-When a color first becomes active, append it and use its uppercase hex value as the label. When it becomes unused, hide it but retain metadata in a dormant cache; if it returns, restore its label/order. Persist the dormant metadata so temporary recoloring does not destroy creator labels. [ASSUMED]
+When a color first becomes active, append it and use its uppercase hex value as the label. When it becomes unused, hide it but retain metadata in a dormant cache; if it returns, restore its label/order. Persist the dormant metadata so temporary recoloring does not destroy creator labels. [VERIFIED: UI-SPEC]
 
 Store position in 1080 viewBox units and clamp against the measured SVG legend bounds. Corner presets compute from named insets; direct drag clears `preset`. Provide corner buttons and directional nudge buttons so all drag functions also work by click/tap and keyboard. [CITED: https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html]
 
-Cap label length and entry count at validation boundaries; wrap or ellipsize long labels in the editor, but export must use a deterministic overflow policy. A two-column layout after eight active entries is a reasonable starting policy that requires UI review. [ASSUMED]
+Cap label length and entry count at validation boundaries. The binding UI contract uses one column for 1–8 entries, two for 9–16, and three for 17–30, with deterministic wrapping and export blocking when content cannot fit. [VERIFIED: UI-SPEC]
 
 ## Exact Export Architecture
 
@@ -583,7 +583,7 @@ Selection, hover, focus, tooltips, open dialogs, and transient outgoing crossfad
 
 Recognize a record with `{name, colors, timestamp}` and no `schemaVersion` as V1. Validate it with the existing partial-recovery behavior, then create an in-memory V2 record with whole-world camera, `modern` snapshot, auto-generated legend metadata, default legend theme/position, and white background. [VERIFIED: existing schema + D-19]
 
-Do not rewrite localStorage merely because the Save/Load dialog listed or loaded a legacy record. Rewrite it as V2 on the creator's next explicit save/replace action; this avoids a silent destructive write and preserves recovery if the new serializer fails. [ASSUMED]
+Do not rewrite localStorage merely because the Save/Load dialog listed or loaded a legacy record. Rewrite it as V2 on the creator's next explicit save/replace action; this avoids a silent destructive write and preserves recovery if the new serializer fails. [VERIFIED: UI-SPEC]
 
 Add typed warnings for `legacy-migrated`, `unsupported-version`, `snapshot-unavailable`, and nested composition repair. Preserve valid neighboring records and valid nested subsets where safe. [VERIFIED: existing partial-recovery contract]
 
@@ -684,7 +684,7 @@ Validation limits should cover finite/clamped camera numbers, known snapshot IDs
 
 **Why it happens:** Migration and persistence are conflated.
 
-**How to avoid:** Migrate in memory; write only on explicit save/replace. [ASSUMED]
+**How to avoid:** Migrate in memory; write only on explicit save/replace. [VERIFIED: UI-SPEC]
 
 **Warning signs:** Storage writes occur during list/load.
 
@@ -831,39 +831,25 @@ function migrateSavedRecord(value: unknown): StorageResult<SavedCompositionV2> {
 
 Waves 1–6 are a coherent 1.5–2 week engineering phase for one experienced implementer only if historical geometry is limited. Wave 7's full four-era/six-region data curation should be separately estimated or supplied up front; otherwise the planner must record it as incomplete rather than compressing it into implementation tasks. [VERIFIED: historical source assessment]
 
-## Assumptions Log
+## Resolved Assumptions and Residual Constraint
 
-| # | Claim | Section | Risk if Wrong |
-|---|-------|---------|---------------|
-| A1 | Maximum camera zoom should start at 24. | Architecture Pattern 1 | Small states may remain too small or coarse geometry may look poor; tune before lock. |
-| A2 | Candidate snapshot years should be 1492, 1700, 1815, and 1914. | Historical Snapshot Strategy | Available/licensable geometry may force different exact years or named eras. |
-| A3 | Cook Islands and Niue should not inherit New Zealand color by default. | Parent/Neutral Policy | User may expect Natural Earth's sovereignty relation to control color. |
-| A4 | Dormant legend entries should retain custom labels/order. | Legend Model | User may prefer immediate deletion of unused metadata. |
-| A5 | Legacy records should be rewritten only on explicit save. | Persistence | Product may prefer eager migration, but that increases write/recovery risk. |
-| A6 | Two legend columns after eight active entries is an acceptable overflow start. | Legend Model | UI review may choose scrolling, smaller type, or another threshold. |
-| A7 | One historian-reviewed snapshot can fit the engineering phase if source geometry is available. | Scope Fit | Data cleanup may still exceed the timeline. |
+| Item | Resolution | Enforcement |
+|------|------------|-------------|
+| Maximum camera zoom | Implement 24; any correction requires a named post-acceptance gap plan | Constants, persistence, camera tests, browser/small-state acceptance |
+| Snapshot catalog | Implement 1492, 1700, 1815, and 1914, but keep every entry unlisted until approved | Plans 02-13 through 02-17 |
+| Ambiguous associated units | Neutral/non-selectable unless an approved parent mapping exists | World manifest and asset tests |
+| Dormant legend metadata, explicit-save migration, and column thresholds | Binding UI-SPEC choices | Legend/storage/UI contract tests |
+| Historical schedule | Full F2/NFR8 completion is blocked until all source/license/factual checkpoints pass; schedule pressure cannot reduce acceptance | Blocking checkpoints and immutable final gate |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Which historical assets and exact dates are legally and historically approved?**
-   - What we know: OHM is the strongest permissive candidate but incomplete; convenient alternatives are restricted, noncommercial, share-alike, or explicitly provisional. [VERIFIED: source assessment]
-   - What's unclear: whether the project can accept GPL/CC BY-SA data, whether use is commercial, and who performs historical review.
-   - Recommendation: make source/license approval and asset review a prerequisite checkpoint before any snapshot is advertised as complete.
+1. **Historical assets and exact dates:** The implementation targets `1492`, `1700`, `1815`, and `1914`, but every historical asset remains blocked behind the source/license/factual approvals in Plans 02-13 through 02-16 and the atomic production promotion in Plan 02-17. No candidate appears in production and no F2/NFR8 completion claim is permitted until those approvals and byte checks pass. [RESOLVED: evidence-gated]
 
-2. **How should associated/disputed non-core units inherit color?**
-   - What we know: clear dependencies can be mapped; disputed/indeterminate units should not inherit automatically. [VERIFIED: Natural Earth source + D-14]
-   - What's unclear: Cook Islands/Niue and any user preference for disputed territories.
-   - Recommendation: ship a reviewed manifest with `parentCoreId: null` for ambiguous units and expose no runtime political toggle.
+2. **Associated/disputed non-core color ownership:** Clear reviewed parent relationships may inherit a core-state color. Cook Islands, Niue, disputed units, indeterminate units, and every other ambiguous association use the reviewed neutral policy—visible, non-selectable, and `parentCoreId: null`—unless a later approved manifest mapping explicitly establishes a parent. No runtime political toggle is added. [RESOLVED: neutral unless approved mapping]
 
-3. **What max zoom/Locate framing feels right on real hardware?**
-   - What we know: `k=1` is required for one-world minimum; SVG transform cost is largely independent of zoom. [CITED: https://d3js.org/d3-zoom]
-   - What's unclear: whether 24 is enough for Vatican/Monaco and whether 50m geometry remains acceptable at that scale.
-   - Recommendation: lock after a focused Chrome/Edge/touch acceptance task using smallest states and date-line cases.
+3. **Maximum zoom and Locate framing:** `MAX_ZOOM = 24` is the implementation value across constants, UI controls, persistence validation, and camera constraints. Chrome/Edge and smallest-state acceptance remains a corrective gate: if 24 fails the locked usability contract, execution stops for an explicit gap-closure plan rather than silently tuning the immutable final gate. [RESOLVED: implement 24, correct only through a named gap]
 
-4. **Can pinch be certified on actual touch hardware?**
-   - What we know: D3 supports touch/pinch; Playwright's touchscreen API is limited to taps and has no built-in pinch method. [CITED: https://d3js.org/d3-zoom] [CITED: https://playwright.dev/docs/api/class-touchscreen]
-   - What's unclear: availability of a physical touch device in the execution environment.
-   - Recommendation: automate camera math and touch-capable setup, but retain one manual real-device pinch checkpoint.
+4. **Physical pinch certification:** Real multitouch hardware is required for final pinch acceptance. Playwright and camera-math tests prove alternatives and invariants but are not substitutes. If physical hardware is unavailable, the physical-touch cell remains blocked/unverified and Phase 2 is never reported passed. [RESOLVED: unavailable hardware blocks final acceptance]
 
 ## Environment Availability
 
@@ -1003,7 +989,7 @@ Keep composition/export styling simple: white opaque background, solid borders, 
 - https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-transparency — limited support and fallback.
 
 ### Tertiary (LOW confidence)
-- Exact historical snapshot years and detailed parent policy for associated states remain marked `[ASSUMED]` pending user/source review.
+- Historical source completeness and factual accuracy remain evidence-gated rather than assumed: Plans 02-13 through 02-17 must approve sources, six-region records, and final bytes before production. The exact years and ambiguous-parent neutral policy are resolved implementation decisions.
 
 ## Metadata
 

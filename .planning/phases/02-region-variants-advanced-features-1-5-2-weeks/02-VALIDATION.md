@@ -2,14 +2,15 @@
 phase: 02
 slug: region-variants-advanced-features-1-5-2-weeks
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-24
+revised: 2026-07-24
 ---
 
 # Phase 02 — Validation Strategy
 
-> Per-phase validation contract for feedback sampling during execution.
+> Plan-level sampling contract for execution. This document maps planned verification; it does not claim implementation or test completion.
 
 ---
 
@@ -17,88 +18,149 @@ created: 2026-07-24
 
 | Property | Value |
 |----------|-------|
-| **Framework** | Vitest 4.1.10 (unit/SSR) + Playwright Test 1.61.1 (Chrome and Edge browser flows) |
-| **Config file** | `vitest.config.ts`; `playwright.config.ts` added in Wave 0 |
-| **Quick run command** | `npm test -- src/utils/camera.test.ts src/utils/legend.test.ts src/utils/compositionStorage.test.ts` |
-| **Full suite command** | `npm run lint && npm test && npm run build && npm run test:e2e` |
-| **Estimated runtime** | Focused unit feedback under 30 seconds; full browser-inclusive gate measured after Wave 0 |
+| **Framework** | Vitest 4.1.10 for source/unit/SSR and Playwright Test 1.61.1 for installed Chrome and Edge browser flows |
+| **Config files** | `vitest.config.ts`; `playwright.config.ts` created in Plan 02-01 |
+| **Quick run command** | `npm test -- src/utils/camera.test.ts src/utils/legend.test.ts src/utils/storage.test.ts src/hooks/useSnapshotData.test.tsx` |
+| **Full suite command** | `npm run lint && npm test && npm exec tsc -- -b --pretty false && npm run data:world:check && npm run build && npm run test:e2e` |
+| **Historical CLI contract** | Validate sources with `--snapshot {id} --sources {manifest} --validate-sources`; generate/check with distinct `--input`, `--output`, `--review-output`, and `--review-html` paths |
+| **Execution state** | All files/commands below are planned or existing-to-extend; `wave_0_complete` remains false until execution creates and runs them |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run focused Vitest files for the changed subsystem; target completion under 30 seconds.
-- **After every plan wave:** Run source-scoped lint, `npm test`, and `npm run build`.
-- **After camera/export/legend waves:** Add the focused Chrome Playwright smoke for the changed flow.
-- **Before `/gsd:verify-work`:** Full unit/build/lint suite, full Chrome and Edge E2E, exact downloaded-PNG inspection, and the manual physical-touch checklist must be complete.
-- **Max feedback latency:** 30 seconds for task-level automated sampling; browser suites are wave gates.
+- After every implementation task: run the exact focused `<automated>` command mapped below; every task ends with exit code 0 rather than an expected failing command.
+- After every plan wave: run source-scoped lint, full Vitest, strict TypeScript, and production build.
+- After camera, history, legend, persistence, export, and responsive waves: add the focused Chrome Playwright subset named by the owning plan.
+- Before human acceptance: Plan 02-27 runs the immutable full gate. Any failure stops for an explicit gap-closure plan naming the failing command, owning files/tests, and dependencies; no late inline product correction is authorized.
+- If a corrective gap changes durable patterns: rerun Plans 02-25 and 02-26 before restarting Plan 02-27.
+- Maximum task-level feedback target: focused source tests under 30 seconds; browser/data suites are wave/final gates and must not be replaced by arbitrary sleeps or weakened assertions.
 
 ---
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 02-W0-01 | Wave 0 | 0 | Cross-cutting | T-02-01 | Product lint excludes planning/worktree evidence without deleting it | config + CLI | `npm run lint` | ❌ W0 | ⬜ pending |
-| 02-W0-02 | Wave 0 | 0 | D-01–D-06, D-16–D-18 | T-02-02 | Camera numbers and transforms are finite and clamped | unit | `npm test -- src/utils/camera.test.ts` | ❌ W0 | ⬜ pending |
-| 02-W0-03 | Wave 0 | 0 | D-12–D-15 | T-02-03 | Assets are hash-pinned, validated, finite, and policy-bounded | asset/unit | `npm test -- src/utils/worldDataAsset.test.ts` | ❌ W0 | ⬜ pending |
-| 02-W0-04 | Wave 0 | 0 | D-19, F6 | T-02-01 / T-02-04 | Untrusted saved data is bounded, migrated, and rendered as text | unit | `npm test -- src/utils/compositionStorage.test.ts` | ❌ W0 | ⬜ pending |
-| 02-W0-05 | Wave 0 | 0 | D-20–D-23, F2 | T-02-03 | Snapshot provenance, geometry, coverage, and IDs are validated | asset/unit | `npm test -- src/utils/historicalValidation.test.ts src/utils/scene.test.ts` | ❌ W0 | ⬜ pending |
-| 02-W0-06 | Wave 0 | 0 | D-24–D-27, F4 | T-02-01 / T-02-05 | Labels use text nodes and style values are enums/clamped numbers | unit | `npm test -- src/utils/legend.test.ts` | ❌ W0 | ⬜ pending |
-| 02-W0-07 | Wave 0 | 0 | D-07–D-11, F5.2 | T-02-06 / T-02-07 | Export uses same-origin assets, sanitized clones, fixed suffix, and full cleanup | unit | `npm test -- src/utils/export.test.ts` | ✅ extend | ⬜ pending |
-| 02-W0-08 | Wave 0 | 0 | NFR3, NFR11 | T-02-02 | Browser controls provide keyboard/single-pointer alternatives and safe gesture bounds | browser | `npm run test:e2e` | ❌ W0 | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+| Task ID | Plan / Wave | Task | Requirement IDs | Evidence files | Automated command | Required final state | Status |
+|---------|-------------|------|-----------------|----------------|-------------------|----------------------|--------|
+| 02-01-T1 | 02-01 / 1 | Task 1: Install audited exact build and browser dependencies | F7.1, F7.2, F7.3, NFR11 | package.json, package-lock.json | `npm ls mapshaper@0.7.48 @playwright/test@1.61.1 --depth=0` | Command exits 0; task ends green | pending |
+| 02-01-T2 | 02-01 / 1 | Task 2: Source-scope lint and configure installed browsers | F7.1, F7.2, F7.3, NFR11 | eslint.config.js, playwright.config.ts | `npm run lint && npm exec playwright -- --version` | Command exits 0; task ends green | pending |
+| 02-01-T3 | 02-01 / 1 | Task 3: Create a passing Phase 1 baseline browser smoke | F7.1, F7.2, F7.3, NFR11 | tests/e2e/phase2-composition.spec.ts | `npm run test:e2e -- --grep "Phase 1 baseline"` | Command exits 0; task ends green | pending |
+| 02-02-T1 | 02-02 / 1 | Task 1: Define scene and complete-composition contracts | F2.1, F2.2, F2.4, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR9, NFR11 | src/types/map.ts, src/types/composition.ts, src/types/ui.ts | `npm exec tsc -- -p tsconfig.app.json --noEmit && npm run lint` | Command exits 0; task ends green | pending |
+| 02-02-T2 | 02-02 / 1 | Task 2: Lock camera and snapshot constants | F2.1, F2.2, F2.4, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR9, NFR11 | src/constants/camera.ts, src/constants/snapshots.ts | `npm exec tsc -- -p tsconfig.app.json --noEmit && npm run lint` | Command exits 0; task ends green | pending |
+| 02-03-T1 | 02-03 / 2 | Task 1: Implement and prove composition ownership and dirty-baseline behavior | F4.3, F4.4, F4.5, F6.1, F6.2, NFR11 | src/providers/CompositionStateProvider.tsx, src/hooks/useCompositionState.ts, src/hooks/useCompositionState.test.tsx | `npm test -- src/hooks/useCompositionState.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-04-T1 | 02-04 / 2 | Task 1: Build the reviewed canonical world manifest | F7.1, F7.2, F7.3, NFR9 | public/data/world-manifest.json | `node -e "const m=require('./public/data/world-manifest.json'); const ids=new Set(m.coreStates.map(x=>x.id)); if(ids.size!==195\|\|m.supplements.length!==6) process.exit(1)"` | Command exits 0; task ends green | pending |
+| 02-04-T2 | 02-04 / 2 | Task 2: Implement deterministic hybrid world generation | F7.1, F7.2, F7.3, NFR9 | scripts/prepareWorldData.mjs, public/data/world-modern.geojson, .gitattributes | `node scripts/prepareWorldData.mjs && node scripts/prepareWorldData.mjs --check` | Command exits 0; task ends green | pending |
+| 02-04-T3 | 02-04 / 2 | Task 3: Record world provenance and runtime policy | F7.1, F7.2, F7.3, NFR9 | public/data/README.md | `node scripts/prepareWorldData.mjs --check && npm run lint` | Command exits 0; task ends green | pending |
+| 02-05-T1 | 02-05 / 3 | Task 1: Extend validation for world scene metadata and poles | F7.1, F7.2, F7.3, NFR1, NFR9 | src/utils/geojson.test.ts, src/utils/geojson.ts | `npm test -- src/utils/geojson.test.ts` | Command exits 0; task ends green | pending |
+| 02-05-T2 | 02-05 / 3 | Task 2: Load and verify the canonical world asset | F7.1, F7.2, F7.3, NFR1, NFR9 | src/hooks/useGeoData.ts, src/utils/worldDataAsset.test.ts | `npm test -- src/utils/geojson.test.ts src/utils/worldDataAsset.test.ts && node scripts/prepareWorldData.mjs --check` | Command exits 0; task ends green | pending |
+| 02-06-T1 | 02-06 / 2 | Task 1: Implement and prove fixed-Mercator wrapped camera invariants | F3.1, F3.2, F3.3, F3.4, F3.5, F7.1, F7.2, F7.3, NFR11 | src/utils/camera.ts, src/utils/camera.test.ts, src/utils/mapProjection.ts, src/utils/mapProjection.test.ts | `npm test -- src/utils/camera.test.ts src/utils/mapProjection.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-07-T1 | 02-07 / 4 | Task 1: Implement the imperative camera controller boundary | F1.1, F1.2, F3.2, F3.4, F3.5, F7.1, F7.2, F7.3, NFR1, NFR2, NFR11 | src/hooks/useCameraController.ts, src/components/MapCanvas.test.tsx | `npm test -- src/components/MapCanvas.test.tsx src/utils/camera.test.ts` | Command exits 0; task ends green | pending |
+| 02-07-T2 | 02-07 / 4 | Task 2: Render wrapped worlds with one accessible logical country | F1.1, F1.2, F3.2, F3.4, F3.5, F7.1, F7.2, F7.3, NFR1, NFR2, NFR11 | src/components/MapCanvas.tsx, src/components/MapCanvas.test.tsx | `npm test -- src/components/MapCanvas.test.tsx src/hooks/useMapState.test.ts src/utils/mapProjection.test.ts && npm run lint` | Command exits 0; task ends green | pending |
+| 02-08-T1 | 02-08 / 5 | Task 1: Implement and prove the exact three-action map navigation cluster | F3.2, F3.3, F3.4, F3.5, NFR11 | src/components/MapNavigation.tsx, src/components/MapNavigation.test.tsx | `npm test -- src/components/MapNavigation.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-09-T1 | 02-09 / 5 | Task 1: Add country search and Select Visible | F1.2, F1.4, F3.1, F3.2, F3.5, NFR5, NFR9, NFR11 | src/components/CountryList.test.tsx, src/components/CountryList.tsx | `npm test -- src/components/CountryList.test.tsx src/hooks/useMapState.test.ts` | Command exits 0; task ends green | pending |
+| 02-09-T2 | 02-09 / 5 | Task 2: Build the explicit committed-target Locate combobox | F1.2, F1.4, F3.1, F3.2, F3.5, NFR5, NFR9, NFR11 | src/components/LocateCountry.test.tsx, src/components/LocateCountry.tsx | `npm test -- src/components/LocateCountry.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-10-T1 | 02-10 / 2 | Task 1: Compose effective modern and historical scene state | F2.2, F2.4, F4.1, F4.2, F4.3, F4.4, F4.5, NFR9 | src/utils/scene.test.ts, src/utils/scene.ts | `npm test -- src/utils/scene.test.ts src/utils/colors.test.ts` | Command exits 0; task ends green | pending |
+| 02-10-T2 | 02-10 / 2 | Task 2: Reconcile and validate deterministic legends | F2.2, F2.4, F4.1, F4.2, F4.3, F4.4, F4.5, NFR9 | src/utils/legend.test.ts, src/utils/legend.ts | `npm test -- src/utils/legend.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-11-T1 | 02-11 / 3 | Task 1: Implement and prove legend disclosure and editor semantics | F4.1, F4.2, F4.3, F4.4, F4.5, F5.2, NFR11 | src/components/LegendDisclosure.tsx, src/components/LegendEditor.tsx, src/components/LegendEditor.test.tsx | `npm test -- src/components/LegendEditor.test.tsx src/utils/legend.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-11-T2 | 02-11 / 3 | Task 2: Render and drag the export-safe SVG legend | F4.1, F4.2, F4.3, F4.4, F4.5, F5.2, NFR11 | src/components/LegendOverlay.tsx, src/components/LegendEditor.test.tsx | `npm test -- src/components/LegendEditor.test.tsx src/utils/legend.test.ts && npm run build` | Command exits 0; task ends green | pending |
+| 02-12-T1 | 02-12 / 3 | Task 1: Implement and prove historical manifest, six-region, and asset validation | F2.1, F2.2, F2.4, F2.5, NFR3, NFR8, NFR9 | src/utils/historicalValidation.test.ts, src/utils/historicalValidation.ts | `npm test -- src/utils/historicalValidation.test.ts src/utils/scene.test.ts` | Command exits 0; task ends green | pending |
+| 02-12-T2 | 02-12 / 3 | Task 2: Implement one exact historical preparation CLI with executable fixtures | F2.1, F2.2, F2.4, F2.5, NFR3, NFR8, NFR9 | scripts/prepareHistoricalSnapshot.mjs, src/utils/historicalPreparationCli.test.ts, src/utils/fixtures/historicalSnapshot.ts, public/data/snapshots/index.json | `npm test -- src/utils/historicalPreparationCli.test.ts && node scripts/prepareHistoricalSnapshot.mjs --help && npm run lint` | Command exits 0; task ends green | pending |
+| 02-12-T3 | 02-12 / 3 | Task 3: Implement and prove reviewed snapshot caching and failure retention | F2.1, F2.2, F2.4, F2.5, NFR3, NFR8, NFR9 | src/hooks/useSnapshotData.ts, src/hooks/useSnapshotData.test.tsx | `npm test -- src/hooks/useSnapshotData.test.tsx src/utils/historicalValidation.test.ts src/utils/scene.test.ts && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-13-T1 | 02-13 / 4 | Task 1: Acquire, extract, and cross-check permissible 1492 evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | sources/historical/1492.sources.json, sources/historical/1492.input.geojson | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --validate-sources` | Command exits 0; task ends green | pending |
+| 02-13-T2 | 02-13 / 4 | Task 2: Generate and validate the 1492 overlay and review atlas | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | data/historical-reviewed/1492.geojson, data/historical-reviewed/1492.review.json, data/historical-reviewed/1492.review.html | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --input sources/historical/1492.input.geojson --output data/historical-reviewed/1492.geojson --review-output data/historical-reviewed/1492.review.json --review-html data/historical-reviewed/1492.review.html && node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --input sources/historical/1492.input.geojson --output data/historical-reviewed/1492.geojson --review-output data/historical-reviewed/1492.review.json --review-html data/historical-reviewed/1492.review.html --check` | Command exits 0; task ends green | pending |
+| 02-13-T3 | 02-13 / 4 | Task 3: Approve 1492 historical evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | none | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --input sources/historical/1492.input.geojson --output data/historical-reviewed/1492.geojson --review-output data/historical-reviewed/1492.review.json --review-html data/historical-reviewed/1492.review.html --check` | Blocking checkpoint after green preflight | pending |
+| 02-14-T1 | 02-14 / 4 | Task 1: Acquire, extract, and cross-check permissible 1700 evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | sources/historical/1700.sources.json, sources/historical/1700.input.geojson | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --validate-sources` | Command exits 0; task ends green | pending |
+| 02-14-T2 | 02-14 / 4 | Task 2: Generate and validate the 1700 overlay and review atlas | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | data/historical-reviewed/1700.geojson, data/historical-reviewed/1700.review.json, data/historical-reviewed/1700.review.html | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --input sources/historical/1700.input.geojson --output data/historical-reviewed/1700.geojson --review-output data/historical-reviewed/1700.review.json --review-html data/historical-reviewed/1700.review.html && node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --input sources/historical/1700.input.geojson --output data/historical-reviewed/1700.geojson --review-output data/historical-reviewed/1700.review.json --review-html data/historical-reviewed/1700.review.html --check` | Command exits 0; task ends green | pending |
+| 02-14-T3 | 02-14 / 4 | Task 3: Approve 1700 historical evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | none | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --input sources/historical/1700.input.geojson --output data/historical-reviewed/1700.geojson --review-output data/historical-reviewed/1700.review.json --review-html data/historical-reviewed/1700.review.html --check` | Blocking checkpoint after green preflight | pending |
+| 02-15-T1 | 02-15 / 4 | Task 1: Acquire, extract, and cross-check permissible 1815 evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | sources/historical/1815.sources.json, sources/historical/1815.input.geojson | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1815 --sources sources/historical/1815.sources.json --validate-sources` | Command exits 0; task ends green | pending |
+| 02-15-T2 | 02-15 / 4 | Task 2: Generate and validate the 1815 overlay and review atlas | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | data/historical-reviewed/1815.geojson, data/historical-reviewed/1815.review.json, data/historical-reviewed/1815.review.html | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1815 --sources sources/historical/1815.sources.json --input sources/historical/1815.input.geojson --output data/historical-reviewed/1815.geojson --review-output data/historical-reviewed/1815.review.json --review-html data/historical-reviewed/1815.review.html && node scripts/prepareHistoricalSnapshot.mjs --snapshot 1815 --sources sources/historical/1815.sources.json --input sources/historical/1815.input.geojson --output data/historical-reviewed/1815.geojson --review-output data/historical-reviewed/1815.review.json --review-html data/historical-reviewed/1815.review.html --check` | Command exits 0; task ends green | pending |
+| 02-15-T3 | 02-15 / 4 | Task 3: Approve 1815 historical evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | none | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1815 --sources sources/historical/1815.sources.json --input sources/historical/1815.input.geojson --output data/historical-reviewed/1815.geojson --review-output data/historical-reviewed/1815.review.json --review-html data/historical-reviewed/1815.review.html --check` | Blocking checkpoint after green preflight | pending |
+| 02-16-T1 | 02-16 / 4 | Task 1: Acquire, extract, and cross-check permissible 1914 evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | sources/historical/1914.sources.json, sources/historical/1914.input.geojson | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1914 --sources sources/historical/1914.sources.json --validate-sources` | Command exits 0; task ends green | pending |
+| 02-16-T2 | 02-16 / 4 | Task 2: Generate and validate the 1914 overlay and review atlas | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | data/historical-reviewed/1914.geojson, data/historical-reviewed/1914.review.json, data/historical-reviewed/1914.review.html | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1914 --sources sources/historical/1914.sources.json --input sources/historical/1914.input.geojson --output data/historical-reviewed/1914.geojson --review-output data/historical-reviewed/1914.review.json --review-html data/historical-reviewed/1914.review.html && node scripts/prepareHistoricalSnapshot.mjs --snapshot 1914 --sources sources/historical/1914.sources.json --input sources/historical/1914.input.geojson --output data/historical-reviewed/1914.geojson --review-output data/historical-reviewed/1914.review.json --review-html data/historical-reviewed/1914.review.html --check` | Command exits 0; task ends green | pending |
+| 02-16-T3 | 02-16 / 4 | Task 3: Approve 1914 historical evidence | F2.1, F2.2, F2.3, F2.4, F2.5, NFR8, NFR9 | none | `node scripts/prepareHistoricalSnapshot.mjs --snapshot 1914 --sources sources/historical/1914.sources.json --input sources/historical/1914.input.geojson --output data/historical-reviewed/1914.geojson --review-output data/historical-reviewed/1914.review.json --review-html data/historical-reviewed/1914.review.html --check` | Blocking checkpoint after green preflight | pending |
+| 02-17-T1 | 02-17 / 5 | Task 1: Publish and byte-verify approved overlays while they remain unlisted | F2.1, F2.2, F2.3, F2.4, F2.5, NFR3, NFR8, NFR9 | public/data/snapshots/1492.geojson, public/data/snapshots/1700.geojson, public/data/snapshots/1815.geojson, public/data/snapshots/1914.geojson | `for id in 1492 1700 1815 1914; do node scripts/prepareHistoricalSnapshot.mjs --snapshot "$id" --sources "sources/historical/$id.sources.json" --input "sources/historical/$id.input.geojson" --output "public/data/snapshots/$id.geojson" --review-output "data/historical-reviewed/$id.review.json" --review-html "data/historical-reviewed/$id.review.html" --check \|\| exit 1; done && npm test -- src/utils/historicalValidation.test.ts src/utils/scene.test.ts` | Command exits 0; task ends green | pending |
+| 02-17-T2 | 02-17 / 5 | Task 2: Atomically promote the verified assets by updating the catalog last | F2.1, F2.2, F2.3, F2.4, F2.5, NFR3, NFR8, NFR9 | public/data/snapshots/index.json | `npm test -- src/utils/historicalValidation.test.ts src/utils/scene.test.ts && node -e "const fs=require('node:fs'); const crypto=require('node:crypto'); const x=require('./public/data/snapshots/index.json'); const ids=['poland','lithuania','hungary','balkans','iberia','scandinavia']; const reviewed=x.snapshots.filter(s=>s.reviewStatus==='historian-reviewed'); if(reviewed.length!==5) process.exit(1); for(const s of reviewed.filter(s=>s.id!=='modern')){const got=s.coverageRecords.map(r=>r.id).sort(); if(JSON.stringify(got)!==JSON.stringify([...ids].sort())) process.exit(1); const p='public'+s.assetPath; if(!fs.existsSync(p)\|\|crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')!==s.sha256) process.exit(1);}"` | Command exits 0; task ends green | pending |
+| 02-18-T1 | 02-18 / 6 | Task 1: Build the exact composition bar states | F2.1, F2.2, F2.3, F2.4, F2.5, F5.2, NFR3, NFR8, NFR9, NFR11 | src/components/CompositionBar.tsx, src/components/MapWorkspace.test.tsx | `npm test -- src/components/MapWorkspace.test.tsx` | Command exits 0; task ends green | pending |
+| 02-18-T2 | 02-18 / 6 | Task 2: Compose complete historical scenes with accessible crossfade | F2.1, F2.2, F2.3, F2.4, F2.5, F5.2, NFR3, NFR8, NFR9, NFR11 | src/components/MapCanvas.tsx, src/components/MapWorkspace.tsx, src/components/MapWorkspace.test.tsx | `npm test -- src/components/MapWorkspace.test.tsx src/utils/scene.test.ts src/components/MapCanvas.test.tsx && npm run lint` | Command exits 0; task ends green | pending |
+| 02-18-T3 | 02-18 / 6 | Task 3: Add period-aware tooltip and warm-switch gate | F2.1, F2.2, F2.3, F2.4, F2.5, F5.2, NFR3, NFR8, NFR9, NFR11 | src/components/Tooltip.tsx, src/components/MapWorkspace.test.tsx | `npm test -- src/components/MapWorkspace.test.tsx src/utils/historicalValidation.test.ts && npm run build` | Command exits 0; task ends green | pending |
+| 02-19-T1 | 02-19 / 4 | Task 1: Implement and prove the single V1/V2 composition storage authority | F6.1, F6.2, F4.3, F4.4, F4.5, NFR11 | src/utils/storage.ts, src/utils/storage.test.ts, src/hooks/useLocalStorage.ts | `npm test -- src/utils/storage.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-20-T1 | 02-20 / 7 | Task 1: Implement and prove complete-composition Save/Load states, confirmations, and focus | F6.1, F6.2, F4.3, F4.4, F4.5, NFR5, NFR7, NFR11 | src/components/SaveLoad.tsx, src/components/SaveLoad.test.tsx | `npm test -- src/components/SaveLoad.test.tsx src/utils/storage.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-21-T1 | 02-21 / 7 | Task 1: Implement and prove freeze-first exact composition export | F5.1, F5.2, F5.3, F5.5, NFR4 | src/utils/export.ts, src/utils/export.test.ts | `npm test -- src/utils/export.test.ts && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | Command exits 0; task ends green | pending |
+| 02-22-T1 | 02-22 / 8 | Task 1: Implement exact global actions and header hierarchy | F1.5, F1.6, F5.1, F5.2, F6.1, F6.2, NFR5, NFR6, NFR7, NFR11 | src/components/AppHeader.tsx, src/components/Controls.tsx, src/components/Controls.test.tsx | `npm test -- src/components/Controls.test.tsx && npm run lint` | Command exits 0; task ends green | pending |
+| 02-22-T2 | 02-22 / 8 | Task 2: Update onboarding and prove the complete creator-safe status allowlist | F1.5, F1.6, F5.1, F5.2, F6.1, F6.2, NFR5, NFR6, NFR7, NFR11 | src/components/OnboardingBanner.tsx, src/components/ToastRegion.tsx, src/components/ToastRegion.test.tsx | `npm test -- src/components/ToastRegion.test.tsx src/components/Controls.test.tsx && npm exec tsc -- -p tsconfig.app.json --noEmit` | Command exits 0; task ends green | pending |
+| 02-23-T1 | 02-23 / 9 | Task 1: Implement and prove one-workspace atomic composition orchestration | F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.4, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR5, NFR6, NFR7, NFR9, NFR10, NFR11 | src/App.tsx, src/App.test.tsx, src/main.tsx | `npm test -- src/App.test.tsx src/components/MapWorkspace.test.tsx src/components/SaveLoad.test.tsx src/components/Controls.test.tsx src/components/MapNavigation.test.tsx && npm run lint && npm exec tsc -- -p tsconfig.app.json --noEmit && npm run build` | Command exits 0; task ends green | pending |
+| 02-24-T1 | 02-24 / 10 | Task 1: Implement exact tokens, light/dark chrome, and preference fallbacks | F3.4, F4.2, F4.4, F4.5, F5.2, NFR5, NFR7, NFR11 | src/styles/theme.css, src/styles/phase2CssContract.test.ts | `npm test -- src/styles/phase2CssContract.test.ts && npm run lint && npm run build` | Command exits 0; task ends green | pending |
+| 02-24-T2 | 02-24 / 10 | Task 2: Implement responsive map-first layout and unified inspector | F3.4, F4.2, F4.4, F4.5, F5.2, NFR5, NFR7, NFR11 | src/styles/App.css, src/styles/Controls.css, src/styles/phase2CssContract.test.ts | `npm test -- src/styles/phase2CssContract.test.ts src/App.test.tsx src/components/Controls.test.tsx src/components/SaveLoad.test.tsx && npm run build` | Command exits 0; task ends green | pending |
+| 02-24-T3 | 02-24 / 10 | Task 3: Style world paths, camera controls, tooltip, legend, and export isolation | F3.4, F4.2, F4.4, F4.5, F5.2, NFR5, NFR7, NFR11 | src/styles/MapCanvas.css, src/styles/Controls.css, src/styles/phase2CssContract.test.ts | `npm test -- src/styles/phase2CssContract.test.ts src/components/MapWorkspace.test.tsx src/components/LegendEditor.test.tsx && npm run build` | Command exits 0; task ends green | pending |
+| 02-25-T1 | 02-25 / 11 | Task 1: Approve exact Phase 2 coding-rule corrections | F2.1, F2.2, F4.2, F5.2, F6.1, NFR11 | none | `npm run lint && npm test && npm run build` | Blocking checkpoint after green preflight | pending |
+| 02-26-T1 | 02-26 / 12 | Task 1: Update frontend and data durable patterns | F2.1, F2.2, F4.2, F5.2, F6.1, F6.2, NFR11 | .planning/coding-rules/frontend.md, .planning/coding-rules/data.md | `npm run lint && npm test -- src/utils/camera.test.ts src/utils/worldDataAsset.test.ts src/utils/historicalValidation.test.ts` | Command exits 0; task ends green | pending |
+| 02-26-T2 | 02-26 / 12 | Task 2: Update export/storage rules and coding-rules index | F2.1, F2.2, F4.2, F5.2, F6.1, F6.2, NFR11 | .planning/coding-rules/export.md, .planning/coding-rules/storage.md, .planning/CODING_RULES.md | `npm test -- src/utils/export.test.ts src/utils/storage.test.ts && npm run lint && npm run build` | Command exits 0; task ends green | pending |
+| 02-27-T1 | 02-27 / 13 | Task 1: Complete Chrome and Edge world-composition E2E coverage | F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11 | tests/e2e/phase2-composition.spec.ts | `npm run test:e2e` | Command exits 0; task ends green | pending |
+| 02-27-T2 | 02-27 / 13 | Task 2: Run the immutable verification-only Phase 2 gate | F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11 | none | `npm run lint && npm test && npm exec tsc -- -b --pretty false && npm run data:world:check && for id in 1492 1700 1815 1914; do node scripts/prepareHistoricalSnapshot.mjs --snapshot "$id" --sources "sources/historical/$id.sources.json" --input "sources/historical/$id.input.geojson" --output "public/data/snapshots/$id.geojson" --review-output "data/historical-reviewed/$id.review.json" --review-html "data/historical-reviewed/$id.review.html" --check \|\| exit 1; done && npm run build && npm run test:e2e` | Command exits 0; task ends green | pending |
+| 02-28-T1 | 02-28 / 14 | Task 1: Preflight the exact implementation for human acceptance | F2.1, F2.2, F2.3, F2.4, F2.5, F3.2, F3.4, F4.2, F4.3, F4.4, F4.5, F5.2, F7.1, F7.2, F7.3, NFR3, NFR5, NFR7, NFR8, NFR11 | none | `npm run lint && npm test && npm run build && npm run test:e2e` | Command exits 0; task ends green | pending |
+| 02-28-T2 | 02-28 / 14 | Task 2: Approve final Phase 2 physical, visual, and accessibility evidence | F2.1, F2.2, F2.3, F2.4, F2.5, F3.2, F3.4, F4.2, F4.3, F4.4, F4.5, F5.2, F7.1, F7.2, F7.3, NFR3, NFR5, NFR7, NFR8, NFR11 | none | `npm run test:e2e -- --grep "export\|accessibility\|snapshot switch\|camera input"` | Blocking checkpoint after green preflight | pending |
 
 ---
 
-## Wave 0 Requirements
+## Required Test and Fixture Ownership
 
-- [ ] Source-scope ESLint so `.planning/**` and `.claude/**` do not contaminate product lint; preserve all evidence files.
-- [ ] `src/utils/camera.test.ts` — wrap normalization, one-world minimum, vertical clamp, semantic round trip, pointer-anchor invariants, and antimeridian Locate bounds.
-- [ ] `src/utils/worldDataAsset.test.ts` — source hashes, exact 195-state core, supplements, parent/neutral policy, and finite paths.
-- [ ] `src/utils/scene.test.ts` — effective color ownership, identity preservation, historical default-white behavior, fallback layering, and crossfade state.
-- [ ] `src/utils/legend.test.ts` — non-white derivation, placeholder labels, dormant/unused lifecycle, ordering, bounds, style validation, and drag/corner equivalence.
-- [ ] `src/utils/compositionStorage.test.ts` — Phase 1 migration, current-schema round trip, mixed/corrupt records, unknown versions, and size/length bounds.
-- [ ] `src/utils/historicalValidation.test.ts` — manifest, hashes, license/provenance, coverage declarations, and identity checks.
-- [ ] Extend `src/utils/export.test.ts` for camera transforms, wrapped copies, legend retention, editor-state sanitization, outgoing-scene removal, freeze ordering, exact 1080×1080 output, and cleanup.
-- [ ] Add exact-pinned `mapshaper@0.7.48` and `@playwright/test@1.61.1` only after the package identity/supply-chain gate passes.
-- [ ] Add `playwright.config.ts`, an `npm run test:e2e` script, and `tests/e2e/phase2-composition.spec.ts` for Chrome/Edge composition flows.
-- [ ] Add a manual historical provenance/review template and physical-touch pinch/drag acceptance checklist.
+- `src/utils/camera.test.ts` — zoom 1–24, wrap normalization, one-world minimum, vertical clamp, semantic round trip, pointer/center anchoring, pan steps, programmatic constraints, and antimeridian Locate.
+- `src/utils/worldDataAsset.test.ts` — source hashes, exact 195 core IDs, 248 units, six supplements, reviewed parent/neutral policy, and finite paths.
+- `src/utils/historicalValidation.test.ts` — manifest/hash/license/provenance/review-status/identity checks plus exact separate coverage IDs `poland`, `lithuania`, `hungary`, `balkans`, `iberia`, and `scandinavia`.
+- `src/utils/historicalPreparationCli.test.ts` + `src/utils/fixtures/historicalSnapshot.ts` — valid source validation, distinct-input/output generation, tampered source failure, committed-byte drift failure, and non-mutating `--check`.
+- `src/hooks/useSnapshotData.test.tsx` — cache hits, abort cleanup, superseded-result suppression, prior-scene retention, retry, coverage metadata, and production review-status gating.
+- `src/utils/scene.test.ts` — parent inheritance, neutral units, historical identity continuity, new-entity white, fallback layering, and selected-scene finalization.
+- `src/utils/legend.test.ts` and `src/components/LegendEditor.test.tsx` — derivation, dormant metadata, labels/order, exact style sets, bounds, drag alternatives, 30-entry blocking, and export-safe overlay semantics.
+- `src/utils/storage.test.ts` and `src/components/SaveLoad.test.tsx` — V1 in-memory migration, V2 round trip, canonical camera/snapshot validation, partial recovery, no-write reads, confirmations, and focus restoration.
+- `src/utils/export.test.ts` — synchronous freeze/finalize/measure ordering, wrapped viewport/legend retention, sanitization, exact 1080×1080 opacity/DPR, safe filenames, connected-anchor handoff, and exact-once cleanup.
+- `src/components/ToastRegion.test.tsx` — every approved Phase 2 message category plus rejection of raw hashes, projection/schema/source terminology, stack traces, storage exception names, deferred copy, and arbitrary strings while preserving status/alert roles.
+- `src/styles/phase2CssContract.test.ts` — exact token values/allowed sets, 1200/900/768 contracts, 360px containment, no CSS order or duplicate-tree hiding, glass only on approved selectors, and no gradients/filters/export-map effects.
+- `tests/e2e/phase2-composition.spec.ts` — installed Chrome/Edge integrated camera, history, periods, legend, persistence, responsive, offline-after-load, accessibility, and downloaded-PNG flows.
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Historical visual and factual accuracy | NFR8, D-20–D-23 | Automated checks prove provenance/shape contracts, not historical truth | For each snapshot, compare every curated region against the cited atlas/source, record reviewer, source, date, known uncertainty, and signed approval; reject unapproved geometry. |
-| Physical multitouch pinch behavior | D-03, D-06, NFR11 | Desktop emulation does not certify real two-finger hardware behavior | On available touch hardware, verify midpoint anchoring, pinch zoom, one-finger drag, vertical clamp, date-line continuity, and accessible button alternatives. |
-| Screen-reader and focus-flow quality | D-06, NFR11 | Automated accessibility checks cannot certify announcement usefulness and workflow coherence | Run the complete camera, Locate, period, legend, save/load, and export flows by keyboard with the supported screen-reader/browser route; record focus order and announcements. |
-| Exact downloaded composition appearance | D-07–D-11 | Pixel assertions need human confirmation of clean composition and intended visual hierarchy | In Chrome and Edge, frame a date-line view, include a custom legend, export, verify 1080×1080 opaque output, viewport parity, no editor indicators, and no clipping/duplicate-world artifact. |
+| Behavior | Requirement | Blocking rule | Test instructions |
+|----------|-------------|---------------|-------------------|
+| Historical factual and visual accuracy | F2.3, NFR8, D-20–D-22 | Each of 1492/1700/1815/1914 requires explicit approval of six separate regional records; shared Poland–Lithuania geometry never merges Poland and Lithuania evidence | Compare every review panel against cited sources, rights, uncertainty, labels, identity continuity, and fallback; reject unsupported records. |
+| Physical multitouch pinch behavior | D-03, D-06, NFR11 | Real multitouch hardware is mandatory. If unavailable, final acceptance remains blocked/unverified and is never reported passed. | Verify one-finger drag, midpoint-anchored pinch, date-line continuity, pole clamp, no accidental selection, and visible Zoom/Pan alternatives. |
+| Screen-reader and focus-flow quality | D-06, NFR11 | Name the actual screen-reader/browser route; unavailable routes remain unverified | Complete camera, Locate, period, legend, save/load, and export flows; verify one logical country, focus continuity, and useful announcements. |
+| Exact downloaded composition appearance | D-07–D-11 | Human inspection supplements, but never replaces, automated PNG dimension/content checks | In Chrome and Edge export a Pacific historical view during camera movement/crossfade with a custom legend; verify exact framing, opacity, no seams/editor chrome, and unchanged approved history bytes. |
+| Maximum zoom corrective acceptance | D-06, D-15–D-17 | `MAX_ZOOM=24` is the implementation value. Failure creates a named gap-closure plan; the final gate cannot tune it inline. | Locate and inspect Vatican, Monaco, small islands, and date-line states with pointer, keyboard, and button controls. |
 
 ---
 
-## Threat References
+## Dependency and Supply-Chain Gates
 
-- **T-02-01:** Stored XSS or unsafe nested keys through localStorage map names, legend labels, IDs, or color dictionaries.
-- **T-02-02:** Non-finite/extreme camera values causing blank scenes, unreachable controls, or excessive work.
-- **T-02-03:** Malformed, substituted, or unexpectedly large GeoJSON/snapshot assets causing incorrect output or resource exhaustion.
-- **T-02-04:** Oversized/deep saved JSON exhausting the main thread or storage quota.
-- **T-02-05:** Persisted raw CSS/style strings causing CSS injection or unsupported export effects.
-- **T-02-06:** Remote/tainted resources or unsupported visual effects breaking deterministic export.
-- **T-02-07:** Unsafe filenames or incomplete anchor/object-URL/frame cleanup during download.
+- Exact approved packages only: `mapshaper@0.7.48` and `@playwright/test@1.61.1`; no Playwright-managed browser download.
+- Source validation precedes generation for every historical snapshot. Generation always uses a named actual source/tracing input artifact and a separate output path.
+- Plans 02-13 through 02-16 remain blocking factual/source/license checkpoints; Plan 02-17 publishes approved bytes while unlisted, verifies them, and updates the production catalog last.
+- Plan 02-28 never substitutes emulation for physical pinch or automation for historical factual review.
+
+---
+
+## Multi-Source Coverage Audit
+
+| Source | IDs / scope | Plan coverage | Status |
+|--------|-------------|---------------|--------|
+| GOAL | One browser-only wrapped world composer with reviewed history, legend, complete saves, and exact visible PNG | 02-02 through 02-24; gates 02-27/02-28 | COVERED |
+| REQ | All Phase 2 ROADMAP requirement IDs F1.1–F7.3 and NFR1–NFR11 listed for the phase | Distributed across all 28 plan frontmatter requirement lists; immutable aggregate gate in 02-27 | COVERED |
+| RESEARCH | Fixed Mercator camera, 195/248 world asset, neutral ambiguity policy, deterministic historical CLI/provenance, SVG legend, V2 persistence, exact export, Playwright, CSS preferences | 02-01, 02-04–02-24, 02-27/02-28 | COVERED |
+| CONTEXT | Locked decisions D-01 through D-29 | Referenced in must-have truths and task actions across the plan set | COVERED |
+| DEFERRED | Animation/video/batch, POV switching, artificial markers/insets, cloud/auth/deployment/backend | Explicitly excluded; no implementation task | EXCLUDED BY DECISION |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verification or explicit Wave 0 dependencies.
-- [ ] Sampling continuity: no 3 consecutive implementation tasks without automated verification.
-- [ ] Wave 0 covers every currently missing test/config reference.
-- [ ] No watch-mode flags are used in verification commands.
-- [ ] Focused feedback latency remains under 30 seconds.
-- [ ] Browser and manual-only gates are attached to the plans that create the relevant behavior.
-- [ ] `nyquist_compliant: true` and `wave_0_complete: true` are set only after the plan checker confirms full task mapping.
+- [x] Every task has an `<automated>` verification command and a required final green state.
+- [x] RED-only task splits were removed from Plans 02-03, 02-06, 02-08, 02-11, 02-19, 02-20, 02-21, and 02-23.
+- [x] Historical source validation/generation/tamper/`--check` and snapshot-loader behavior have dedicated planned fixtures/tests.
+- [x] Toast and CSS/UI contracts have source-owned deterministic test files.
+- [x] Dependency graph and same-wave file ownership are validated separately before commit.
+- [x] No watch-mode command appears in the plan map.
+- [x] `nyquist_compliant: true` records a complete plan-level sampling contract only; it does not claim any task has executed.
+- [ ] `wave_0_complete: true` remains false until execution creates and passes the planned infrastructure/tests.
 
-**Approval:** pending plan generation and checker verification
+**Approval:** plan-level validation map complete; execution pending

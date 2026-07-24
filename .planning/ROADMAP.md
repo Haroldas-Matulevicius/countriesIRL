@@ -160,19 +160,19 @@ Plans:
 
 **Wave 4**
 - [ ] 02-07-PLAN.md — Wire D3 zoom, transform-only wrapped worlds, and one logical accessible country copy
+- [ ] 02-19-PLAN.md — Upgrade localStorage to validated V2 complete compositions with canonical camera and V1 migration
 - [ ] 02-13-PLAN.md — Curate and factually approve the 1492 snapshot for all six regions
 - [ ] 02-14-PLAN.md — Curate and factually approve the 1700 snapshot for all six regions
 - [ ] 02-15-PLAN.md — Curate and factually approve the 1815 snapshot for all six regions
 - [ ] 02-16-PLAN.md — Curate and factually approve the 1914 snapshot for all six regions
 
 **Wave 5**
-- [ ] 02-08-PLAN.md — Add accessible Zoom/Pan/Reset View controls
+- [ ] 02-08-PLAN.md — Add the exact accessible Zoom In, Zoom Out, Move Map, and pan-popover controls
 - [ ] 02-09-PLAN.md — Add world country search, Select Visible, and separate Locate workflow
 - [ ] 02-17-PLAN.md — Promote only the four approved historical assets into the production catalog
 
 **Wave 6**
-- [ ] 02-18-PLAN.md — Integrate period selection, fallback status, complete-state crossfade, and period-aware tooltips
-- [ ] 02-19-PLAN.md — Upgrade localStorage to validated V2 complete compositions with V1 migration
+- [ ] 02-18-PLAN.md — Integrate period selection, sole Reset View ownership, fallback status, complete-state crossfade, and period-aware tooltips
 
 **Wave 7**
 - [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions, migration copy, and confirmations
@@ -220,7 +220,7 @@ Cross-cutting constraints:
 - One logical accessible path per entity plus decorative wrapped copies
 - Deterministic effective scene and legend models
 - Export-safe editable SVG legend with label/order/theme/size/opacity/border/corner/custom controls and overflow blocking
-- Provenance-gated historical engine plus approved 1492, 1700, 1815, and 1914 overlays for Poland-Lithuania, Hungary, Balkans, Iberia, and Scandinavia
+- Provenance-gated historical engine plus approved 1492, 1700, 1815, and 1914 overlays with separate Poland, Lithuania, Hungary, Balkans, Iberia, and Scandinavia coverage/review records
 - Persistent historical coverage/fallback status, period-aware tooltips, and accessible complete-state crossfade
 - Versioned V2 complete-composition local persistence with safe Phase 1 migration
 - Exact current-viewport PNG export including legend and historical/fallback state
