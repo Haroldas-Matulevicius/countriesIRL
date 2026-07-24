@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -264,13 +265,13 @@ export async function createHistoricalCliFixture(
     memberInventory,
     inputGeometrySha256: sha256(inputBytes),
     preparation:
-      mode === 'vector-extraction'
+      preparation.mode === 'vector-extraction'
         ? {
-            mode,
+            mode: preparation.mode,
             extractionSpecificationSha256: preparation.extractionSpecification.sha256,
           }
         : {
-            mode,
+            mode: preparation.mode,
             evidenceSha256: preparation.evidence.sha256,
             procedureSha256: preparation.procedure.sha256,
             operatorRecordSha256: preparation.operatorRecord.sha256,
@@ -321,27 +322,36 @@ async function createManualPreparation(sourceDir: string): Promise<{
   readonly operatorRecord: { readonly path: string; readonly sha256: string };
   readonly controlPoints: { readonly path: string; readonly sha256: string };
 }> {
-  const records = {
-    evidence: ['1700.trace-evidence.txt', 'licensed atlas trace evidence\n'],
-    procedure: ['1700.trace-procedure.txt', 'manual trace procedure version 1\n'],
-    operatorRecord: ['1700.trace-operator.json', '{"operator":"Independent Tracer"}\n'],
-    controlPoints: ['1700.control-points.json', '{"points":[[18,49],[25,55]]}\n'],
-  } as const;
-  const result: Record<string, { path: string; sha256: string }> = {};
-  for (const [key, [fileName, content]] of Object.entries(records)) {
+  async function writeReference(
+    fileName: string,
+    content: string,
+  ): Promise<{ readonly path: string; readonly sha256: string }> {
     const bytes = Buffer.from(content, 'utf8');
     await writeFile(join(sourceDir, fileName), bytes);
-    result[key] = {
+    return {
       path: `sources/historical/${fileName}`,
       sha256: sha256(bytes),
     };
   }
+
+  const [evidence, procedure, operatorRecord, controlPoints] = await Promise.all([
+    writeReference('1700.trace-evidence.txt', 'licensed atlas trace evidence\n'),
+    writeReference('1700.trace-procedure.txt', 'manual trace procedure version 1\n'),
+    writeReference(
+      '1700.trace-operator.json',
+      '{"operator":"Independent Tracer"}\n',
+    ),
+    writeReference(
+      '1700.control-points.json',
+      '{"points":[[18,49],[25,55]]}\n',
+    ),
+  ]);
   return {
     mode: 'manual-trace',
-    evidence: result.evidence,
-    procedure: result.procedure,
-    operatorRecord: result.operatorRecord,
-    controlPoints: result.controlPoints,
+    evidence,
+    procedure,
+    operatorRecord,
+    controlPoints,
   };
 }
 

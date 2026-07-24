@@ -5,6 +5,7 @@ import type { HistoricalRegionId } from '../types/composition';
 import {
   calculateSha256,
   createCanonicalMemberInventory,
+  HISTORICAL_SNAPSHOT_DATES,
   isProductionSelectableSnapshot,
   validateFactualApproval,
   validateHistoricalAsset,
@@ -101,6 +102,7 @@ async function createFixture(
 
   const manifest: HistoricalSourceReadinessManifest = {
     snapshotId: '1700',
+    asOf: '1700-01-01',
     evidenceArchive: {
       path: 'sources/historical/1700.evidence.zip',
       sha256: await calculateSha256(archiveBytes),
@@ -229,6 +231,15 @@ async function createFixture(
 }
 
 describe('historical source readiness', (): void => {
+  it('uses the adjudicated exact dates for every curated snapshot', (): void => {
+    expect(HISTORICAL_SNAPSHOT_DATES).toEqual({
+      '1492': '1492-01-03',
+      '1700': '1700-01-01',
+      '1815': '1815-12-31',
+      '1914': '1914-07-27',
+    });
+  });
+
   it('accepts exactly six separate rights-approved regional records', async (): Promise<void> => {
     const fixture = await createFixture();
 

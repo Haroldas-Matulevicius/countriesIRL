@@ -1,7 +1,9 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -242,7 +244,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     await writeFile(fixture.inputPath, 'changed input bytes\n', 'utf8');
     const stale = await runCli(fixture, generationArguments(fixture));
     expect(stale.status).not.toBe(0);
-    expect(stale.stderr).toContain('input');
+    expect(stale.stderr).toMatch(/input/i);
     expect(await fileExists(fixture.outputPath)).toBe(false);
   });
 

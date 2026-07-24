@@ -23,6 +23,15 @@ const MAX_STRING_LENGTH = 2_048;
 const MAX_PATH_LENGTH = 240;
 const MAX_ASSET_FEATURES = 10_000;
 const FORBIDDEN_REVIEWER_PATTERN = /\b(?:executor|implementer|claude|codex)\b/i;
+export const HISTORICAL_SNAPSHOT_DATES: Readonly<
+  Record<HistoricalSnapshotId, string>
+> = {
+  '1492': '1492-01-03',
+  '1700': '1700-01-01',
+  '1815': '1815-12-31',
+  '1914': '1914-07-27',
+};
+
 const HISTORICAL_IDS = new Set<HistoricalSnapshotId>(['1492', '1700', '1815', '1914']);
 const SNAPSHOT_IDS = new Set<string>(SNAPSHOT_CATALOG.map(({ id }) => id));
 const HISTORICAL_REGION_ID_SET = new Set<HistoricalRegionId>(HISTORICAL_REGION_IDS);
@@ -72,6 +81,7 @@ export type HistoricalSourcePreparation =
 
 export interface HistoricalSourceReadinessManifest {
   readonly snapshotId: HistoricalSnapshotId;
+  readonly asOf: string;
   readonly evidenceArchive: HistoricalFileReference & {
     readonly memberInventorySha256: string;
     readonly members: ReadonlyArray<EvidenceArchiveMember>;
@@ -415,6 +425,7 @@ export function validateSourceReadinessManifest(
   const inputGeometry = readFileReference(input.inputGeometry);
   if (
     snapshotId === null ||
+    input.asOf !== HISTORICAL_SNAPSHOT_DATES[snapshotId] ||
     inputGeometry === null ||
     !isRecord(input.evidenceArchive)
   ) {
@@ -519,6 +530,7 @@ export function validateSourceReadinessManifest(
     ok: true,
     value: {
       snapshotId,
+      asOf: HISTORICAL_SNAPSHOT_DATES[snapshotId],
       evidenceArchive: {
         path: archivePath,
         sha256: input.evidenceArchive.sha256,
