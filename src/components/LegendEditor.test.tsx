@@ -11,6 +11,11 @@ import {
   resolveLegendLabelCommit,
 } from './LegendEditor';
 import type { LegendEditorCommands } from './LegendEditor';
+import {
+  LegendOverlay,
+  clampLegendDragPosition,
+  getLegendOverlayBounds,
+} from './LegendOverlay';
 
 const TEST_BOUNDS: LegendBounds = { width: 360, height: 240 };
 const TEST_LEGEND: LegendState = {
@@ -116,6 +121,52 @@ describe('LegendEditor static semantics', (): void => {
       'Color at least one country to create the first legend entry.',
     );
     expect(markup).toContain('<fieldset disabled=""');
+  });
+});
+
+describe('LegendOverlay export-safe SVG', (): void => {
+  it('renders one group-only root with deterministic SVG primitives and editor-only movement', (): void => {
+    const bounds = getLegendOverlayBounds(TEST_LEGEND, [
+      '#DC2626',
+      '#2563EB',
+    ]);
+    const markup = renderToStaticMarkup(
+      <svg viewBox="0 0 1080 1080">
+        <LegendOverlay
+          legend={TEST_LEGEND}
+          effectiveColors={['#DC2626', '#2563EB']}
+          onPositionChange={vi.fn()}
+          onStatusMessage={vi.fn()}
+        />
+      </svg>,
+    );
+    const overlayMarkup = markup.slice(markup.indexOf('<g data-layer="legend"'));
+
+    expect(bounds).toEqual({ width: 336, height: 152 });
+    expect(overlayMarkup.startsWith('<g data-layer="legend"')).toBe(true);
+    expect(overlayMarkup).not.toContain('<svg');
+    expect(overlayMarkup).not.toContain('<div');
+    expect(overlayMarkup).not.toContain('<foreignObject');
+    expect(overlayMarkup).not.toContain('filter=');
+    expect(overlayMarkup).not.toContain('style=');
+    expect(overlayMarkup).toContain('transform="translate(688 32)"');
+    expect(overlayMarkup).toContain('fill="#FFFFFF"');
+    expect(overlayMarkup).toContain('fill-opacity="0.9"');
+    expect(overlayMarkup).toContain('stroke="#CBD5E1"');
+    expect(overlayMarkup).toContain('stroke-width="2"');
+    expect(overlayMarkup).toContain('<text');
+    expect(overlayMarkup).toContain('aria-hidden="true"');
+    expect(overlayMarkup).toContain('data-editor-only="true"');
+    expect(overlayMarkup).toContain('aria-label="Move legend"');
+  });
+
+  it('clamps pointer movement to the canonical 32-unit safe inset', (): void => {
+    expect(
+      clampLegendDragPosition(
+        { x: -500, y: 2000, preset: null },
+        { width: 336, height: 152 },
+      ),
+    ).toEqual({ x: 32, y: 896, preset: null });
   });
 });
 
