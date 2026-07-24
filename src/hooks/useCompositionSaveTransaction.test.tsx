@@ -221,10 +221,12 @@ describe('createCompositionSaveTransaction', (): void => {
 
   it('marks the exact assembled baseline only after storage success', (): void => {
     const quotaFailure = createDependencies({
-      saveComposition: vi.fn(() => ({
-        ok: false,
-        reason: 'quota-exceeded',
-      })),
+      saveComposition: vi.fn(
+        (): StorageResult<SaveMapValue> => ({
+          ok: false,
+          reason: 'quota-exceeded',
+        }),
+      ),
     });
 
     expect(
