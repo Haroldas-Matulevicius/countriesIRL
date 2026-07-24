@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { STORAGE_KEY } from '../../src/constants/config';
+
 const LOGICAL_CORE_COUNT = 195;
 const VISIBLE_MODERN_UNIT_COUNT = 248;
 const WRAPPED_PATH_COUNT = VISIBLE_MODERN_UNIT_COUNT * 3;
@@ -32,10 +34,21 @@ async function waitForWorld(page: Page): Promise<void> {
   );
 }
 
+async function waitForApp(page: Page): Promise<void> {
+  await page.goto('/');
+  await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
+    LOGICAL_CORE_COUNT,
+  );
+  const startColoring = page.getByRole('button', { name: 'Start Coloring' });
+  if (await startColoring.isVisible()) {
+    await startColoring.click();
+  }
+}
+
 async function readCameraTransform(
   page: Page,
 ): Promise<{ k: number; x: number; y: number }> {
-  return page.locator(CAMERA_GROUP_SELECTOR).evaluate((element) => {
+  return page.locator(CAMERA_GROUP_SELECTOR).first().evaluate((element) => {
     const group = element as SVGGElement;
     const matrix = group.transform.baseVal.consolidate()?.matrix;
     if (matrix === undefined) {
@@ -268,4 +281,192 @@ test('camera freeze uses one visible controller handle and renews input', async 
   expect(
     await page.evaluate((): number => (window as typeof window & { readonly __cameraFixture: CameraFixtureApi }).__cameraFixture.controllerFactoryCalls),
   ).toBe(1);
+});
+
+test('real app navigation controls move the sole live D3 camera accessibly', async ({
+  page,
+}): Promise<void> => {
+  await waitForApp(page);
+
+  const navigation = page.getByLabel('Map navigation');
+  const zoomIn = page.getByRole('button', { name: 'Zoom In' });
+  const zoomOut = page.getByRole('button', { name: 'Zoom Out' });
+  const moveMap = page.getByRole('button', { name: 'Move Map' });
+
+  await expect(navigation).toBeVisible();
+  await expect(zoomOut).toBeDisabled();
+  await zoomIn.focus();
+  await expect(zoomIn).toBeFocused();
+  await zoomIn.press('Enter');
+
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBe(1.5);
+  const zoomed = await readCameraTransform(page);
+  expect(zoomed.x).toBeCloseTo(-270, 5);
+  expect(zoomed.y).toBeCloseTo(-270, 5);
+
+  await moveMap.click();
+  await expect(page.getByRole('group', { name: 'Move map' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pan Right' }).click();
+
+  const panned = await readCameraTransform(page);
+  expect(panned.k).toBeCloseTo(1.5, 5);
+  expect(panned.x - zoomed.x).toBeCloseTo(-135, 5);
+  expect(panned.y).toBeCloseTo(zoomed.y, 5);
+});
+
+test('real app saves and loads the complete composition after responsive rebinding', async ({
+  page,
+}): Promise<void> => {
+  await waitForApp(page);
+  await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
+
+  const francePath = page.locator(
+    'path.country-path[data-country-id="FRA"]',
+  );
+  await francePath.focus();
+  await francePath.press('Enter');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  await page.getByRole('button', { name: 'Move Map' }).click();
+  await page.getByRole('button', { name: 'Pan Right' }).click();
+  const savedTransform = await readCameraTransform(page);
+
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page.getByRole('textbox', { name: 'Map name' }).fill('Integrated view');
+  await page.getByRole('button', { name: 'Save Current Map' }).click();
+
+  const savedEvidence = await page.evaluate((storageKey) => {
+    const raw = localStorage.getItem(storageKey);
+    if (raw === null) {
+      throw new Error('Saved composition is missing.');
+    }
+    const records = JSON.parse(raw) as Array<{
+      schemaVersion: number;
+      composition: {
+        colors: Record<string, string>;
+        camera: { zoom: number };
+        snapshotId: string;
+        legend: { entries: unknown[] };
+        settings: { backgroundColor: string };
+      };
+    }>;
+    const record = records[0];
+    if (record === undefined) {
+      throw new Error('Saved composition record is missing.');
+    }
+    return {
+      schemaVersion: record.schemaVersion,
+      color: record.composition.colors.FRA,
+      zoom: record.composition.camera.zoom,
+      snapshotId: record.composition.snapshotId,
+      hasLegend: Array.isArray(record.composition.legend.entries),
+      backgroundColor: record.composition.settings.backgroundColor,
+    };
+  }, STORAGE_KEY);
+
+  expect(savedEvidence).toMatchObject({
+    schemaVersion: 2,
+    zoom: 1.5,
+    snapshotId: 'modern',
+    hasLegend: true,
+    backgroundColor: '#FFFFFF',
+  });
+  expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);
+
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page.getByRole('button', { name: 'Reset All Colors' }).click();
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--compact/,
+  );
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--desktop/,
+  );
+
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page.getByRole('button', { name: 'Load This Map: Integrated view' }).click();
+  await expect(page.getByRole('dialog', { name: 'Save or load maps' })).toHaveCount(0);
+
+  const loadedTransform = await readCameraTransform(page);
+  expect(loadedTransform.k).toBeCloseTo(savedTransform.k, 5);
+  expect(loadedTransform.x).toBeCloseTo(savedTransform.x, 5);
+  expect(loadedTransform.y).toBeCloseTo(savedTransform.y, 5);
+  await expect(
+    page.locator('path.country-path[data-country-id="FRA"]'),
+  ).toHaveAttribute('fill', savedEvidence.color);
+
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBeGreaterThan(savedTransform.k);
+});
+
+test('real app export failure and frozen load both release without false success', async ({
+  page,
+}): Promise<void> => {
+  page.on('download', (download): void => {
+    void download.cancel();
+  });
+  await waitForApp(page);
+  await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
+
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page.getByRole('textbox', { name: 'Map name' }).fill('Freeze baseline');
+  await page.getByRole('button', { name: 'Save Current Map' }).click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  const beforeFrozenLoad = await readCameraTransform(page);
+
+  await page.evaluate((): void => {
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function delayedToBlob(
+      callback: BlobCallback,
+      type?: string,
+      quality?: number,
+    ): void {
+      window.setTimeout((): void => {
+        originalToBlob.call(this, callback, type, quality);
+      }, 1_000);
+    };
+  });
+
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByRole('button', { name: 'Exporting PNG…' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page.getByRole('button', { name: 'Load This Map: Freeze baseline' }).click();
+  await expect(page.getByText('Finish the current export before loading a saved composition.')).toBeVisible();
+  expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
+
+  await expect(page.getByRole('button', { name: 'Export PNG' })).toBeVisible({
+    timeout: 10_000,
+  });
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page.getByRole('button', { name: 'Zoom Out' }).click();
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBeLessThan(beforeFrozenLoad.k);
+
+  await page.evaluate((): void => {
+    HTMLCanvasElement.prototype.toBlob = function failedToBlob(
+      callback: BlobCallback,
+    ): void {
+      callback(null);
+    };
+  });
+  const beforeFailedExport = await readCameraTransform(page);
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(
+    page.getByText(
+      'The PNG could not be created. Refresh the page and try Export PNG again.',
+    ),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Zoom In' }).click();
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBeGreaterThan(beforeFailedExport.k);
 });
