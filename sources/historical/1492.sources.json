@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 3,
+  "packetKind": "candidate-reviewer",
+  "snapshotId": "1492",
+  "asOf": "1492-01-03",
+  "dateContract": {
+    "displayDate": "1492-01-03",
+    "displayCalendar": "julian",
+    "normalizedAsOf": "1492-01-12",
+    "normalizedCalendar": "proleptic-gregorian",
+    "dayBoundary": "start-of-day",
+    "validityInterval": "half-open"
+  },
+  "readinessStatus": "blocked",
+  "deliveryCounted": false,
+  "snapshotPass": false,
+  "productionReady": false,
+  "catalogEligible": false,
+  "blockers": [
+    "RIGHTS_REVIEW_REQUIRED",
+    "AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING",
+    "MANUAL_TRACE_OPERATOR_CONTROL_POINTS_AND_GEOMETRY_MISSING",
+    "REVERSE_1494_FACTUAL_REVIEW_REQUIRED",
+    "CNIG_15094_PRODUCT_ARCHIVE_AND_MEMBER_HASHES_MISSING",
+    "1492_SIX_REGION_EXACT_GEOMETRY_INCOMPLETE",
+    "TOPOLOGY_AND_1080PX_REVIEW_REQUIRED"
+  ],
+  "approvals": {
+    "sourceRights": null,
+    "factual": null,
+    "topology": null,
+    "reviewerSignature": null,
+    "productionReadiness": null
+  },
+  "evidenceArchive": {
+    "path": "sources/historical/1492.evidence.zip",
+    "sha256": "9d1a124695ad4aecf601e229fbb0804cd52888430ae2628e61545e05640f7c79",
+    "memberInventorySha256": "a4e3e284f63ad8ee9662f9df657f0a08afe2bcb54c87f4ff10e78f3ea8caf80b",
+    "members": [
+      {
+        "path": "README.txt",
+        "sha256": "7808507b4ec662c4793b11cd3ed1a5fee644646e4d09e79380a8fec1f2efc058"
+      },
+      {
+        "path": "licenses/cliopatria-v0.2.0-LICENSE.md",
+        "sha256": "62ca7e92dee4ebe402372d5e64f87845de445a6c0e5d76fddb68b3e33739d1a6"
+      },
+      {
+        "path": "metadata/cliopatria-v0.2.0-README.md",
+        "sha256": "25a2723e607dd03b01cfa0c9e0ecc83ea3e4c227198bd77faee04c3646be46b8"
+      },
+      {
+        "path": "metadata/cnig-15094-download-response.html",
+        "sha256": "19cf7de8b30423769656b9b4d2fd6831eea7c61853a0d670266ec50023d67f03"
+      },
+      {
+        "path": "research/historical-source-evidence-matrix.md",
+        "sha256": "b9c16025eb3722b61815d0520feae128d216a13279d1f1806123d58d3100f804"
+      },
+      {
+        "path": "reviews/1492-balkans.json",
+        "sha256": "dd7dda91ed990083cd2998a08a1f1b871a51aa4acc1d49c2b49c6b7d5f49356b"
+      },
+      {
+        "path": "reviews/1492-hungary.json",
+        "sha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0"
+      },
+      {
+        "path": "reviews/1492-iberia.json",
+        "sha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2"
+      },
+      {
+        "path": "reviews/1492-lithuania.json",
+        "sha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632"
+      },
+      {
+        "path": "reviews/1492-poland.json",
+        "sha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb"
+      },
+      {
+        "path": "reviews/1492-scandinavia.json",
+        "sha256": "0b5279ead7b0bc170be30126023ba12328b95da407c22ecb927bca4589cfdb25"
+      },
+      {
+        "path": "source-locks/1492-source-locks.json",
+        "sha256": "ccc29c5db2479bd18d0dfe746990d7844d305892d5ef59e3cd49cdae596dede5"
+      },
+      {
+        "path": "source-records/cliopatria-06999-principality-of-wallachia.geojson",
+        "sha256": "b95de46813c4da365bda4df30433933e2d5b5fa71d46da6d94bf1c07288bd119"
+      },
+      {
+        "path": "source-records/cliopatria-07055-republic-of-ragusa.geojson",
+        "sha256": "b84946b0fc1a72399c4c7a16f9538144c7d48dc18601426bb3ad0d763b2a61e0"
+      },
+      {
+        "path": "source-records/cliopatria-07513-crown-of-aragon.geojson",
+        "sha256": "6bf2e42e4711bdd1abe2ff2213b7831653c61dc197450125532fe84c3316bb86"
+      },
+      {
+        "path": "source-records/cliopatria-07546-kalmar-union.geojson",
+        "sha256": "b26ccdf784ad1e4d2511b86cd4c989fe30b29098d917b3a96ab45e66710bb072"
+      },
+      {
+        "path": "source-records/cliopatria-07584-principality-of-moldavia.geojson",
+        "sha256": "6ec099918b51167f0405af3af2263239ce9b548730044a9a4b8b95de5c8cefe5"
+      },
+      {
+        "path": "source-records/cliopatria-07602-crown-of-castile.geojson",
+        "sha256": "2167497938700daf9a2f05320703b4c386b4cfd8b76967ff98760b286a69a5f5"
+      },
+      {
+        "path": "source-records/cliopatria-07603-kingdom-of-hungary.geojson",
+        "sha256": "f10b1909ad41cac35935461c6ac9875b905f2a9a9199c763a539bf5b903c1c7f"
+      },
+      {
+        "path": "source-records/cliopatria-07618-house-of-jagiellon.geojson",
+        "sha256": "34f8697ef911be2d713c111e2c6fbddcb8ce68bc45750fa0ca2c0a0eb90e0a64"
+      },
+      {
+        "path": "source-records/cliopatria-07629-ottoman-empire.geojson",
+        "sha256": "36ea35349f7f6b7c2ad9238230d37e20fe465fce02d71c99f6ea04773db34dbf"
+      },
+      {
+        "path": "source-records/cliopatria-07630-republic-of-venice.geojson",
+        "sha256": "543a603edecea9069211e4a97d10f711a096cf8a1b631a1cea848c1ff847d6ea"
+      },
+      {
+        "path": "source-records/cliopatria-07635-kingdom-of-portugal.geojson",
+        "sha256": "857d8f75038f6f3b62167b7e16976e86b6749b038a7b4eeb44ec269b5ddb48a6"
+      },
+      {
+        "path": "sources/semkowicz-romer-1929-current-hosted-scan.jpg",
+        "sha256": "955293f5b80ee2ca9574574fcb0d3710fc78c3d0bf4f59de5be2e21edb9bdb0b"
+      },
+      {
+        "path": "specifications/1492-date-and-identity.json",
+        "sha256": "c31419f088611e995249eebe740f14a2cefe5d267ffbf1824b7120f34a8a4cda"
+      },
+      {
+        "path": "specifications/1492-manual-trace-candidate.json",
+        "sha256": "780634addfa79cba8f369867c0fe5d28659691372ffc390db690ab89322275fd"
+      }
+    ]
+  },
+  "inputGeometry": {
+    "path": "sources/historical/1492.input.geojson",
+    "sha256": "1eb10d280ac5fe366b4d4e1a7246bc1c1e0e4126bca543be32d15a61734ef749",
+    "candidateGenerated": false
+  },
+  "preparation": {
+    "mode": "blocked",
+    "reason": "The packet binds candidate evidence for review but lacks approved exact production geometry and every required independent approval.",
+    "manualTrace": {
+      "evidenceSha256": "955293f5b80ee2ca9574574fcb0d3710fc78c3d0bf4f59de5be2e21edb9bdb0b",
+      "procedureSha256": "780634addfa79cba8f369867c0fe5d28659691372ffc390db690ab89322275fd",
+      "operatorRecordSha256": null,
+      "controlPointsSha256": null,
+      "tracedGeoJsonSha256": null
+    }
+  },
+  "geometryPolicy": {
+    "longitudeDomain": "[-180,180]",
+    "coverageContainersArePoliticalEntities": false,
+    "sourceBoundaryArcsSeparatedFromGeneratedMaskEdges": true,
+    "generatedMaskEdgesPolitical": false,
+    "generatedMaskEdgesSelectable": false,
+    "generatedMaskEdgesExportVisibleAsPoliticalBorders": false
+  },
+  "reviewerPacket": {
+    "status": "candidate-blocked",
+    "hashInvalidationRule": "Changing any listed byte invalidates every future approval.",
+    "artifacts": [
+      {
+        "path": "reviews/1492-balkans.json",
+        "sha256": "dd7dda91ed990083cd2998a08a1f1b871a51aa4acc1d49c2b49c6b7d5f49356b"
+      },
+      {
+        "path": "reviews/1492-hungary.json",
+        "sha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0"
+      },
+      {
+        "path": "reviews/1492-iberia.json",
+        "sha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2"
+      },
+      {
+        "path": "reviews/1492-lithuania.json",
+        "sha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632"
+      },
+      {
+        "path": "reviews/1492-poland.json",
+        "sha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb"
+      },
+      {
+        "path": "reviews/1492-scandinavia.json",
+        "sha256": "0b5279ead7b0bc170be30126023ba12328b95da407c22ecb927bca4589cfdb25"
+      },
+      {
+        "path": "source-locks/1492-source-locks.json",
+        "sha256": "ccc29c5db2479bd18d0dfe746990d7844d305892d5ef59e3cd49cdae596dede5"
+      },
+      {
+        "path": "specifications/1492-date-and-identity.json",
+        "sha256": "c31419f088611e995249eebe740f14a2cefe5d267ffbf1824b7120f34a8a4cda"
+      },
+      {
+        "path": "specifications/1492-manual-trace-candidate.json",
+        "sha256": "780634addfa79cba8f369867c0fe5d28659691372ffc390db690ab89322275fd"
+      }
+    ],
+    "sourceRightsDecision": null,
+    "factualDecision": null,
+    "topologyDecision": null,
+    "reviewerSignature": null,
+    "productionReadinessDecision": null
+  },
+  "regions": [
+    {
+      "regionId": "poland",
+      "coverageContainerId": "coverage:1492:poland",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-poland.json",
+      "evidenceSha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb",
+      "entityIds": [
+        "hist:crown-of-kingdom-of-poland"
+      ],
+      "colorOwnerIds": [
+        "hist:crown-of-kingdom-of-poland"
+      ],
+      "sourceFeatureIds": [],
+      "uncertainties": [
+        "AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING",
+        "ITEM_SPECIFIC_PRODUCTION_RIGHTS_REVIEW_REQUIRED",
+        "REVERSE_1494_FACTUAL_REVIEW_REQUIRED",
+        "DE_JURE_EFFECTIVE_CONTROL_POLICY_REQUIRED",
+        "LINE_STYLE_LEGIBILITY_REVIEW_REQUIRED",
+        "SHARED_CROWN_GDL_ARC_TOPOLOGY_REVIEW_REQUIRED",
+        "REVIEW_AT_1080PX_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "lithuania",
+      "coverageContainerId": "coverage:1492:lithuania",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-lithuania.json",
+      "evidenceSha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632",
+      "entityIds": [
+        "hist:grand-duchy-of-lithuania"
+      ],
+      "colorOwnerIds": [
+        "hist:grand-duchy-of-lithuania"
+      ],
+      "sourceFeatureIds": [],
+      "uncertainties": [
+        "AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING",
+        "ITEM_SPECIFIC_PRODUCTION_RIGHTS_REVIEW_REQUIRED",
+        "REVERSE_1494_FACTUAL_REVIEW_REQUIRED",
+        "DE_JURE_EFFECTIVE_CONTROL_POLICY_REQUIRED",
+        "LINE_STYLE_LEGIBILITY_REVIEW_REQUIRED",
+        "SHARED_CROWN_GDL_ARC_TOPOLOGY_REVIEW_REQUIRED",
+        "REVIEW_AT_1080PX_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "hungary",
+      "coverageContainerId": "coverage:1492:hungary",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-hungary.json",
+      "evidenceSha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0",
+      "entityIds": [
+        "hist:kingdom-of-hungary"
+      ],
+      "colorOwnerIds": [
+        "hist:kingdom-of-hungary"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:7603"
+      ],
+      "uncertainties": [
+        "EXACT_DAY_FACTUAL_REVIEW_REQUIRED",
+        "TOPOLOGY_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "balkans",
+      "coverageContainerId": "coverage:1492:balkans",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "blocked",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-balkans.json",
+      "evidenceSha256": "dd7dda91ed990083cd2998a08a1f1b871a51aa4acc1d49c2b49c6b7d5f49356b",
+      "entityIds": [
+        "hist:ottoman-empire",
+        "hist:republic-of-venice",
+        "hist:republic-of-ragusa",
+        "hist:principality-of-wallachia",
+        "hist:principality-of-moldavia"
+      ],
+      "colorOwnerIds": [
+        "hist:ottoman-empire",
+        "hist:republic-of-venice",
+        "hist:republic-of-ragusa",
+        "hist:principality-of-wallachia",
+        "hist:principality-of-moldavia"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:7629",
+        "cliopatria:v0.2.0:feature-index:7630",
+        "cliopatria:v0.2.0:feature-index:7055",
+        "cliopatria:v0.2.0:feature-index:6999",
+        "cliopatria:v0.2.0:feature-index:7584"
+      ],
+      "uncertainties": [
+        "NON_OVERLAPPING_ALLOWLIST_REQUIRED",
+        "BOSNIA_SERBIA_CROATIA_STATUS_REVIEW_REQUIRED",
+        "EXACT_DAY_FACTUAL_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "iberia",
+      "coverageContainerId": "coverage:1492:iberia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-iberia.json",
+      "evidenceSha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2",
+      "entityIds": [
+        "hist:crown-of-castile",
+        "hist:crown-of-aragon",
+        "hist:kingdom-of-portugal",
+        "hist:kingdom-of-navarre"
+      ],
+      "colorOwnerIds": [
+        "hist:crown-of-castile",
+        "hist:crown-of-aragon",
+        "hist:kingdom-of-portugal",
+        "hist:kingdom-of-navarre"
+      ],
+      "sourceFeatureIds": [],
+      "uncertainties": [
+        "CNIG_PRODUCT_ARCHIVE_BYTES_AND_MEMBER_HASHES_MISSING",
+        "CNIG_ITEM_RIGHTS_REVIEW_REQUIRED",
+        "NAVARRE_EXACT_GEOMETRY_MISSING",
+        "EXACT_DAY_CORRECTIONS_AND_GRANADA_TRANSFER_REVIEW_REQUIRED",
+        "DIACHRONIC_THEMATIC_GEOMETRY_NOT_EXACT_DAY_PRODUCTION_DATA"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "scandinavia",
+      "coverageContainerId": "coverage:1492:scandinavia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "blocked",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1492-scandinavia.json",
+      "evidenceSha256": "0b5279ead7b0bc170be30126023ba12328b95da407c22ecb927bca4589cfdb25",
+      "entityIds": [
+        "hist:kingdom-of-denmark",
+        "hist:kingdom-of-norway",
+        "hist:kingdom-of-sweden"
+      ],
+      "colorOwnerIds": [
+        "hist:kingdom-of-denmark",
+        "hist:kingdom-of-norway",
+        "hist:kingdom-of-sweden"
+      ],
+      "sourceFeatureIds": [],
+      "uncertainties": [
+        "SEPARATE_DENMARK_NORWAY_SWEDEN_GEOMETRY_MISSING",
+        "EXACT_DAY_KALMAR_STATUS_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    }
+  ]
+}

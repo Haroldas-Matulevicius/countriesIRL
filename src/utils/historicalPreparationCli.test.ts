@@ -75,6 +75,38 @@ async function runCli(
   });
 }
 
+async function runRepositoryCli(argumentsInput: ReadonlyArray<string>): Promise<CliResult> {
+  const { spawn } = await import('node:child_process');
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, [CLI_PATH, ...argumentsInput], {
+      cwd: resolve(dirname(CLI_PATH), '..'),
+      env: { ...process.env, NO_PROXY: '*', HTTPS_PROXY: '', HTTP_PROXY: '' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const stdoutStream = child.stdout;
+    const stderrStream = child.stderr;
+    if (stdoutStream === null || stderrStream === null) {
+      child.kill();
+      rejectPromise(new Error('Historical CLI process did not expose piped output streams.'));
+      return;
+    }
+    stdoutStream.setEncoding('utf8');
+    stderrStream.setEncoding('utf8');
+    stdoutStream.on('data', (chunk: string): void => {
+      stdout += chunk;
+    });
+    stderrStream.on('data', (chunk: string): void => {
+      stderr += chunk;
+    });
+    child.once('error', rejectPromise);
+    child.once('close', (status): void => {
+      resolvePromise({ status, stdout, stderr });
+    });
+  });
+}
+
 function sourceArguments(fixture: HistoricalCliFixture): ReadonlyArray<string> {
   return [
     '--snapshot',
@@ -192,6 +224,61 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     ]);
     expect(drifted.status).not.toBe(0);
     expect(drifted.stderr).toContain('Input geometry SHA-256 drifted');
+  });
+
+  it('validates the real 1492 candidate packet without treating evidence as approval', async (): Promise<void> => {
+    const result = await runRepositoryCli([
+      '--snapshot',
+      '1492',
+      '--sources',
+      'sources/historical/1492.sources.json',
+      '--validate-sources',
+    ]);
+    const manifest = await readJsonRecord(
+      resolve(dirname(CLI_PATH), '../sources/historical/1492.sources.json'),
+    );
+    const regions = manifest.regions as Array<Record<string, unknown>>;
+    const byRegion = new Map(regions.map((region) => [region.regionId, region]));
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('1492 blocked source packet hashes passed offline');
+    expect(result.stderr).toContain('AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING');
+    expect(result.stderr).toContain('CNIG_15094_PRODUCT_ARCHIVE_AND_MEMBER_HASHES_MISSING');
+    expect(manifest.snapshotPass).toBe(false);
+    expect(manifest.productionReady).toBe(false);
+    expect(manifest.catalogEligible).toBe(false);
+    expect(manifest.approvals).toEqual({
+      sourceRights: null,
+      factual: null,
+      topology: null,
+      reviewerSignature: null,
+      productionReadiness: null,
+    });
+    expect(manifest.dateContract).toEqual({
+      displayDate: '1492-01-03',
+      displayCalendar: 'julian',
+      normalizedAsOf: '1492-01-12',
+      normalizedCalendar: 'proleptic-gregorian',
+      dayBoundary: 'start-of-day',
+      validityInterval: 'half-open',
+    });
+    expect(byRegion.get('poland')?.entityIds).toEqual([
+      'hist:crown-of-kingdom-of-poland',
+    ]);
+    expect(byRegion.get('lithuania')?.entityIds).toEqual([
+      'hist:grand-duchy-of-lithuania',
+    ]);
+    expect(byRegion.get('iberia')?.entityIds).toEqual([
+      'hist:crown-of-castile',
+      'hist:crown-of-aragon',
+      'hist:kingdom-of-portugal',
+      'hist:kingdom-of-navarre',
+    ]);
+    expect(byRegion.get('scandinavia')?.entityIds).toEqual([
+      'hist:kingdom-of-denmark',
+      'hist:kingdom-of-norway',
+      'hist:kingdom-of-sweden',
+    ]);
   });
 
   it('rejects missing rights and canonical archive-member drift', async (): Promise<void> => {

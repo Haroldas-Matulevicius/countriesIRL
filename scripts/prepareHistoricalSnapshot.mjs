@@ -11,6 +11,24 @@ const SNAPSHOT_DATES = Object.freeze({
   '1815': '1815-12-31',
   '1914': '1914-07-27',
 });
+const CANDIDATE_PACKET_DATE_CONTRACTS = Object.freeze({
+  '1492': Object.freeze({
+    displayDate: '1492-01-03',
+    displayCalendar: 'julian',
+    normalizedAsOf: '1492-01-12',
+    normalizedCalendar: 'proleptic-gregorian',
+    dayBoundary: 'start-of-day',
+    validityInterval: 'half-open',
+  }),
+  '1700': Object.freeze({
+    displayDate: '1700-01-01',
+    displayCalendar: 'historical-local-calendars',
+    normalizedAsOf: '1700-01-01',
+    normalizedCalendar: 'product-date-lock',
+    dayBoundary: 'start-of-day',
+    validityInterval: 'half-open',
+  }),
+});
 const REGION_IDS = Object.freeze([
   'poland',
   'lithuania',
@@ -281,6 +299,113 @@ function readBlockers(value) {
   return blockers;
 }
 
+function hasOnlyNullApprovalFields(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const expectedFields = [
+    'factual',
+    'productionReadiness',
+    'reviewerSignature',
+    'sourceRights',
+    'topology',
+  ];
+  const fields = Object.keys(value).sort();
+  return (
+    fields.length === expectedFields.length &&
+    fields.every((field, index) => field === expectedFields[index] && value[field] === null)
+  );
+}
+
+function arraysMatch(left, right) {
+  return (
+    Array.isArray(left) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function validateCandidateIdentityContract(value, snapshotId) {
+  const regionsById = new Map(value.regions.map((region) => [region.regionId, region]));
+  if (snapshotId === '1492') {
+    const poland = regionsById.get('poland');
+    const lithuania = regionsById.get('lithuania');
+    const iberia = regionsById.get('iberia');
+    const scandinavia = regionsById.get('scandinavia');
+    if (
+      !arraysMatch(poland?.entityIds, ['hist:crown-of-kingdom-of-poland']) ||
+      !arraysMatch(poland?.colorOwnerIds, ['hist:crown-of-kingdom-of-poland']) ||
+      !arraysMatch(lithuania?.entityIds, ['hist:grand-duchy-of-lithuania']) ||
+      !arraysMatch(lithuania?.colorOwnerIds, ['hist:grand-duchy-of-lithuania']) ||
+      !arraysMatch(iberia?.entityIds, [
+        'hist:crown-of-castile',
+        'hist:crown-of-aragon',
+        'hist:kingdom-of-portugal',
+        'hist:kingdom-of-navarre',
+      ]) ||
+      !arraysMatch(scandinavia?.entityIds, [
+        'hist:kingdom-of-denmark',
+        'hist:kingdom-of-norway',
+        'hist:kingdom-of-sweden',
+      ])
+    ) {
+      throw new Error('1492 candidate packet identity and color-owner contract drifted.');
+    }
+  }
+  if (snapshotId === '1700') {
+    const balkans = regionsById.get('balkans');
+    if (
+      !arraysMatch(balkans?.sourceFeatureIds, [
+        'cliopatria:v0.2.0:feature-index:7055',
+        'cliopatria:v0.2.0:feature-index:9361',
+        'cliopatria:v0.2.0:feature-index:9355',
+        'cliopatria:v0.2.0:feature-index:9390',
+        'cliopatria:v0.2.0:feature-index:9396',
+        'cliopatria:v0.2.0:feature-index:9391',
+      ])
+    ) {
+      throw new Error('1700 Balkans six-record candidate allowlist drifted.');
+    }
+  }
+}
+
+function readCandidateReviewerPacket(value, snapshotId, isBlocked) {
+  if (value.schemaVersion !== 3 && value.packetKind === undefined) {
+    return null;
+  }
+  const expectedDateContract = CANDIDATE_PACKET_DATE_CONTRACTS[snapshotId];
+  if (
+    value.schemaVersion !== 3 ||
+    value.packetKind !== 'candidate-reviewer' ||
+    !isBlocked ||
+    value.snapshotPass !== false ||
+    value.productionReady !== false ||
+    value.catalogEligible !== false ||
+    expectedDateContract === undefined ||
+    !isRecord(value.dateContract) ||
+    Object.entries(expectedDateContract).some(
+      ([field, expected]) => value.dateContract[field] !== expected,
+    ) ||
+    !hasOnlyNullApprovalFields(value.approvals) ||
+    !isRecord(value.reviewerPacket) ||
+    value.reviewerPacket.status !== 'candidate-blocked' ||
+    !isBoundedString(value.reviewerPacket.hashInvalidationRule) ||
+    value.reviewerPacket.sourceRightsDecision !== null ||
+    value.reviewerPacket.factualDecision !== null ||
+    value.reviewerPacket.topologyDecision !== null ||
+    value.reviewerPacket.reviewerSignature !== null ||
+    value.reviewerPacket.productionReadinessDecision !== null
+  ) {
+    throw new Error('Candidate reviewer packet must remain hash-bound, blocked, and unapproved.');
+  }
+  const artifacts = readMemberInventory(
+    value.reviewerPacket.artifacts,
+    'Candidate reviewer packet artifacts',
+  );
+  validateCandidateIdentityContract(value, snapshotId);
+  return { dateContract: expectedDateContract, artifacts };
+}
+
 function readReviewer(value, label) {
   if (
     !isRecord(value) ||
@@ -441,6 +566,7 @@ function readSourceManifest(value, snapshotId) {
   if (isBlocked && blockedRegionCount === 0) {
     throw new Error('Blocked source manifest must identify at least one blocked region.');
   }
+  const reviewerPacket = readCandidateReviewerPacket(value, snapshotId, isBlocked);
 
   return {
     snapshotId,
@@ -451,6 +577,7 @@ function readSourceManifest(value, snapshotId) {
     inputGeometry,
     preparation,
     regions,
+    reviewerPacket,
   };
 }
 
@@ -670,6 +797,14 @@ async function validateSourceReadiness(options) {
       throw new Error(`Source evidence member drifted for region ${region.regionId}.`);
     }
   }
+  if (manifest.reviewerPacket !== null) {
+    for (const artifact of manifest.reviewerPacket.artifacts) {
+      const member = membersByPath.get(artifact.path);
+      if (member === undefined || member.sha256 !== artifact.sha256) {
+        throw new Error(`Candidate reviewer artifact drifted for ${artifact.path}.`);
+      }
+    }
+  }
 
   const inputPath =
     options.input === null
@@ -678,6 +813,24 @@ async function validateSourceReadiness(options) {
   const inputBytes = await readBoundedFile(inputPath, 'Input geometry');
   if (calculateSha256(inputBytes) !== manifest.inputGeometry.sha256) {
     throw new Error('Input geometry SHA-256 drifted.');
+  }
+  if (manifest.reviewerPacket !== null) {
+    const blockedInput = parseJson(inputBytes, 'Blocked candidate input');
+    if (
+      !isRecord(blockedInput) ||
+      blockedInput.snapshotId !== snapshotId ||
+      blockedInput.asOf !== SNAPSHOT_DATES[snapshotId] ||
+      blockedInput.readinessStatus !== 'blocked' ||
+      blockedInput.candidateGeometryStatus !== 'not-generated' ||
+      !Array.isArray(blockedInput.features) ||
+      blockedInput.features.length !== 0 ||
+      !isRecord(blockedInput.dateContract) ||
+      Object.entries(manifest.reviewerPacket.dateContract).some(
+        ([field, expected]) => blockedInput.dateContract[field] !== expected,
+      )
+    ) {
+      throw new Error('Blocked candidate input must remain empty and match the packet date contract.');
+    }
   }
 
   let preparation;
