@@ -1,11 +1,30 @@
-import { describe, expect, it } from 'vitest';
-import { MAX_MAP_NAME_LENGTH, ONBOARDING_DISMISSED_KEY, STORAGE_KEY } from '../constants/config';
-import { createStorageAdapter } from './storage';
+import { describe, expect, it, vi } from 'vitest';
+
+import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import {
+  MAX_MAP_NAME_LENGTH,
+  ONBOARDING_DISMISSED_KEY,
+  STORAGE_KEY,
+} from '../constants/config';
+import type {
+  CompositionSnapshot,
+  SnapshotId,
+} from '../types/composition';
+import type { ColorMap } from '../types/map';
+import { repairCameraState } from './camera';
+import { createDefaultLegendState, reconcileLegend } from './legend';
+import {
+  MAX_STORAGE_JSON_DEPTH,
+  MAX_STORAGE_JSON_NODES,
+  MAX_STORAGE_SERIALIZED_LENGTH,
+  createStorageAdapter,
+} from './storage';
 
 class FakeStorage implements Storage {
   readonly values = new Map<string, string>();
   getError: unknown;
   setError: unknown;
+  setCalls = 0;
 
   get length(): number {
     return this.values.size;
@@ -32,12 +51,41 @@ class FakeStorage implements Storage {
   }
 
   setItem(key: string, value: string): void {
+    this.setCalls += 1;
+
     if (this.setError !== undefined) {
       throw this.setError;
     }
 
     this.values.set(key, value);
   }
+}
+
+function createCompositionSnapshot(
+  colors: ColorMap = { FRA: '#2563EB' },
+  snapshotId: SnapshotId = 'modern',
+): CompositionSnapshot {
+  return {
+    colors,
+    camera: {
+      zoom: 3,
+      centerLongitude: 12.5,
+      centerLatitude: 48.25,
+    },
+    snapshotId,
+    legend: {
+      entries: [
+        { color: '#2563EB', label: 'Visited', order: 0 },
+        { color: '#DC2626', label: 'Planned', order: 1 },
+      ],
+      position: { x: 720, y: 64, preset: 'top-right' },
+      theme: 'soft',
+      textSize: 'large',
+      backgroundOpacity: 0.85,
+      borderStyle: 'strong',
+    },
+    settings: { backgroundColor: '#FFFFFF' },
+  };
 }
 
 function expectSuccess<T>(result: { ok: true; value: T } | { ok: false }): asserts result is {
@@ -60,8 +108,14 @@ describe('createStorageAdapter', () => {
     const timestamps = [100, 200];
     const adapter = createStorageAdapter(storage, () => timestamps.shift() ?? 300);
 
-    const first = adapter.save('  First map  ', { FRA: '#abc' });
-    const second = adapter.save('Second map', { DEU: 'rgb(1, 2, 3)' });
+    const first = adapter.save(
+      '  First map  ',
+      createCompositionSnapshot({ FRA: '#abc' }),
+    );
+    const second = adapter.save(
+      'Second map',
+      createCompositionSnapshot({ DEU: 'rgb(1, 2, 3)' }),
+    );
 
     expect(first).toMatchObject({
       ok: true,
@@ -87,11 +141,14 @@ describe('createStorageAdapter', () => {
     const adapter = createStorageAdapter(storage, () => 100);
 
     expect(
-      adapter.save('White is default', {
-        FRA: '#FFFFFF',
-        DEU: '#ffffff',
-        ITA: '#16A34A',
-      }),
+      adapter.save(
+        'White is default',
+        createCompositionSnapshot({
+          FRA: '#FFFFFF',
+          DEU: '#ffffff',
+          ITA: '#16A34A',
+        }),
+      ),
     ).toMatchObject({
       ok: true,
       value: {
@@ -118,7 +175,7 @@ describe('createStorageAdapter', () => {
       expect(
         createStorageAdapter(saveStorage, () => 100).save(
           'Reserved save',
-          ownReservedColors,
+          createCompositionSnapshot(ownReservedColors),
         ),
       ).toMatchObject({
         ok: true,
@@ -150,9 +207,12 @@ describe('createStorageAdapter', () => {
     const timestamps = [100, 200, 300];
     const adapter = createStorageAdapter(storage, () => timestamps.shift() ?? 400);
 
-    adapter.save('Alpha', { FRA: '#111111' });
-    adapter.save('Beta', { DEU: '#222222' });
-    const result = adapter.save('  Alpha ', { ITA: '#333333' });
+    adapter.save('Alpha', createCompositionSnapshot({ FRA: '#111111' }));
+    adapter.save('Beta', createCompositionSnapshot({ DEU: '#222222' }));
+    const result = adapter.save(
+      '  Alpha ',
+      createCompositionSnapshot({ ITA: '#333333' }),
+    );
 
     expect(result).toMatchObject({
       ok: true,
@@ -172,7 +232,10 @@ describe('createStorageAdapter', () => {
     ['x'.repeat(MAX_MAP_NAME_LENGTH + 1), 'name-too-long'],
   ] as const)('rejects invalid map name %j', (name, reason) => {
     const storage = new FakeStorage();
-    const result = createStorageAdapter(storage).save(name, { FRA: '#123456' });
+    const result = createStorageAdapter(storage).save(
+      name,
+      createCompositionSnapshot({ FRA: '#123456' }),
+    );
 
     expect(result).toEqual({ ok: false, reason });
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
@@ -187,7 +250,10 @@ describe('createStorageAdapter', () => {
     });
 
     for (let index = 1; index <= 11; index += 1) {
-      adapter.save(`Map ${index}`, { FRA: '#123456' });
+      adapter.save(
+        `Map ${index}`,
+        createCompositionSnapshot({ FRA: '#123456' }),
+      );
     }
 
     const result = adapter.list();
@@ -381,11 +447,21 @@ describe('createStorageAdapter', () => {
     const blockedStorage = new FakeStorage();
     blockedStorage.setError = new DOMException('blocked', 'SecurityError');
 
-    expect(createStorageAdapter(quotaStorage).save('Map', { FRA: '#123456' })).toEqual({
+    expect(
+      createStorageAdapter(quotaStorage).save(
+        'Map',
+        createCompositionSnapshot({ FRA: '#123456' }),
+      ),
+    ).toEqual({
       ok: false,
       reason: 'quota-exceeded',
     });
-    expect(createStorageAdapter(blockedStorage).save('Map', { FRA: '#123456' })).toEqual({
+    expect(
+      createStorageAdapter(blockedStorage).save(
+        'Map',
+        createCompositionSnapshot({ FRA: '#123456' }),
+      ),
+    ).toEqual({
       ok: false,
       reason: 'storage-unavailable',
     });
@@ -430,5 +506,295 @@ describe('createStorageAdapter', () => {
       ok: false,
       reason: 'storage-unavailable',
     });
+  });
+
+  it('rejects oversized serialized input before invoking the injected parser', () => {
+    const storage = new FakeStorage();
+    const parser = vi.fn((serialized: string): unknown => JSON.parse(serialized));
+    storage.values.set(
+      STORAGE_KEY,
+      `[]${' '.repeat(MAX_STORAGE_SERIALIZED_LENGTH - 1)}`,
+    );
+
+    expect(createStorageAdapter(storage, Date.now, parser).list()).toEqual({
+      ok: true,
+      value: [],
+      warnings: [{ code: 'corrupt-data' }],
+    });
+    expect(parser).not.toHaveBeenCalled();
+  });
+
+  it('accepts boundary-valid serialized input and invokes the parser once', () => {
+    const storage = new FakeStorage();
+    const parser = vi.fn((serialized: string): unknown => JSON.parse(serialized));
+    storage.values.set(
+      STORAGE_KEY,
+      `[]${' '.repeat(MAX_STORAGE_SERIALIZED_LENGTH - 2)}`,
+    );
+
+    expect(createStorageAdapter(storage, Date.now, parser).list()).toEqual({
+      ok: true,
+      value: [],
+      warnings: [],
+    });
+    expect(parser).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects excessive JSON depth with an iterative budget', () => {
+    const storage = new FakeStorage();
+    let nested: unknown = null;
+
+    for (let depth = 0; depth <= MAX_STORAGE_JSON_DEPTH; depth += 1) {
+      nested = { nested };
+    }
+
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          name: 'Deep',
+          colors: { FRA: '#2563EB' },
+          timestamp: 100,
+          nested,
+        },
+      ]),
+    );
+
+    expect(createStorageAdapter(storage).list()).toEqual({
+      ok: true,
+      value: [],
+      warnings: [{ code: 'corrupt-data' }],
+    });
+  });
+
+  it('rejects excessively wide JSON before detailed record validation', () => {
+    const storage = new FakeStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          name: 'Wide',
+          colors: { FRA: '#2563EB' },
+          timestamp: 100,
+          wide: Array.from({ length: MAX_STORAGE_JSON_NODES }, () => null),
+        },
+      ]),
+    );
+
+    expect(createStorageAdapter(storage).list()).toEqual({
+      ok: true,
+      value: [],
+      warnings: [{ code: 'corrupt-data' }],
+    });
+  });
+
+  it('round-trips a complete V2 historical composition without filtering stable IDs', () => {
+    const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot(
+      {
+        FRA: '#2563EB',
+        'hist:polish-lithuanian-commonwealth': '#DC2626',
+      },
+      '1700',
+    );
+    const adapter = createStorageAdapter(storage, () => 500);
+
+    const saveResult = adapter.save('Historical view', snapshot);
+    expectSuccess(saveResult);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
+      {
+        schemaVersion: 2,
+        name: 'Historical view',
+        timestamp: 500,
+        composition: snapshot,
+      },
+    ]);
+
+    const loadResult = adapter.load('Historical view');
+    expectSuccess(loadResult);
+    expect(loadResult.value).toEqual({
+      ok: true,
+      value: snapshot,
+      sourceVersion: 2,
+      warnings: [],
+    });
+  });
+
+  it('canonicalizes camera values through shared camera math before writing V2', () => {
+    const storage = new FakeStorage();
+    const snapshot = {
+      ...createCompositionSnapshot(),
+      camera: {
+        zoom: 100,
+        centerLongitude: 725,
+        centerLatitude: 100,
+      },
+    } satisfies CompositionSnapshot;
+
+    const result = createStorageAdapter(storage, () => 100).save(
+      'Repaired camera',
+      snapshot,
+    );
+    expectSuccess(result);
+
+    const stored = JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null') as Array<{
+      composition: CompositionSnapshot;
+    }>;
+    expect(stored[0]?.composition.camera).toEqual(
+      repairCameraState(snapshot.camera),
+    );
+    expect(result.warnings).toEqual([{ code: 'corrupt-data' }]);
+  });
+
+  it('migrates V1 in memory with defaults and never writes during list or load', () => {
+    const storage = new FakeStorage();
+    const colors = { FRA: '#DC2626' };
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([{ name: 'Legacy', colors, timestamp: 100 }]),
+    );
+    const adapter = createStorageAdapter(storage);
+    const expectedLegend = reconcileLegend(
+      Object.values(colors),
+      createDefaultLegendState(),
+    );
+
+    expect(adapter.list()).toEqual({
+      ok: true,
+      value: [{ name: 'Legacy', colors, timestamp: 100 }],
+      warnings: [],
+    });
+    const loadResult = adapter.load('Legacy');
+    expectSuccess(loadResult);
+    expect(loadResult.value).toEqual({
+      ok: true,
+      value: {
+        colors,
+        camera: INITIAL_WORLD_CAMERA,
+        snapshotId: 'modern',
+        legend: expectedLegend,
+        settings: { backgroundColor: '#FFFFFF' },
+      },
+      sourceVersion: 1,
+      warnings: [{ code: 'legacy-migrated' }],
+    });
+    expect(storage.setCalls).toBe(0);
+  });
+
+  it('rewrites a matching V1 record as V2 only on explicit save', () => {
+    const storage = new FakeStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        { name: 'Legacy', colors: { FRA: '#111111' }, timestamp: 100 },
+        { name: 'Neighbor', colors: { DEU: '#222222' }, timestamp: 50 },
+      ]),
+    );
+    const snapshot = createCompositionSnapshot({
+      'hist:napoleonic-entity': '#16A34A',
+    }, '1815');
+
+    const result = createStorageAdapter(storage, () => 200).save(
+      'Legacy',
+      snapshot,
+    );
+    expectSuccess(result);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
+      {
+        schemaVersion: 2,
+        name: 'Legacy',
+        timestamp: 200,
+        composition: snapshot,
+      },
+      { name: 'Neighbor', colors: { DEU: '#222222' }, timestamp: 50 },
+    ]);
+  });
+
+  it('recovers valid neighbors while reporting unknown versions and unsafe nested keys', () => {
+    const storage = new FakeStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      `[
+        {"name":"Legacy","colors":{"FRA":"#2563EB"},"timestamp":300},
+        {"schemaVersion":99,"name":"Future","timestamp":250,"composition":{}},
+        {"schemaVersion":2,"name":"Recovered","timestamp":200,"composition":{
+          "colors":{"__proto__":"#111111","hist:safe":"#DC2626"},
+          "camera":{"zoom":3,"centerLongitude":10,"centerLatitude":20},
+          "snapshotId":"1700",
+          "legend":{
+            "entries":[
+              {"color":"#DC2626","label":"Safe","order":0},
+              {"color":"bad","label":"Dropped","order":1}
+            ],
+            "position":{"x":100,"y":100,"preset":"top-left"},
+            "theme":"light","textSize":"medium","backgroundOpacity":0.9,
+            "borderStyle":"hairline"
+          },
+          "settings":{"backgroundColor":"#FFFFFF"}
+        }}
+      ]`,
+    );
+    const adapter = createStorageAdapter(storage);
+
+    expect(adapter.list()).toEqual({
+      ok: true,
+      value: [
+        { name: 'Legacy', colors: { FRA: '#2563EB' }, timestamp: 300 },
+        { name: 'Recovered', colors: { 'hist:safe': '#DC2626' }, timestamp: 200 },
+      ],
+      warnings: [
+        { code: 'corrupt-data', recordIndex: 1 },
+        { code: 'corrupt-data', recordIndex: 2 },
+      ],
+    });
+
+    const futureResult = adapter.load('Future');
+    expectSuccess(futureResult);
+    expect(futureResult.value).toEqual({
+      ok: false,
+      reason: 'unsupported-version',
+    });
+
+    const recoveredResult = adapter.load('Recovered');
+    expectSuccess(recoveredResult);
+    expect(recoveredResult.value).toMatchObject({
+      ok: true,
+      sourceVersion: 2,
+      value: {
+        colors: { 'hist:safe': '#DC2626' },
+        snapshotId: '1700',
+        legend: {
+          entries: [{ color: '#DC2626', label: 'Safe', order: 0 }],
+        },
+      },
+      warnings: [{ code: 'composition-repaired' }],
+    });
+    expect(storage.setCalls).toBe(0);
+  });
+
+  it('rejects unknown snapshot IDs without writing or falling back silently', () => {
+    const storage = new FakeStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Unavailable snapshot',
+          timestamp: 100,
+          composition: {
+            ...createCompositionSnapshot(),
+            snapshotId: 'year-unknown',
+          },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Unavailable snapshot');
+    expectSuccess(result);
+    expect(result.value).toEqual({
+      ok: false,
+      reason: 'snapshot-unavailable',
+    });
+    expect(storage.setCalls).toBe(0);
   });
 });
