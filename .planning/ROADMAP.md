@@ -137,9 +137,9 @@ Cross-cutting constraints:
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** In progress — Waves 1-3 complete and Wave 4 ready to dispatch. Wave 3 integration at `7acfbb8` passed build, 274 unit tests, zero-warning lint, strict TypeScript, deterministic world/history/hash/export gates, and 4/4 Chrome legend tests on port 4174. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
+**Status:** In progress — partial Wave 4 integration is complete. Plans 02-07, 02-19, and 02-32 are integrated and verified at implementation HEAD `2006ac2`; Plan 02-31 remains incomplete with zero commits. The gate passed build, 295 unit tests, zero-warning lint, strict TypeScript, deterministic world/history/hash/export checks, and 7/7 installed-Chrome tests on deterministic port 4174. Wave 5 engineering Plans 02-08, 02-09, and 02-29 are newly unblocked and can run concurrently while 02-31 research continues. The 1815/1914 packets are hash-bound BLOCKED source-readiness evidence, not approved production snapshots. Historical delivery still requires exact source/license readiness, independent source approval, qualified factual review, durable hash binding, and atomic promotion; blocked snapshots are never counted delivered.
 
-**Plans:** 9/36 plans executed
+**Plans:** 12/36 plans executed (26/72 tasks)
 
 Plans:
 
@@ -158,17 +158,17 @@ Plans:
 - [x] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
 - [x] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
 
-**Wave 4**
-- [ ] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
-- [ ] 02-19-PLAN.md — Upgrade the sole localStorage authority with pre-parse resource bounds and full modern/historical composition persistence
-- [ ] 02-31-PLAN.md — Assemble complete offline source/license/tracing readiness bundles for 1492 and 1700 before geometry curation
-- [ ] 02-32-PLAN.md — Assemble complete offline source/license/tracing readiness bundles for 1815 and 1914
+**Wave 4 — partially complete (3/4 plans, 6/8 tasks)**
+- [x] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
+- [x] 02-19-PLAN.md — Upgrade the sole localStorage authority with pre-parse resource bounds and full modern/historical composition persistence
+- [ ] 02-31-PLAN.md — INCOMPLETE/BLOCKED with zero commits: assemble complete offline source/license/tracing readiness bundles for 1492 and 1700 before geometry curation
+- [x] 02-32-PLAN.md — Complete as hash-bound BLOCKED source readiness for 1815 and 1914; no production snapshots delivered
 
 **Wave 5**
 - [ ] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
 - [ ] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
 - [ ] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
-- [ ] 02-33-PLAN.md — Obtain non-executor source/license review and seal one durable machine-validated source-approval JSON per snapshot
+- [ ] 02-33-PLAN.md — BLOCKED by 02-31 and independent approvals: obtain non-executor source/license review and seal one durable machine-validated source-approval JSON per snapshot
 
 **Wave 6**
 - [ ] 02-13-PLAN.md — Generate and preflight the exact 1492 candidate from the approved source bundle
@@ -367,6 +367,7 @@ The original 1.5–2 week Phase 2 estimate applies to the engineering platform o
 
 ## Next Steps
 
-1. **Execute Phase 2** → Run `/gsd:execute-phase 2`; Waves 1–4 establish validation, contracts, world/camera/legend/history foundations and parallel historical curation.
-2. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
-3. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.
+1. **Dispatch Wave 5 engineering** → Run Plans 02-08, 02-09, and 02-29 concurrently; their owned files do not overlap.
+2. **Continue Plan 02-31 research** → Keep 1492/1700 source readiness separate from engineering dispatch, and do not unblock 02-33 until exact rights/source packets exist.
+3. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
+4. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.

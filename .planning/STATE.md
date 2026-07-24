@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 02 Wave 3 integration complete — Wave 4 ready
-last_updated: "2026-07-24T19:21:52.000Z"
-last_activity: 2026-07-24 -- Wave 3 integrated and verified at 7acfbb8: build, 274 tests, lint, TypeScript, deterministic data/history/export gates, and 4/4 Chrome legend tests
+stopped_at: Phase 02 partial Wave 4 integration complete — Wave 5 engineering ready; 02-31 blocked
+last_updated: "2026-07-24T20:59:38.000Z"
+last_activity: 2026-07-24 -- Plans 02-07, 02-19, and 02-32 integrated at 2006ac2 and verified with build, 295 tests, zero-warning lint, strict TypeScript, deterministic world/history/export gates, and 7/7 Chrome tests; 02-31 remains incomplete
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 31
-  percent: 33
+  completed_plans: 34
+  percent: 59
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -21,18 +21,18 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 **Core value:** Help non-technical Instagram creators produce accurate, polished European choropleth maps quickly.
-**Current focus:** Phase 02 — Wave 4 camera integration, composition persistence, and historical source readiness
+**Current focus:** Phase 02 — Wave 5 navigation, Locate, and composition transactions while 02-31 source research continues
 
 ## Current Position
 
 Phase: 02 (region-variants-advanced-features-1-5-2-weeks) — EXECUTING
-Plan: 7 of 36
-Next step: Dispatch Wave 4 plans 02-07, 02-19, 02-31, and 02-32 from the verified Wave 3 integration base
-Execution graph: Phase 2 has 36 plans, 72 tasks, and 18 validated waves; Waves 1-3 complete (9 plans / 20 tasks), Wave 4 ready (4 plans / 8 tasks)
-Status: Ready to execute Wave 4
-Last activity: 2026-07-24 -- Wave 3 integrated and verified at 7acfbb8: build, 274 tests, lint, TypeScript, deterministic data/history/export gates, and 4/4 Chrome legend tests
+Plan: 8 of 36
+Next step: Dispatch 02-08, 02-09, and 02-29 concurrently; continue 02-31 source/license research without treating 1815/1914 blocked packets as production snapshots
+Execution graph: Phase 2 has 36 plans, 72 tasks, and 18 validated waves; 12 plans / 26 tasks complete. Wave 4 is partially complete at 3/4 plans and 6/8 tasks because 02-31 remains incomplete with zero commits.
+Status: Partial Wave 4 integration complete; Wave 5 engineering ready; 02-33 and the historical approval chain remain blocked by 02-31 and independent approvals
+Last activity: 2026-07-24 -- Plans 02-07, 02-19, and 02-32 integrated at 2006ac2 and verified with build, 295 tests, zero-warning lint, strict TypeScript, deterministic world/history/export gates, and 7/7 Chrome tests; 02-31 remains incomplete
 
-Progress: Phase 1 [██████████] 100%; Phase 2 [███-------] 25% (9/36 plans)
+Progress: Phase 1 [██████████] 100%; Phase 2 [███-------] 33% (12/36 plans, 26/72 tasks)
 
 ## Performance Metrics
 
@@ -60,6 +60,9 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 | Phase 01 P15 | closeout-only | 2 tasks | 4 metadata files |
 | Phase 01 P16 | deferred | 0 executed tasks | 2 metadata files |
 | Phase 01 P17 | deferred | 0 executed tasks | 3 metadata files |
+| Phase 02 P07 | 39 min | 3 tasks | 7 product/test files |
+| Phase 02 P19 | 14 min | 1 task | 3 files |
+| Phase 02 P32 | 1h 10m | 2 tasks | 9 implementation/evidence files |
 
 ## Accumulated Context
 
@@ -130,15 +133,21 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 - [Phase 02 planning]: Keep Country browser/Locate at the modern 195 core; approved distinct historical entities are selectable/colorable by map click and keyboard while active, with selection reconciled to incoming scene identities.
 - [Phase 02 planning]: Historical delivery requires source/license readiness, honest vector-versus-manual-trace evidence, named qualified six-region factual approval, five exact hashes, and catalog-last promotion; blocked snapshots are never counted delivered.
 - [Phase 02 planning]: Final automation runs from a detached clean worktree at the exact final E2E commit after fresh npm ci; human acceptance binds the same SHA with a fixed evidence matrix.
+- [Phase 02 Plan 07]: Keep one MapCanvas-internal D3 camera controller and one logical accessible path per selectable entity while decorative wrapped copies remain visual-only.
+- [Phase 02 Plan 19]: Bound stored compositions before and after parse, migrate V1 only in memory, and persist complete V2 snapshots without filtering approved historical IDs.
+- [Phase 02 Plan 32]: Preserve 1815 and 1914 as hash-bound BLOCKED source-readiness packets with deliveryCounted=false; no candidate geometry, catalog entry, or production historical snapshot exists.
 
 ### Pending Todos
 
-- Execute Phase 2 in wave order; historical snapshots remain blocked until source/license/factual approval and exact-byte promotion pass.
+- Execute newly unblocked Plans 02-08, 02-09, and 02-29 in parallel while Plan 02-31 source/license research continues independently.
+- Keep every historical snapshot blocked until source/license review, qualified factual approval, exact hash binding, and catalog-last promotion pass.
 - If the user later requests hosting, reopen the optional Vercel deployment and production-verification runbooks under new explicit authorization.
 
 ### Blockers/Concerns
 
-- No local Phase 1 blocker remains. Phase 2 implementation is unstarted.
+- Plan 02-31 remains incomplete with zero commits; 1492 and 1700 still lack complete rights-approved six-region source/license/tracing packets.
+- Plan 02-33 is blocked by 02-31 and requires independent non-executor source/license approval. The integrated 1815/1914 packets also retain unresolved ARCHE/right-discrepancy and regional geometry/topology blockers.
+- Plans 02-13 through 02-17 remain behind the source-approval, candidate-curation, qualified factual-review, durable-approval, and atomic-promotion chain; blocked packets are never counted delivered.
 - Timing misses, incomplete timing harness work, and earlier harness timeouts remain immutable non-blocking diagnostic observations under D-63.
 - Firefox, Safari, and previous-version certification remain intentionally deferred/unverified and must not be reported as passed.
 - Vercel deployment and production verification are deferred optional future work; no production URL exists or is claimed.
@@ -158,6 +167,6 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 
 ## Session Continuity
 
-Last session: 2026-07-24T19:21:52.000Z
-Stopped at: Phase 02 Wave 3 integration complete — Wave 4 ready
-Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-07-PLAN.md
+Last session: 2026-07-24T20:59:38.000Z
+Stopped at: Phase 02 partial Wave 4 integration complete — Wave 5 engineering ready; 02-31 blocked
+Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-08-PLAN.md
