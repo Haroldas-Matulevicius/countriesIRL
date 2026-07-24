@@ -1,4 +1,10 @@
 import { useCallback, useState } from 'react';
+
+import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import type {
+  CompositionLoadOutcome,
+  CompositionSnapshot,
+} from '../types/composition';
 import type { ColorMap } from '../types/map';
 import type {
   SavedMap,
@@ -6,6 +12,7 @@ import type {
   StorageResult,
   StorageWarning,
 } from '../types/ui';
+import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
 import {
   createStorageAdapter,
   type SaveMapValue,
@@ -19,15 +26,38 @@ export interface UseLocalStorageValue {
   error: StorageErrorReason | null;
   isPersistenceAvailable: boolean;
   refreshSavedMaps: () => StorageResult<ReadonlyArray<SavedMap>>;
+  saveComposition: (
+    name: string,
+    snapshot: CompositionSnapshot,
+  ) => StorageResult<SaveMapValue>;
+  loadComposition: (name: string) => StorageResult<CompositionLoadOutcome>;
   saveMap: (name: string, colors: ColorMap) => StorageResult<SaveMapValue>;
-  loadMap: (name: string, validCountryIds: ReadonlySet<string>) => StorageResult<ColorMap>;
+  loadMap: (
+    name: string,
+    validCountryIds: ReadonlySet<string>,
+  ) => StorageResult<ColorMap>;
   deleteMap: (name: string) => StorageResult<ReadonlyArray<SavedMap>>;
   dismissOnboarding: () => StorageResult<boolean>;
 }
 
+function createLegacyCompatibleSnapshot(colors: ColorMap): CompositionSnapshot {
+  return {
+    colors,
+    camera: INITIAL_WORLD_CAMERA,
+    snapshotId: 'modern',
+    legend: reconcileLegend(
+      Object.values(colors),
+      createDefaultLegendState(),
+    ),
+    settings: { backgroundColor: '#FFFFFF' },
+  };
+}
+
 export function useLocalStorage(): UseLocalStorageValue {
   const [adapter] = useState<StorageAdapter>(() => createStorageAdapter());
-  const [initialOnboardingResult] = useState(() => adapter.getOnboardingDismissed());
+  const [initialOnboardingResult] = useState(() =>
+    adapter.getOnboardingDismissed(),
+  );
   const [savedMaps, setSavedMaps] = useState<ReadonlyArray<SavedMap>>([]);
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     initialOnboardingResult.ok ? initialOnboardingResult.value : false,
@@ -50,7 +80,9 @@ export function useLocalStorage(): UseLocalStorageValue {
     setError(result.reason);
   }, []);
 
-  const refreshSavedMaps = useCallback((): StorageResult<ReadonlyArray<SavedMap>> => {
+  const refreshSavedMaps = useCallback((): StorageResult<
+    ReadonlyArray<SavedMap>
+  > => {
     const result = adapter.list();
     recordResult(result);
 
@@ -61,9 +93,12 @@ export function useLocalStorage(): UseLocalStorageValue {
     return result;
   }, [adapter, recordResult]);
 
-  const saveMap = useCallback(
-    (name: string, colors: ColorMap): StorageResult<SaveMapValue> => {
-      const result = adapter.save(name, colors);
+  const saveComposition = useCallback(
+    (
+      name: string,
+      snapshot: CompositionSnapshot,
+    ): StorageResult<SaveMapValue> => {
+      const result = adapter.save(name, snapshot);
       recordResult(result);
 
       if (result.ok) {
@@ -75,8 +110,27 @@ export function useLocalStorage(): UseLocalStorageValue {
     [adapter, recordResult],
   );
 
+  const loadComposition = useCallback(
+    (name: string): StorageResult<CompositionLoadOutcome> => {
+      const result = adapter.load(name);
+      recordResult(result);
+      return result;
+    },
+    [adapter, recordResult],
+  );
+
+  const saveMap = useCallback(
+    (name: string, colors: ColorMap): StorageResult<SaveMapValue> => {
+      return saveComposition(name, createLegacyCompatibleSnapshot(colors));
+    },
+    [saveComposition],
+  );
+
   const loadMap = useCallback(
-    (name: string, validCountryIds: ReadonlySet<string>): StorageResult<ColorMap> => {
+    (
+      name: string,
+      validCountryIds: ReadonlySet<string>,
+    ): StorageResult<ColorMap> => {
       const result = adapter.load(name, validCountryIds);
       recordResult(result);
       return result;
@@ -116,6 +170,8 @@ export function useLocalStorage(): UseLocalStorageValue {
     error,
     isPersistenceAvailable: error !== 'storage-unavailable',
     refreshSavedMaps,
+    saveComposition,
+    loadComposition,
     saveMap,
     loadMap,
     deleteMap,
