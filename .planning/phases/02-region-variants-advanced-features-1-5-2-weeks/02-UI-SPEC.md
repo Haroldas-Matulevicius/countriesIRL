@@ -503,6 +503,20 @@ Do not assign Arrow keys on focused country paths to camera panning. Preserve Ph
 
 Camera keyboard access is provided through the semantic Zoom and Pan buttons, Reset View, and Locate controls. This prevents keyboard-command collisions.
 
+### Wrapped-country accessibility and focus ownership
+
+Use one stable logical country node plus decorative repeats; do not promote/demote three cloned nodes or let React and D3 compete for the same path DOM.
+
+- Inside the D3-owned camera subtree, each selectable entity has exactly one stable logical `<path>` keyed by `entityId` and two decorative repeat `<path>` nodes. The logical node supplies one of the three visible wrap positions; the decorative nodes supply the other two.
+- On the same animation frame that applies a camera transform, the camera controller chooses the wrap offset `-1080`, `0`, or `+1080` whose transformed country bounds intersect the viewport; if more than one intersects, choose the one whose visible bounds center is closest to the viewport center. If none intersects, choose the transformed bounds center closest to the viewport center. Apply that local x-offset to the stable logical node and assign the remaining offsets to its two decorative repeats. Update transform attributes only; never regenerate `d` geometry during camera movement.
+- The stable logical node alone carries `role="option"`, its accessible name, `aria-selected`, and roving `tabindex`. The current logical roving ID has `tabindex="0"`; every other logical country has `tabindex="-1"`.
+- Both decorative repeat nodes remain `aria-hidden="true"`, `focusable="false"`, and `tabindex="-1"` at all times. They have no role, accessible name, `<title>`, or duplicated DOM ID. Pointer handlers may map them back to `entityId`, but they never become accessibility instances.
+- React owns `focusedCountryId`, selection, and semantic camera state. D3 exclusively creates and updates the country-path subtree, including wrap-offset transforms and semantic attributes. `MapCanvas` exposes a narrow imperative `focusCountry(entityId)` adapter; React calls that adapter after roving-ID changes, but never renders or mutates D3-owned paths. D3 never owns application state.
+- Arrow/Home/End navigation changes only the logical roving ID, then `focusCountry` focuses the stable logical node with `preventScroll: true`. Because the same focused DOM node changes only its local wrap transform, horizontal panning never destroys or transfers DOM focus.
+- Reconcile the focused logical node's wrap offset before the frame is painted, then derive the 3px dashed focus indicator and keyboard tooltip anchor from that node's transformed bounds/centroid. The focus indicator and tooltip/label therefore move to the nearest visible wrapped copy after every horizontal pan without duplicating focus or announcements.
+- Pointer hover may anchor a tooltip to the decorative copy actually under the pointer. Pointer activation still resolves to the same logical `entityId`; if focus moves to the map, focus the stable logical node at its reconciled nearest-visible offset.
+- Wrap copy index is rendering-only. It never enters selection, alphabetical roving order, persistence, history, accessible names, or status copy.
+
 ### Reset View
 
 - Visible label: `Reset View`.
@@ -520,7 +534,13 @@ Locate is separate from selection and available in the country browser.
 - Placeholder: `Search by country name`.
 - Use an editable combobox with a listbox popup of the 195 selectable core states.
 - Down/Up moves through suggestions; Enter commits; Escape closes without changing the current value.
-- After a country is committed, enable `Locate Country`.
+- A typed value is draft-only and is not a valid Locate target until a country option is explicitly committed.
+- When the Locate draft has no matching option, show this state inside the Locate combobox popup/subsection only; do not reuse the separate Country browser no-results state:
+  - Heading: `No country matches “{query}”.`
+  - Body: `Try a different country name.`
+  - Action: `Clear Locate Search`.
+- `Clear Locate Search` empties the Locate draft, clears any stale committed Locate target, closes the no-match popup state, and returns focus to the `Find a country` combobox.
+- `Locate Country` remains natively disabled until a valid country is committed. Editing the draft after a commit invalidates that committed target and disables the action until another valid option is committed.
 - Activating Locate fits the nearest wrapped copy of the country with 12% viewport padding and clamps zoom to `2–24`.
 - Locate uses 240ms camera motion; immediate under reduced motion.
 - Locate never selects, colors, or changes history.
@@ -832,6 +852,16 @@ Excluded:
 - Default CTA: `Save Current Map`.
 - Existing-name CTA: `Replace Saved Map`.
 
+### Dialog/sheet close, dismissal, and focus restoration
+
+- The desktop dialog, compact dialog, and compact/mobile full-height sheet each expose a visible header button labeled exactly `Close Saved Maps`. On mobile, this control remains visible in the sticky sheet header while the body scrolls.
+- `Escape` dismisses Save/Load from anywhere inside the active dialog or sheet and remains available alongside the visible close control.
+- Scrim dismissal is supported on desktop and compact dialog layouts when a pointer activation begins and ends on the scrim itself; child-content activation must not dismiss the dialog. Scrim dismissal is disabled while a save transaction is active. The edge-to-edge mobile sheet exposes no tappable scrim, so scrim dismissal is not available there.
+- The visible `Close Saved Maps` control and Escape are always the primary dismissal paths; scrim dismissal is never the only close method.
+- Every ordinary dismissal path—header close, Escape, or supported scrim dismissal—restores focus to the `Save or Load Maps` opener that launched the surface. If a responsive remount replaced that node, focus its currently mounted `[data-save-load-control="true"]` equivalent. If neither exists, focus the logical map fallback.
+- Successful `Load This Map` remains the intentional exception: close Save/Load and focus the logical map rather than the opener.
+- The close control participates in the existing modal focus trap. A duplicate footer `Close Saved Maps` action may remain, but it does not replace the required visible header control.
+
 ### Saved row content
 
 Each row shows:
@@ -958,6 +988,16 @@ Behavior:
 - Heading: `No countries match “{query}”.`
 - Body: `Try a different country name.`
 
+### No Locate results
+
+This state is scoped only to the `Find a country` Locate combobox; it must not replace or share copy with the Country browser filter.
+
+- Heading: `No country matches “{query}”.`
+- Body: `Try a different country name.`
+- Action: `Clear Locate Search`.
+- `Locate Country` remains disabled until a valid country option is committed.
+- Clearing empties the Locate draft and returns focus to the Locate combobox.
+
 ### Partial modern-world data
 
 - `Some country shapes could not be loaded. You can continue with the available map.`
@@ -1070,7 +1110,7 @@ Rules:
 - Desktop: app/global actions, map composition bar, map countries, map navigation, inspector controls.
 - Compact/mobile: action strip, composition bar, map, map navigation, selection/color, countries/Locate, legend.
 - Opening a disclosure moves no focus.
-- Closing a popover/dialog restores focus to its opener or the current responsive equivalent after a 1200px remount.
+- Closing a popover/dialog restores focus to its opener or the current responsive equivalent after a 1200px remount. For Save/Load, this applies to `Close Saved Maps`, Escape, and supported desktop/compact scrim dismissal.
 - Loading a composition returns focus to the logical map copy.
 
 ### Focus visibility
@@ -1165,6 +1205,10 @@ Rules:
 | Locate search label | `Find a country` |
 | Locate search placeholder | `Search by country name` |
 | Locate action | `Locate Country` |
+| Locate no-match heading | `No country matches “{query}”.` |
+| Locate no-match body | `Try a different country name.` |
+| Locate no-match action | `Clear Locate Search` |
+| Save/Load close | `Close Saved Maps` |
 | Country search label | `Search countries` |
 | Country search placeholder | `Type a country name` |
 | Main empty heading | `Select countries to color` |
@@ -1246,8 +1290,10 @@ No registry vetting is required.
 - [ ] Dragging does not select a country on release.
 - [ ] Zoom, pan, Locate, and Reset View have semantic single-pointer alternatives.
 - [ ] Locate never changes selection or color history.
+- [ ] Locate no-match uses the exact scoped heading/body/action copy, and `Locate Country` stays disabled until a valid option is committed.
 - [ ] Reset View preserves colors, selection, period, and legend.
-- [ ] Only one wrapped copy is exposed to assistive technology.
+- [ ] Each entity has one stable D3-owned logical path; decorative repeated paths remain `aria-hidden` and unfocusable.
+- [ ] After horizontal panning, roving DOM focus remains on the same logical node while its focus indicator and keyboard tooltip anchor reconcile to the nearest visible wrapped copy.
 
 ### Historical state
 
@@ -1276,7 +1322,8 @@ No registry vetting is required.
 - [ ] Legacy records are not rewritten until explicit save/replace.
 - [ ] Dirty composition load uses the declared confirmation.
 - [ ] Delete uses inline confirmation and preserves working composition.
-- [ ] Modal focus trap and responsive opener restoration remain correct.
+- [ ] Desktop dialog and compact/mobile sheet expose `Close Saved Maps`; Escape remains supported and scrim dismissal follows the declared breakpoint behavior.
+- [ ] Modal focus trap and opener/current-responsive-equivalent restoration remain correct for every ordinary dismissal path.
 
 ### Accessibility and preferences
 
