@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { defineConfig } from '@playwright/test';
 
 const PLAYWRIGHT_ARTIFACT_ROOT = resolve('.artifacts/playwright');
-const PLAYWRIGHT_PORT = 4173;
+const PLAYWRIGHT_PORT = 4174;
 const PLAYWRIGHT_BASE_URL = `http://127.0.0.1:${PLAYWRIGHT_PORT}`;
 
 export default defineConfig({
