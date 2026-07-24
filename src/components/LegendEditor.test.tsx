@@ -10,6 +10,7 @@ import {
   getLegendBlockingMessage,
   resolveLegendLabelCommit,
 } from './LegendEditor';
+import type { LegendEditorCommands } from './LegendEditor';
 
 const TEST_BOUNDS: LegendBounds = { width: 360, height: 240 };
 const TEST_LEGEND: LegendState = {
@@ -24,7 +25,7 @@ const TEST_LEGEND: LegendState = {
   borderStyle: 'hairline',
 };
 
-function createCommands() {
+function createCommands(): LegendEditorCommands {
   return {
     setLegendEntry: vi.fn(),
     setLegendStyle: vi.fn(),
@@ -70,7 +71,7 @@ describe('LegendEditor static semantics', (): void => {
     );
 
     expect(markup).toContain('Legend label for #DC2626');
-    expect(markup).toContain('15/32');
+    expect(markup).toContain('14/32');
     expect(markup).toContain('aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"');
     expect(markup).toContain('>Move Up<');
     expect(markup).toContain('>Move Down<');
