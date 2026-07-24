@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { SnapshotId } from '../types/composition';
+import type { EffectiveScene, SnapshotId } from '../types/composition';
 import type { ColorMap, CountryId, SceneFeature } from '../types/map';
 import {
   composeEffectiveScene,
@@ -100,7 +100,7 @@ function composeHistoricalScene(
   modernFeatures: ReadonlyArray<SceneFeature>,
   historicalFeatures: ReadonlyArray<SceneFeature>,
   replacedModernSourceFeatureIds: ReadonlySet<string>,
-) {
+): EffectiveScene {
   return composeEffectiveScene({
     snapshotId,
     modernFeatures,

@@ -13,7 +13,9 @@ import {
   moveLegendEntry,
   nudgeLegendPosition,
   reconcileLegend,
+  reconcileLegendForScene,
   validateLegend,
+  validateLegendForScene,
 } from './legend';
 import {
   composeEffectiveScene,
@@ -81,12 +83,14 @@ describe('reconcileLegend', (): void => {
         createHistoricalFeature('historical-saxony-1700', 'HIST-SAXONY'),
       ],
     });
-    const effectiveColors = getEffectiveSceneColors(scene, {
+    const colors = {
       'HIST-HRE': '#dc2626',
       'HIST-SAXONY': 'rgb(220, 38, 38)',
-    });
-    const reconciled = reconcileLegend(
-      [...effectiveColors, '#ffffff'],
+    };
+    const effectiveColors = getEffectiveSceneColors(scene, colors);
+    const reconciled = reconcileLegendForScene(
+      scene,
+      colors,
       createDefaultLegendState(),
     );
 
@@ -96,6 +100,12 @@ describe('reconcileLegend', (): void => {
     expect(getActiveLegendEntries(effectiveColors, reconciled)).toEqual(
       reconciled.entries,
     );
+    expect(
+      validateLegendForScene(reconciled, scene, colors, TEST_LEGEND_BOUNDS),
+    ).toEqual({
+      ok: true,
+      activeEntries: reconciled.entries,
+    });
   });
 
   it('hides dormant entries during undo or period removal and restores metadata on return', (): void => {
