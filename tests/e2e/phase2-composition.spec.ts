@@ -238,11 +238,11 @@ test('camera freeze uses one visible controller handle and renews input', async 
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
     .toBeGreaterThan(initialTransform.k);
 
-  const locatedTransform = await readCameraTransform(page);
   const frozenCamera = await page.evaluate((): unknown =>
     (window as typeof window & { readonly __cameraFixture: CameraFixtureApi }).__cameraFixture.freeze(),
   );
   expect(frozenCamera).not.toBeNull();
+  const frozenTransform = await readCameraTransform(page);
 
   const svgBounds = await page.locator('svg.map-canvas').boundingBox();
   if (svgBounds === null) {
@@ -254,7 +254,7 @@ test('camera freeze uses one visible controller handle and renews input', async 
   );
   await page.mouse.wheel(0, -600);
   await page.waitForTimeout(200);
-  expect(await readCameraTransform(page)).toEqual(locatedTransform);
+  expect(await readCameraTransform(page)).toEqual(frozenTransform);
 
   await page.evaluate((): void => {
     (window as typeof window & { readonly __cameraFixture: CameraFixtureApi }).__cameraFixture.release();
@@ -263,7 +263,7 @@ test('camera freeze uses one visible controller handle and renews input', async 
   await page.mouse.wheel(0, -600);
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
-    .toBeGreaterThan(locatedTransform.k);
+    .toBeGreaterThan(frozenTransform.k);
 
   expect(
     await page.evaluate((): number => (window as typeof window & { readonly __cameraFixture: CameraFixtureApi }).__cameraFixture.controllerFactoryCalls),
