@@ -229,11 +229,13 @@ describe('createCompositionLoadTransaction', (): void => {
 
   it('fails closed for invalid storage outcomes, snapshot failures, and a missing canvas', async (): Promise<void> => {
     const invalidStorage = createDependencies({
-      loadStoredComposition: vi.fn(() => ({
-        ok: true,
-        value: { ok: false, reason: 'unsupported-version' },
-        warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
-      })),
+      loadStoredComposition: vi.fn(
+        (): StorageResult<CompositionLoadOutcome> => ({
+          ok: true,
+          value: { ok: false, reason: 'unsupported-version' },
+          warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
+        }),
+      ),
     });
     const invalidTransaction = createCompositionLoadTransaction(invalidStorage);
 
@@ -341,7 +343,7 @@ describe('createCompositionLoadTransaction', (): void => {
       createCompositionLoadTransaction(dependencies).load('Historical'),
     ).resolves.toMatchObject({ ok: true });
 
-    expect(dependencies.replaceSelection).toHaveBeenCalledWith(new Set());
+    expect(dependencies.replaceSelection).toHaveBeenCalledWith([]);
     expect(handle.focusCountry).toHaveBeenCalledWith('FRA');
   });
 });
