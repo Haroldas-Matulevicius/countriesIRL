@@ -1,0 +1,706 @@
+{
+  "schemaVersion": 2,
+  "snapshotId": "1914",
+  "asOf": "1914-07-27",
+  "calendarBasis": "proleptic-gregorian-for-product-lock",
+  "readinessStatus": "blocked",
+  "deliveryCounted": false,
+  "blockers": [
+    "RIGHTS_REVIEW_REQUIRED",
+    "ARCHE_EXACT_RECORD_NOT_FROZEN",
+    "SVALBARD_TERRA_NULLIUS_GEOMETRY_OR_NEUTRAL_MASK_MISSING",
+    "AU_CONSTITUENT_TOPOLOGY_UNAPPROVED",
+    "NORTHERN_EPIRUS_FACTUAL_REVIEW_REQUIRED"
+  ],
+  "source": {
+    "datasetId": "histogis-data",
+    "version": "v9.0",
+    "revision": "60c7453a5ebbf276fe7af3f975f6db2b519c1f08",
+    "tag": "v9.0",
+    "downloadUrl": "https://zenodo.org/api/records/4432081/files/acdh-oeaw/histogis-data-v9.0.zip/content",
+    "archiveSha256": "1e108156d8d21f5e47dc91849050f1e12e5d642f13095407f70270883004a5cd",
+    "archiveByteLength": 41517662,
+    "archiveRoot": "acdh-oeaw-histogis-data-60c7453",
+    "archiveLicenseMemberPath": "acdh-oeaw-histogis-data-60c7453/LICENSE",
+    "archiveLicenseMemberSha256": "425a1a2917abd293f8a96fd02cb8fb0dafe9c01a7285012e1681ec04cc672ec8",
+    "zenodoRecordUrl": "https://zenodo.org/records/4432081",
+    "zenodoMetadataLicense": "other-open",
+    "rightsDiscrepancyResolved": false,
+    "reportedArcheLicense": "CC-BY-4.0 per the verified research handoff; exact ARCHE URL/bytes not frozen"
+  },
+  "evidenceArchive": {
+    "path": "sources/historical/1914.evidence.zip",
+    "sha256": "94f8533eba3f1cdd29287ae0a36ebf357781a80664b077a68f5a0f1c74f118aa",
+    "memberInventorySha256": "11f0a7d64660ed669f628bc70c48f63a556583c15d0a294d09a1f348407962c7",
+    "members": [
+      {
+        "path": "README.txt",
+        "sha256": "8e6ce99d3a2629c6d754cf2014a1495ce7ecf6e999270e9684bb26daa3c67d1a"
+      },
+      {
+        "path": "licenses/histogis-v9.0-LICENSE.txt",
+        "sha256": "425a1a2917abd293f8a96fd02cb8fb0dafe9c01a7285012e1681ec04cc672ec8"
+      },
+      {
+        "path": "metadata/datacite-4432081.json",
+        "sha256": "7642f92e7e7f1f5a370b9b9cfa445fc43b24d13f75d52d38ade23005beea9efe"
+      },
+      {
+        "path": "metadata/datacite-first-release.json",
+        "sha256": "ec9dae0e0b013ea63b406b5590ece935339d80929499956dbd288d4354349dea"
+      },
+      {
+        "path": "metadata/github-commit-60c7453.json",
+        "sha256": "794e83645f53950cd1e3f0fd28a112dc933e1a271aa7f5d38950d265eaf3240c"
+      },
+      {
+        "path": "metadata/github-license-60c7453.txt",
+        "sha256": "425a1a2917abd293f8a96fd02cb8fb0dafe9c01a7285012e1681ec04cc672ec8"
+      },
+      {
+        "path": "metadata/github-tag-v9.0.json",
+        "sha256": "d679724c0210f53ec7c2996fa87354ff71fd3c9a940efaf178a4131d117d6b4a"
+      },
+      {
+        "path": "metadata/histogis-source-144.json",
+        "sha256": "e65f8b9ef7b14003014577953a6fc9190ac6a56586564f0148688c06349f856d"
+      },
+      {
+        "path": "metadata/histogis-source-147.json",
+        "sha256": "e4461b18ae8ff7d89547147274492005af01c61d6d7a3a30eeeed55d0ed1c4b5"
+      },
+      {
+        "path": "metadata/histogis-source-154.json",
+        "sha256": "0d3b82a84ba41d5e3c8db6d31e682344ac9803502726e8eb0b4a5bd494d49a88"
+      },
+      {
+        "path": "metadata/histogis-source-160.json",
+        "sha256": "02e309dab7bef2559e68f56c14d88c4ec9b96959772c25ec350687deec39bdd1"
+      },
+      {
+        "path": "metadata/histogis-source-161.json",
+        "sha256": "420e7f2b1879c9c6021e4fc85c19217ee6a2c7c4516b6b87f5011a581ecc71ed"
+      },
+      {
+        "path": "metadata/zenodo-4432081.html",
+        "sha256": "65f9d17e68c668050abd20e98e9924d7539b76bb98b3a5399fc42c4178eb088e"
+      },
+      {
+        "path": "metadata/zenodo-4432081.json",
+        "sha256": "cfad91b1892f4015405d8d21b7843fc22cefb08d6e288e96cdd34947fb61a92a"
+      },
+      {
+        "path": "research/historical-source-evidence-matrix.md",
+        "sha256": "b9c16025eb3722b61815d0520feae128d216a13279d1f1806123d58d3100f804"
+      },
+      {
+        "path": "reviews/1914-balkans.json",
+        "sha256": "0d567326da0ccfdcd2eb2252b459ef0ad2a2ea923aabbfaf907e3681a44b0237"
+      },
+      {
+        "path": "reviews/1914-hungary.json",
+        "sha256": "4e14bb32c7c238b5b12770e0a6f50007408756e57868dd2a0638e01dcb838b46"
+      },
+      {
+        "path": "reviews/1914-iberia.json",
+        "sha256": "133927a2e0769d890244baa14c30b4f26b76f152ec5700f12b1f9fcc80cc8254"
+      },
+      {
+        "path": "reviews/1914-lithuania.json",
+        "sha256": "ac2e3b6348680662551a042a43b2dcb2410a1bd264de767593610cc3c04797e9"
+      },
+      {
+        "path": "reviews/1914-poland.json",
+        "sha256": "7fce24824fa0caf096c47cf007e283ab20ba9ee85044a6aaa27af4172dd7f0f0"
+      },
+      {
+        "path": "reviews/1914-scandinavia.json",
+        "sha256": "05b8eb77ea1f5db53c056cbcec6db4144c11d30a529b21fccafc99aae788f18f"
+      },
+      {
+        "path": "source-records/10014-andorra__1815-06-09_1919-12-31.geojson",
+        "sha256": "43fa32618e0837006090c77ff42fc83798bae216585ea801f6d1cb58ea71c566"
+      },
+      {
+        "path": "source-records/10014.manifest.json",
+        "sha256": "0fbe3d3709857daf5dfdb48d78e19df8b6fd87f8038f21531a8d4d6dfc0b6426"
+      },
+      {
+        "path": "source-records/10022-gibraltar__1815-06-09_1919-12-31.geojson",
+        "sha256": "3b1b97e2982faf4a5c09f4c0e53161e3c8e1a79aa343cc085a73c8d4cf4705a5"
+      },
+      {
+        "path": "source-records/10022.manifest.json",
+        "sha256": "97004b1585445fe4826bcd93604a3f7b3da3e68e73b9d55ce52326a147d4ab1c"
+      },
+      {
+        "path": "source-records/10083-danmark__1866-10-01_1918-11-30.geojson",
+        "sha256": "dc66268deb8e7a2bf20c8a4b096bf6ce177860aa6125cce2a3fc8c1018080c4f"
+      },
+      {
+        "path": "source-records/10083.manifest.json",
+        "sha256": "f40b004d7d17f2c61e65927abf4048ffd62ef22ed9eaae5e0063de6aa0d987e3"
+      },
+      {
+        "path": "source-records/10092-deutsches-reich__1871-02-27_1919-12-31.geojson",
+        "sha256": "a9c136357e693f1fd92c726f9371623b37749f42afe4f5598c017707c6a64455"
+      },
+      {
+        "path": "source-records/10092.manifest.json",
+        "sha256": "be56d4bf5083d65e82d3bcfbcd1d45aff308b901948a2b30bc9339d5b97bf9f8"
+      },
+      {
+        "path": "source-records/10093-espana__1874-12-30_1919-12-31.geojson",
+        "sha256": "b54162f0dec18995ae3bf985672758fd35515f282f5c89d2db12b8b75f5c88a4"
+      },
+      {
+        "path": "source-records/10093.manifest.json",
+        "sha256": "f77ae921d18c29848f2f30e3317a5df31b2013fc7e873e5f67f515401f6410f0"
+      },
+      {
+        "path": "source-records/10095-rossiya__1878-03-18_1918-12-31.geojson.part-001.bin",
+        "sha256": "33942f3350f1347f80ccd0991fdaa4b5594411d589580cadf067f3348448e98b"
+      },
+      {
+        "path": "source-records/10095-rossiya__1878-03-18_1918-12-31.geojson.part-002.bin",
+        "sha256": "45ea4c5e072cbd6c1184aa7b6ba8dab639690335cde0975dacc9da3a30d6aaa3"
+      },
+      {
+        "path": "source-records/10095-rossiya__1878-03-18_1918-12-31.geojson.part-003.bin",
+        "sha256": "79934768078d57a53a34544bfadff67fe7e02055e1de4666e3287f5d25a3b57c"
+      },
+      {
+        "path": "source-records/10095.manifest.json",
+        "sha256": "ffd38050a62e90fd881670b908b0371c365be15e7349cdc1c597860fa1691c2a"
+      },
+      {
+        "path": "source-records/10108-sverige__1905-10-26_1919-12-31.geojson",
+        "sha256": "9504d8a75bffba6a03ec1b3ae7789aed8643772b8114b095093b9e8cd1c974ea"
+      },
+      {
+        "path": "source-records/10108.manifest.json",
+        "sha256": "4751177447aa963e013e7d198bd8a8bee2428e51bb74502cf7952794ed81e909"
+      },
+      {
+        "path": "source-records/10109-norge__1905-10-26_1919-12-31.geojson",
+        "sha256": "ce5a92a03802f4d0ba34febb0f1c5475b83d437c9a692e9159e11344d86b08b7"
+      },
+      {
+        "path": "source-records/10109.manifest.json",
+        "sha256": "d4ffb82b51cdc9d02d301efe080972791b1538e9de2338c24b70518dfa36f5d6"
+      },
+      {
+        "path": "source-records/10110-portugal__1910-10-05_1919-12-31.geojson",
+        "sha256": "904916575fac8c5fed606633e19f23743c20d58070e47e41445f7b16aa9e1d92"
+      },
+      {
+        "path": "source-records/10110.manifest.json",
+        "sha256": "1851f43722cb630fffc69762eae32d56c0097bef3129d50cbdb14a6e21e33c0d"
+      },
+      {
+        "path": "source-records/10115-shqiperi__1913-05-31_1919-12-31.geojson",
+        "sha256": "1b216c096c8d7ab6e2147bcfc26717e73ceb2dfff29806d30727723b885cf04d"
+      },
+      {
+        "path": "source-records/10115.manifest.json",
+        "sha256": "c830edacf486433a800012d78f2cbefdcf21aedcdfa51842a6a68bd292e84366"
+      },
+      {
+        "path": "source-records/10118-srbija__1913-08-11_1919-12-31.geojson",
+        "sha256": "58f352c2267c28adb35dc7cf97e4b77d8d1e078f1ea70e327955eb3f445e2d72"
+      },
+      {
+        "path": "source-records/10118.manifest.json",
+        "sha256": "706557bf0aee29ce2b59436fae7bec1e8b86783b4840e18bab2ab8786f08d7dc"
+      },
+      {
+        "path": "source-records/10119-romania__1913-08-11_1919-12-31.geojson",
+        "sha256": "42f69d70dfed0f0169c7f7c697b72c197ecf03287a26bb479e051fc0018df560"
+      },
+      {
+        "path": "source-records/10119.manifest.json",
+        "sha256": "098c4eb57d433b84532d11074fe5766ca9757a8654dfecf722685aba78bea1d7"
+      },
+      {
+        "path": "source-records/10120-crna-gora__1913-08-11_1919-12-31.geojson",
+        "sha256": "e9eea226c951b7a25ee3cb6615e634ab99ebe9cff1cdfb5383ce148499642d7e"
+      },
+      {
+        "path": "source-records/10120.manifest.json",
+        "sha256": "e40039d78756e5d48cbcaac6e0e552d99fe24124e6233ce11762c187b89108c9"
+      },
+      {
+        "path": "source-records/10121-vasilio-tis-ellados__1913-08-11_1919-12-31.geojson",
+        "sha256": "3362b432211da21746fd95b908020d33f6c97f35195ee10702b76d5ac81310d3"
+      },
+      {
+        "path": "source-records/10121.manifest.json",
+        "sha256": "ba810c46707160293bd2d66525506d7a5188c8800e291e701f47c2386d5e8054"
+      },
+      {
+        "path": "source-records/10123-balgarija__1913-09-30_1919-12-31.geojson",
+        "sha256": "594ac72fbe290d97b6cf4a1a6255a5e4eb07ceed1bbd8b5c4e93eaadfd347fc9"
+      },
+      {
+        "path": "source-records/10123.manifest.json",
+        "sha256": "0eefca1b47a4388a449624a13b2881ad2fddd1286612129315d2b8591a7e10a8"
+      },
+      {
+        "path": "source-records/10124-devlet-i-aliyye-i-osmaniyye__1913-09-30_1919-12-31.geojson",
+        "sha256": "3c1ce52b2d8e14b123023d28258bae90ebceba935e8d0234db87a10908245cc7"
+      },
+      {
+        "path": "source-records/10124.manifest.json",
+        "sha256": "65a8af6fc462c4dd7cdb5c2691a8442eeda4ccd2212c5f92255100be6b4420e2"
+      },
+      {
+        "path": "source-records/9950-osterreich-ungarn__1909-02-27_1918-10-31.geojson",
+        "sha256": "5e16cf8ae14cbb1b7c1a0678818a0ab298ffa8153fe18f16e382fa63a159a2da"
+      },
+      {
+        "path": "source-records/9950.manifest.json",
+        "sha256": "41ebff62f437fe9cae946e533499f4f8724635243ed27d8dd0f9ab12da1df887"
+      },
+      {
+        "path": "source-records/9951-transleithanien__1867-12-22_1918-10-31.geojson",
+        "sha256": "3f16289fa4ea01c63202bff6c4f513b2f2c2ab56a4ac2d7a126547403633b430"
+      },
+      {
+        "path": "source-records/9951.manifest.json",
+        "sha256": "7878095647b0525399e1ca7a34f5eae87d48ca5d2cf0b5e11ef5b145b693712f"
+      },
+      {
+        "path": "source-records/9952-cisleithanien__1867-12-22_1918-10-31.geojson",
+        "sha256": "937c5a20a5f0019533912c55ffa45176123bb9646dc4ed0678a3342fc5005569"
+      },
+      {
+        "path": "source-records/9952.manifest.json",
+        "sha256": "5d1ca7a35894510d018a860b1232f6c8bd9d185d375c8cafe500e8a5b18241f8"
+      },
+      {
+        "path": "source-records/9953-bosnien-und-herzegowina__1909-02-27_1918-10-31.geojson",
+        "sha256": "f09da249dfba156df2d1ab8b98c3df6827032010df4b2e4a44738b40f4cfc725"
+      },
+      {
+        "path": "source-records/9953.manifest.json",
+        "sha256": "8a756b7f6822eb358db178f3561da34bdff8a33f69cde86c30b5a4d7d9f5f8fc"
+      },
+      {
+        "path": "source-records/9963-freie-stadt-fiume-mit-gebiet__1867-12-22_1918-10-31.geojson",
+        "sha256": "01014527f34005d2b96eec0fff5d873d3555b0377cf587a860c4a6abc530763a"
+      },
+      {
+        "path": "source-records/9963.manifest.json",
+        "sha256": "c21cba355a606f3dd74e10a7e160188cc80bda2aa2f922e6fe4bb527d03a660f"
+      },
+      {
+        "path": "source-records/9966-konigreich-dalmatien__1867-12-22_1918-10-31.geojson",
+        "sha256": "0b4c608234d3c591a6c075ba31d98be3f842eefc33335626394477354cb22e1d"
+      },
+      {
+        "path": "source-records/9966.manifest.json",
+        "sha256": "3c32ea9477f46033896961b78472a7f54c39bf9ae015b3f368ef41d9f0eedf5c"
+      },
+      {
+        "path": "source-records/9971-konigreich-galizien-und-lodomerien__1867-12-22_1918-10-31.geojson",
+        "sha256": "ccacb6b4d09c0cd9037e711ab8bf7f677dac9de3dbd24d372479c371cb07ea32"
+      },
+      {
+        "path": "source-records/9971.manifest.json",
+        "sha256": "0a405e6c35628a4effff47be8213330ede0804d28256a7f2ee44ef26df32c155"
+      },
+      {
+        "path": "source-records/9975-konigreich-kroatien-und-slawonien__1881-07-16_1918-10-31.geojson",
+        "sha256": "f00816d154495d451dfb616f45f170ec8e07814d722bbc1a18d0880f4159d508"
+      },
+      {
+        "path": "source-records/9975.manifest.json",
+        "sha256": "bb0ba040b0576a4c919367c3775173800a6f154cffb9dd468dcabbce0305f761"
+      },
+      {
+        "path": "source-records/9976-konigreich-ungarn__1881-07-16_1918-10-31.geojson",
+        "sha256": "a14596ba780e38f16d6c38ee6084d1561545562560165de7a6a866534ec0485a"
+      },
+      {
+        "path": "source-records/9976.manifest.json",
+        "sha256": "e90da8da65ff76ecb0776581e160c85535fe7132c5e493cc8091b42871827cb0"
+      },
+      {
+        "path": "specifications/1914-source-selection.json",
+        "sha256": "ffdc13cb9f67637be32eb3471914ddc694a4a464e9d0784a29b769be0ee1e0aa"
+      },
+      {
+        "path": "topology/1914-preflight.json",
+        "sha256": "3c1042fedd770ffd2ca1c3a3a7f88efe540e8029805f54c0020a875d374e2bfd"
+      }
+    ]
+  },
+  "inputGeometry": {
+    "path": "sources/historical/1914.input.geojson",
+    "sha256": "aea153a2d79ad36b979385ab566c769b8c5bc99612d222d441e9f85af33ed456",
+    "candidateGenerated": false
+  },
+  "preparation": {
+    "mode": "blocked",
+    "vectorExtractionSpecification": null,
+    "manualTrace": null,
+    "reason": "No complete six-region, rights-approved, topology-approved geometry exists; no deterministic or manual candidate claim is made."
+  },
+  "geometryPolicy": {
+    "longitudeDomain": "[-180,180]",
+    "coverageContainersArePoliticalEntities": false,
+    "sourceBoundaryArcsSeparatedFromGeneratedMaskEdges": true,
+    "generatedMaskEdgesPolitical": false,
+    "generatedMaskEdgesSelectable": false,
+    "generatedMaskEdgesExportVisibleAsPoliticalBorders": false
+  },
+  "regions": [
+    {
+      "regionId": "poland",
+      "coverageContainerId": "coverage:1914:poland",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-poland.json",
+      "evidenceSha256": "7fce24824fa0caf096c47cf007e283ab20ba9ee85044a6aaa27af4172dd7f0f0",
+      "entityIds": [
+        "hist:russian-empire",
+        "hist:german-empire",
+        "hist:galicia-lodomeria"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:10095",
+        "histogis:v9.0:id:10092",
+        "histogis:v9.0:id:9971"
+      ],
+      "excludedSourceFeatureIds": [
+        "histogis:v9.0:id:9950"
+      ],
+      "uncertainties": [
+        "Partition seams and source-to-source coastline topology require review."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "lithuania",
+      "coverageContainerId": "coverage:1914:lithuania",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-lithuania.json",
+      "evidenceSha256": "ac2e3b6348680662551a042a43b2dcb2410a1bd264de767593610cc3c04797e9",
+      "entityIds": [
+        "hist:russian-empire",
+        "hist:german-empire"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:10095",
+        "histogis:v9.0:id:10092"
+      ],
+      "excludedSourceFeatureIds": [],
+      "uncertainties": [
+        "Memel and East Prussia treatment and any coverage edge require review."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "hungary",
+      "coverageContainerId": "coverage:1914:hungary",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-hungary.json",
+      "evidenceSha256": "4e14bb32c7c238b5b12770e0a6f50007408756e57868dd2a0638e01dcb838b46",
+      "entityIds": [
+        "hist:kingdom-of-hungary",
+        "hist:croatia-slavonia",
+        "hist:fiume",
+        "hist:bosnia-herzegovina",
+        "hist:kingdom-of-dalmatia"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:9976",
+        "histogis:v9.0:id:9975",
+        "histogis:v9.0:id:9963",
+        "histogis:v9.0:id:9953",
+        "histogis:v9.0:id:9966"
+      ],
+      "excludedSourceFeatureIds": [
+        "histogis:v9.0:id:9950",
+        "histogis:v9.0:id:9951",
+        "histogis:v9.0:id:9952"
+      ],
+      "uncertainties": [
+        "Constituent overlap, gaps, parent anomalies, and seams require review."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "balkans",
+      "coverageContainerId": "coverage:1914:balkans",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-balkans.json",
+      "evidenceSha256": "0d567326da0ccfdcd2eb2252b459ef0ad2a2ea923aabbfaf907e3681a44b0237",
+      "entityIds": [
+        "hist:kingdom-of-serbia",
+        "hist:kingdom-of-montenegro",
+        "hist:kingdom-of-romania",
+        "hist:kingdom-of-bulgaria",
+        "hist:ottoman-empire",
+        "hist:principality-of-albania",
+        "hist:kingdom-of-greece",
+        "hist:bosnia-herzegovina",
+        "hist:croatia-slavonia",
+        "hist:fiume",
+        "hist:kingdom-of-dalmatia"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:10118",
+        "histogis:v9.0:id:10120",
+        "histogis:v9.0:id:10119",
+        "histogis:v9.0:id:10123",
+        "histogis:v9.0:id:10124",
+        "histogis:v9.0:id:10115",
+        "histogis:v9.0:id:10121",
+        "histogis:v9.0:id:9953",
+        "histogis:v9.0:id:9975",
+        "histogis:v9.0:id:9963",
+        "histogis:v9.0:id:9966"
+      ],
+      "excludedSourceFeatureIds": [
+        "histogis:v9.0:id:9950",
+        "histogis:v9.0:id:9951",
+        "histogis:v9.0:id:9952"
+      ],
+      "uncertainties": [
+        "Northern Epirus interpretation requires qualified factual review.",
+        "Balkan War settlement and Austro-Hungarian seams require topology review."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "iberia",
+      "coverageContainerId": "coverage:1914:iberia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-iberia.json",
+      "evidenceSha256": "133927a2e0769d890244baa14c30b4f26b76f152ec5700f12b1f9fcc80cc8254",
+      "entityIds": [
+        "hist:kingdom-of-spain",
+        "hist:portuguese-republic",
+        "hist:british-gibraltar",
+        "hist:andorra"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:10093",
+        "histogis:v9.0:id:10110",
+        "histogis:v9.0:id:10022",
+        "histogis:v9.0:id:10014"
+      ],
+      "excludedSourceFeatureIds": [],
+      "uncertainties": [
+        "Small-territory topology and source clipping require review."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "scandinavia",
+      "coverageContainerId": "coverage:1914:scandinavia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "blocked",
+      "rightsDisposition": "review-required",
+      "license": "Archive LICENSE: CC-BY-4.0; Zenodo v9 metadata: Other/Open; discrepancy unresolved",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1914-scandinavia.json",
+      "evidenceSha256": "05b8eb77ea1f5db53c056cbcec6db4144c11d30a529b21fccafc99aae788f18f",
+      "entityIds": [
+        "hist:kingdom-of-denmark",
+        "hist:kingdom-of-sweden",
+        "hist:kingdom-of-norway",
+        "hist:russian-empire"
+      ],
+      "sourceFeatureIds": [
+        "histogis:v9.0:id:10083",
+        "histogis:v9.0:id:10108",
+        "histogis:v9.0:id:10109",
+        "histogis:v9.0:id:10095"
+      ],
+      "excludedSourceFeatureIds": [],
+      "uncertainties": [
+        "No suitable source polity geometry for Svalbard was identified.",
+        "A reviewed neutral geometry or explicitly non-political mask is required."
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    }
+  ],
+  "sourceRecordManifests": [
+    {
+      "path": "source-records/9950.manifest.json",
+      "sha256": "41ebff62f437fe9cae946e533499f4f8724635243ed27d8dd0f9ab12da1df887",
+      "sourceId": 9950
+    },
+    {
+      "path": "source-records/9951.manifest.json",
+      "sha256": "7878095647b0525399e1ca7a34f5eae87d48ca5d2cf0b5e11ef5b145b693712f",
+      "sourceId": 9951
+    },
+    {
+      "path": "source-records/9952.manifest.json",
+      "sha256": "5d1ca7a35894510d018a860b1232f6c8bd9d185d375c8cafe500e8a5b18241f8",
+      "sourceId": 9952
+    },
+    {
+      "path": "source-records/9953.manifest.json",
+      "sha256": "8a756b7f6822eb358db178f3561da34bdff8a33f69cde86c30b5a4d7d9f5f8fc",
+      "sourceId": 9953
+    },
+    {
+      "path": "source-records/9963.manifest.json",
+      "sha256": "c21cba355a606f3dd74e10a7e160188cc80bda2aa2f922e6fe4bb527d03a660f",
+      "sourceId": 9963
+    },
+    {
+      "path": "source-records/9966.manifest.json",
+      "sha256": "3c32ea9477f46033896961b78472a7f54c39bf9ae015b3f368ef41d9f0eedf5c",
+      "sourceId": 9966
+    },
+    {
+      "path": "source-records/9971.manifest.json",
+      "sha256": "0a405e6c35628a4effff47be8213330ede0804d28256a7f2ee44ef26df32c155",
+      "sourceId": 9971
+    },
+    {
+      "path": "source-records/9975.manifest.json",
+      "sha256": "bb0ba040b0576a4c919367c3775173800a6f154cffb9dd468dcabbce0305f761",
+      "sourceId": 9975
+    },
+    {
+      "path": "source-records/9976.manifest.json",
+      "sha256": "e90da8da65ff76ecb0776581e160c85535fe7132c5e493cc8091b42871827cb0",
+      "sourceId": 9976
+    },
+    {
+      "path": "source-records/10014.manifest.json",
+      "sha256": "0fbe3d3709857daf5dfdb48d78e19df8b6fd87f8038f21531a8d4d6dfc0b6426",
+      "sourceId": 10014
+    },
+    {
+      "path": "source-records/10022.manifest.json",
+      "sha256": "97004b1585445fe4826bcd93604a3f7b3da3e68e73b9d55ce52326a147d4ab1c",
+      "sourceId": 10022
+    },
+    {
+      "path": "source-records/10083.manifest.json",
+      "sha256": "f40b004d7d17f2c61e65927abf4048ffd62ef22ed9eaae5e0063de6aa0d987e3",
+      "sourceId": 10083
+    },
+    {
+      "path": "source-records/10092.manifest.json",
+      "sha256": "be56d4bf5083d65e82d3bcfbcd1d45aff308b901948a2b30bc9339d5b97bf9f8",
+      "sourceId": 10092
+    },
+    {
+      "path": "source-records/10093.manifest.json",
+      "sha256": "f77ae921d18c29848f2f30e3317a5df31b2013fc7e873e5f67f515401f6410f0",
+      "sourceId": 10093
+    },
+    {
+      "path": "source-records/10095.manifest.json",
+      "sha256": "ffd38050a62e90fd881670b908b0371c365be15e7349cdc1c597860fa1691c2a",
+      "sourceId": 10095
+    },
+    {
+      "path": "source-records/10108.manifest.json",
+      "sha256": "4751177447aa963e013e7d198bd8a8bee2428e51bb74502cf7952794ed81e909",
+      "sourceId": 10108
+    },
+    {
+      "path": "source-records/10109.manifest.json",
+      "sha256": "d4ffb82b51cdc9d02d301efe080972791b1538e9de2338c24b70518dfa36f5d6",
+      "sourceId": 10109
+    },
+    {
+      "path": "source-records/10110.manifest.json",
+      "sha256": "1851f43722cb630fffc69762eae32d56c0097bef3129d50cbdb14a6e21e33c0d",
+      "sourceId": 10110
+    },
+    {
+      "path": "source-records/10115.manifest.json",
+      "sha256": "c830edacf486433a800012d78f2cbefdcf21aedcdfa51842a6a68bd292e84366",
+      "sourceId": 10115
+    },
+    {
+      "path": "source-records/10118.manifest.json",
+      "sha256": "706557bf0aee29ce2b59436fae7bec1e8b86783b4840e18bab2ab8786f08d7dc",
+      "sourceId": 10118
+    },
+    {
+      "path": "source-records/10119.manifest.json",
+      "sha256": "098c4eb57d433b84532d11074fe5766ca9757a8654dfecf722685aba78bea1d7",
+      "sourceId": 10119
+    },
+    {
+      "path": "source-records/10120.manifest.json",
+      "sha256": "e40039d78756e5d48cbcaac6e0e552d99fe24124e6233ce11762c187b89108c9",
+      "sourceId": 10120
+    },
+    {
+      "path": "source-records/10121.manifest.json",
+      "sha256": "ba810c46707160293bd2d66525506d7a5188c8800e291e701f47c2386d5e8054",
+      "sourceId": 10121
+    },
+    {
+      "path": "source-records/10123.manifest.json",
+      "sha256": "0eefca1b47a4388a449624a13b2881ad2fddd1286612129315d2b8591a7e10a8",
+      "sourceId": 10123
+    },
+    {
+      "path": "source-records/10124.manifest.json",
+      "sha256": "65a8af6fc462c4dd7cdb5c2691a8442eeda4ccd2212c5f92255100be6b4420e2",
+      "sourceId": 10124
+    }
+  ]
+}
