@@ -137,9 +137,9 @@ Cross-cutting constraints:
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** In progress — partial Wave 4 integration is complete. Plans 02-07, 02-19, and 02-32 are integrated and verified at implementation HEAD `2006ac2`; Plan 02-31 remains incomplete with zero commits. The gate passed build, 295 unit tests, zero-warning lint, strict TypeScript, deterministic world/history/hash/export checks, and 7/7 installed-Chrome tests on deterministic port 4174. Wave 5 engineering Plans 02-08, 02-09, and 02-29 are newly unblocked and can run concurrently while 02-31 research continues. The 1815/1914 packets are hash-bound BLOCKED source-readiness evidence, not approved production snapshots. Historical delivery still requires exact source/license readiness, independent source approval, qualified factual review, durable hash binding, and atomic promotion; blocked snapshots are never counted delivered.
+**Status:** In progress — partial Waves 4 and 5 are integrated. Plans 02-08, 02-09, and 02-29 are complete and verified at current implementation HEAD `ce3b5ebd0563514ab12a40022572242c7d9f7a8d`; Plan 02-31 remains incomplete with zero commits, and 02-33 remains blocked by 02-31 plus independent approvals. The current gate passed 31 Vitest files / 315 tests, 14/14 installed-Chrome E2E, 5/5 repeated camera-freeze cases, 7/7 focused navigation+Locate cases, build, zero-warning ESLint, strict app and project-build TypeScript, and deterministic world data with 248 units / 195 selectable states. No non-historical plan is dependency-ready. The 1815/1914 packets remain hash-bound BLOCKED source-readiness evidence, not approved production snapshots. Historical delivery still requires exact source/license readiness, independent source approval, qualified factual review, durable hash binding, and atomic promotion; blocked snapshots are never counted delivered. No historical readiness or human approval is claimed by this integration gate.
 
-**Plans:** 12/36 plans executed (26/72 tasks)
+**Plans:** 15/36 plans executed (33/72 tasks)
 
 Plans:
 
@@ -164,10 +164,10 @@ Plans:
 - [ ] 02-31-PLAN.md — INCOMPLETE/BLOCKED with zero commits: assemble complete offline source/license/tracing readiness bundles for 1492 and 1700 before geometry curation
 - [x] 02-32-PLAN.md — Complete as hash-bound BLOCKED source readiness for 1815 and 1914; no production snapshots delivered
 
-**Wave 5**
-- [ ] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
-- [ ] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
-- [ ] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
+**Wave 5 — partially complete (3/4 plans, 7/9 tasks)**
+- [x] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
+- [x] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
+- [x] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
 - [ ] 02-33-PLAN.md — BLOCKED by 02-31 and independent approvals: obtain non-executor source/license review and seal one durable machine-validated source-approval JSON per snapshot
 
 **Wave 6**
@@ -367,7 +367,8 @@ The original 1.5–2 week Phase 2 estimate applies to the engineering platform o
 
 ## Next Steps
 
-1. **Dispatch Wave 5 engineering** → Run Plans 02-08, 02-09, and 02-29 concurrently; their owned files do not overlap.
-2. **Continue Plan 02-31 research** → Keep 1492/1700 source readiness separate from engineering dispatch, and do not unblock 02-33 until exact rights/source packets exist.
-3. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
-4. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.
+1. **Continue Plan 02-31 research** → Keep 1492/1700 source readiness isolated and blocked until exact rights-approved six-region packets exist; do not treat partial research as completion.
+2. **Hold Plan 02-33** → Independent non-executor source/license approval cannot start until both 02-31 and 02-32 prerequisites are complete; 02-32 remains BLOCKED evidence rather than production readiness.
+3. **Hold downstream execution** → No non-historical plan is dependency-ready because 02-18 requires the full historical promotion chain; resume engineering only when declared dependencies are satisfied.
+4. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
+5. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 02 partial Wave 4 integration complete — Wave 5 engineering ready; 02-31 blocked
-last_updated: "2026-07-24T20:59:38.000Z"
-last_activity: 2026-07-24 -- Plans 02-07, 02-19, and 02-32 integrated at 2006ac2 and verified with build, 295 tests, zero-warning lint, strict TypeScript, deterministic world/history/export gates, and 7/7 Chrome tests; 02-31 remains incomplete
+stopped_at: Phase 02 partial Waves 4 and 5 integration complete — 02-31 and historical approval chain blocked
+last_updated: "2026-07-24T21:52:17.000Z"
+last_activity: 2026-07-24 -- Plans 02-08, 02-09, and 02-29 integrated and verified at ce3b5ebd0563514ab12a40022572242c7d9f7a8d with 31 Vitest files / 315 tests, 14/14 Chrome E2E, camera-freeze 5/5 repeated, navigation+Locate 7/7 focused, build, zero-warning ESLint, strict app/project TypeScript, and world data 248 units / 195 selectable states; 02-31 remains incomplete
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 34
-  percent: 59
+  completed_plans: 37
+  percent: 64
 ---
 
 # CountriesIRL Map Generator — Project State
@@ -21,18 +21,18 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 **Core value:** Help non-technical Instagram creators produce accurate, polished European choropleth maps quickly.
-**Current focus:** Phase 02 — Wave 5 navigation, Locate, and composition transactions while 02-31 source research continues
+**Current focus:** Phase 02 — blocked historical source readiness and approval chain after completing all currently dependency-ready non-historical engineering
 
 ## Current Position
 
 Phase: 02 (region-variants-advanced-features-1-5-2-weeks) — EXECUTING
-Plan: 8 of 36
-Next step: Dispatch 02-08, 02-09, and 02-29 concurrently; continue 02-31 source/license research without treating 1815/1914 blocked packets as production snapshots
-Execution graph: Phase 2 has 36 plans, 72 tasks, and 18 validated waves; 12 plans / 26 tasks complete. Wave 4 is partially complete at 3/4 plans and 6/8 tasks because 02-31 remains incomplete with zero commits.
-Status: Partial Wave 4 integration complete; Wave 5 engineering ready; 02-33 and the historical approval chain remain blocked by 02-31 and independent approvals
-Last activity: 2026-07-24 -- Plans 02-07, 02-19, and 02-32 integrated at 2006ac2 and verified with build, 295 tests, zero-warning lint, strict TypeScript, deterministic world/history/export gates, and 7/7 Chrome tests; 02-31 remains incomplete
+Plan: 31 of 36 (blocked)
+Next step: Continue isolated 02-31 source/license research; do not dispatch 02-33 or any dependent historical/engineering plan until its exact prerequisites are complete
+Execution graph: Phase 2 has 36 plans, 72 tasks, and 18 validated waves; 15 plans / 33 tasks complete. Wave 4 remains partially complete at 3/4 plans and 6/8 tasks because 02-31 is incomplete. Wave 5 is partially complete at 3/4 plans and 7/9 tasks; its only remaining plan, 02-33, is blocked by 02-31 and independent approvals.
+Status: Plans 02-08, 02-09, and 02-29 are integrated; no non-historical plan is dependency-ready while 02-31 and the historical approval chain remain blocked
+Last activity: 2026-07-24 -- Plans 02-08, 02-09, and 02-29 integrated and verified at ce3b5ebd0563514ab12a40022572242c7d9f7a8d with 31 Vitest files / 315 tests, 14/14 Chrome E2E, camera-freeze 5/5 repeated, navigation+Locate 7/7 focused, build, zero-warning ESLint, strict app/project TypeScript, and world data 248 units / 195 selectable states; 02-31 remains incomplete
 
-Progress: Phase 1 [██████████] 100%; Phase 2 [███-------] 33% (12/36 plans, 26/72 tasks)
+Progress: Phase 1 [██████████] 100%; Phase 2 [████------] 42% (15/36 plans, 33/72 tasks)
 
 ## Performance Metrics
 
@@ -63,6 +63,9 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 | Phase 02 P07 | 39 min | 3 tasks | 7 product/test files |
 | Phase 02 P19 | 14 min | 1 task | 3 files |
 | Phase 02 P32 | 1h 10m | 2 tasks | 9 implementation/evidence files |
+| Phase 02 P08 | 8 min | 2 tasks | 4 files |
+| Phase 02 P09 | 20 min | 3 tasks | 7 files |
+| Phase 02 P29 | 14 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -136,10 +139,14 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 - [Phase 02 Plan 07]: Keep one MapCanvas-internal D3 camera controller and one logical accessible path per selectable entity while decorative wrapped copies remain visual-only.
 - [Phase 02 Plan 19]: Bound stored compositions before and after parse, migrate V1 only in memory, and persist complete V2 snapshots without filtering approved historical IDs.
 - [Phase 02 Plan 32]: Preserve 1815 and 1914 as hash-bound BLOCKED source-readiness packets with deliveryCounted=false; no candidate geometry, catalog entry, or production historical snapshot exists.
+- [Phase 02 Plan 08]: Keep MapNavigation callback-only with exactly Zoom In, Zoom Out, and Move Map; the sole MapCanvas camera owner applies bounded navigation and CompositionBar remains the only Reset View owner.
+- [Phase 02 Plan 09]: Drive Country browser and Locate from the validated 195-core modern catalog, require an explicitly committed Locate target, and delegate camera movement through the sole MapCanvasHandle without changing selection, colors, or history.
+- [Phase 02 Plan 29]: Resolve the currently bound MapCanvasHandle only at load commit or save activation; loads validate and resolve before mutation, while saves synchronously read the live camera without acquiring an export freeze lease.
 
 ### Pending Todos
 
-- Execute newly unblocked Plans 02-08, 02-09, and 02-29 in parallel while Plan 02-31 source/license research continues independently.
+- Continue Plan 02-31 source/license research independently; 1492 and 1700 remain blocked until complete rights-approved six-region packets exist.
+- Do not dispatch 02-33, 02-13 through 02-18, or their downstream engineering plans until every declared dependency and independent approval gate is complete.
 - Keep every historical snapshot blocked until source/license review, qualified factual approval, exact hash binding, and catalog-last promotion pass.
 - If the user later requests hosting, reopen the optional Vercel deployment and production-verification runbooks under new explicit authorization.
 
@@ -147,7 +154,7 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 
 - Plan 02-31 remains incomplete with zero commits; 1492 and 1700 still lack complete rights-approved six-region source/license/tracing packets.
 - Plan 02-33 is blocked by 02-31 and requires independent non-executor source/license approval. The integrated 1815/1914 packets also retain unresolved ARCHE/right-discrepancy and regional geometry/topology blockers.
-- Plans 02-13 through 02-17 remain behind the source-approval, candidate-curation, qualified factual-review, durable-approval, and atomic-promotion chain; blocked packets are never counted delivered.
+- Plans 02-13 through 02-18 remain behind the source-approval, candidate-curation, qualified factual-review, durable-approval, atomic-promotion, and historical integration chain; downstream non-historical Plans 02-20 through 02-28 and 02-30 therefore are not dependency-ready. Blocked packets are never counted delivered.
 - Timing misses, incomplete timing harness work, and earlier harness timeouts remain immutable non-blocking diagnostic observations under D-63.
 - Firefox, Safari, and previous-version certification remain intentionally deferred/unverified and must not be reported as passed.
 - Vercel deployment and production verification are deferred optional future work; no production URL exists or is claimed.
@@ -167,6 +174,6 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [███-----
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:59:38.000Z
-Stopped at: Phase 02 partial Wave 4 integration complete — Wave 5 engineering ready; 02-31 blocked
-Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-08-PLAN.md
+Last session: 2026-07-24T21:52:17.000Z
+Stopped at: Phase 02 partial Waves 4 and 5 integration complete — 02-31 and historical approval chain blocked
+Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-31-PLAN.md
