@@ -281,6 +281,46 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     ]);
   });
 
+  it('validates the real 1700 six-record candidate and Harvard comparison packet', async (): Promise<void> => {
+    const result = await runRepositoryCli([
+      '--snapshot',
+      '1700',
+      '--sources',
+      'sources/historical/1700.sources.json',
+      '--validate-sources',
+    ]);
+    const manifest = await readJsonRecord(
+      resolve(dirname(CLI_PATH), '../sources/historical/1700.sources.json'),
+    );
+    const regions = manifest.regions as Array<Record<string, unknown>>;
+    const byRegion = new Map(regions.map((region) => [region.regionId, region]));
+    const evidenceArchive = manifest.evidenceArchive as Record<string, unknown>;
+    const members = evidenceArchive.members as Array<Record<string, unknown>>;
+    const memberPaths = members.map(({ path }) => path);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).toContain('1700 blocked source packet hashes passed offline');
+    expect(result.stderr).toContain('KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE');
+    expect(manifest.snapshotPass).toBe(false);
+    expect(manifest.productionReady).toBe(false);
+    expect(manifest.catalogEligible).toBe(false);
+    expect(byRegion.get('hungary')?.disposition).toBe('blocked');
+    expect(byRegion.get('balkans')?.disposition).toBe('conditional');
+    expect(byRegion.get('balkans')?.sourceFeatureIds).toEqual([
+      'cliopatria:v0.2.0:feature-index:7055',
+      'cliopatria:v0.2.0:feature-index:9361',
+      'cliopatria:v0.2.0:feature-index:9355',
+      'cliopatria:v0.2.0:feature-index:9390',
+      'cliopatria:v0.2.0:feature-index:9396',
+      'cliopatria:v0.2.0:feature-index:9391',
+    ]);
+    expect(memberPaths).toContain('metadata/harvard-dataverse-gaviqv.json');
+    expect(memberPaths).toContain('metadata/harvard-data-gdb-inventory.tsv');
+    expect(memberPaths).toContain(
+      'specifications/1700-six-record-cliopatria-mosaic.json',
+    );
+  });
+
   it('rejects missing rights and canonical archive-member drift', async (): Promise<void> => {
     const fixture = await createFixture('vector-extraction');
     const manifest = await readJsonRecord(fixture.sourcesPath);

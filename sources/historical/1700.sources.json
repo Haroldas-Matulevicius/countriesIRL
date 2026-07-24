@@ -1,0 +1,476 @@
+{
+  "schemaVersion": 3,
+  "packetKind": "candidate-reviewer",
+  "snapshotId": "1700",
+  "asOf": "1700-01-01",
+  "dateContract": {
+    "displayDate": "1700-01-01",
+    "displayCalendar": "historical-local-calendars",
+    "normalizedAsOf": "1700-01-01",
+    "normalizedCalendar": "product-date-lock",
+    "dayBoundary": "start-of-day",
+    "validityInterval": "half-open"
+  },
+  "readinessStatus": "blocked",
+  "deliveryCounted": false,
+  "snapshotPass": false,
+  "productionReady": false,
+  "catalogEligible": false,
+  "blockers": [
+    "RIGHTS_REVIEW_REQUIRED",
+    "EXACT_DAY_FACTUAL_REVIEW_REQUIRED",
+    "KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE",
+    "CONSTITUENT_AND_TRIBUTARY_POLICY_REVIEW_REQUIRED",
+    "TOPOLOGY_AND_1080PX_REVIEW_REQUIRED",
+    "SIX_REGION_PRODUCTION_GEOMETRY_NOT_APPROVED"
+  ],
+  "approvals": {
+    "sourceRights": null,
+    "factual": null,
+    "topology": null,
+    "reviewerSignature": null,
+    "productionReadiness": null
+  },
+  "evidenceArchive": {
+    "path": "sources/historical/1700.evidence.zip",
+    "sha256": "f8327cb85a267c95500a409dfa9be0eba149cbba24f27af39f48985066c66805",
+    "memberInventorySha256": "fc1168298f4631cd5b36f63061aeb9c17baca8bbdc77fd358e7a051904ceb84b",
+    "members": [
+      {
+        "path": "README.txt",
+        "sha256": "14d9a97e71c4c090242a85c7785ab8426dcf3111237728f82cfe75ab57eca582"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000021.gdbindexes",
+        "sha256": "760bd4864717c60d5e7c0c6461a622062680e6f79f51250f49456aa609b43774"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000021.gdbtable",
+        "sha256": "06cecb62fb2a45e32d1b62db25f64882de4e4d3b18edc07944c1e019dcfe0966"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000021.gdbtablx",
+        "sha256": "1f551337b1ac6cf0358e97fe5451d3b8b61df14f94e4023381340ba09ab500b8"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000021.spx",
+        "sha256": "6c0aa99a4f43286aa400851b92775a2b0f71fb491c2de3f4dc70b298303e2fd2"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000022.gdbindexes",
+        "sha256": "760bd4864717c60d5e7c0c6461a622062680e6f79f51250f49456aa609b43774"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000022.gdbtable",
+        "sha256": "18421c3fd42ae687198b3c46022a6ede28301e15f0a227871ba756fe6c838556"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000022.gdbtablx",
+        "sha256": "71f92859157734be42318a8bcef562d249689e5a5a5d6c46996c7f43f56eca83"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000022.spx",
+        "sha256": "705575561a339f77019f63af1a697016e3964168b42d781d6abae6088e1f544d"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000023.gdbindexes",
+        "sha256": "760bd4864717c60d5e7c0c6461a622062680e6f79f51250f49456aa609b43774"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000023.gdbtable",
+        "sha256": "cbd88a96505c94f344f68766cb27c9779ae37f9acead2a93366743ae69fbebbe"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000023.gdbtablx",
+        "sha256": "fbf933c79f445c2289ddedc5f13a3707882192ed55dc659e4e157bd99d142cd5"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000023.spx",
+        "sha256": "5a754b47acfce5ebb713a60ca15409e1fa90880005136c668f02fc714bd3b739"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000024.gdbindexes",
+        "sha256": "c12bbe6b47cd58d64a4d9b93ce7a015938308b01a7483f5b8680064ca552eeef"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000024.gdbtable",
+        "sha256": "8b2635cbe17f42c1d22a5b12c793e2fcc2b1884e9afa065c266f0e02c2b628d8"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000024.gdbtablx",
+        "sha256": "b69ccc7edd495df4be806c03e42596291aac1e3e9c616f18e839f86e1999e4f8"
+      },
+      {
+        "path": "comparison/harvard-data-gdb/a00000024.spx",
+        "sha256": "0ca9d0be90bc009399880faaebac10b432357f3216b7d4699277ba6d3dc77d75"
+      },
+      {
+        "path": "licenses/cliopatria-v0.2.0-LICENSE.md",
+        "sha256": "62ca7e92dee4ebe402372d5e64f87845de445a6c0e5d76fddb68b3e33739d1a6"
+      },
+      {
+        "path": "metadata/cliopatria-v0.2.0-README.md",
+        "sha256": "25a2723e607dd03b01cfa0c9e0ecc83ea3e4c227198bd77faee04c3646be46b8"
+      },
+      {
+        "path": "metadata/harvard-data-gdb-inventory.tsv",
+        "sha256": "6c32c77cedb8ac1831669a8f23060d81d80e3416c72dbd3f3ca9f7e4dc177e37"
+      },
+      {
+        "path": "metadata/harvard-dataverse-gaviqv.json",
+        "sha256": "4d9d545a93223b5394cfc026aac95d858701858228121d4b3bb266024e527143"
+      },
+      {
+        "path": "research/historical-source-evidence-matrix.md",
+        "sha256": "b9c16025eb3722b61815d0520feae128d216a13279d1f1806123d58d3100f804"
+      },
+      {
+        "path": "reviews/1700-balkans.json",
+        "sha256": "02c667d15285d3d1a3e5f58ef08f073a195df96252a7a9ebf23e946af2642d03"
+      },
+      {
+        "path": "reviews/1700-hungary.json",
+        "sha256": "27991ab00b51a9e531eb36c57b3a76552f12839dc565c696d5bd47cf33b926b3"
+      },
+      {
+        "path": "reviews/1700-iberia.json",
+        "sha256": "152579c08ba497485cbc814e45a2a26ba596f5546907d66aa601a590b907c266"
+      },
+      {
+        "path": "reviews/1700-lithuania.json",
+        "sha256": "4b45f9f2166cda665f74ba6086b885c9a542b8ceb3d66e5a218f260783491f80"
+      },
+      {
+        "path": "reviews/1700-poland.json",
+        "sha256": "b5ce10d49c13f326574de7d833e502517a61d1700558122541cadcf89e23bd36"
+      },
+      {
+        "path": "reviews/1700-scandinavia.json",
+        "sha256": "5d502d53e77a801e110874ef08bb330376ac9f9a598892cceaef490aaa3b2e32"
+      },
+      {
+        "path": "source-locks/1700-source-locks.json",
+        "sha256": "744341a6c7f9080fa8ed033215ba98030947bd1886ebc40af6d21c97fcf0608a"
+      },
+      {
+        "path": "source-records/cliopatria-07055-republic-of-ragusa.geojson",
+        "sha256": "b84946b0fc1a72399c4c7a16f9538144c7d48dc18601426bb3ad0d763b2a61e0"
+      },
+      {
+        "path": "source-records/cliopatria-08862-kingdom-of-portugal.geojson",
+        "sha256": "488a637d9d2be213a63ba3cd42e696cba2191ec85a06f9f084118fb944802cef"
+      },
+      {
+        "path": "source-records/cliopatria-09098-denmark-norway.geojson",
+        "sha256": "6d3b67d7069314c8cebae907bea8e55892cb630f1c53c10ea56dc60aa7622d3d"
+      },
+      {
+        "path": "source-records/cliopatria-09236-swedish-empire.geojson",
+        "sha256": "165000dc87401e796a24fc3aed483a48875c66cae9c1090130115efadd619608"
+      },
+      {
+        "path": "source-records/cliopatria-09355-principality-of-moldavia.geojson",
+        "sha256": "e32a4820c248565a93c0003c79bb9e87968bb382e49f00d79f1df09eea0815d3"
+      },
+      {
+        "path": "source-records/cliopatria-09361-principality-of-wallachia.geojson",
+        "sha256": "c0de94701c54ab62a481d82cf5f19e08fb164e3913a4e0950f0387b88611b8c4"
+      },
+      {
+        "path": "source-records/cliopatria-09390-republic-of-venice.geojson",
+        "sha256": "421bae94ed6a7d54a814f25c1c242ed2fe70c152d2635a7238019999df65db86"
+      },
+      {
+        "path": "source-records/cliopatria-09391-ottoman-empire.geojson",
+        "sha256": "8f533edfcbbfc68f67ce1d2246cdf0adb56d38f1a192cb64b8b0e2aca2f0cfb8"
+      },
+      {
+        "path": "source-records/cliopatria-09396-habsburg-monarchy.geojson",
+        "sha256": "88bcd6139c96c3521c0623663a6d4049508c551bfdf1ba0b40122a8624f0b367"
+      },
+      {
+        "path": "source-records/cliopatria-09397-polish-lithuanian-commonwealth.geojson",
+        "sha256": "37b2dcb583874fa6f0b65d4496b4929d12d6bc6535043c0e16e2597e8278dfce"
+      },
+      {
+        "path": "source-records/cliopatria-09402-kingdom-of-spain.geojson",
+        "sha256": "0e0e148c245e0e882a4e90843f22dac3a07caac9e632bca0585a9781c2c2c308"
+      },
+      {
+        "path": "specifications/1700-six-record-cliopatria-mosaic.json",
+        "sha256": "52c4c93a031ebe53229386307b23f519fbe27beefa50a2918b97f61bb5916cae"
+      }
+    ]
+  },
+  "inputGeometry": {
+    "path": "sources/historical/1700.input.geojson",
+    "sha256": "7dc2f6e450267b9dca338d22a0cbe719eae23ecee7098aae7d1e086831282931",
+    "candidateGenerated": false
+  },
+  "preparation": {
+    "mode": "blocked",
+    "reason": "The packet binds candidate evidence for review but lacks approved exact production geometry and every required independent approval.",
+    "manualTrace": null
+  },
+  "geometryPolicy": {
+    "longitudeDomain": "[-180,180]",
+    "coverageContainersArePoliticalEntities": false,
+    "sourceBoundaryArcsSeparatedFromGeneratedMaskEdges": true,
+    "generatedMaskEdgesPolitical": false,
+    "generatedMaskEdgesSelectable": false,
+    "generatedMaskEdgesExportVisibleAsPoliticalBorders": false
+  },
+  "reviewerPacket": {
+    "status": "candidate-blocked",
+    "hashInvalidationRule": "Changing any listed byte invalidates every future approval.",
+    "artifacts": [
+      {
+        "path": "reviews/1700-balkans.json",
+        "sha256": "02c667d15285d3d1a3e5f58ef08f073a195df96252a7a9ebf23e946af2642d03"
+      },
+      {
+        "path": "reviews/1700-hungary.json",
+        "sha256": "27991ab00b51a9e531eb36c57b3a76552f12839dc565c696d5bd47cf33b926b3"
+      },
+      {
+        "path": "reviews/1700-iberia.json",
+        "sha256": "152579c08ba497485cbc814e45a2a26ba596f5546907d66aa601a590b907c266"
+      },
+      {
+        "path": "reviews/1700-lithuania.json",
+        "sha256": "4b45f9f2166cda665f74ba6086b885c9a542b8ceb3d66e5a218f260783491f80"
+      },
+      {
+        "path": "reviews/1700-poland.json",
+        "sha256": "b5ce10d49c13f326574de7d833e502517a61d1700558122541cadcf89e23bd36"
+      },
+      {
+        "path": "reviews/1700-scandinavia.json",
+        "sha256": "5d502d53e77a801e110874ef08bb330376ac9f9a598892cceaef490aaa3b2e32"
+      },
+      {
+        "path": "source-locks/1700-source-locks.json",
+        "sha256": "744341a6c7f9080fa8ed033215ba98030947bd1886ebc40af6d21c97fcf0608a"
+      },
+      {
+        "path": "specifications/1700-six-record-cliopatria-mosaic.json",
+        "sha256": "52c4c93a031ebe53229386307b23f519fbe27beefa50a2918b97f61bb5916cae"
+      }
+    ],
+    "sourceRightsDecision": null,
+    "factualDecision": null,
+    "topologyDecision": null,
+    "reviewerSignature": null,
+    "productionReadinessDecision": null
+  },
+  "regions": [
+    {
+      "regionId": "poland",
+      "coverageContainerId": "coverage:1700:poland",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-poland.json",
+      "evidenceSha256": "b5ce10d49c13f326574de7d833e502517a61d1700558122541cadcf89e23bd36",
+      "entityIds": [
+        "hist:polish-lithuanian-commonwealth"
+      ],
+      "colorOwnerIds": [
+        "hist:polish-lithuanian-commonwealth"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:9397"
+      ],
+      "uncertainties": [
+        "CROWN_GDL_INTERNAL_BOUNDARY_ABSENT",
+        "INDEPENDENT_CELL_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "lithuania",
+      "coverageContainerId": "coverage:1700:lithuania",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-lithuania.json",
+      "evidenceSha256": "4b45f9f2166cda665f74ba6086b885c9a542b8ceb3d66e5a218f260783491f80",
+      "entityIds": [
+        "hist:polish-lithuanian-commonwealth"
+      ],
+      "colorOwnerIds": [
+        "hist:polish-lithuanian-commonwealth"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:9397"
+      ],
+      "uncertainties": [
+        "CROWN_GDL_INTERNAL_BOUNDARY_ABSENT",
+        "INDEPENDENT_CELL_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "hungary",
+      "coverageContainerId": "coverage:1700:hungary",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "blocked",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-hungary.json",
+      "evidenceSha256": "27991ab00b51a9e531eb36c57b3a76552f12839dc565c696d5bd47cf33b926b3",
+      "entityIds": [
+        "hist:habsburg-monarchy",
+        "hist:ottoman-empire"
+      ],
+      "colorOwnerIds": [
+        "hist:habsburg-monarchy",
+        "hist:ottoman-empire"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:9396",
+        "cliopatria:v0.2.0:feature-index:9391"
+      ],
+      "uncertainties": [
+        "KINGDOM_OF_HUNGARY_INTERNAL_GEOMETRY_MISSING",
+        "TRANSYLVANIA_INTERNAL_GEOMETRY_MISSING",
+        "BANAT_FRONTIER_DEMARCATION_UNFINISHED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "balkans",
+      "coverageContainerId": "coverage:1700:balkans",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-balkans.json",
+      "evidenceSha256": "02c667d15285d3d1a3e5f58ef08f073a195df96252a7a9ebf23e946af2642d03",
+      "entityIds": [
+        "hist:republic-of-ragusa",
+        "hist:principality-of-wallachia",
+        "hist:principality-of-moldavia",
+        "hist:republic-of-venice",
+        "hist:habsburg-monarchy",
+        "hist:ottoman-empire"
+      ],
+      "colorOwnerIds": [
+        "hist:republic-of-ragusa",
+        "hist:principality-of-wallachia",
+        "hist:principality-of-moldavia",
+        "hist:republic-of-venice",
+        "hist:habsburg-monarchy",
+        "hist:ottoman-empire"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:7055",
+        "cliopatria:v0.2.0:feature-index:9361",
+        "cliopatria:v0.2.0:feature-index:9355",
+        "cliopatria:v0.2.0:feature-index:9390",
+        "cliopatria:v0.2.0:feature-index:9396",
+        "cliopatria:v0.2.0:feature-index:9391"
+      ],
+      "uncertainties": [
+        "SOURCE_RIGHTS_REVIEW_REQUIRED",
+        "EXACT_DAY_KARLOWITZ_FRONTIER_REVIEW_REQUIRED",
+        "OVERLAP_AND_SHARED_ARC_TOPOLOGY_REVIEW_REQUIRED",
+        "TRIBUTARY_STATUS_REVIEW_REQUIRED",
+        "REVIEW_AT_1080PX_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "iberia",
+      "coverageContainerId": "coverage:1700:iberia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-iberia.json",
+      "evidenceSha256": "152579c08ba497485cbc814e45a2a26ba596f5546907d66aa601a590b907c266",
+      "entityIds": [
+        "hist:kingdom-of-spain",
+        "hist:kingdom-of-portugal"
+      ],
+      "colorOwnerIds": [
+        "hist:kingdom-of-spain",
+        "hist:kingdom-of-portugal"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:9402",
+        "cliopatria:v0.2.0:feature-index:8862"
+      ],
+      "uncertainties": [
+        "GIBRALTAR_OLIVENZA_REVIEW_REQUIRED",
+        "GEOGRAPHIC_SELECTION_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    },
+    {
+      "regionId": "scandinavia",
+      "coverageContainerId": "coverage:1700:scandinavia",
+      "coverageContainerCreatesPoliticalEntity": false,
+      "disposition": "conditional",
+      "rightsDisposition": "review-required",
+      "license": "pending independent item-specific source/license review",
+      "attribution": null,
+      "retrievedOn": "2026-07-24",
+      "evidencePath": "reviews/1700-scandinavia.json",
+      "evidenceSha256": "5d502d53e77a801e110874ef08bb330376ac9f9a598892cceaef490aaa3b2e32",
+      "entityIds": [
+        "hist:denmark-norway",
+        "hist:swedish-empire"
+      ],
+      "colorOwnerIds": [
+        "hist:denmark-norway",
+        "hist:swedish-empire"
+      ],
+      "sourceFeatureIds": [
+        "cliopatria:v0.2.0:feature-index:9098",
+        "cliopatria:v0.2.0:feature-index:9236"
+      ],
+      "uncertainties": [
+        "COAST_ISLAND_TOPOLOGY_REVIEW_REQUIRED",
+        "EASTERN_COVERAGE_REVIEW_REQUIRED"
+      ],
+      "approvals": {
+        "rights": null,
+        "factual": null,
+        "topology": null
+      }
+    }
+  ]
+}

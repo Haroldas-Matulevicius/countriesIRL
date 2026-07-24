@@ -452,7 +452,7 @@ function reviewRecord(snapshotId, regionId) {
       blockers: ['CROWN_GDL_INTERNAL_BOUNDARY_ABSENT', 'INDEPENDENT_CELL_REVIEW_REQUIRED'],
     },
     hungary: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-parent-status-metadata',
       entityIds: ['hist:habsburg-monarchy', 'hist:ottoman-empire'],
       sourceFeatureIds: [
