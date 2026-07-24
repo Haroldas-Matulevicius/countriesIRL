@@ -946,6 +946,8 @@ function readSnapshotEntry(input: unknown): SnapshotManifestEntry | null {
   if (
     !isBoundedString(input.label) ||
     !isBoundedString(input.asOf) ||
+    (input.id !== 'modern' &&
+      input.asOf !== HISTORICAL_SNAPSHOT_DATES[input.id as HistoricalSnapshotId]) ||
     !isBoundedString(input.assetPath) ||
     !input.assetPath.startsWith('/data/') ||
     !isSha256(input.sha256) ||

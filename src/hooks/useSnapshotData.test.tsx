@@ -281,21 +281,18 @@ describe('SnapshotDataLoader', (): void => {
     const loader = new SnapshotDataLoader(fetcher);
 
     loader.load('1914', [entry]);
-    expect((await waitForState(loader, ({ status }) => status === 'error')).reason).toBe(
-      'not-found',
-    );
+    const unknown = await waitForState(loader, ({ status }) => status === 'error');
+    expect(unknown.status === 'error' ? unknown.reason : null).toBe('not-found');
     expect(fetcher).not.toHaveBeenCalled();
 
     loader.load('1700', [{ ...entry, coverageRegions: ['poland'] }]);
-    expect((await waitForState(loader, ({ status }) => status === 'error')).reason).toBe(
-      'not-approved',
-    );
+    const blocked = await waitForState(loader, ({ status }) => status === 'error');
+    expect(blocked.status === 'error' ? blocked.reason : null).toBe('not-approved');
     expect(fetcher).not.toHaveBeenCalled();
 
     loader.load('1700', [{ ...entry, sha256: 'a'.repeat(64) }]);
-    expect((await waitForState(loader, ({ status }) => status === 'error')).reason).toBe(
-      'hash-mismatch',
-    );
+    const stale = await waitForState(loader, ({ status }) => status === 'error');
+    expect(stale.status === 'error' ? stale.reason : null).toBe('hash-mismatch');
     expect(loader.getState().current).toBeNull();
   });
 
