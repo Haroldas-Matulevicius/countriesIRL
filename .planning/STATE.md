@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planned
-stopped_at: Phase 2 review-replanned — 36 plans across 18 waves
+stopped_at: Phase 2 targeted review revision complete — 36 plans across 18 waves
 last_updated: "2026-07-24T23:59:00.000Z"
-last_activity: 2026-07-24 -- Phase 2 cross-AI review concerns resolved into 36 executable plans; implementation remains unstarted
+last_activity: 2026-07-24 -- Phase 2 targeted blockers resolved: durable source approvals, sole MapCanvasHandle bridge, and canonical in-SVG legend; implementation remains unstarted
 progress:
   total_phases: 3
   completed_phases: 1
@@ -27,9 +27,9 @@ See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 Phase: 1 of 3 complete; Phase 2 planned in full and unstarted
 Next step: Execute Phase 2 with `/gsd:execute-phase 2`, beginning with Wave 1 tooling/contracts
-Execution graph: Phase 2 has 36 plans, 71 tasks, and 18 validated waves; zero Phase 2 tasks executed
-Status: Phase 2 plan frontmatter/structure, requirement/D-ID coverage, acyclic dependencies, and same-wave file ownership validated; execution pending
-Last activity: 2026-07-24 -- Phase 2 review replanning completed; 14 mandatory concerns mapped to executable tasks
+Execution graph: Phase 2 has 36 plans, 72 tasks, and 18 validated waves; zero Phase 2 tasks executed
+Status: Phase 2 plan frontmatter/structure, requirement/D-ID coverage, 18-wave acyclic dependencies, same-wave file ownership, sole-handle ownership, source-approval byte chain, and canonical legend export mapping validated; execution pending
+Last activity: 2026-07-24 -- Targeted review revision resolved all three blockers while retaining 36 plans and 18 waves
 
 Progress: Phase 1 [██████████] 100%; Phase 2 [----------] 0%
 
@@ -158,5 +158,5 @@ Progress: Phase 1 [██████████] 100%; Phase 2 [----------] 0%
 ## Session Continuity
 
 Last session: 2026-07-24T23:59:00.000Z
-Stopped at: Phase 2 review-replanned — 36 plans / 18 waves / 71 tasks
+Stopped at: Phase 2 targeted review revision complete — 36 plans / 18 waves / 72 tasks
 Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-01-PLAN.md

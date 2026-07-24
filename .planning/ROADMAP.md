@@ -145,7 +145,7 @@ Plans:
 
 **Wave 1**
 - [ ] 02-01-PLAN.md — Establish the exact-pinned Phase 2 build/browser validation boundary and artifact hygiene before feature work
-- [ ] 02-02-PLAN.md — Define the interface-first semantic contracts every Phase 2 subsystem implements, including the complete live-camera transaction and historical-entity policy
+- [ ] 02-02-PLAN.md — Define the interface-first contracts, including the sole MapCanvasHandle, complete live-camera transaction, and historical-entity policy
 
 **Wave 2**
 - [ ] 02-03-PLAN.md — Create the single React owner for durable Phase 2 composition state while leaving color history untouched
@@ -168,7 +168,7 @@ Plans:
 - [ ] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
 - [ ] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
 - [ ] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
-- [ ] 02-33-PLAN.md — Obtain non-automated approval of the exact source/license/tracing readiness bundles before curation
+- [ ] 02-33-PLAN.md — Obtain non-executor source/license review and seal one durable machine-validated source-approval JSON per snapshot
 
 **Wave 6**
 - [ ] 02-13-PLAN.md — Generate and preflight the exact 1492 candidate from the approved source bundle
@@ -186,7 +186,7 @@ Plans:
 - [ ] 02-17-PLAN.md — Promote only exact source-approved, factually approved, unchanged historical bytes into production
 
 **Wave 10**
-- [ ] 02-18-PLAN.md — Integrate exact world loading/fatal states, approved historical scenes, effective-scene interaction, accessible crossfade, tooltip context, and warm-switch evidence
+- [ ] 02-18-PLAN.md — Integrate world/history states plus the sole handle and React legend slot inside the one canonical SVG
 
 **Wave 11**
 - [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions using focused live-camera save and atomic load transactions
@@ -218,10 +218,10 @@ Plans:
 Cross-cutting constraints:
 - One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector.
 - The modern browser/Locate catalog is exactly 195 core states. Approved historical entities with distinct stable IDs are selectable/colorable by map click and keyboard only while active; dependencies/disputed/neutral units remain non-selectable. Period changes retain selection only for incoming effective-scene identities.
-- Live camera transactions are explicit: save uses non-locking `readCurrentCamera`; export acquires an idempotent `CameraFreezeLease`, synchronously settles the visible semantic camera, and releases from the outermost finally on every path.
-- Historical work uses separate source/license readiness, curation, qualified factual review, durable five-hash approval, and catalog-last promotion gates. Vector extraction may be regenerated; manual traces are verified by evidence/procedure/operator/input hashes and are never falsely represented as deterministic extraction.
-- Each historical approval names reviewer identity/role/date, six independent regional decisions/uncertainties, and hashes for source manifest, input/tracing geometry, output overlay, review JSON, and review HTML. Executor self-approval is forbidden; any byte change invalidates approval.
-- The legend is an export-safe SVG layer outside the camera transform. Every active non-white effective color, including approved historical entities, appears or export is blocked.
+- Exactly one `MapCanvasHandle` bridges root composition to the visible MapCanvas controller across responsive remounts. Save uses its non-locking `readCurrentCamera`; load/navigation/focus use its narrow operations; export acquires its idempotent `CameraFreezeLease`, reads its connected export source, synchronously settles the visible semantic camera, and releases from the outermost finally on every path.
+- Historical work uses separate readiness, durable non-executor source-approval JSON, curation, qualified factual review bound to the current source-approval SHA plus five candidate/review hashes, and catalog-last promotion gates. Vector extraction may be regenerated; manual traces are verified by evidence/procedure/operator/input hashes and are never falsely represented as deterministic extraction.
+- Each source approval names reviewer identity/role/date, explicitly records non-executor/non-implementer status, six regional source/license decisions, and exact manifest/canonical evidence archive/member inventory/input/mode/manual-trace hashes. Each factual approval names a qualified reviewer and binds the current source-approval SHA plus source/input/output/review JSON/review HTML hashes. Executor self-approval is forbidden; any changed bound byte invalidates approval.
+- The React-owned legend is a `<g>` in the one canonical MapCanvas SVG, after the D3 camera group and outside its transform. It is the exact group cloned for export; no sibling overlay fallback exists. Every active non-white effective color, including approved historical entities, appears or export is blocked.
 - Complete saves retain colors, the exact live semantic camera, period, legend metadata/style/position, and visible settings under max-10 local-only policy. Raw storage is bounded before parse and by iterative depth/node budget.
 - Export preserves every visible wrapped geometry path required by Pacific/date-line framing and strips only editor and duplicate accessibility semantics. Outgoing crossfade is inaccessible/nonfocusable and never exported.
 - Focused installed-Chrome Playwright slices run in owning plans. The final authoritative gate records HEAD after the final E2E commit, creates a detached clean worktree at that SHA, runs fresh `npm ci` plus the complete lint/test/type/data/history/build/Chrome/Edge gate, and records machine-readable evidence.
