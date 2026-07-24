@@ -137,9 +137,9 @@ Cross-cutting constraints:
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** In progress — Waves 1-2 complete and Wave 3 ready to dispatch. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
+**Status:** In progress — Waves 1-3 complete and Wave 4 ready to dispatch. Wave 3 integration at `7acfbb8` passed build, 274 unit tests, zero-warning lint, strict TypeScript, deterministic world/history/hash/export gates, and 4/4 Chrome legend tests on port 4174. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
 
-**Plans:** 6/36 plans executed
+**Plans:** 9/36 plans executed
 
 Plans:
 
@@ -154,9 +154,9 @@ Plans:
 - [x] 02-10-PLAN.md — Implement the pure effective-scene and legend algorithms, including the locked historical interaction policy
 
 **Wave 3**
-- [ ] 02-05-PLAN.md — Move the runtime data boundary from fixed Europe to the validated world asset and reviewed manifest
-- [ ] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
-- [ ] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
+- [x] 02-05-PLAN.md — Move the runtime data boundary from fixed Europe to the validated world asset and reviewed manifest
+- [x] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
+- [x] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
 
 **Wave 4**
 - [ ] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
