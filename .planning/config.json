@@ -7,7 +7,8 @@
     "mode": "delegated",
     "executor": "codex",
     "phases": 3,
-    "mvpTargetWeeks": 6
+    "mvpTargetWeeks": 6,
+    "_auto_chain_active": false
   },
   "techStack": {
     "decided": false,
@@ -21,7 +22,13 @@
   "dataSource": {
     "modernBorders": "Natural Earth (free GeoJSON)",
     "historicalBorders": "Natural Earth (1800+) + Wikidata + manual tracing",
-    "historicalPeriods": ["1400s", "1700s", "1800s", "1900s", "modern"],
+    "historicalPeriods": [
+      "1400s",
+      "1700s",
+      "1800s",
+      "1900s",
+      "modern"
+    ],
     "historicalRegions": [
       "Poland",
       "Lithuania",

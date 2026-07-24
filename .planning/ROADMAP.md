@@ -137,15 +137,15 @@ Cross-cutting constraints:
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** Review-replanned — execution not started. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
+**Status:** In progress — Wave 1 complete and Wave 2 ready to dispatch. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
 
-**Plans:** 36 plans across 18 waves
+**Plans:** 2/36 plans executed
 
 Plans:
 
 **Wave 1**
-- [ ] 02-01-PLAN.md — Establish the exact-pinned Phase 2 build/browser validation boundary and artifact hygiene before feature work
-- [ ] 02-02-PLAN.md — Define the interface-first contracts, including the sole MapCanvasHandle, complete live-camera transaction, and historical-entity policy
+- [x] 02-01-PLAN.md — Establish the exact-pinned Phase 2 build/browser validation boundary and artifact hygiene before feature work
+- [x] 02-02-PLAN.md — Define the interface-first contracts, including the sole MapCanvasHandle, complete live-camera transaction, and historical-entity policy
 
 **Wave 2**
 - [ ] 02-03-PLAN.md — Create the single React owner for durable Phase 2 composition state while leaving color history untouched
