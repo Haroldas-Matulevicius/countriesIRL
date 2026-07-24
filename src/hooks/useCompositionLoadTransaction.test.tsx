@@ -138,6 +138,7 @@ function createDependencies(
         'hist:polish-lithuanian-commonwealth',
       ]),
     ),
+    loadScene: vi.fn(),
     loadColors: vi.fn(),
     loadComposition: vi.fn(),
     replaceSelection: vi.fn(),
@@ -165,6 +166,9 @@ describe('createCompositionLoadTransaction', (): void => {
         return deferredScene.promise;
       }),
       getMapCanvasHandle: vi.fn(() => currentHandle),
+      loadScene: vi.fn((): void => {
+        calls.push('scene:load');
+      }),
       loadColors: vi.fn((): void => {
         calls.push('colors:load-and-reset-history');
       }),
@@ -209,6 +213,7 @@ describe('createCompositionLoadTransaction', (): void => {
       'storage:validated',
       'snapshot:resolve:false',
       'visible:restore',
+      'scene:load',
       'colors:load-and-reset-history',
       'composition:load',
       'selection:hist:polish-lithuanian-commonwealth',
@@ -296,6 +301,7 @@ describe('createCompositionLoadTransaction', (): void => {
     });
 
     expect(handle.restore).toHaveBeenCalledOnce();
+    expect(dependencies.loadScene).not.toHaveBeenCalled();
     expect(dependencies.loadColors).not.toHaveBeenCalled();
     expect(dependencies.loadComposition).not.toHaveBeenCalled();
     expect(dependencies.replaceSelection).not.toHaveBeenCalled();

@@ -1,12 +1,20 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 
-import type { MapCanvasHandle } from './types/composition';
+import type {
+  CameraPanDirection,
+  Composition,
+  CompositionSnapshot,
+  EffectiveScene,
+  MapCanvasHandle,
+  SnapshotId,
+} from './types/composition';
 import type { CountryId, GeoFeature } from './types/map';
 import type { ToastMessage } from './types/ui';
 import { AppHeader } from './components/AppHeader';
@@ -14,20 +22,34 @@ import { ColorPicker } from './components/ColorPicker';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
 import { LocateCountry } from './components/LocateCountry';
+import { MapNavigation } from './components/MapNavigation';
 import { MapWorkspace } from './components/MapWorkspace';
 import { OnboardingBanner } from './components/OnboardingBanner';
 import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
+import { useCompositionLoadTransaction } from './hooks/useCompositionLoadTransaction';
+import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
+import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
 import type { WorldCountryMetadata } from './hooks/useGeoData';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useMapState } from './hooks/useMapState';
+import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
 
 const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
+
+function snapshotToComposition(snapshot: CompositionSnapshot): Composition {
+  return {
+    camera: snapshot.camera,
+    snapshotId: snapshot.snapshotId,
+    legend: snapshot.legend,
+    settings: snapshot.settings,
+  };
+}
 
 export function createSelectionAnnouncement(
   selectedIds: ReadonlySet<CountryId>,
@@ -58,21 +80,33 @@ export default function App(): JSX.Element {
     canRedo,
     canReset,
     selectCountry,
+    replaceSelection,
     clearSelection,
     resetColors,
     undo,
     redo,
     loadState,
   } = useMapState();
+  const {
+    state: compositionState,
+    setCamera,
+    loadComposition,
+    markSaved,
+  } = useCompositionState();
   const geoData = useGeoData();
   const {
     onboardingDismissed,
     error: persistenceError,
     isPersistenceAvailable,
+    saveComposition,
+    loadComposition: loadStoredComposition,
     dismissOnboarding,
   } = useLocalStorage();
   const layout = useResponsiveLayout();
-  const exportSourceRef = useRef<MapCanvasHandle>(null);
+  const mapCanvasHandleRef = useRef<MapCanvasHandle | null>(null);
+  const colorsRef = useRef(colors);
+  const selectedIdsRef = useRef(selectedIds);
+  const compositionRef = useRef<Composition>(compositionState);
   const exportHandlerRef = useRef<() => void>(() => undefined);
   const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
@@ -83,6 +117,8 @@ export default function App(): JSX.Element {
     () => !onboardingDismissed,
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
+  const [isMoveMapOpen, setIsMoveMapOpen] = useState(false);
+  const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
@@ -102,10 +138,85 @@ export default function App(): JSX.Element {
     geoData.status === 'ready' ? geoData.countryMetadata : EMPTY_COUNTRIES;
   const countryLookup =
     geoData.status === 'ready' ? geoData.coreLookup : EMPTY_COUNTRY_LOOKUP;
-  const validCountryIds = useMemo<ReadonlySet<CountryId>>(
-    () => new Set(countries.map((country) => country.id)),
-    [countries],
+  const visibleFeatures =
+    activeScene?.snapshotId === compositionState.snapshotId
+      ? activeScene.features
+      : undefined;
+  const effectiveCountryLookup = useMemo<ReadonlyMap<CountryId, GeoFeature>>(
+    () => {
+      if (visibleFeatures === undefined) {
+        return countryLookup;
+      }
+      const lookup = new Map<CountryId, GeoFeature>();
+      visibleFeatures.forEach((feature): void => {
+        if (feature.isSelectable && !lookup.has(feature.entityId)) {
+          lookup.set(feature.entityId, feature);
+        }
+      });
+      return lookup;
+    },
+    [countryLookup, visibleFeatures],
   );
+
+  useLayoutEffect((): void => {
+    colorsRef.current = colors;
+    selectedIdsRef.current = selectedIds;
+    compositionRef.current = compositionState;
+  }, [colors, compositionState, selectedIds]);
+
+  const bindMapCanvasHandle = useCallback(
+    (handle: MapCanvasHandle | null): void => {
+      mapCanvasHandleRef.current = handle;
+    },
+    [],
+  );
+  const getMapCanvasHandle = useCallback(
+    (): MapCanvasHandle | null => mapCanvasHandleRef.current,
+    [],
+  );
+  const getColors = useCallback(() => colorsRef.current, []);
+  const getSelectedIds = useCallback(() => selectedIdsRef.current, []);
+  const getComposition = useCallback(
+    (): Composition => compositionRef.current,
+    [],
+  );
+  const resolveScene = useCallback(
+    (snapshotId: SnapshotId, signal: AbortSignal): Promise<EffectiveScene> => {
+      if (geoData.status !== 'ready') {
+        return Promise.reject(new Error('Map data is unavailable.'));
+      }
+      return resolveEffectiveSnapshotScene(snapshotId, geoData.features, signal);
+    },
+    [geoData],
+  );
+  const markSavedSnapshot = useCallback(
+    (snapshot: CompositionSnapshot): void => {
+      markSaved(snapshotToComposition(snapshot));
+    },
+    [markSaved],
+  );
+  const loadResolvedScene = useCallback((scene: EffectiveScene): void => {
+    setActiveScene(scene);
+  }, []);
+
+  const saveTransaction = useCompositionSaveTransaction({
+    getMapCanvasHandle,
+    getColors,
+    getComposition,
+    saveComposition,
+    markSaved: markSavedSnapshot,
+  });
+  const loadTransaction = useCompositionLoadTransaction({
+    loadStoredComposition,
+    resolveScene,
+    getMapCanvasHandle,
+    getSelectedIds,
+    loadScene: loadResolvedScene,
+    loadColors: loadState,
+    loadComposition,
+    replaceSelection,
+    markBaseline: markSavedSnapshot,
+  });
 
   const createToastId = useCallback((): string => {
     toastCounterRef.current += 1;
@@ -145,7 +256,7 @@ export default function App(): JSX.Element {
   }, []);
 
   const focusMap = useCallback((): boolean => {
-    const mapSource = exportSourceRef.current?.getExportSource();
+    const mapSource = mapCanvasHandleRef.current?.getExportSource();
     const focusTarget =
       mapSource?.querySelector<SVGPathElement>(
         'path.country-path[tabindex="0"]',
@@ -185,9 +296,9 @@ export default function App(): JSX.Element {
     }
 
     setSelectionAnnouncement(
-      createSelectionAnnouncement(selectedIds, countryLookup),
+      createSelectionAnnouncement(selectedIds, effectiveCountryLookup),
     );
-  }, [countryLookup, isMapReady, selectedIds]);
+  }, [effectiveCountryLookup, isMapReady, selectedIds]);
 
   const persistHelpDismissal = useCallback((): void => {
     const result = dismissOnboarding();
@@ -219,11 +330,11 @@ export default function App(): JSX.Element {
 
   const handleSelectCountry = useCallback(
     (countryId: CountryId): void => {
-      if (countryLookup.has(countryId)) {
+      if (effectiveCountryLookup.has(countryId)) {
         selectCountry(countryId);
       }
     },
-    [countryLookup, selectCountry],
+    [effectiveCountryLookup, selectCountry],
   );
 
   const handleLocateCountry = useCallback(
@@ -233,10 +344,25 @@ export default function App(): JSX.Element {
         return;
       }
 
-      exportSourceRef.current?.locate(countryId);
+      mapCanvasHandleRef.current?.locate(countryId);
       showStatus(`Centered on ${country.properties.name}.`, 'info');
     },
     [countryLookup, showStatus],
+  );
+
+  const handleZoomIn = useCallback((factor: number): void => {
+    mapCanvasHandleRef.current?.zoomBy(factor);
+  }, []);
+
+  const handleZoomOut = useCallback((factor: number): void => {
+    mapCanvasHandleRef.current?.zoomBy(1 / factor);
+  }, []);
+
+  const handlePan = useCallback(
+    (direction: CameraPanDirection, viewportFraction: number): void => {
+      mapCanvasHandleRef.current?.pan(direction, viewportFraction);
+    },
+    [],
   );
 
   const handleUndo = useCallback((): void => {
@@ -272,22 +398,29 @@ export default function App(): JSX.Element {
       return;
     }
 
-    const exportSource = exportSourceRef.current?.getExportSource() ?? null;
-    if (exportSource === null) {
+    const mapCanvasHandle = mapCanvasHandleRef.current;
+    if (mapCanvasHandle === null) {
       showExportFailure();
       return;
     }
 
     exportInProgressRef.current = true;
     setIsExporting(true);
-    let didExportSucceed: boolean;
+    let didExportSucceed = false;
+    let lease: ReturnType<MapCanvasHandle['freezeAndSnapshot']> | null = null;
 
     try {
-      const result = await exportMapPng(exportSource);
-      didExportSucceed = result.ok;
+      lease = mapCanvasHandle.freezeAndSnapshot();
+      setCamera(lease.camera);
+      const exportSource = mapCanvasHandle.getExportSource();
+      if (exportSource !== null) {
+        const result = await exportMapPng(exportSource);
+        didExportSucceed = result.ok;
+      }
     } catch {
       didExportSucceed = false;
     } finally {
+      lease?.release();
       exportInProgressRef.current = false;
       setIsExporting(false);
     }
@@ -297,7 +430,7 @@ export default function App(): JSX.Element {
     } else {
       showExportFailure();
     }
-  }, [showExportFailure, showStatus]);
+  }, [setCamera, showExportFailure, showStatus]);
 
   useEffect((): void => {
     exportHandlerRef.current = (): void => {
@@ -321,6 +454,16 @@ export default function App(): JSX.Element {
         onExport={handleExport}
         onStatusMessage={showStatus}
       />
+      {isMapReady ? (
+        <MapNavigation
+          currentZoom={compositionState.camera.zoom}
+          isMoveMapOpen={isMoveMapOpen}
+          onMoveMapOpenChange={setIsMoveMapOpen}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onPan={handlePan}
+        />
+      ) : null}
     </div>
   );
 
@@ -328,9 +471,11 @@ export default function App(): JSX.Element {
     <div className="workspace__map">
       <MapWorkspace
         geoData={geoData}
+        features={visibleFeatures}
         colors={colors}
         selectedIds={selectedIds}
-        exportSourceRef={exportSourceRef}
+        exportSourceRef={bindMapCanvasHandle}
+        onCameraCommit={setCamera}
         onSelectCountry={handleSelectCountry}
         onClearSelection={clearSelection}
         onReload={handleReload}
@@ -340,7 +485,7 @@ export default function App(): JSX.Element {
 
   const selectionAndColorControls = (
     <div className="workspace__selection-color">
-      <SelectionPanel countryLookup={countryLookup} />
+      <SelectionPanel countryLookup={effectiveCountryLookup} />
       <ColorPicker isDisabled={!isMapReady} onStatus={showStatus} />
     </div>
   );
@@ -395,9 +540,9 @@ export default function App(): JSX.Element {
 
       {isSaveLoadOpen && isMapReady ? (
         <SaveLoad
-          colors={colors}
-          validCountryIds={validCountryIds}
-          onLoad={loadState}
+          onSave={saveTransaction.save}
+          onLoad={loadTransaction.load}
+          onCancelLoad={loadTransaction.cancel}
           onClose={handleCloseSaveLoad}
           onFocusMap={focusMap}
           onStatus={showStatus}

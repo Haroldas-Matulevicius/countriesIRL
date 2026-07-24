@@ -1,8 +1,13 @@
 import { useState } from 'react';
 import type { Ref } from 'react';
 
-import type { MapCanvasHandle } from '../types/composition';
-import type { ColorMap, CountryId, SelectedCountryIds } from '../types/map';
+import type { CameraState, MapCanvasHandle } from '../types/composition';
+import type {
+  ColorMap,
+  CountryId,
+  SceneFeature,
+  SelectedCountryIds,
+} from '../types/map';
 import type { WorldGeoDataState } from '../hooks/useGeoData';
 import { FatalErrorState } from './FatalErrorState';
 import { MapCanvas, type MapTooltipData } from './MapCanvas';
@@ -10,9 +15,11 @@ import { Tooltip } from './Tooltip';
 
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
+  features?: ReadonlyArray<SceneFeature>;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
+  onCameraCommit?: (camera: CameraState) => void;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onReload: () => void;
@@ -20,9 +27,11 @@ interface MapWorkspaceProps {
 
 export function MapWorkspace({
   geoData,
+  features,
   colors,
   selectedIds,
   exportSourceRef,
+  onCameraCommit,
   onSelectCountry,
   onClearSelection,
   onReload,
@@ -76,12 +85,13 @@ export function MapWorkspace({
             ) : null}
             <MapCanvas
               ref={exportSourceRef}
-              features={geoData.features}
+              features={features ?? geoData.features}
               colors={colors}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}
               onTooltipChange={setTooltipData}
+              onCameraCommit={onCameraCommit}
             />
             <Tooltip data={tooltipData} />
           </>

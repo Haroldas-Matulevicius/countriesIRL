@@ -56,6 +56,7 @@ export interface CompositionLoadTransactionDependencies {
   ) => Promise<EffectiveScene>;
   readonly getMapCanvasHandle: () => MapCanvasHandle | null;
   readonly getSelectedIds: () => SelectedCountryIds;
+  readonly loadScene: (scene: EffectiveScene) => void;
   readonly loadColors: (colors: ColorMap) => void;
   readonly loadComposition: (composition: Composition) => void;
   readonly replaceSelection: (selectedIds: ReadonlyArray<CountryId>) => void;
@@ -265,6 +266,7 @@ export function createCompositionLoadTransaction(
         });
       }
 
+      dependencies.loadScene(scene);
       dependencies.loadColors(snapshot.colors);
       dependencies.loadComposition(toComposition(snapshot));
       dependencies.replaceSelection(selectedIds);
@@ -309,6 +311,7 @@ export function useCompositionLoadTransaction(
   const {
     getMapCanvasHandle,
     getSelectedIds,
+    loadScene,
     loadColors,
     loadComposition,
     loadStoredComposition,
@@ -322,6 +325,7 @@ export function useCompositionLoadTransaction(
       createCompositionLoadTransaction({
         getMapCanvasHandle,
         getSelectedIds,
+        loadScene,
         loadColors,
         loadComposition,
         loadStoredComposition,
@@ -333,6 +337,7 @@ export function useCompositionLoadTransaction(
     [
       getMapCanvasHandle,
       getSelectedIds,
+      loadScene,
       loadColors,
       loadComposition,
       loadStoredComposition,

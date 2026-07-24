@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type {
+  EffectiveScene,
   HistoricalRegionId,
   HistoricalSnapshotId,
   SnapshotId,
@@ -8,12 +9,15 @@ import type {
   SnapshotSourceRecord,
 } from '../types/composition';
 import type { SceneFeature } from '../types/map';
+import { SNAPSHOT_MANIFEST_URL } from '../constants/snapshots';
 import {
   calculateSha256,
   HISTORICAL_SNAPSHOT_DATES,
   isProductionSelectableSnapshot,
   validateHistoricalAsset,
+  validateSnapshotManifest,
 } from '../utils/historicalValidation';
+import { composeEffectiveScene } from '../utils/scene';
 
 const SNAPSHOT_LOAD_START_PREFIX = 'countriesirl-snapshot-load-start-';
 const SNAPSHOT_READY_MARK_PREFIX = 'countriesirl-snapshot-ready-mark-';
@@ -194,6 +198,65 @@ async function loadReviewedSnapshot(
     warnings: validation.value.warnings,
     sha256: entry.sha256,
   };
+}
+
+export async function resolveEffectiveSnapshotScene(
+  snapshotId: SnapshotId,
+  modernFeatures: ReadonlyArray<SceneFeature>,
+  signal: AbortSignal,
+  fetcher: SnapshotFetch = defaultSnapshotFetch,
+): Promise<EffectiveScene> {
+  if (snapshotId === 'modern') {
+    return composeEffectiveScene({ snapshotId, modernFeatures });
+  }
+
+  const manifestResponse = await fetcher(SNAPSHOT_MANIFEST_URL, { signal });
+  if (!manifestResponse.ok) {
+    throw new SnapshotLoadError('fetch-failed');
+  }
+
+  let manifestPayload: unknown;
+  try {
+    manifestPayload = (await manifestResponse.json()) as unknown;
+  } catch {
+    throw new SnapshotLoadError('invalid-data');
+  }
+  const manifestResult = validateSnapshotManifest(manifestPayload);
+  if (!manifestResult.ok) {
+    throw new SnapshotLoadError('invalid-data');
+  }
+
+  const entry = manifestResult.value.snapshots.find(
+    (candidate): boolean => candidate.id === snapshotId,
+  );
+  if (
+    entry === undefined ||
+    entry.id === 'modern' ||
+    !isProductionSelectableSnapshot(entry)
+  ) {
+    throw new SnapshotLoadError('not-approved');
+  }
+
+  const reviewedEntry = entry as SnapshotManifestEntry & {
+    readonly id: HistoricalSnapshotId;
+  };
+  const cached = snapshotCache.get(reviewedEntry.id);
+  const historicalData =
+    cached?.sha256 === reviewedEntry.sha256
+      ? cached.data
+      : await loadReviewedSnapshot(reviewedEntry, fetcher, signal);
+  snapshotCache.set(reviewedEntry.id, {
+    sha256: reviewedEntry.sha256,
+    data: historicalData,
+  });
+
+  return composeEffectiveScene({
+    snapshotId,
+    modernFeatures,
+    historicalFeatures: historicalData.features,
+    replacedModernSourceFeatureIds:
+      historicalData.replacedModernSourceFeatureIds,
+  });
 }
 
 export function clearSnapshotDataCache(): void {

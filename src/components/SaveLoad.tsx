@@ -7,7 +7,8 @@ import {
 } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 
-import type { ColorMap, CountryId } from '../types/map';
+import type { CompositionLoadTransactionOutcome } from '../hooks/useCompositionLoadTransaction';
+import type { CompositionSaveTransactionOutcome } from '../hooks/useCompositionSaveTransaction';
 import type {
   SavedMap,
   StorageErrorReason,
@@ -53,13 +54,17 @@ const STORAGE_QUOTA_ERROR =
   'Browser storage is full. Delete an older saved map, then save this map again.';
 const MAP_NOT_FOUND_ERROR =
   'This saved map is no longer available. The saved-map list has been refreshed.';
+const LOAD_FAILED_ERROR =
+  'This saved composition could not be loaded. Your current map is unchanged.';
+const CAMERA_BUSY_ERROR =
+  'Finish the current export before loading a saved composition.';
 
 export type SaveLoadStatusSeverity = 'success' | 'warning';
 
 export interface SaveLoadProps {
-  colors: ColorMap;
-  validCountryIds: ReadonlySet<CountryId>;
-  onLoad: (colors: ColorMap) => void;
+  onSave: (name: string) => CompositionSaveTransactionOutcome;
+  onLoad: (name: string) => Promise<CompositionLoadTransactionOutcome>;
+  onCancelLoad: () => void;
   onClose: () => void;
   onFocusMap: () => void;
   onStatus: (message: string, severity?: SaveLoadStatusSeverity) => void;
@@ -144,9 +149,9 @@ function getStorageErrorMessage(
 }
 
 export function SaveLoad({
-  colors,
-  validCountryIds,
+  onSave,
   onLoad,
+  onCancelLoad,
   onClose,
   onFocusMap,
   onStatus,
@@ -156,14 +161,13 @@ export function SaveLoad({
     warnings,
     error,
     refreshSavedMaps,
-    saveMap,
-    loadMap,
     deleteMap,
   } = useLocalStorage();
   const [mapName, setMapName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const savedMapsSectionRef = useRef<HTMLElement>(null);
@@ -191,8 +195,9 @@ export function SaveLoad({
     .join(' ');
 
   const requestClose = useCallback((): void => {
+    onCancelLoad();
     onClose();
-  }, [onClose]);
+  }, [onCancelLoad, onClose]);
 
   useEffect((): (() => void) => {
     openerRef.current =
@@ -296,7 +301,7 @@ export function SaveLoad({
       setIsSaving(true);
       saveInProgressRef.current = true;
 
-      const result = saveMap(trimmedName, colors);
+      const result = onSave(trimmedName);
 
       saveInProgressRef.current = false;
       setIsSaving(false);
@@ -309,11 +314,19 @@ export function SaveLoad({
           setNameError(NAME_TOO_LONG_ERROR);
           nameInputRef.current?.focus();
         } else if (result.reason === 'quota-exceeded') {
+          setOperationError(STORAGE_QUOTA_ERROR);
           savedMapsSectionRef.current?.scrollIntoView({ block: 'nearest' });
+        } else {
+          setOperationError(
+            result.reason === 'map-canvas-unavailable'
+              ? LOAD_FAILED_ERROR
+              : STORAGE_UNAVAILABLE_ERROR,
+          );
         }
         return;
       }
 
+      refreshSavedMaps();
       setMapName('');
       onStatus(
         result.value.replaced
@@ -322,30 +335,35 @@ export function SaveLoad({
       );
       nameInputRef.current?.focus();
     },
-    [colors, onStatus, saveMap, trimmedName],
+    [onSave, onStatus, refreshSavedMaps, trimmedName],
   );
 
   const handleLoad = useCallback(
-    (savedMap: SavedMap): void => {
+    async (savedMap: SavedMap): Promise<void> => {
       setOperationError(null);
-      const result = loadMap(savedMap.name, validCountryIds);
+      setIsLoading(true);
+      const result = await onLoad(savedMap.name);
+      setIsLoading(false);
 
       if (!result.ok) {
         if (result.reason === 'map-not-found') {
           setOperationError(MAP_NOT_FOUND_ERROR);
           refreshSavedMaps();
+        } else if (result.reason === 'camera-restore-blocked') {
+          setOperationError(CAMERA_BUSY_ERROR);
+        } else if (result.reason !== 'cancelled') {
+          setOperationError(LOAD_FAILED_ERROR);
         }
         return;
       }
 
-      onLoad(result.value);
-      const feedback = getLoadFeedback(result.warnings);
+      const feedback = getLoadFeedback(result.storageWarnings);
       onStatus(feedback.message, feedback.severity);
       shouldRestoreOpenerRef.current = false;
       onClose();
       requestAnimationFrame(onFocusMap);
     },
-    [loadMap, onClose, onFocusMap, onLoad, onStatus, refreshSavedMaps, validCountryIds],
+    [onClose, onFocusMap, onLoad, onStatus, refreshSavedMaps],
   );
 
   const handleDelete = useCallback(
@@ -387,7 +405,7 @@ export function SaveLoad({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
-        aria-busy={isSaving}
+        aria-busy={isSaving || isLoading}
         tabIndex={-1}
         onKeyDown={handleDialogKeyDown}
       >
@@ -451,7 +469,9 @@ export function SaveLoad({
 
             <button
               type="submit"
-              disabled={isSaving || error === 'storage-unavailable'}
+              disabled={
+                isSaving || isLoading || error === 'storage-unavailable'
+              }
             >
               {isReplacing ? 'Replace Saved Map' : 'Save Current Map'}
             </button>
@@ -500,7 +520,10 @@ export function SaveLoad({
                         }}
                         type="button"
                         aria-label={`Load This Map: ${savedMap.name}`}
-                        onClick={(): void => handleLoad(savedMap)}
+                        disabled={isLoading}
+                        onClick={(): void => {
+                          void handleLoad(savedMap);
+                        }}
                       >
                         Load This Map
                       </button>

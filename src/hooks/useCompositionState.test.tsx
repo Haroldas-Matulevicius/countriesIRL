@@ -206,6 +206,27 @@ describe('compositionStateReducer', () => {
     expect(isCompositionStateDirty(saved)).toBe(false);
   });
 
+  it('marks the exact live-camera save snapshot as visible and baseline state', () => {
+    const state = createInitialCompositionState();
+    const liveComposition: Composition = {
+      ...toComposition(state),
+      camera: {
+        zoom: 4,
+        centerLongitude: 35,
+        centerLatitude: 18,
+      },
+    };
+
+    const saved = reduce(state, {
+      type: 'MARK_SAVED',
+      payload: { composition: liveComposition },
+    });
+
+    expect(toComposition(saved)).toEqual(liveComposition);
+    expect(saved.savedBaseline).toEqual(liveComposition);
+    expect(isCompositionStateDirty(saved)).toBe(false);
+  });
+
   it('preserves state identity for semantic no-ops', () => {
     const state = createInitialCompositionState();
 

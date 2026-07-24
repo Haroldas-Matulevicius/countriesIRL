@@ -95,7 +95,7 @@ export type CompositionAction =
       payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
     }
   | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
-  | { type: 'MARK_SAVED' };
+  | { type: 'MARK_SAVED'; payload?: { composition: Composition } };
 
 export interface CompositionStateContextValue {
   state: CompositionState;
@@ -111,7 +111,7 @@ export interface CompositionStateContextValue {
     backgroundColor: VisibleCompositionSettings['backgroundColor'],
   ) => void;
   loadComposition: (composition: Composition) => void;
-  markSaved: () => void;
+  markSaved: (composition?: Composition) => void;
 }
 
 export const CompositionStateContext = createContext<
@@ -493,11 +493,16 @@ export function compositionStateReducer(
     }
 
     case 'MARK_SAVED': {
-      const composition = getVisibleComposition(state);
-      return areCompositionsEqual(state.savedBaseline, composition)
+      const composition =
+        action.payload === undefined
+          ? getVisibleComposition(state)
+          : canonicalizeComposition(action.payload.composition);
+      return areCompositionsEqual(state.savedBaseline, composition) &&
+        areCompositionsEqual(getVisibleComposition(state), composition)
         ? state
         : {
             ...state,
+            ...composition,
             savedBaseline: composition,
           };
     }
@@ -557,8 +562,12 @@ export function CompositionStateProvider({
     dispatch({ type: 'LOAD_COMPOSITION', payload: { composition } });
   }, []);
 
-  const markSaved = useCallback((): void => {
-    dispatch({ type: 'MARK_SAVED' });
+  const markSaved = useCallback((composition?: Composition): void => {
+    dispatch(
+      composition === undefined
+        ? { type: 'MARK_SAVED' }
+        : { type: 'MARK_SAVED', payload: { composition } },
+    );
   }, []);
 
   const isDirty = isCompositionStateDirty(state);

@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import App, { createSelectionAnnouncement } from './App';
+import { CompositionStateProvider } from './providers/CompositionStateProvider';
 import { MapStateProvider } from './providers/MapStateProvider';
 import type { GeoFeature } from './types/map';
 
@@ -85,7 +86,9 @@ describe('App startup storage feedback', () => {
 
     const markup = renderToStaticMarkup(
       <MapStateProvider>
-        <App />
+        <CompositionStateProvider>
+          <App />
+        </CompositionStateProvider>
       </MapStateProvider>,
     );
 
@@ -104,7 +107,9 @@ describe('App startup storage feedback', () => {
 
     const markup = renderToStaticMarkup(
       <MapStateProvider>
-        <App />
+        <CompositionStateProvider>
+          <App />
+        </CompositionStateProvider>
       </MapStateProvider>,
     );
 

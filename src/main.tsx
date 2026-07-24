@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
+import { CompositionStateProvider } from './providers/CompositionStateProvider';
 import { MapStateProvider } from './providers/MapStateProvider';
 import './styles/theme.css';
 import './styles/App.css';
@@ -19,7 +20,9 @@ if (rootElement === null) {
 createRoot(rootElement).render(
   <StrictMode>
     <MapStateProvider>
-      <App />
+      <CompositionStateProvider>
+        <App />
+      </CompositionStateProvider>
     </MapStateProvider>
   </StrictMode>,
 );
