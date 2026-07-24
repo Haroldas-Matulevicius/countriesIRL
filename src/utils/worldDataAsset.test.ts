@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-
 import { geoPath } from 'd3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import repositoryAttributes from '../../.gitattributes?raw';
+import manifestText from '../../public/data/world-manifest.json?raw';
+import worldText from '../../public/data/world-modern.geojson?raw';
 import {
   WORLD_DATA_URL,
   WORLD_MANIFEST_URL,
@@ -16,6 +16,10 @@ const EXPECTED_MANIFEST_SHA256 =
   '57313d11df49285e348b3fb67179aedd7d01f227426729eb0107c4f18fb51fe4';
 const EXPECTED_WORLD_SHA256 =
   '45ccfed198f2d3ba4cbeb1d1b06889b0ba6869ee944feff32a5355b94cf0827a';
+const EXPECTED_BASE_SOURCE_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson';
+const EXPECTED_SUPPLEMENT_SOURCE_URL =
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_10m_admin_0_countries.geojson';
 const EXPECTED_BASE_SOURCE_SHA256 =
   '3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb';
 const EXPECTED_SUPPLEMENT_SOURCE_SHA256 =
@@ -35,8 +39,6 @@ const EXPECTED_CORE_IDS = new Set(
     .filter((value) => value.length > 0),
 );
 const EXPECTED_SUPPLEMENT_IDS = ['CLP', 'CSI', 'ESB', 'GIB', 'UMI', 'WSB'];
-const MANIFEST_PATH = new URL('../../public/data/world-manifest.json', import.meta.url);
-const WORLD_PATH = new URL('../../public/data/world-modern.geojson', import.meta.url);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -54,8 +56,18 @@ function readString(record: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : '';
 }
 
-function readJson(bytes: Buffer): unknown {
-  return JSON.parse(bytes.toString('utf8')) as unknown;
+function readJson(value: string): unknown {
+  return JSON.parse(value) as unknown;
+}
+
+async function calculateSha256(value: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
 }
 
 function createJsonResponse(value: unknown, status = 200): Response {
@@ -65,22 +77,17 @@ function createJsonResponse(value: unknown, status = 200): Response {
   });
 }
 
-async function readAssets(): Promise<{
-  readonly manifestBytes: Buffer;
-  readonly worldBytes: Buffer;
+function readAssets(): {
+  readonly manifestText: string;
+  readonly worldText: string;
   readonly manifest: unknown;
   readonly world: unknown;
-}> {
-  const [manifestBytes, worldBytes] = await Promise.all([
-    readFile(MANIFEST_PATH),
-    readFile(WORLD_PATH),
-  ]);
-
+} {
   return {
-    manifestBytes,
-    worldBytes,
-    manifest: readJson(manifestBytes),
-    world: readJson(worldBytes),
+    manifestText,
+    worldText,
+    manifest: readJson(manifestText),
+    world: readJson(worldText),
   };
 }
 
@@ -90,12 +97,13 @@ afterEach((): void => {
 
 describe('canonical world assets', (): void => {
   it('pins exact source and committed asset hashes', async (): Promise<void> => {
-    const { manifestBytes, worldBytes, manifest } = await readAssets();
+    const { manifestText: manifestBytes, worldText: worldBytes, manifest } =
+      readAssets();
 
-    expect(createHash('sha256').update(manifestBytes).digest('hex')).toBe(
+    await expect(calculateSha256(manifestBytes)).resolves.toBe(
       EXPECTED_MANIFEST_SHA256,
     );
-    expect(createHash('sha256').update(worldBytes).digest('hex')).toBe(
+    await expect(calculateSha256(worldBytes)).resolves.toBe(
       EXPECTED_WORLD_SHA256,
     );
     expect(isRecord(manifest)).toBe(true);
@@ -103,13 +111,36 @@ describe('canonical world assets', (): void => {
       return;
     }
 
-    const sourceHashes = readArray(manifest.naturalEarth, 'sources').map((source) =>
-      isRecord(source) ? readString(source, 'sha256') : '',
+    const sourceDefinitions = readArray(
+      manifest.naturalEarth,
+      'sources',
+    ).map((source) =>
+      isRecord(source)
+        ? {
+            id: readString(source, 'id'),
+            url: readString(source, 'url'),
+            sha256: readString(source, 'sha256'),
+          }
+        : null,
     );
-    expect(sourceHashes).toEqual([
-      EXPECTED_BASE_SOURCE_SHA256,
-      EXPECTED_SUPPLEMENT_SOURCE_SHA256,
+    expect(sourceDefinitions).toEqual([
+      {
+        id: 'natural-earth-admin-0-50m',
+        url: EXPECTED_BASE_SOURCE_URL,
+        sha256: EXPECTED_BASE_SOURCE_SHA256,
+      },
+      {
+        id: 'natural-earth-admin-0-10m',
+        url: EXPECTED_SUPPLEMENT_SOURCE_URL,
+        sha256: EXPECTED_SUPPLEMENT_SOURCE_SHA256,
+      },
     ]);
+    expect(repositoryAttributes.split(/\r?\n/u)).toEqual(
+      expect.arrayContaining([
+        'public/data/world-manifest.json text eol=lf',
+        'public/data/world-modern.geojson text eol=lf',
+      ]),
+    );
   });
 
   it('locks the exact core, supplement, count, and parent policy', async (): Promise<void> => {
@@ -279,10 +310,73 @@ describe('world data loader', (): void => {
     },
   );
 
+  it.each([
+    {
+      invalidUrl: WORLD_MANIFEST_URL,
+      invalidValue: { schemaVersion: 1 },
+      source: 'manifest',
+    },
+    {
+      invalidUrl: WORLD_DATA_URL,
+      invalidValue: { type: 'FeatureCollection', features: [] },
+      source: 'world-asset',
+    },
+  ] as const)(
+    'returns a typed fatal state when $source validation fails',
+    async ({ invalidUrl, invalidValue, source }): Promise<void> => {
+      const { manifest, world } = readAssets();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL): Promise<Response> => {
+          const url = String(input);
+          if (url === invalidUrl) {
+            return Promise.resolve(createJsonResponse(invalidValue));
+          }
+          return Promise.resolve(
+            createJsonResponse(url === WORLD_MANIFEST_URL ? manifest : world),
+          );
+        }),
+      );
+
+      await expect(loadWorldGeoData(new AbortController().signal)).resolves.toEqual({
+        status: 'error',
+        reason: 'invalid-data',
+        source,
+      });
+    },
+  );
+
+  it('rejects an over-bounded world collection before geometry traversal', async (): Promise<void> => {
+    const { manifest, world } = readAssets();
+    expect(isRecord(world) && Array.isArray(world.features)).toBe(true);
+    if (!isRecord(world) || !Array.isArray(world.features)) {
+      return;
+    }
+
+    const oversizedWorld = {
+      ...world,
+      features: [...world.features, world.features[0]],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL): Promise<Response> =>
+        Promise.resolve(
+          createJsonResponse(String(input) === WORLD_MANIFEST_URL ? manifest : oversizedWorld),
+        ),
+      ),
+    );
+
+    await expect(loadWorldGeoData(new AbortController().signal)).resolves.toEqual({
+      status: 'error',
+      reason: 'invalid-data',
+      source: 'world-asset',
+    });
+  });
+
   it('keeps valid world units ready when one neighboring unit is malformed', async (): Promise<void> => {
-    const { manifest, worldBytes } = await readAssets();
+    const { manifest, worldText: worldBytes } = readAssets();
     const malformedWorld = JSON.parse(
-      worldBytes.toString('utf8').replace('"id":"ABW"', '"id":""'),
+      worldBytes.replace('"id":"ABW"', '"id":""'),
     ) as unknown;
     vi.stubGlobal(
       'fetch',
