@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL Navigation Fixture</title>
+    <style>
+      body {
+        margin: 16px;
+        color: #111827;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      main,
+      [aria-label='Map navigation'],
+      [aria-label='Move map'],
+      .fixture-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      main {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      [data-editor-only='true'] {
+        position: relative;
+      }
+      [aria-label='Move map'] {
+        position: absolute;
+        z-index: 2;
+        top: 52px;
+        left: 0;
+        width: 104px;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+      }
+      button:focus-visible {
+        outline: 2px solid #0f766e;
+        outline-offset: 2px;
+      }
+      output {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React, { useCallback, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { MapNavigation } from '/src/components/MapNavigation.tsx';
+
+      const h = React.createElement;
+      const MINIMUM_ZOOM = 1;
+      const MAXIMUM_ZOOM = 24;
+      const MIDDLE_ZOOM = 6;
+
+      function NavigationFixture() {
+        const [currentZoom, setCurrentZoom] = useState(MINIMUM_ZOOM);
+        const [isMoveMapOpen, setIsMoveMapOpen] = useState(false);
+        const [zoomEvents, setZoomEvents] = useState([]);
+        const [panEvents, setPanEvents] = useState([]);
+
+        const handleZoomIn = useCallback((factor) => {
+          setZoomEvents((events) => [...events, `in:${factor}`]);
+          setCurrentZoom((zoom) => Math.min(MAXIMUM_ZOOM, zoom * factor));
+        }, []);
+
+        const handleZoomOut = useCallback((factor) => {
+          setZoomEvents((events) => [...events, `out:${factor}`]);
+          setCurrentZoom((zoom) => Math.max(MINIMUM_ZOOM, zoom / factor));
+        }, []);
+
+        const handlePan = useCallback((direction, viewportFraction) => {
+          setPanEvents((events) => [
+            ...events,
+            `${direction}:${viewportFraction}`,
+          ]);
+        }, []);
+
+        return h(
+          'main',
+          null,
+          h(
+            'div',
+            { className: 'fixture-controls' },
+            h(
+              'button',
+              { type: 'button', onClick: () => setCurrentZoom(MINIMUM_ZOOM) },
+              'Set minimum zoom',
+            ),
+            h(
+              'button',
+              { type: 'button', onClick: () => setCurrentZoom(MIDDLE_ZOOM) },
+              'Set middle zoom',
+            ),
+            h(
+              'button',
+              { type: 'button', onClick: () => setCurrentZoom(MAXIMUM_ZOOM) },
+              'Set maximum zoom',
+            ),
+            h('button', { type: 'button' }, 'Outside target'),
+          ),
+          h(
+            'section',
+            { 'data-navigation-fixture': 'true' },
+            h(MapNavigation, {
+              currentZoom,
+              isMoveMapOpen,
+              onMoveMapOpenChange: setIsMoveMapOpen,
+              onZoomIn: handleZoomIn,
+              onZoomOut: handleZoomOut,
+              onPan: handlePan,
+            }),
+          ),
+          h('output', { 'data-current-zoom': 'true' }, String(currentZoom)),
+          h(
+            'output',
+            { 'data-zoom-events': 'true' },
+            zoomEvents.join('|'),
+          ),
+          h('output', { 'data-pan-events': 'true' }, panEvents.join('|')),
+        );
+      }
+
+      createRoot(document.getElementById('root')).render(h(NavigationFixture));
+    </script>
+  </body>
+</html>
