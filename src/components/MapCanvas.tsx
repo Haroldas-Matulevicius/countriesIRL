@@ -149,13 +149,33 @@ function getInteractionId(feature: SceneFeature): CountryId {
   return feature.entityId;
 }
 
+export function getSelectableSceneFeatures(
+  features: ReadonlyArray<SceneFeature>,
+): SceneFeature[] {
+  const entityIds = new Set<CountryId>();
+  return features.filter((feature): boolean => {
+    if (!feature.isSelectable || entityIds.has(feature.entityId)) {
+      return false;
+    }
+    entityIds.add(feature.entityId);
+    return true;
+  });
+}
+
 export function createWrappedSceneModel(
   features: ReadonlyArray<SceneFeature>,
 ): ReadonlyArray<WrappedScenePath> {
-  return features.flatMap((feature): ReadonlyArray<WrappedScenePath> =>
-    WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
+  const logicalEntityIds = new Set<CountryId>();
+  return features.flatMap((feature): ReadonlyArray<WrappedScenePath> => {
+    const hasLogicalPath =
+      feature.isSelectable && !logicalEntityIds.has(feature.entityId);
+    if (hasLogicalPath) {
+      logicalEntityIds.add(feature.entityId);
+    }
+
+    return WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
       const isPrimaryVisual = offsetX === 0;
-      const isLogical = feature.isSelectable && isPrimaryVisual;
+      const isLogical = hasLogicalPath && isPrimaryVisual;
       return {
         key: `${feature.id}:${offsetX}`,
         sceneUnitId: feature.id,
@@ -167,8 +187,8 @@ export function createWrappedSceneModel(
         isFocusable: isLogical,
         isPrimaryVisual,
       };
-    }),
-  );
+    });
+  });
 }
 
 export function getSceneFeatureColor(
@@ -299,8 +319,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
 
     const selectableFeatures = useMemo<ReadonlyArray<SceneFeature>>(
       () =>
-        features
-          .filter((feature): boolean => feature.isSelectable)
+        getSelectableSceneFeatures(features)
           .sort(
             (first, second): number =>
               first.properties.name.localeCompare(second.properties.name) ||

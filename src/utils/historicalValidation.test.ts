@@ -495,6 +495,48 @@ describe('historical assets and production selection', (): void => {
     warn.mockRestore();
   });
 
+  it('rejects duplicate selectable entity IDs but permits context records', (): void => {
+    const warn = vi.spyOn(globalThis.console, 'warn').mockImplementation(() => undefined);
+    const createFeature = (
+      sourceFeatureId: string,
+      isSelectable: boolean,
+    ): Record<string, unknown> => ({
+      type: 'Feature',
+      id: sourceFeatureId,
+      properties: { name: sourceFeatureId },
+      geometry: { type: 'Polygon', coordinates: [TEST_RING] },
+      sourceFeatureId,
+      entityId: 'HIST-PLC',
+      colorOwnerId: isSelectable ? 'HIST-PLC' : null,
+      isSelectable,
+      interactionMode: isSelectable ? 'historical-entity' : 'neutral',
+      provenanceId: '1700-polish-commonwealth',
+    });
+    const result = validateHistoricalAsset({
+      type: 'FeatureCollection',
+      replacedModernSourceFeatureIds: [],
+      features: [
+        createFeature('selectable-primary', true),
+        createFeature('selectable-duplicate', true),
+        createFeature('context-record', false),
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.features.map((feature) => feature.sourceFeatureId)).toEqual([
+        'selectable-primary',
+        'context-record',
+      ]);
+      expect(
+        result.value.features.filter((feature) => feature.isSelectable),
+      ).toHaveLength(1);
+      expect(result.value.warnings).toHaveLength(1);
+    }
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
   it.each([
     ['draft', false],
     ['source-reviewed', false],

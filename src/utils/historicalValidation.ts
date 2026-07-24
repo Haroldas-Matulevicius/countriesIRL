@@ -887,15 +887,23 @@ export function validateHistoricalAsset(
   const features: SceneFeature[] = [];
   const warnings: string[] = [];
   const sourceFeatureIds = new Set<string>();
+  const selectableEntityIds = new Set<string>();
   input.features.forEach((candidate, featureIndex): void => {
     const feature = readSceneFeature(candidate);
-    if (feature === null || sourceFeatureIds.has(feature.sourceFeatureId)) {
+    if (
+      feature === null ||
+      sourceFeatureIds.has(feature.sourceFeatureId) ||
+      (feature.isSelectable && selectableEntityIds.has(feature.entityId))
+    ) {
       const warning = `Historical feature ${featureIndex} is malformed and was skipped.`;
       warnings.push(warning);
       globalThis.console.warn(warning);
       return;
     }
     sourceFeatureIds.add(feature.sourceFeatureId);
+    if (feature.isSelectable) {
+      selectableEntityIds.add(feature.entityId);
+    }
     features.push(feature);
   });
 

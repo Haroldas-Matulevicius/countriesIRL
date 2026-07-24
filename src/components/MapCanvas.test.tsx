@@ -11,6 +11,7 @@ import {
 import {
   createWrappedSceneModel,
   getSceneFeatureColor,
+  getSelectableSceneFeatures,
 } from './MapCanvas';
 import { cameraToTransform, transformToCamera } from '../utils/camera';
 
@@ -295,6 +296,20 @@ describe('wrapped effective scene model', (): void => {
         (path) => path.isAccessible === false && path.isFocusable === false,
       ),
     ).toBe(true);
+  });
+
+  it('exposes only one logical keyboard option for a duplicate selectable entity', (): void => {
+    const primary = createSceneFeature('HIST-PLC', 'historical-entity');
+    const duplicate: SceneFeature = {
+      ...primary,
+      id: 'unit-HIST-PLC-duplicate',
+      sourceFeatureId: 'source-HIST-PLC-duplicate',
+    };
+    const model = createWrappedSceneModel([primary, duplicate]);
+
+    expect(model.filter((path) => path.kind === 'logical')).toHaveLength(1);
+    expect(model.filter((path) => path.isAccessible)).toHaveLength(1);
+    expect(getSelectableSceneFeatures([primary, duplicate])).toEqual([primary]);
   });
 
   it('keeps inherited, disputed, and neutral geometry unfocusable', (): void => {
