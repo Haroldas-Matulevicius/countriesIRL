@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 2 context gathered
-last_updated: "2026-07-24T09:16:10.677Z"
-last_activity: 2026-07-22 -- Independent goal verification passed; Phase 1 locally complete with no deployment and no Phase 2 implementation
+status: planned
+stopped_at: Phase 2 review-replanned — 36 plans across 18 waves
+last_updated: "2026-07-24T23:59:00.000Z"
+last_activity: 2026-07-24 -- Phase 2 cross-AI review concerns resolved into 36 executable plans; implementation remains unstarted
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 22
+  total_plans: 58
   completed_plans: 22
   percent: 33
 ---
@@ -21,17 +21,17 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-07-21)
 
 **Core value:** Help non-technical Instagram creators produce accurate, polished European choropleth maps quickly.
-**Current focus:** Phase 1 verified closeout complete; Phase 2 region variants are queued but not started
+**Current focus:** Phase 2 review-replanned and ready for execution; no Phase 2 implementation has started
 
 ## Current Position
 
-Phase: 1 of 3 complete (Foundation & Modern Map); Phase 2 is next and unstarted
-Next step: When explicitly requested, discuss and plan Phase 2 starting with F7.1–F7.3 World and North America canvas variants
-Execution graph: 22 plans across 15 waves; all plans closed; zero incomplete Phase 1 plans
-Status: Phase 1 independently verified PASS for localhost-only scope — 73/73 active must-haves, 7/7 deployment must-haves deferred, and 18/18 requirements satisfied
-Last activity: 2026-07-22 -- Independent goal verification passed; Phase 1 locally complete with no deployment and no Phase 2 implementation
+Phase: 1 of 3 complete; Phase 2 planned in full and unstarted
+Next step: Execute Phase 2 with `/gsd:execute-phase 2`, beginning with Wave 1 tooling/contracts
+Execution graph: Phase 2 has 36 plans, 71 tasks, and 18 validated waves; zero Phase 2 tasks executed
+Status: Phase 2 plan frontmatter/structure, requirement/D-ID coverage, acyclic dependencies, and same-wave file ownership validated; execution pending
+Last activity: 2026-07-24 -- Phase 2 review replanning completed; 14 mandatory concerns mapped to executable tasks
 
-Progress: [██████████] 100%
+Progress: Phase 1 [██████████] 100%; Phase 2 [----------] 0%
 
 ## Performance Metrics
 
@@ -125,14 +125,19 @@ Progress: [██████████] 100%
 - [Phase 01 local-only closeout]: Plans 01-16 and 01-17 are closed as deferred by user choice. — No Vercel authentication, linking, deployment, production verification, or production URL occurred; optional future deployment does not block local Phase 1 completion.
 - [Phase 01 final goal verification]: Independent goal-backward verification passed for the approved localhost-only scope. — All 73 active must-haves and all 18 Phase 1 requirements are satisfied; the seven deployment-only must-haves are explicitly deferred under Plans 01-16 and 01-17, with no product-tree drift, deployment, or Phase 2 work.
 
+- [Phase 02 planning]: Use a non-locking live camera read for save and an idempotent CameraFreezeLease for export; settle the visible camera synchronously and release from the outermost finally on every path.
+- [Phase 02 planning]: Keep Country browser/Locate at the modern 195 core; approved distinct historical entities are selectable/colorable by map click and keyboard while active, with selection reconciled to incoming scene identities.
+- [Phase 02 planning]: Historical delivery requires source/license readiness, honest vector-versus-manual-trace evidence, named qualified six-region factual approval, five exact hashes, and catalog-last promotion; blocked snapshots are never counted delivered.
+- [Phase 02 planning]: Final automation runs from a detached clean worktree at the exact final E2E commit after fresh npm ci; human acceptance binds the same SHA with a fixed evidence matrix.
+
 ### Pending Todos
 
-- When explicitly requested, plan F7.1–F7.3 World and North America canvas variants as the first Phase 2 work, then address historical border data, centering, and legends.
+- Execute Phase 2 in wave order; historical snapshots remain blocked until source/license/factual approval and exact-byte promotion pass.
 - If the user later requests hosting, reopen the optional Vercel deployment and production-verification runbooks under new explicit authorization.
 
 ### Blockers/Concerns
 
-- No local Phase 1 blocker remains.
+- No local Phase 1 blocker remains. Phase 2 implementation is unstarted.
 - Timing misses, incomplete timing harness work, and earlier harness timeouts remain immutable non-blocking diagnostic observations under D-63.
 - Firefox, Safari, and previous-version certification remain intentionally deferred/unverified and must not be reported as passed.
 - Vercel deployment and production verification are deferred optional future work; no production URL exists or is claimed.
@@ -152,6 +157,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-07-24T09:16:10.664Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-CONTEXT.md
+Last session: 2026-07-24T23:59:00.000Z
+Stopped at: Phase 2 review-replanned — 36 plans / 18 waves / 71 tasks
+Resume file: .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-01-PLAN.md

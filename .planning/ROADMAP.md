@@ -133,124 +133,141 @@ Cross-cutting constraints:
 
 ## Phase 2: Region Variants & Advanced Features (1.5–2 weeks engineering estimate; historical evidence may extend this)
 
-**Goal:** Transform the fixed-Europe editor into one browser-only, horizontally wrapping full-world composition canvas where creators can pan, zoom, Locate any of 195 core states, choose four evidence-approved historical snapshots with explicit modern fallback, edit and position an export-safe in-canvas legend, save/load complete compositions, and export the exact visible 1080×1080 viewport while preserving Phase 1 coloring, bounded color history, recovery, accessibility, responsive ownership, and local-only behavior.
+**Goal:** Transform the fixed-Europe editor into one browser-only, horizontally wrapping full-world composition canvas where creators can pan, zoom, Locate any of 195 core states, choose four source/license/factual-evidence-approved historical snapshots with explicit modern fallback, interact with approved historical entities while active, edit and position an export-safe in-canvas legend, save/load the exact live composition, and export the exact visible 1080×1080 viewport while preserving Phase 1 color history, recovery, accessibility, responsive ownership, and local-only behavior.
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** Planned — execution not started. The separate Europe/World/North America selector wording is superseded by Phase 2 decision D-01: one wrapped world camera can frame every regional or global composition.
+**Status:** Review-replanned — execution not started. Full Phase 2 scope remains retained. Historical snapshots are delivery-blocked until exact source/license readiness, qualified factual review, durable hash-bound approval, and atomic promotion all pass; blocked snapshots are never counted delivered.
 
-**Plans:** 28 plans across 14 waves
+**Plans:** 36 plans across 18 waves
 
 Plans:
 
 **Wave 1**
-- [ ] 02-01-PLAN.md — Establish exact-pinned build/browser validation and preserve the Phase 1 baseline
-- [ ] 02-02-PLAN.md — Define shared camera, scene, snapshot, legend, persistence, and export contracts
+- [ ] 02-01-PLAN.md — Establish the exact-pinned Phase 2 build/browser validation boundary and artifact hygiene before feature work
+- [ ] 02-02-PLAN.md — Define the interface-first semantic contracts every Phase 2 subsystem implements, including the complete live-camera transaction and historical-entity policy
 
 **Wave 2**
-- [ ] 02-03-PLAN.md — Add the separate complete-composition state provider
-- [ ] 02-04-PLAN.md — Generate the reviewed deterministic 195-state/248-unit modern world asset
-- [ ] 02-06-PLAN.md — Implement and test wrapped-world camera/projection mathematics
-- [ ] 02-10-PLAN.md — Implement deterministic scene composition and legend algorithms
+- [ ] 02-03-PLAN.md — Create the single React owner for durable Phase 2 composition state while leaving color history untouched
+- [ ] 02-04-PLAN.md — Generate the deterministic modern-world data platform that replaces the fixed Europe asset at runtime
+- [ ] 02-06-PLAN.md — Implement and prove the pure wrapped-world camera mathematics before any D3 gesture wiring
+- [ ] 02-10-PLAN.md — Implement the pure effective-scene and legend algorithms, including the locked historical interaction policy
 
 **Wave 3**
-- [ ] 02-05-PLAN.md — Validate and load the bundled world manifest/asset at runtime
-- [ ] 02-11-PLAN.md — Build the accessible export-safe SVG legend editor and overlay
-- [ ] 02-12-PLAN.md — Build the provenance-gated historical engine, validator, and cached loader
+- [ ] 02-05-PLAN.md — Move the runtime data boundary from fixed Europe to the validated world asset and reviewed manifest
+- [ ] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
+- [ ] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
 
 **Wave 4**
-- [ ] 02-07-PLAN.md — Wire D3 zoom, transform-only wrapped worlds, and one logical accessible country copy
-- [ ] 02-19-PLAN.md — Upgrade localStorage to validated V2 complete compositions with canonical camera and V1 migration
-- [ ] 02-13-PLAN.md — Curate and factually approve the 1492 snapshot for all six regions
-- [ ] 02-14-PLAN.md — Curate and factually approve the 1700 snapshot for all six regions
-- [ ] 02-15-PLAN.md — Curate and factually approve the 1815 snapshot for all six regions
-- [ ] 02-16-PLAN.md — Curate and factually approve the 1914 snapshot for all six regions
+- [ ] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
+- [ ] 02-19-PLAN.md — Upgrade the sole localStorage authority with pre-parse resource bounds and full modern/historical composition persistence
+- [ ] 02-31-PLAN.md — Assemble complete offline source/license/tracing readiness bundles for 1492 and 1700 before geometry curation
+- [ ] 02-32-PLAN.md — Assemble complete offline source/license/tracing readiness bundles for 1815 and 1914
 
 **Wave 5**
-- [ ] 02-08-PLAN.md — Add the exact accessible Zoom In, Zoom Out, Move Map, and pan-popover controls
-- [ ] 02-09-PLAN.md — Add world country search, Select Visible, and separate Locate workflow
-- [ ] 02-17-PLAN.md — Promote only the four approved historical assets into the production catalog
+- [ ] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
+- [ ] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
+- [ ] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
+- [ ] 02-33-PLAN.md — Obtain non-automated approval of the exact source/license/tracing readiness bundles before curation
 
 **Wave 6**
-- [ ] 02-18-PLAN.md — Integrate period selection, sole Reset View ownership, fallback status, complete-state crossfade, and period-aware tooltips
+- [ ] 02-13-PLAN.md — Generate and preflight the exact 1492 candidate from the approved source bundle
+- [ ] 02-14-PLAN.md — Generate and preflight the exact 1700 candidate from approved evidence
+- [ ] 02-15-PLAN.md — Generate and preflight the exact 1815 candidate from approved evidence
+- [ ] 02-16-PLAN.md — Generate and preflight the exact 1914 candidate from approved evidence
 
 **Wave 7**
-- [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions, migration copy, and confirmations
-- [ ] 02-21-PLAN.md — Extend exact PNG export to current camera, history scene, legend, and safe filenames
+- [ ] 02-34-PLAN.md — Obtain qualified factual approval for the exact four candidate bundles after curation
 
 **Wave 8**
-- [ ] 02-22-PLAN.md — Update exact global actions, header, onboarding, and safe status copy
+- [ ] 02-35-PLAN.md — Seal the qualified structured factual review into durable per-snapshot approval artifacts
 
 **Wave 9**
-- [ ] 02-23-PLAN.md — Compose the complete one-DOM responsive world editor and atomic load/export flows
+- [ ] 02-17-PLAN.md — Promote only exact source-approved, factually approved, unchanged historical bytes into production
 
 **Wave 10**
-- [ ] 02-24-PLAN.md — Apply the binding map-first liquid-glass UI, responsive, and accessibility contract
+- [ ] 02-18-PLAN.md — Integrate exact world loading/fatal states, approved historical scenes, effective-scene interaction, accessible crossfade, tooltip context, and warm-switch evidence
 
 **Wave 11**
-- [ ] 02-25-PLAN.md — Obtain exact human review for durable coding-rule corrections
+- [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions using focused live-camera save and atomic load transactions
+- [ ] 02-21-PLAN.md — Extend the export chokepoint for exact wrapped-world/legend content without embedding camera orchestration in the utility
 
 **Wave 12**
-- [ ] 02-26-PLAN.md — Apply approved frontend/data/export/storage coding-rule updates
+- [ ] 02-22-PLAN.md — Update the small global UI surfaces to the exact Phase 2 workflow, copy, disabled/busy states, and safe status messages
+- [ ] 02-30-PLAN.md — Extract the exact live-camera export transaction into a focused tested hook
 
 **Wave 13**
-- [ ] 02-27-PLAN.md — Complete Chrome/Edge E2E coverage and the full source/data/build/browser gate
+- [ ] 02-23-PLAN.md — Compose all Phase 2 subsystems while keeping App small and transaction ordering delegated
 
 **Wave 14**
-- [ ] 02-28-PLAN.md — Complete physical-touch, visual, screen-reader, historical, and exact-export acceptance
+- [ ] 02-24-PLAN.md — Apply the binding UI-SPEC and prove both static CSS constraints and real responsive browser behavior
+
+**Wave 15**
+- [ ] 02-25-PLAN.md — Create and obtain exact human approval for two bounded documentation patches: subsystem rules and authoritative routing/requirements corrections
+
+**Wave 16**
+- [ ] 02-26-PLAN.md — Apply the exact approved five-file coding-rule patch and prove byte identity
+- [ ] 02-36-PLAN.md — Apply the exact approved authoritative-document Patch B and prove byte identity
+
+**Wave 17**
+- [ ] 02-27-PLAN.md — Complete cross-domain E2E coverage, then prove the exact final implementation commit from a fresh detached clean worktree
+
+**Wave 18**
+- [ ] 02-28-PLAN.md — Complete human-only physical, visual, accessibility, historical, and exact-export acceptance against the exact verified SHA
 
 Cross-cutting constraints:
-- One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector may be added.
-- The primary interactive set is exactly 195 core states. Dependencies/territories remain visible and use reviewed parent inheritance or neutral policy; disputed/indeterminate units do not gain an unreviewed claim perspective.
-- Camera movement is semantic composition state but never part of color Undo/Redo. Reset View affects only the camera; Locate never selects or colors.
-- Historical selector entries are curated snapshots, not a continuous year slider. Only source/license/factual-review-approved assets are production-visible; worldwide modern fallback and boundary context are explicit.
-- Historical data work is separately evidence-gated because the 1.5–2 week engineering estimate cannot truthfully guarantee four accurate six-region snapshots without source and reviewer proof.
-- The legend is an export-safe SVG layer outside the camera transform. It includes every active non-white effective color or blocks export; no blur/filter/foreignObject or silent omission is allowed.
-- Complete saves retain colors, semantic camera, period, legend metadata/style/position, and visible settings under the existing max-10 local-only policy. Phase 1 records migrate in memory and rewrite only on explicit save.
-- Export freezes the last painted camera frame and selected scene synchronously, preserves the legend and date-line composition, strips every editor indicator, and retains exact opaque 1080×1080/DPR-independent/connected-anchor cleanup guarantees.
-- The approved UI-SPEC is binding: one active responsive DOM, exact copy/tokens/breakpoints, restrained glass only on approved editor chrome, opaque export scene, reduced-motion/transparency/contrast/forced-color fallbacks, and 360px/200% containment.
-- The phase remains browser-only and localhost-only. Deployment, authentication, cloud sync, sharing URLs, backend/API/server work, environment secrets, animation timelines, video/batch export, geometry morphing, textures, overlays, political POV switching, and artificial island markers remain outside scope.
+- One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector.
+- The modern browser/Locate catalog is exactly 195 core states. Approved historical entities with distinct stable IDs are selectable/colorable by map click and keyboard only while active; dependencies/disputed/neutral units remain non-selectable. Period changes retain selection only for incoming effective-scene identities.
+- Live camera transactions are explicit: save uses non-locking `readCurrentCamera`; export acquires an idempotent `CameraFreezeLease`, synchronously settles the visible semantic camera, and releases from the outermost finally on every path.
+- Historical work uses separate source/license readiness, curation, qualified factual review, durable five-hash approval, and catalog-last promotion gates. Vector extraction may be regenerated; manual traces are verified by evidence/procedure/operator/input hashes and are never falsely represented as deterministic extraction.
+- Each historical approval names reviewer identity/role/date, six independent regional decisions/uncertainties, and hashes for source manifest, input/tracing geometry, output overlay, review JSON, and review HTML. Executor self-approval is forbidden; any byte change invalidates approval.
+- The legend is an export-safe SVG layer outside the camera transform. Every active non-white effective color, including approved historical entities, appears or export is blocked.
+- Complete saves retain colors, the exact live semantic camera, period, legend metadata/style/position, and visible settings under max-10 local-only policy. Raw storage is bounded before parse and by iterative depth/node budget.
+- Export preserves every visible wrapped geometry path required by Pacific/date-line framing and strips only editor and duplicate accessibility semantics. Outgoing crossfade is inaccessible/nonfocusable and never exported.
+- Focused installed-Chrome Playwright slices run in owning plans. The final authoritative gate records HEAD after the final E2E commit, creates a detached clean worktree at that SHA, runs fresh `npm ci` plus the complete lint/test/type/data/history/build/Chrome/Edge gate, and records machine-readable evidence.
+- Final human acceptance previews the same verified SHA and records a fixed device/OS/browser/screen-reader/viewport/preference/PNG/history-hash matrix. Every mandatory cell must PASS; unavailable physical touch is not passed.
+- The approved UI-SPEC remains binding: one active responsive DOM, exact copy/tokens/breakpoints, restrained glass only on approved editor chrome, opaque export scene, preference fallbacks, and 360px/200% containment.
+- Phase 2 remains browser-only and localhost-only. Deployment, auth, cloud, backend/API/server, environment secrets, animation/video/batch, geometry morphing, textures/overlays, POV switching, and artificial markers/insets remain outside scope.
 
 ### Deliverables
 
-- Exact-pinned mapshaper and installed-browser Playwright validation boundary
-- Strict shared composition contracts and separate composition provider
-- Reproducible Natural Earth 5.1.1 hybrid world asset with exact 195 core states, 248 visible units, and reviewed parent/neutral policy
-- Transform-only wrapped world camera with pointer/trackpad/pinch input, semantic controls, Reset View, and Locate
-- One logical accessible path per entity plus decorative wrapped copies
-- Deterministic effective scene and legend models
-- Export-safe editable SVG legend with label/order/theme/size/opacity/border/corner/custom controls and overflow blocking
-- Provenance-gated historical engine plus approved 1492, 1700, 1815, and 1914 overlays with separate Poland, Lithuania, Hungary, Balkans, Iberia, and Scandinavia coverage/review records
-- Persistent historical coverage/fallback status, period-aware tooltips, and accessible complete-state crossfade
-- Versioned V2 complete-composition local persistence with safe Phase 1 migration
-- Exact current-viewport PNG export including legend and historical/fallback state
-- Binding map-first responsive UI implementation and targeted durable coding-rule updates
-- Full source/data/history/build/Chrome/Edge automation plus explicit physical-touch, visual, screen-reader, historical, and exact-export human acceptance
+- Exact-pinned mapshaper and installed-browser Playwright with dedicated ignored artifact root
+- Strict camera/scene/legend/persistence/export contracts including `CameraFreezeLease` and live-camera reads
+- Reproducible Natural Earth 5.1.1 hybrid world asset with exact 195 core states and 248 visible units
+- Transform-only wrapped camera, direct gestures, semantic alternatives, Reset View, and modern-core Locate
+- One logical accessible path per selectable active-scene entity plus decorative wrapped geometry
+- Deterministic effective-scene and legend models with approved historical entity interaction/history/persistence
+- Export-safe editable SVG legend with labels/order/theme/size/opacity/border/corner/custom controls and overflow blocking
+- Provenance-gated historical engine plus source-ready, qualified-review-approved 1492/1700/1815/1914 overlays for six separate regions
+- Versioned V2 complete-composition local persistence with raw/depth/node bounds and Phase 1 migration
+- Focused load/save/export transaction hooks with App retained as composition root
+- Exact current-viewport PNG export including legend, history/fallback state, visible wrapped geometry, and safe filename
+- Exact approved documentation corrections for subsystem rules, CLAUDE routing, general rules, and F2/F3/F7 supersession annotations
+- Focused Chrome validation, full exact-commit Chrome/Edge gate, and fixed exact-SHA human acceptance matrix
 
 ### Key Decisions
 
 - [x] One horizontally wrapping full-world canvas supersedes separate regional modes
 - [x] New compositions open at centered whole-world fit
 - [x] Fixed square Mercator plus transform-only D3 zoom satisfies wrapping and pole clamping
-- [x] Exactly 195 core states are selectable; reviewed dependencies inherit parent colors where clear
+- [x] Exactly 195 modern core states are in browser/Locate; approved historical entities are active-scene map interactions
 - [x] Natural Earth's default POV remains authoritative; no claim switcher
-- [x] Camera state is separate from color history and persists semantically
-- [x] Historical time uses reviewed snapshots with explicit modern fallback
-- [x] Legend is an SVG composition layer outside the camera transform
-- [x] Saved maps become versioned complete local compositions
-- [x] Runtime remains localhost/browser-only with no backend or deployment
-- [x] Historical release claims require deterministic provenance plus blocking factual approval
+- [x] Camera remains separate from color history and persists semantically from the live frame
+- [x] Historical time uses reviewed snapshots with explicit modern fallback and exact evidence gates
+- [x] Legend is an SVG composition layer outside camera transform
+- [x] Saved maps become bounded versioned complete local compositions
+- [x] Runtime remains localhost/browser-only with no backend/deployment
+- [x] Final automation proves an exact clean commit; human acceptance binds the same SHA
 
 ### Out of Scope (Phase 2)
 
 - Separate Europe/World/North America modes or a region selector
 - Animation timelines, camera keyframes, animated borders/fills/glows, geometry morphing, slideshows, frame sequences, MP4/video, batch/timelapse export, ZIP workflows
-- Pattern/texture fills, advanced shadows/glows, external images/flags/logos/arrows, full freeform design controls
+- Pattern/texture fills, advanced shadows/glows, external images/flags/logos/arrows, freeform design controls
 - User-selectable political claim perspectives, artificial small-island markers, inset maps
-- SVG export, cloud sync, authentication, sharing URLs, analytics, public deployment, production-origin verification, backend/API/server infrastructure, and environment secrets
+- SVG export, cloud sync, authentication, sharing URLs, analytics, public deployment, backend/API/server infrastructure, and environment secrets
 
 ---
-
 ## Phase 3: Polish & Launch (1–1.5 weeks)
 
 **Goal:** Production-ready MVP, documentation, user testing.
