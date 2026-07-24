@@ -1,0 +1,602 @@
+import {
+  createContext,
+  useCallback,
+  useMemo,
+  useReducer,
+} from 'react';
+import type { PropsWithChildren } from 'react';
+
+import {
+  INITIAL_WORLD_CAMERA,
+  MAX_ZOOM,
+  MERCATOR_MAX_LATITUDE,
+  MIN_ZOOM,
+} from '../constants/camera';
+import type {
+  CameraState,
+  Composition,
+  CompositionState,
+  LegendBorderStyle,
+  LegendEntryState,
+  LegendPosition,
+  LegendState,
+  LegendTextSize,
+  LegendTheme,
+  SnapshotId,
+  VisibleCompositionSettings,
+} from '../types/composition';
+import { normalizeColor } from '../utils/colors';
+
+const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
+const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
+  '#FFFFFF';
+const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
+  x: 0,
+  y: 0,
+  preset: 'top-right',
+});
+const DEFAULT_LEGEND: LegendState = Object.freeze({
+  entries: Object.freeze([]),
+  position: DEFAULT_LEGEND_POSITION,
+  theme: 'light',
+  textSize: 'medium',
+  backgroundOpacity: 90,
+  borderStyle: 'hairline',
+});
+const DEFAULT_SETTINGS: VisibleCompositionSettings = Object.freeze({
+  backgroundColor: DEFAULT_BACKGROUND_COLOR,
+});
+const MIN_LEGEND_BACKGROUND_OPACITY = 70;
+const MAX_LEGEND_BACKGROUND_OPACITY = 100;
+const MIN_LEGEND_ORDER = 0;
+const FULL_LONGITUDE_SPAN = 360;
+const HALF_LONGITUDE_SPAN = 180;
+
+const SNAPSHOT_IDS = new Set<SnapshotId>([
+  'modern',
+  '1492',
+  '1700',
+  '1815',
+  '1914',
+]);
+const LEGEND_THEMES = new Set<LegendTheme>(['light', 'dark', 'soft']);
+const LEGEND_TEXT_SIZES = new Set<LegendTextSize>([
+  'small',
+  'medium',
+  'large',
+]);
+const LEGEND_BORDER_STYLES = new Set<LegendBorderStyle>([
+  'none',
+  'hairline',
+  'strong',
+]);
+const LEGEND_PRESETS = new Set<Exclude<LegendPosition['preset'], null>>([
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+]);
+
+export type LegendStyleState = Pick<
+  LegendState,
+  'theme' | 'textSize' | 'backgroundOpacity' | 'borderStyle'
+>;
+
+export type CompositionAction =
+  | { type: 'SET_CAMERA'; payload: { camera: CameraState } }
+  | { type: 'SET_SNAPSHOT'; payload: { snapshotId: SnapshotId } }
+  | { type: 'SET_LEGEND_ENTRY'; payload: { entry: LegendEntryState } }
+  | { type: 'REMOVE_LEGEND_ENTRY'; payload: { color: string } }
+  | { type: 'SET_LEGEND_STYLE'; payload: { style: LegendStyleState } }
+  | { type: 'SET_LEGEND_ORDER'; payload: { colors: ReadonlyArray<string> } }
+  | { type: 'SET_LEGEND_POSITION'; payload: { position: LegendPosition } }
+  | {
+      type: 'SET_BACKGROUND_COLOR';
+      payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
+    }
+  | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
+  | { type: 'MARK_SAVED' };
+
+export interface CompositionStateContextValue {
+  state: CompositionState;
+  isDirty: boolean;
+  setCamera: (camera: CameraState) => void;
+  setSnapshot: (snapshotId: SnapshotId) => void;
+  setLegendEntry: (entry: LegendEntryState) => void;
+  removeLegendEntry: (color: string) => void;
+  setLegendStyle: (style: LegendStyleState) => void;
+  setLegendOrder: (colors: ReadonlyArray<string>) => void;
+  setLegendPosition: (position: LegendPosition) => void;
+  setBackgroundColor: (
+    backgroundColor: VisibleCompositionSettings['backgroundColor'],
+  ) => void;
+  loadComposition: (composition: Composition) => void;
+  markSaved: () => void;
+}
+
+export const CompositionStateContext = createContext<
+  CompositionStateContextValue | undefined
+>(undefined);
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function canonicalizeFiniteNumber(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function canonicalizeLongitude(longitude: number): number {
+  const finiteLongitude = canonicalizeFiniteNumber(
+    longitude,
+    INITIAL_WORLD_CAMERA.centerLongitude,
+  );
+
+  return (
+    ((finiteLongitude + HALF_LONGITUDE_SPAN) % FULL_LONGITUDE_SPAN +
+      FULL_LONGITUDE_SPAN) %
+      FULL_LONGITUDE_SPAN -
+    HALF_LONGITUDE_SPAN
+  );
+}
+
+function canonicalizeCamera(camera: CameraState): CameraState {
+  return {
+    zoom: clamp(
+      canonicalizeFiniteNumber(camera.zoom, INITIAL_WORLD_CAMERA.zoom),
+      MIN_ZOOM,
+      MAX_ZOOM,
+    ),
+    centerLongitude: canonicalizeLongitude(camera.centerLongitude),
+    centerLatitude: clamp(
+      canonicalizeFiniteNumber(
+        camera.centerLatitude,
+        INITIAL_WORLD_CAMERA.centerLatitude,
+      ),
+      -MERCATOR_MAX_LATITUDE,
+      MERCATOR_MAX_LATITUDE,
+    ),
+  };
+}
+
+function canonicalizeSnapshotId(snapshotId: SnapshotId): SnapshotId {
+  return SNAPSHOT_IDS.has(snapshotId) ? snapshotId : DEFAULT_SNAPSHOT_ID;
+}
+
+function canonicalizeLegendEntry(
+  entry: LegendEntryState,
+): LegendEntryState | null {
+  const colorResult = normalizeColor(entry.color);
+  if (!colorResult.ok) {
+    return null;
+  }
+
+  return {
+    color: colorResult.value,
+    label: entry.label,
+    order: Math.max(
+      MIN_LEGEND_ORDER,
+      Math.trunc(canonicalizeFiniteNumber(entry.order, MIN_LEGEND_ORDER)),
+    ),
+  };
+}
+
+function canonicalizeLegendEntries(
+  entries: ReadonlyArray<LegendEntryState>,
+): ReadonlyArray<LegendEntryState> {
+  const entriesByColor = new Map<
+    string,
+    { entry: LegendEntryState; sourceIndex: number }
+  >();
+
+  entries.forEach((entry, sourceIndex): void => {
+    const canonicalEntry = canonicalizeLegendEntry(entry);
+    if (canonicalEntry !== null) {
+      entriesByColor.set(canonicalEntry.color, {
+        entry: canonicalEntry,
+        sourceIndex,
+      });
+    }
+  });
+
+  return [...entriesByColor.values()]
+    .sort((left, right): number => {
+      const orderDifference = left.entry.order - right.entry.order;
+      return orderDifference === 0
+        ? left.sourceIndex - right.sourceIndex
+        : orderDifference;
+    })
+    .map(({ entry }, order): LegendEntryState => ({
+      ...entry,
+      order,
+    }));
+}
+
+function canonicalizeLegendPosition(
+  position: LegendPosition,
+  fallback: LegendPosition = DEFAULT_LEGEND_POSITION,
+): LegendPosition {
+  return {
+    x: canonicalizeFiniteNumber(position.x, fallback.x),
+    y: canonicalizeFiniteNumber(position.y, fallback.y),
+    preset:
+      position.preset !== null && LEGEND_PRESETS.has(position.preset)
+        ? position.preset
+        : null,
+  };
+}
+
+function canonicalizeLegendStyle(style: LegendStyleState): LegendStyleState {
+  return {
+    theme: LEGEND_THEMES.has(style.theme) ? style.theme : DEFAULT_LEGEND.theme,
+    textSize: LEGEND_TEXT_SIZES.has(style.textSize)
+      ? style.textSize
+      : DEFAULT_LEGEND.textSize,
+    backgroundOpacity: clamp(
+      canonicalizeFiniteNumber(
+        style.backgroundOpacity,
+        DEFAULT_LEGEND.backgroundOpacity,
+      ),
+      MIN_LEGEND_BACKGROUND_OPACITY,
+      MAX_LEGEND_BACKGROUND_OPACITY,
+    ),
+    borderStyle: LEGEND_BORDER_STYLES.has(style.borderStyle)
+      ? style.borderStyle
+      : DEFAULT_LEGEND.borderStyle,
+  };
+}
+
+function canonicalizeLegend(legend: LegendState): LegendState {
+  return {
+    entries: canonicalizeLegendEntries(legend.entries),
+    position: canonicalizeLegendPosition(legend.position),
+    ...canonicalizeLegendStyle(legend),
+  };
+}
+
+function canonicalizeSettings(): VisibleCompositionSettings {
+  return { backgroundColor: DEFAULT_BACKGROUND_COLOR };
+}
+
+function canonicalizeComposition(composition: Composition): Composition {
+  return {
+    camera: canonicalizeCamera(composition.camera),
+    snapshotId: canonicalizeSnapshotId(composition.snapshotId),
+    legend: canonicalizeLegend(composition.legend),
+    settings: canonicalizeSettings(),
+  };
+}
+
+function getVisibleComposition(state: CompositionState): Composition {
+  return {
+    camera: state.camera,
+    snapshotId: state.snapshotId,
+    legend: state.legend,
+    settings: state.settings,
+  };
+}
+
+function areCamerasEqual(left: CameraState, right: CameraState): boolean {
+  return (
+    left.zoom === right.zoom &&
+    left.centerLongitude === right.centerLongitude &&
+    left.centerLatitude === right.centerLatitude
+  );
+}
+
+function areLegendEntriesEqual(
+  left: ReadonlyArray<LegendEntryState>,
+  right: ReadonlyArray<LegendEntryState>,
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (entry, index): boolean =>
+        entry.color === right[index]?.color &&
+        entry.label === right[index]?.label &&
+        entry.order === right[index]?.order,
+    )
+  );
+}
+
+function areLegendPositionsEqual(
+  left: LegendPosition,
+  right: LegendPosition,
+): boolean {
+  return left.x === right.x && left.y === right.y && left.preset === right.preset;
+}
+
+function areLegendsEqual(left: LegendState, right: LegendState): boolean {
+  return (
+    areLegendEntriesEqual(left.entries, right.entries) &&
+    areLegendPositionsEqual(left.position, right.position) &&
+    left.theme === right.theme &&
+    left.textSize === right.textSize &&
+    left.backgroundOpacity === right.backgroundOpacity &&
+    left.borderStyle === right.borderStyle
+  );
+}
+
+function areCompositionsEqual(left: Composition, right: Composition): boolean {
+  return (
+    areCamerasEqual(left.camera, right.camera) &&
+    left.snapshotId === right.snapshotId &&
+    areLegendsEqual(left.legend, right.legend) &&
+    left.settings.backgroundColor === right.settings.backgroundColor
+  );
+}
+
+export function isCompositionStateDirty(state: CompositionState): boolean {
+  return !areCompositionsEqual(
+    getVisibleComposition(state),
+    state.savedBaseline,
+  );
+}
+
+function replaceLegend(
+  state: CompositionState,
+  legend: LegendState,
+): CompositionState {
+  return areLegendsEqual(state.legend, legend)
+    ? state
+    : {
+        ...state,
+        legend,
+      };
+}
+
+export function createInitialCompositionState(): CompositionState {
+  const composition = canonicalizeComposition({
+    camera: INITIAL_WORLD_CAMERA,
+    snapshotId: DEFAULT_SNAPSHOT_ID,
+    legend: DEFAULT_LEGEND,
+    settings: DEFAULT_SETTINGS,
+  });
+
+  return {
+    ...composition,
+    savedBaseline: composition,
+  };
+}
+
+export function compositionStateReducer(
+  state: CompositionState,
+  action: CompositionAction,
+): CompositionState {
+  switch (action.type) {
+    case 'SET_CAMERA': {
+      const camera = canonicalizeCamera(action.payload.camera);
+      return areCamerasEqual(state.camera, camera)
+        ? state
+        : { ...state, camera };
+    }
+
+    case 'SET_SNAPSHOT': {
+      const snapshotId = canonicalizeSnapshotId(action.payload.snapshotId);
+      return state.snapshotId === snapshotId
+        ? state
+        : { ...state, snapshotId };
+    }
+
+    case 'SET_LEGEND_ENTRY': {
+      const entry = canonicalizeLegendEntry(action.payload.entry);
+      if (entry === null) {
+        return state;
+      }
+
+      const existingEntry = state.legend.entries.find(
+        (candidate): boolean => candidate.color === entry.color,
+      );
+      if (
+        existingEntry?.label === entry.label &&
+        existingEntry.order === entry.order
+      ) {
+        return state;
+      }
+
+      const entries = canonicalizeLegendEntries([
+        ...state.legend.entries.filter(
+          (candidate): boolean => candidate.color !== entry.color,
+        ),
+        entry,
+      ]);
+
+      return replaceLegend(state, { ...state.legend, entries });
+    }
+
+    case 'REMOVE_LEGEND_ENTRY': {
+      const colorResult = normalizeColor(action.payload.color);
+      if (!colorResult.ok) {
+        return state;
+      }
+
+      const entries = state.legend.entries.filter(
+        (entry): boolean => entry.color !== colorResult.value,
+      );
+      if (entries.length === state.legend.entries.length) {
+        return state;
+      }
+
+      return replaceLegend(state, {
+        ...state.legend,
+        entries: canonicalizeLegendEntries(entries),
+      });
+    }
+
+    case 'SET_LEGEND_STYLE': {
+      const style = canonicalizeLegendStyle(action.payload.style);
+      return replaceLegend(state, { ...state.legend, ...style });
+    }
+
+    case 'SET_LEGEND_ORDER': {
+      const entriesByColor = new Map(
+        state.legend.entries.map((entry): [string, LegendEntryState] => [
+          entry.color,
+          entry,
+        ]),
+      );
+      const orderedColors: string[] = [];
+
+      action.payload.colors.forEach((color): void => {
+        const colorResult = normalizeColor(color);
+        if (
+          colorResult.ok &&
+          entriesByColor.has(colorResult.value) &&
+          !orderedColors.includes(colorResult.value)
+        ) {
+          orderedColors.push(colorResult.value);
+        }
+      });
+
+      state.legend.entries.forEach((entry): void => {
+        if (!orderedColors.includes(entry.color)) {
+          orderedColors.push(entry.color);
+        }
+      });
+
+      const entries = orderedColors.map((color, order): LegendEntryState => ({
+        ...(entriesByColor.get(color) as LegendEntryState),
+        order,
+      }));
+
+      return replaceLegend(state, { ...state.legend, entries });
+    }
+
+    case 'SET_LEGEND_POSITION': {
+      const position = canonicalizeLegendPosition(
+        action.payload.position,
+        state.legend.position,
+      );
+      return replaceLegend(state, { ...state.legend, position });
+    }
+
+    case 'SET_BACKGROUND_COLOR': {
+      const settings = canonicalizeSettings();
+      return state.settings.backgroundColor === settings.backgroundColor
+        ? state
+        : { ...state, settings };
+    }
+
+    case 'LOAD_COMPOSITION': {
+      const composition = canonicalizeComposition(action.payload.composition);
+      if (
+        areCompositionsEqual(getVisibleComposition(state), composition) &&
+        areCompositionsEqual(state.savedBaseline, composition)
+      ) {
+        return state;
+      }
+
+      return {
+        ...composition,
+        savedBaseline: composition,
+      };
+    }
+
+    case 'MARK_SAVED': {
+      const composition = getVisibleComposition(state);
+      return areCompositionsEqual(state.savedBaseline, composition)
+        ? state
+        : {
+            ...state,
+            savedBaseline: composition,
+          };
+    }
+  }
+}
+
+export function CompositionStateProvider({
+  children,
+}: PropsWithChildren): JSX.Element {
+  const [state, dispatch] = useReducer(
+    compositionStateReducer,
+    undefined,
+    createInitialCompositionState,
+  );
+
+  const setCamera = useCallback((camera: CameraState): void => {
+    dispatch({ type: 'SET_CAMERA', payload: { camera } });
+  }, []);
+
+  const setSnapshot = useCallback((snapshotId: SnapshotId): void => {
+    dispatch({ type: 'SET_SNAPSHOT', payload: { snapshotId } });
+  }, []);
+
+  const setLegendEntry = useCallback((entry: LegendEntryState): void => {
+    dispatch({ type: 'SET_LEGEND_ENTRY', payload: { entry } });
+  }, []);
+
+  const removeLegendEntry = useCallback((color: string): void => {
+    dispatch({ type: 'REMOVE_LEGEND_ENTRY', payload: { color } });
+  }, []);
+
+  const setLegendStyle = useCallback((style: LegendStyleState): void => {
+    dispatch({ type: 'SET_LEGEND_STYLE', payload: { style } });
+  }, []);
+
+  const setLegendOrder = useCallback((colors: ReadonlyArray<string>): void => {
+    dispatch({ type: 'SET_LEGEND_ORDER', payload: { colors } });
+  }, []);
+
+  const setLegendPosition = useCallback((position: LegendPosition): void => {
+    dispatch({ type: 'SET_LEGEND_POSITION', payload: { position } });
+  }, []);
+
+  const setBackgroundColor = useCallback(
+    (
+      backgroundColor: VisibleCompositionSettings['backgroundColor'],
+    ): void => {
+      dispatch({
+        type: 'SET_BACKGROUND_COLOR',
+        payload: { backgroundColor },
+      });
+    },
+    [],
+  );
+
+  const loadComposition = useCallback((composition: Composition): void => {
+    dispatch({ type: 'LOAD_COMPOSITION', payload: { composition } });
+  }, []);
+
+  const markSaved = useCallback((): void => {
+    dispatch({ type: 'MARK_SAVED' });
+  }, []);
+
+  const isDirty = isCompositionStateDirty(state);
+
+  const value = useMemo<CompositionStateContextValue>(
+    () => ({
+      state,
+      isDirty,
+      setCamera,
+      setSnapshot,
+      setLegendEntry,
+      removeLegendEntry,
+      setLegendStyle,
+      setLegendOrder,
+      setLegendPosition,
+      setBackgroundColor,
+      loadComposition,
+      markSaved,
+    }),
+    [
+      state,
+      isDirty,
+      setCamera,
+      setSnapshot,
+      setLegendEntry,
+      removeLegendEntry,
+      setLegendStyle,
+      setLegendOrder,
+      setLegendPosition,
+      setBackgroundColor,
+      loadComposition,
+      markSaved,
+    ],
+  );
+
+  return (
+    <CompositionStateContext.Provider value={value}>
+      {children}
+    </CompositionStateContext.Provider>
+  );
+}

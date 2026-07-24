@@ -6,6 +6,7 @@ import {
   CompositionStateProvider,
   compositionStateReducer,
   createInitialCompositionState,
+  isCompositionStateDirty,
   type CompositionAction,
   type CompositionStateContextValue,
 } from '../providers/CompositionStateProvider';
@@ -112,6 +113,7 @@ describe('compositionStateReducer', () => {
     expect(state.savedBaseline).toEqual(
       createInitialCompositionState().savedBaseline,
     );
+    expect(isCompositionStateDirty(state)).toBe(true);
     expect('history' in state).toBe(false);
   });
 
@@ -178,6 +180,7 @@ describe('compositionStateReducer', () => {
       },
     });
     expect(state.savedBaseline).toEqual(toComposition(state));
+    expect(isCompositionStateDirty(state)).toBe(false);
   });
 
   it('marks the visible composition as saved without changing visible fields', () => {
@@ -200,6 +203,7 @@ describe('compositionStateReducer', () => {
     expect(saved.legend).toBe(edited.legend);
     expect(saved.settings).toBe(edited.settings);
     expect(saved.savedBaseline).toEqual(visibleComposition);
+    expect(isCompositionStateDirty(saved)).toBe(false);
   });
 
   it('preserves state identity for semantic no-ops', () => {
