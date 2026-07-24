@@ -10,13 +10,13 @@ import {
   reconcileSelectionForScene,
 } from './scene';
 
-const TEST_RING = [
+const TEST_RING: number[][] = [
   [0, 0],
   [1, 0],
   [1, 1],
   [0, 1],
   [0, 0],
-] as const;
+];
 
 interface SelectableFeatureOptions {
   readonly sourceFeatureId: string;
