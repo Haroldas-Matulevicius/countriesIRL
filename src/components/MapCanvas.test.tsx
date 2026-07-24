@@ -109,6 +109,54 @@ describe('live camera controller', (): void => {
     );
   });
 
+  it('zooms around the viewport center and pans by a viewport fraction', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+
+    controller.zoomBy(1.5);
+
+    expect(harness.getPaintedTransform()).toMatchObject({
+      k: 1.5,
+      x: -270,
+      y: -270,
+    });
+    expect(harness.commitCamera).toHaveBeenCalledTimes(1);
+
+    controller.pan('right', 0.125);
+
+    expect(harness.getPaintedTransform()).toMatchObject({
+      k: 1.5,
+      x: -405,
+      y: -270,
+    });
+    expect(harness.commitCamera).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks navigation and restore while an export lease is active', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const lease = controller.freezeAndSnapshot();
+    const frozenTransform = harness.getPaintedTransform();
+
+    controller.zoomBy(1.5);
+    controller.pan('right', 0.125);
+    const didRestore = controller.restore({
+      zoom: 3,
+      centerLongitude: 20,
+      centerLatitude: 10,
+    });
+
+    expect(didRestore).toBe(false);
+    expect(harness.getPaintedTransform()).toEqual(frozenTransform);
+
+    lease.release();
+    expect(controller.restore({
+      zoom: 3,
+      centerLongitude: 20,
+      centerLatitude: 10,
+    })).toBe(true);
+  });
+
   it('animates Locate through the shared constrained transition boundary', (): void => {
     const harness = createDriverHarness();
     const controller = createCameraController(harness.driver);

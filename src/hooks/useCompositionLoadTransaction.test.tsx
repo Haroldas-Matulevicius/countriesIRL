@@ -104,10 +104,13 @@ function createHandle(label: string, calls: string[]): MapCanvasHandle {
       camera: { zoom: 1, centerLongitude: 0, centerLatitude: 0 },
       release: vi.fn(),
     })),
+    zoomBy: vi.fn(),
+    pan: vi.fn(),
     resetView: vi.fn(),
     locate: vi.fn(),
-    restore: vi.fn((): void => {
+    restore: vi.fn((): boolean => {
       calls.push(`${label}:restore`);
+      return true;
     }),
     focusCountry: vi.fn((countryId): void => {
       calls.push(`${label}:focus:${countryId}`);

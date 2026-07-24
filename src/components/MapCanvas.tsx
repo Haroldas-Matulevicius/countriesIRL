@@ -277,6 +277,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       (): MapCanvasHandle => ({
         readCurrentCamera: cameraController.readCurrentCamera,
         freezeAndSnapshot: cameraController.freezeAndSnapshot,
+        zoomBy: cameraController.zoomBy,
+        pan: cameraController.pan,
         resetView: cameraController.resetView,
         locate: cameraController.locate,
         restore: cameraController.restore,

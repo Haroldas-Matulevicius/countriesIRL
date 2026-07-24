@@ -26,12 +26,16 @@ export interface CameraFreezeLease {
   release(): void;
 }
 
+export type CameraPanDirection = 'up' | 'right' | 'down' | 'left';
+
 export interface MapCanvasHandle {
   readCurrentCamera(): CameraState;
   freezeAndSnapshot(): CameraFreezeLease;
+  zoomBy(factor: number): void;
+  pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
   locate(countryId: CountryId): void;
-  restore(camera: CameraState): void;
+  restore(camera: CameraState): boolean;
   focusCountry(countryId: CountryId): void;
   getExportSource(): HTMLDivElement | null;
 }

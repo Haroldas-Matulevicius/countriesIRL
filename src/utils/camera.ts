@@ -16,11 +16,9 @@ import {
   PAN_FRACTION,
   WORLD_SIZE,
 } from '../constants/camera';
-import type { CameraState } from '../types/composition';
+import type { CameraPanDirection, CameraState } from '../types/composition';
 import type { GeoFeature } from '../types/map';
 import { createWorldProjection } from './mapProjection';
-
-export type CameraPanDirection = 'up' | 'right' | 'down' | 'left';
 
 type Point = readonly [number, number];
 type SphericalBounds = [[number, number], [number, number]];
@@ -197,9 +195,14 @@ export function zoomCameraTransform(
 export function panCameraTransform(
   transform: ZoomTransform,
   direction: CameraPanDirection,
+  viewportFraction: number = PAN_FRACTION,
 ): ZoomTransform {
   const constrained = constrainCameraTransform(transform);
-  const screenStep = WORLD_SIZE * PAN_FRACTION;
+  const safeViewportFraction =
+    Number.isFinite(viewportFraction) && viewportFraction > 0
+      ? viewportFraction
+      : PAN_FRACTION;
+  const screenStep = WORLD_SIZE * safeViewportFraction;
   const translationByDirection: Readonly<
     Record<CameraPanDirection, Point>
   > = {

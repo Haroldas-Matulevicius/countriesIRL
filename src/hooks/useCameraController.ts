@@ -14,14 +14,20 @@ import {
   MIN_ZOOM,
   WORLD_SIZE,
 } from '../constants/camera';
-import type { CameraFreezeLease, CameraState } from '../types/composition';
+import type {
+  CameraFreezeLease,
+  CameraPanDirection,
+  CameraState,
+} from '../types/composition';
 import type { CountryId, GeoFeature } from '../types/map';
 import {
   cameraToTransform,
   constrainCameraTransform,
   createLocateTransform,
   createResetTransform,
+  panCameraTransform,
   transformToCamera,
+  zoomCameraTransform,
 } from '../utils/camera';
 
 export interface CameraControllerDriver {
@@ -43,9 +49,11 @@ export interface CameraControllerDriver {
 export interface CameraController {
   readCurrentCamera(): CameraState;
   freezeAndSnapshot(): CameraFreezeLease;
+  zoomBy(factor: number): void;
+  pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
   locate(countryId: CountryId): void;
-  restore(camera: CameraState): void;
+  restore(camera: CameraState): boolean;
   onGestureFrame(transform: ZoomTransform): void;
   onGestureEnd(transform: ZoomTransform): void;
   destroy(): void;
@@ -142,6 +150,33 @@ export function createCameraController(
         },
       };
     },
+    zoomBy: (factor): void => {
+      if (isLocked() || !Number.isFinite(factor) || factor <= 0) {
+        return;
+      }
+      driver.interrupt();
+      const paintedTransform = constrainCameraTransform(
+        driver.readPaintedTransform(),
+      );
+      commit(zoomCameraTransform(paintedTransform, paintedTransform.k * factor));
+    },
+    pan: (direction, viewportFraction): void => {
+      if (
+        isLocked() ||
+        !Number.isFinite(viewportFraction) ||
+        viewportFraction <= 0
+      ) {
+        return;
+      }
+      driver.interrupt();
+      commit(
+        panCameraTransform(
+          driver.readPaintedTransform(),
+          direction,
+          viewportFraction,
+        ),
+      );
+    },
     resetView: (): void => {
       if (isLocked()) {
         return;
@@ -168,12 +203,13 @@ export function createCameraController(
         (): void => controller.onGestureEnd(driver.readPaintedTransform()),
       );
     },
-    restore: (camera): void => {
+    restore: (camera): boolean => {
       if (isLocked()) {
-        return;
+        return false;
       }
       driver.interrupt();
       commit(cameraToTransform(camera));
+      return true;
     },
     onGestureFrame: (transform): void => {
       if (!isLocked()) {
@@ -209,9 +245,11 @@ function createInactiveController(): CameraController {
       camera,
       release: (): void => undefined,
     }),
+    zoomBy: (): void => undefined,
+    pan: (): void => undefined,
     resetView: (): void => undefined,
     locate: (): void => undefined,
-    restore: (): void => undefined,
+    restore: (): boolean => false,
     onGestureFrame: (): void => undefined,
     onGestureEnd: (): void => undefined,
     destroy: (): void => undefined,
@@ -361,9 +399,13 @@ export function useCameraController({
       freezeAndSnapshot: (): CameraFreezeLease =>
         controllerRef.current?.freezeAndSnapshot() ??
         inactive.freezeAndSnapshot(),
+      zoomBy: (factor): void => controllerRef.current?.zoomBy(factor),
+      pan: (direction, viewportFraction): void =>
+        controllerRef.current?.pan(direction, viewportFraction),
       resetView: (): void => controllerRef.current?.resetView(),
       locate: (countryId): void => controllerRef.current?.locate(countryId),
-      restore: (camera): void => controllerRef.current?.restore(camera),
+      restore: (camera): boolean =>
+        controllerRef.current?.restore(camera) ?? false,
       onGestureFrame: (transform): void =>
         controllerRef.current?.onGestureFrame(transform),
       onGestureEnd: (transform): void =>
