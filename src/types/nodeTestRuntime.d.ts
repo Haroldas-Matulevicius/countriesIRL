@@ -77,8 +77,9 @@ declare module 'node:child_process' {
   }
 
   interface ChildProcess {
-    readonly stdout: ReadableTextStream;
-    readonly stderr: ReadableTextStream;
+    readonly stdout: ReadableTextStream | null;
+    readonly stderr: ReadableTextStream | null;
+    kill(): boolean;
     once(event: 'error', listener: (error: Error) => void): void;
     once(event: 'close', listener: (status: number | null) => void): void;
   }
