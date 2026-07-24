@@ -22,6 +22,7 @@ export interface CameraState {
 
 export interface CameraFreezeLease {
   readonly camera: CameraState;
+  /** Idempotent; transaction owners release the lease from their outermost finally. */
   release(): void;
 }
 
