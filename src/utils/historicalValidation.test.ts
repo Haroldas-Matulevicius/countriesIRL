@@ -11,6 +11,7 @@ import {
   validateSourceApproval,
   validateSourceReadinessManifest,
   type EvidenceArchiveMemberInput,
+  type HistoricalSourcePreparation,
   type HistoricalSourceReadinessManifest,
   type SourceApprovalValidationContext,
 } from './historicalValidation';
@@ -69,7 +70,7 @@ async function createFixture(
     throw new Error(inventoryResult.errors.join(', '));
   }
 
-  const preparation =
+  const preparation: HistoricalSourcePreparation =
     mode === 'vector-extraction'
       ? {
           mode,
@@ -151,13 +152,13 @@ async function createFixture(
     memberInventory: manifest.evidenceArchive.members,
     inputGeometrySha256: manifest.inputGeometry.sha256,
     preparation:
-      mode === 'vector-extraction'
+      preparation.mode === 'vector-extraction'
         ? {
-            mode,
+            mode: preparation.mode,
             extractionSpecificationSha256: preparation.extractionSpecification.sha256,
           }
         : {
-            mode,
+            mode: preparation.mode,
             evidenceSha256: preparation.evidence.sha256,
             procedureSha256: preparation.procedure.sha256,
             operatorRecordSha256: preparation.operatorRecord.sha256,
@@ -241,15 +242,19 @@ describe('historical source readiness', (): void => {
 
   it('rejects missing rights, a missing region, and merged Poland/Lithuania coverage', async (): Promise<void> => {
     const fixture = await createFixture();
-    const missingRights = structuredClone(fixture.manifest);
-    missingRights.regions[0] = {
-      ...missingRights.regions[0],
-      rightsDisposition: 'blocked',
-    };
-    const missingRegion = structuredClone(fixture.manifest);
-    missingRegion.regions = missingRegion.regions.filter(
-      ({ regionId }) => regionId !== 'scandinavia',
-    );
+    const missingRights = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    const missingRightsRegions = missingRights.regions as Array<Record<string, unknown>>;
+    missingRightsRegions[0].rightsDisposition = 'blocked';
+    const missingRegion = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    missingRegion.regions = (
+      missingRegion.regions as Array<Record<string, unknown>>
+    ).filter(({ regionId }) => regionId !== 'scandinavia');
     const mergedRegion = structuredClone(fixture.manifest) as unknown as Record<string, unknown>;
     const regions = mergedRegion.regions as Array<Record<string, unknown>>;
     regions[0].regionId = 'poland-lithuania';
