@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL Legend Fixture</title>
+    <style>
+      body {
+        margin: 16px;
+        color: #111827;
+        font-family: Inter, system-ui, sans-serif;
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(360px, 1fr) 540px;
+        gap: 24px;
+        align-items: start;
+      }
+      button,
+      input {
+        min-height: 44px;
+      }
+      .legend-editor__entry,
+      fieldset,
+      .fixture-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-block: 8px;
+      }
+      .legend-editor__entry:focus {
+        outline: 3px solid #0f766e;
+      }
+      .legend-editor__swatch {
+        width: 32px;
+        height: 32px;
+        border: 1px solid #111827;
+      }
+      svg {
+        width: 540px;
+        height: 540px;
+        border: 1px solid #9ca3af;
+        background: #ffffff;
+        touch-action: none;
+      }
+      [role='alert'] {
+        color: #b42318;
+      }
+      output {
+        display: block;
+        margin-block: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React, { useEffect, useMemo, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { LegendDisclosure } from '/src/components/LegendDisclosure.tsx';
+      import { LegendEditor } from '/src/components/LegendEditor.tsx';
+      import {
+        LegendOverlay,
+        getLegendOverlayBounds,
+      } from '/src/components/LegendOverlay.tsx';
+      import { CompositionStateProvider } from '/src/providers/CompositionStateProvider.tsx';
+      import { useCompositionState } from '/src/hooks/useCompositionState.ts';
+      import {
+        getActiveLegendEntries,
+        getLegendCornerPosition,
+      } from '/src/utils/legend.ts';
+
+      const h = React.createElement;
+      const STANDARD_COLORS = ['#DC2626', '#2563EB', '#B45309'];
+      const HISTORICAL_COLOR = '#B45309';
+      const POSITION_LABELS = {
+        'top-left': 'Top left',
+        'top-right': 'Top right',
+        'bottom-left': 'Bottom left',
+        'bottom-right': 'Bottom right',
+      };
+
+      function createOverflowColors() {
+        return Array.from(
+          { length: 31 },
+          (_, index) => `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
+        );
+      }
+
+      function LegendFixture() {
+        const {
+          state,
+          setLegendEntry,
+          setLegendStyle,
+          setLegendOrder,
+          setLegendPosition,
+        } = useCompositionState();
+        const [isOverflowMode, setIsOverflowMode] = useState(false);
+        const [validation, setValidation] = useState({ ok: false, issues: [] });
+        const [statusMessage, setStatusMessage] = useState('');
+        const [cameraEvents, setCameraEvents] = useState(0);
+        const [exportEditorOnlyCount, setExportEditorOnlyCount] = useState(null);
+        const effectiveColors = isOverflowMode
+          ? createOverflowColors()
+          : STANDARD_COLORS;
+        const commands = useMemo(
+          () => ({
+            setLegendEntry,
+            setLegendStyle,
+            setLegendOrder,
+            setLegendPosition,
+          }),
+          [
+            setLegendEntry,
+            setLegendStyle,
+            setLegendOrder,
+            setLegendPosition,
+          ],
+        );
+        useEffect(() => {
+          const knownColors = new Set(
+            state.legend.entries.map((entry) => entry.color),
+          );
+          let nextOrder = state.legend.entries.reduce(
+            (maximum, entry) => Math.max(maximum, entry.order),
+            -1,
+          );
+          effectiveColors.forEach((color) => {
+            if (!knownColors.has(color)) {
+              nextOrder += 1;
+              setLegendEntry({ color, label: color, order: nextOrder });
+              knownColors.add(color);
+            }
+          });
+        }, [effectiveColors, setLegendEntry, state.legend.entries]);
+
+        const bounds = getLegendOverlayBounds(state.legend, effectiveColors);
+        const activeEntries = getActiveLegendEntries(effectiveColors, state.legend);
+        const positionLabel =
+          state.legend.position.preset === null
+            ? 'Custom'
+            : POSITION_LABELS[state.legend.position.preset];
+
+        useEffect(() => {
+          if (
+            activeEntries.length > 0 &&
+            state.legend.position.preset !== null &&
+            (state.legend.position.x === 0 || state.legend.position.y === 0)
+          ) {
+            setLegendPosition(
+              getLegendCornerPosition(state.legend.position.preset, bounds),
+            );
+          }
+        }, [
+          activeEntries.length,
+          bounds.height,
+          bounds.width,
+          setLegendPosition,
+          state.legend.position.preset,
+          state.legend.position.x,
+          state.legend.position.y,
+        ]);
+
+        const handleExport = () => {
+          const source = document.querySelector('svg[data-legend-canvas="true"]');
+          const clone = source.cloneNode(true);
+          clone.querySelectorAll('[data-editor-only]').forEach((node) => node.remove());
+          setExportEditorOnlyCount(
+            clone.querySelectorAll('[data-editor-only]').length,
+          );
+          setStatusMessage('PNG downloaded at 1080 × 1080.');
+        };
+
+        return h(
+          'main',
+          null,
+          h(
+            'section',
+            null,
+            h(
+              'div',
+              { className: 'fixture-controls' },
+              h(
+                'button',
+                { type: 'button', onClick: () => setIsOverflowMode(true) },
+                'Use 31 colors',
+              ),
+              h(
+                'button',
+                { type: 'button', onClick: () => setIsOverflowMode(false) },
+                'Use standard colors',
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  disabled: !validation.ok,
+                  onClick: handleExport,
+                },
+                'Export PNG',
+              ),
+            ),
+            h(
+              LegendDisclosure,
+              {
+                entryCount: activeEntries.length,
+                positionLabel,
+                onStatusMessage: setStatusMessage,
+              },
+              h(LegendEditor, {
+                legend: state.legend,
+                effectiveColors,
+                bounds,
+                commands,
+                onStatusMessage: setStatusMessage,
+                onValidationChange: setValidation,
+              }),
+            ),
+            h('output', { 'data-status': 'true', 'aria-live': 'polite' }, statusMessage),
+            h(
+              'output',
+              { 'data-position': 'true' },
+              `${state.legend.position.x},${state.legend.position.y},${positionLabel}`,
+            ),
+            h(
+              'output',
+              { 'data-style': 'true' },
+              `${state.legend.theme},${state.legend.textSize},${state.legend.backgroundOpacity},${state.legend.borderStyle}`,
+            ),
+            h('output', { 'data-camera-events': 'true' }, String(cameraEvents)),
+            h(
+              'output',
+              { 'data-export-editor-only': 'true' },
+              exportEditorOnlyCount === null ? 'not-exported' : String(exportEditorOnlyCount),
+            ),
+            h('output', { 'data-historical-color': 'true' }, HISTORICAL_COLOR),
+          ),
+          h(
+            'svg',
+            {
+              viewBox: '0 0 1080 1080',
+              role: 'img',
+              'aria-label': 'Legend interaction canvas',
+              'data-legend-canvas': 'true',
+              onPointerDown: () => setCameraEvents((count) => count + 1),
+              onPointerMove: () => setCameraEvents((count) => count + 1),
+              onPointerUp: () => setCameraEvents((count) => count + 1),
+              onWheel: () => setCameraEvents((count) => count + 1),
+            },
+            h('rect', { x: 0, y: 0, width: 1080, height: 1080, fill: '#FFFFFF' }),
+            h(
+              'g',
+              { 'data-layer': 'camera', transform: 'translate(0 0)' },
+              h('rect', {
+                x: 160,
+                y: 220,
+                width: 360,
+                height: 240,
+                fill: '#E2E8F0',
+              }),
+            ),
+            h(LegendOverlay, {
+              legend: state.legend,
+              effectiveColors,
+              onPositionChange: setLegendPosition,
+              onStatusMessage: setStatusMessage,
+            }),
+          ),
+        );
+      }
+
+      createRoot(document.getElementById('root')).render(
+        h(CompositionStateProvider, null, h(LegendFixture)),
+      );
+    </script>
+  </body>
+</html>
