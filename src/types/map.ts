@@ -6,16 +6,42 @@ export type ColorHistory = ReadonlyArray<ColorMap>;
 export type SelectedCountryIds = ReadonlySet<CountryId>;
 
 export interface GeoFeatureProperties {
-  name: string;
+  readonly name: string;
 }
 
 export interface GeoFeature
   extends Feature<Polygon | MultiPolygon, GeoFeatureProperties> {
-  type: 'Feature';
-  id: CountryId;
-  properties: GeoFeatureProperties;
-  geometry: Polygon | MultiPolygon;
+  readonly type: 'Feature';
+  readonly id: CountryId;
+  readonly properties: GeoFeatureProperties;
+  readonly geometry: Polygon | MultiPolygon;
 }
+
+export type BoundaryMode = 'modern' | 'historical' | 'modern-fallback';
+
+interface SceneFeatureBase extends GeoFeature {
+  readonly sourceFeatureId: string;
+  readonly entityId: CountryId;
+  readonly boundaryMode: BoundaryMode;
+  readonly provenanceId: string;
+}
+
+export type SceneFeature =
+  | (SceneFeatureBase & {
+      readonly interactionMode: 'modern-core' | 'historical-entity';
+      readonly colorOwnerId: CountryId;
+      readonly isSelectable: true;
+    })
+  | (SceneFeatureBase & {
+      readonly interactionMode: 'inherited-dependency';
+      readonly colorOwnerId: CountryId;
+      readonly isSelectable: false;
+    })
+  | (SceneFeatureBase & {
+      readonly interactionMode: 'disputed' | 'neutral';
+      readonly colorOwnerId: null;
+      readonly isSelectable: false;
+    });
 
 export interface MapState {
   colors: ColorMap;

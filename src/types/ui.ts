@@ -1,4 +1,4 @@
-import type { ColorMap } from './map';
+import type { LegacySavedComposition } from './composition';
 
 export interface ColorPreset {
   name: string;
@@ -14,11 +14,7 @@ export type ColorNormalizationResult =
   | { ok: true; value: string }
   | { ok: false; reason: ColorNormalizationError };
 
-export interface SavedMap {
-  name: string;
-  colors: ColorMap;
-  timestamp: number;
-}
+export type SavedMap = LegacySavedComposition;
 
 export type StorageWarningCode = 'corrupt-data';
 
