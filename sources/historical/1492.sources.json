@@ -34,8 +34,8 @@
   },
   "evidenceArchive": {
     "path": "sources/historical/1492.evidence.zip",
-    "sha256": "9d1a124695ad4aecf601e229fbb0804cd52888430ae2628e61545e05640f7c79",
-    "memberInventorySha256": "a4e3e284f63ad8ee9662f9df657f0a08afe2bcb54c87f4ff10e78f3ea8caf80b",
+    "sha256": "c350c85b9473974aa2d76fc34f5770798e3adbb29a7860af1615513171b10bca",
+    "memberInventorySha256": "12a4994e5ffeff2d59b871c3597969dc12c049c75b61b87ce88f52f859fcdb69",
     "members": [
       {
         "path": "README.txt",
@@ -63,19 +63,19 @@
       },
       {
         "path": "reviews/1492-hungary.json",
-        "sha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0"
+        "sha256": "7dc3200126db637aad252cee395d761367048a30846be7ab754748329973c10b"
       },
       {
         "path": "reviews/1492-iberia.json",
-        "sha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2"
+        "sha256": "7e16fe08debcbbdcb68b7b5121b83115c8a0eecd6d34d6826c1d8075f0210553"
       },
       {
         "path": "reviews/1492-lithuania.json",
-        "sha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632"
+        "sha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a"
       },
       {
         "path": "reviews/1492-poland.json",
-        "sha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb"
+        "sha256": "4d5700a738b836c6b131f0821f73561876f5b0e7b005ef64dc10b48801ad6f10"
       },
       {
         "path": "reviews/1492-scandinavia.json",
@@ -135,7 +135,7 @@
       },
       {
         "path": "specifications/1492-date-and-identity.json",
-        "sha256": "c31419f088611e995249eebe740f14a2cefe5d267ffbf1824b7120f34a8a4cda"
+        "sha256": "8d2329dfee5a0cfbf3600faacad70651c10213d094592fa04126130cb65e4a04"
       },
       {
         "path": "specifications/1492-manual-trace-candidate.json",
@@ -152,7 +152,9 @@
     "mode": "blocked",
     "reason": "The packet binds candidate evidence for review but lacks approved exact production geometry and every required independent approval.",
     "manualTrace": {
+      "evidencePath": "sources/semkowicz-romer-1929-current-hosted-scan.jpg",
       "evidenceSha256": "955293f5b80ee2ca9574574fcb0d3710fc78c3d0bf4f59de5be2e21edb9bdb0b",
+      "procedurePath": "specifications/1492-manual-trace-candidate.json",
       "procedureSha256": "780634addfa79cba8f369867c0fe5d28659691372ffc390db690ab89322275fd",
       "operatorRecordSha256": null,
       "controlPointsSha256": null,
@@ -177,19 +179,19 @@
       },
       {
         "path": "reviews/1492-hungary.json",
-        "sha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0"
+        "sha256": "7dc3200126db637aad252cee395d761367048a30846be7ab754748329973c10b"
       },
       {
         "path": "reviews/1492-iberia.json",
-        "sha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2"
+        "sha256": "7e16fe08debcbbdcb68b7b5121b83115c8a0eecd6d34d6826c1d8075f0210553"
       },
       {
         "path": "reviews/1492-lithuania.json",
-        "sha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632"
+        "sha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a"
       },
       {
         "path": "reviews/1492-poland.json",
-        "sha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb"
+        "sha256": "4d5700a738b836c6b131f0821f73561876f5b0e7b005ef64dc10b48801ad6f10"
       },
       {
         "path": "reviews/1492-scandinavia.json",
@@ -201,7 +203,7 @@
       },
       {
         "path": "specifications/1492-date-and-identity.json",
-        "sha256": "c31419f088611e995249eebe740f14a2cefe5d267ffbf1824b7120f34a8a4cda"
+        "sha256": "8d2329dfee5a0cfbf3600faacad70651c10213d094592fa04126130cb65e4a04"
       },
       {
         "path": "specifications/1492-manual-trace-candidate.json",
@@ -219,18 +221,18 @@
       "regionId": "poland",
       "coverageContainerId": "coverage:1492:poland",
       "coverageContainerCreatesPoliticalEntity": false,
-      "disposition": "conditional",
+      "disposition": "blocked",
       "rightsDisposition": "review-required",
       "license": "pending independent item-specific source/license review",
       "attribution": null,
       "retrievedOn": "2026-07-24",
       "evidencePath": "reviews/1492-poland.json",
-      "evidenceSha256": "65b3a01299e515a2f6ce6b82bdb46e83b54b74365d65f97a41caa8d78cf81ceb",
+      "evidenceSha256": "4d5700a738b836c6b131f0821f73561876f5b0e7b005ef64dc10b48801ad6f10",
       "entityIds": [
-        "hist:crown-of-kingdom-of-poland"
+        "hist:kingdom-of-poland"
       ],
       "colorOwnerIds": [
-        "hist:crown-of-kingdom-of-poland"
+        "hist:kingdom-of-poland"
       ],
       "sourceFeatureIds": [],
       "uncertainties": [
@@ -252,13 +254,13 @@
       "regionId": "lithuania",
       "coverageContainerId": "coverage:1492:lithuania",
       "coverageContainerCreatesPoliticalEntity": false,
-      "disposition": "conditional",
+      "disposition": "blocked",
       "rightsDisposition": "review-required",
       "license": "pending independent item-specific source/license review",
       "attribution": null,
       "retrievedOn": "2026-07-24",
       "evidencePath": "reviews/1492-lithuania.json",
-      "evidenceSha256": "5dd66249bbef0848d5eb67cd3357454a04fc413c943651385ee7821f61a8d632",
+      "evidenceSha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a",
       "entityIds": [
         "hist:grand-duchy-of-lithuania"
       ],
@@ -285,13 +287,13 @@
       "regionId": "hungary",
       "coverageContainerId": "coverage:1492:hungary",
       "coverageContainerCreatesPoliticalEntity": false,
-      "disposition": "conditional",
+      "disposition": "blocked",
       "rightsDisposition": "review-required",
       "license": "pending independent item-specific source/license review",
       "attribution": null,
       "retrievedOn": "2026-07-24",
       "evidencePath": "reviews/1492-hungary.json",
-      "evidenceSha256": "3031a73ccfb284b4ff41f3ee295d0b30fc8a351e4d12aebdfb7411031b9a30d0",
+      "evidenceSha256": "7dc3200126db637aad252cee395d761367048a30846be7ab754748329973c10b",
       "entityIds": [
         "hist:kingdom-of-hungary"
       ],
@@ -358,13 +360,13 @@
       "regionId": "iberia",
       "coverageContainerId": "coverage:1492:iberia",
       "coverageContainerCreatesPoliticalEntity": false,
-      "disposition": "conditional",
+      "disposition": "blocked",
       "rightsDisposition": "review-required",
       "license": "pending independent item-specific source/license review",
       "attribution": null,
       "retrievedOn": "2026-07-24",
       "evidencePath": "reviews/1492-iberia.json",
-      "evidenceSha256": "fbb58d359219a7c208f212b6b07fa952ef7211a79ab7915d351abeeb2a15d7a2",
+      "evidenceSha256": "7e16fe08debcbbdcb68b7b5121b83115c8a0eecd6d34d6826c1d8075f0210553",
       "entityIds": [
         "hist:crown-of-castile",
         "hist:crown-of-aragon",

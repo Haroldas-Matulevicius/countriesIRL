@@ -57,6 +57,7 @@ interface HistoricalFileReference {
 
 export interface HistoricalRegionalSourceRecord {
   readonly regionId: HistoricalRegionId;
+  readonly disposition: 'approved';
   readonly evidencePath: string;
   readonly evidenceSha256: string;
   readonly rightsDisposition: 'approved';
@@ -82,6 +83,8 @@ export type HistoricalSourcePreparation =
 export interface HistoricalSourceReadinessManifest {
   readonly snapshotId: HistoricalSnapshotId;
   readonly asOf: string;
+  readonly readinessStatus: 'ready';
+  readonly deliveryCounted: true;
   readonly evidenceArchive: HistoricalFileReference & {
     readonly memberInventorySha256: string;
     readonly members: ReadonlyArray<EvidenceArchiveMember>;
@@ -426,6 +429,8 @@ export function validateSourceReadinessManifest(
   if (
     snapshotId === null ||
     input.asOf !== HISTORICAL_SNAPSHOT_DATES[snapshotId] ||
+    input.readinessStatus !== 'ready' ||
+    input.deliveryCounted !== true ||
     inputGeometry === null ||
     !isRecord(input.evidenceArchive)
   ) {
@@ -501,6 +506,7 @@ export function validateSourceReadinessManifest(
       seenRegions.has(regionId) ||
       evidencePath === null ||
       !isSha256(candidate.evidenceSha256) ||
+      candidate.disposition !== 'approved' ||
       candidate.rightsDisposition !== 'approved' ||
       !isBoundedString(candidate.license) ||
       !(candidate.attribution === null || isBoundedString(candidate.attribution)) ||
@@ -512,6 +518,7 @@ export function validateSourceReadinessManifest(
     seenRegions.add(regionId);
     regions.push({
       regionId,
+      disposition: 'approved',
       evidencePath,
       evidenceSha256: candidate.evidenceSha256,
       rightsDisposition: 'approved',
@@ -531,6 +538,8 @@ export function validateSourceReadinessManifest(
     value: {
       snapshotId,
       asOf: HISTORICAL_SNAPSHOT_DATES[snapshotId],
+      readinessStatus: 'ready',
+      deliveryCounted: true,
       evidenceArchive: {
         path: archivePath,
         sha256: input.evidenceArchive.sha256,

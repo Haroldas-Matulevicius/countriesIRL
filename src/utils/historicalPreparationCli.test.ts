@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
 import process from 'node:process';
@@ -24,6 +24,15 @@ interface CliResult {
   readonly status: number | null;
   readonly stdout: string;
   readonly stderr: string;
+}
+
+interface CandidatePacketFixture {
+  readonly rootDir: string;
+  readonly snapshotId: '1492' | '1700';
+  readonly sourcesPath: string;
+  readonly archivePath: string;
+  readonly inputPath: string;
+  members: Array<{ path: string; bytes: Buffer }>;
 }
 
 function sha256(bytes: Uint8Array): string {
@@ -107,12 +116,59 @@ async function runRepositoryCli(argumentsInput: ReadonlyArray<string>): Promise<
   });
 }
 
+async function runCliInDirectory(
+  cwd: string,
+  argumentsInput: ReadonlyArray<string>,
+): Promise<CliResult> {
+  const { spawn } = await import('node:child_process');
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, [CLI_PATH, ...argumentsInput], {
+      cwd,
+      env: { ...process.env, NO_PROXY: '*', HTTPS_PROXY: '', HTTP_PROXY: '' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const stdoutStream = child.stdout;
+    const stderrStream = child.stderr;
+    if (stdoutStream === null || stderrStream === null) {
+      child.kill();
+      rejectPromise(new Error('Historical CLI process did not expose piped output streams.'));
+      return;
+    }
+    stdoutStream.setEncoding('utf8');
+    stderrStream.setEncoding('utf8');
+    stdoutStream.on('data', (chunk: string): void => {
+      stdout += chunk;
+    });
+    stderrStream.on('data', (chunk: string): void => {
+      stderr += chunk;
+    });
+    child.once('error', rejectPromise);
+    child.once('close', (status): void => {
+      resolvePromise({ status, stdout, stderr });
+    });
+  });
+}
+
 function sourceArguments(fixture: HistoricalCliFixture): ReadonlyArray<string> {
   return [
     '--snapshot',
     fixture.snapshotId,
     '--sources',
     fixturePath(fixture, fixture.sourcesPath),
+  ];
+}
+
+function candidateSourceArguments(
+  fixture: CandidatePacketFixture,
+): ReadonlyArray<string> {
+  return [
+    '--snapshot',
+    fixture.snapshotId,
+    '--sources',
+    relative(fixture.rootDir, fixture.sourcesPath).replaceAll('\\', '/'),
+    '--validate-sources',
   ];
 }
 
@@ -147,6 +203,157 @@ async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function jsonBuffer(value: unknown): Buffer {
+  return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function reviewerRecordFromRegion(
+  snapshotId: '1492' | '1700',
+  region: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    snapshotId,
+    regionId: region.regionId,
+    packetStatus: 'candidate-blocked',
+    rightsDisposition: null,
+    factualDisposition: null,
+    topologyDisposition: null,
+    reviewer: null,
+    approvals: {
+      sourceRights: null,
+      factual: null,
+      topology: null,
+      reviewerSignature: null,
+      productionReadiness: null,
+    },
+    disposition: region.disposition,
+    entityIds: region.entityIds,
+    colorOwnerIds: region.colorOwnerIds,
+    sourceFeatureIds: region.sourceFeatureIds,
+    blockers: region.uncertainties,
+  };
+}
+
+async function refreshCandidatePacket(
+  fixture: CandidatePacketFixture,
+  manifest: Record<string, unknown>,
+): Promise<void> {
+  const sortedMembers = [...fixture.members].sort((left, right) =>
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+  );
+  const archiveBytes = createCanonicalZip(sortedMembers);
+  const inventory = sortedMembers.map(({ path, bytes }) => ({ path, sha256: sha256(bytes) }));
+  const evidenceArchive = manifest.evidenceArchive as Record<string, unknown>;
+  evidenceArchive.path = `sources/historical/${fixture.snapshotId}.evidence.zip`;
+  evidenceArchive.sha256 = sha256(archiveBytes);
+  evidenceArchive.memberInventorySha256 = sha256(
+    Buffer.from(`${JSON.stringify(inventory)}\n`, 'utf8'),
+  );
+  evidenceArchive.members = inventory;
+  const reviewerPacket = manifest.reviewerPacket as Record<string, unknown>;
+  reviewerPacket.artifacts = inventory.filter(
+    ({ path }) => path.startsWith('reviews/') || path.startsWith('specifications/'),
+  );
+  const regions = manifest.regions as Array<Record<string, unknown>>;
+  for (const region of regions) {
+    const path = `reviews/${fixture.snapshotId}-${String(region.regionId)}.json`;
+    const member = inventory.find((candidate) => candidate.path === path);
+    if (member === undefined) throw new Error(`Missing reviewer member ${path}.`);
+    region.evidencePath = path;
+    region.evidenceSha256 = member.sha256;
+  }
+  if (fixture.snapshotId === '1492') {
+    const preparation = manifest.preparation as Record<string, unknown>;
+    const manualTrace = preparation.manualTrace as Record<string, unknown>;
+    const evidence = inventory.find(
+      ({ path }) => path === 'sources/semkowicz-romer-1929-current-hosted-scan.jpg',
+    );
+    const procedure = inventory.find(
+      ({ path }) => path === 'specifications/1492-manual-trace-candidate.json',
+    );
+    if (evidence === undefined || procedure === undefined) {
+      throw new Error('Missing manual-trace fixture members.');
+    }
+    manualTrace.evidencePath = evidence.path;
+    manualTrace.evidenceSha256 = evidence.sha256;
+    manualTrace.procedurePath = procedure.path;
+    manualTrace.procedureSha256 = procedure.sha256;
+  }
+  await Promise.all([
+    writeFile(fixture.archivePath, archiveBytes),
+    writeJsonRecord(fixture.sourcesPath, manifest),
+  ]);
+}
+
+async function createCandidatePacketFixture(
+  snapshotId: '1492' | '1700',
+): Promise<CandidatePacketFixture> {
+  const rootDir = await mkdtemp(resolve(tmpdir(), `countriesirl-${snapshotId}-candidate-`));
+  temporaryDirectories.push(rootDir);
+  const sourceDir = resolve(rootDir, 'sources/historical');
+  await mkdir(sourceDir, { recursive: true });
+  const repositoryRoot = resolve(dirname(CLI_PATH), '..');
+  const manifest = await readJsonRecord(
+    resolve(repositoryRoot, `sources/historical/${snapshotId}.sources.json`),
+  );
+  const inputBytes = await readFile(
+    resolve(repositoryRoot, `sources/historical/${snapshotId}.input.geojson`),
+  );
+  const fixture: CandidatePacketFixture = {
+    rootDir,
+    snapshotId,
+    sourcesPath: resolve(sourceDir, `${snapshotId}.sources.json`),
+    archivePath: resolve(sourceDir, `${snapshotId}.evidence.zip`),
+    inputPath: resolve(sourceDir, `${snapshotId}.input.geojson`),
+    members: [],
+  };
+  const regions = manifest.regions as Array<Record<string, unknown>>;
+  fixture.members = regions.map((region) => ({
+    path: `reviews/${snapshotId}-${String(region.regionId)}.json`,
+    bytes: jsonBuffer(reviewerRecordFromRegion(snapshotId, region)),
+  }));
+  if (snapshotId === '1492') {
+    const evidenceBytes = Buffer.from('fixture Semkowicz-Romer image bytes', 'utf8');
+    fixture.members.push({
+      path: 'sources/semkowicz-romer-1929-current-hosted-scan.jpg',
+      bytes: evidenceBytes,
+    });
+    fixture.members.push({
+      path: 'specifications/1492-manual-trace-candidate.json',
+      bytes: jsonBuffer({
+        version: 1,
+        mode: 'manual-trace-candidate-only',
+        sourceImageSha256: sha256(evidenceBytes),
+        operatorRecordSha256: null,
+        controlPointsSha256: null,
+        tracedGeoJsonSha256: null,
+        approvalStatus: 'pending',
+      }),
+    });
+  }
+  const inputGeometry = manifest.inputGeometry as Record<string, unknown>;
+  inputGeometry.path = `sources/historical/${snapshotId}.input.geojson`;
+  inputGeometry.sha256 = sha256(inputBytes);
+  await writeFile(fixture.inputPath, inputBytes);
+  await refreshCandidatePacket(fixture, manifest);
+  return fixture;
+}
+
+async function mutateReviewerMember(
+  fixture: CandidatePacketFixture,
+  regionId: string,
+  mutate: (review: Record<string, unknown>) => void,
+): Promise<void> {
+  const path = `reviews/${fixture.snapshotId}-${regionId}.json`;
+  const member = fixture.members.find((candidate) => candidate.path === path);
+  if (member === undefined) throw new Error(`Missing reviewer member ${path}.`);
+  const review = JSON.parse(member.bytes.toString('utf8')) as Record<string, unknown>;
+  mutate(review);
+  member.bytes = jsonBuffer(review);
+  const manifest = await readJsonRecord(fixture.sourcesPath);
+  await refreshCandidatePacket(fixture, manifest);
 }
 
 afterEach(async (): Promise<void> => {
@@ -226,6 +433,51 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     expect(drifted.stderr).toContain('Input geometry SHA-256 drifted');
   });
 
+  it('fails closed on missing, unknown, or regionally unapproved ready status', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    const missingStatus = await readJsonRecord(fixture.sourcesPath);
+    delete missingStatus.readinessStatus;
+    await writeJsonRecord(fixture.sourcesPath, missingStatus);
+    const missing = await runCli(fixture, [
+      ...sourceArguments(fixture),
+      '--validate-sources',
+    ]);
+    expect(missing.status).not.toBe(0);
+    expect(missing.stdout).not.toContain('source readiness passed offline');
+    expect(missing.stderr).toContain('readinessStatus');
+
+    const restoredUnknown = await createHistoricalCliFixture(
+      fixture.rootDir,
+      'vector-extraction',
+    );
+    const unknownStatus = await readJsonRecord(restoredUnknown.sourcesPath);
+    unknownStatus.readinessStatus = 'conditionally-ready';
+    await writeJsonRecord(restoredUnknown.sourcesPath, unknownStatus);
+    const unknown = await runCli(restoredUnknown, [
+      ...sourceArguments(restoredUnknown),
+      '--validate-sources',
+    ]);
+    expect(unknown.status).not.toBe(0);
+    expect(unknown.stdout).not.toContain('source readiness passed offline');
+    expect(unknown.stderr).toContain('readinessStatus');
+
+    const restoredRegion = await createHistoricalCliFixture(
+      fixture.rootDir,
+      'vector-extraction',
+    );
+    const regionStatus = await readJsonRecord(restoredRegion.sourcesPath);
+    const regions = regionStatus.regions as Array<Record<string, unknown>>;
+    regions[0].disposition = 'conditional';
+    await writeJsonRecord(restoredRegion.sourcesPath, regionStatus);
+    const unapprovedRegion = await runCli(restoredRegion, [
+      ...sourceArguments(restoredRegion),
+      '--validate-sources',
+    ]);
+    expect(unapprovedRegion.status).not.toBe(0);
+    expect(unapprovedRegion.stdout).not.toContain('source readiness passed offline');
+    expect(unapprovedRegion.stderr).toContain('readiness state');
+  });
+
   it('validates the real 1492 candidate packet without treating evidence as approval', async (): Promise<void> => {
     const result = await runRepositoryCli([
       '--snapshot',
@@ -262,9 +514,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
       dayBoundary: 'start-of-day',
       validityInterval: 'half-open',
     });
-    expect(byRegion.get('poland')?.entityIds).toEqual([
-      'hist:crown-of-kingdom-of-poland',
-    ]);
+    expect(byRegion.get('poland')?.entityIds).toEqual(['hist:kingdom-of-poland']);
     expect(byRegion.get('lithuania')?.entityIds).toEqual([
       'hist:grand-duchy-of-lithuania',
     ]);
@@ -278,6 +528,14 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
       'hist:kingdom-of-denmark',
       'hist:kingdom-of-norway',
       'hist:kingdom-of-sweden',
+    ]);
+    expect(regions.map(({ disposition }) => disposition)).toEqual([
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
     ]);
   });
 
@@ -305,7 +563,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     expect(manifest.productionReady).toBe(false);
     expect(manifest.catalogEligible).toBe(false);
     expect(byRegion.get('hungary')?.disposition).toBe('blocked');
-    expect(byRegion.get('balkans')?.disposition).toBe('conditional');
+    expect(byRegion.get('balkans')?.disposition).toBe('blocked');
     expect(byRegion.get('balkans')?.sourceFeatureIds).toEqual([
       'cliopatria:v0.2.0:feature-index:7055',
       'cliopatria:v0.2.0:feature-index:9361',
@@ -319,6 +577,146 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     expect(memberPaths).toContain(
       'specifications/1700-six-record-cliopatria-mosaic.json',
     );
+    expect(manifest.dateContract).toEqual({
+      displayDate: '1700-01-01',
+      displayCalendar: 'product-label-only',
+      normalizedAsOf: null,
+      normalizedCalendar: null,
+      dayBoundary: null,
+      validityInterval: 'pending-review',
+    });
+    expect(regions.map(({ disposition }) => disposition)).toEqual([
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+    ]);
+  });
+
+  it('rejects the verified 1700 Poland manifest identity and approval tamper before success output', async (): Promise<void> => {
+    const fixture = await createCandidatePacketFixture('1700');
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    const regions = manifest.regions as Array<Record<string, unknown>>;
+    const poland = regions.find(({ regionId }) => regionId === 'poland');
+    if (poland === undefined) throw new Error('Missing Poland fixture region.');
+    poland.entityIds = ['hist:false-poland'];
+    poland.colorOwnerIds = ['hist:false-poland'];
+    const approvals = poland.approvals as Record<string, unknown>;
+    approvals.rights = 'approved';
+    await writeJsonRecord(fixture.sourcesPath, manifest);
+
+    const result = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('hashes passed offline');
+    expect(result.stderr).toMatch(/rights record|contract/i);
+  });
+
+  it('rejects the verified 1492 Iberia color-owner tamper before success output', async (): Promise<void> => {
+    const fixture = await createCandidatePacketFixture('1492');
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    const regions = manifest.regions as Array<Record<string, unknown>>;
+    const iberia = regions.find(({ regionId }) => regionId === 'iberia');
+    if (iberia === undefined) throw new Error('Missing Iberia fixture region.');
+    iberia.colorOwnerIds = ['hist:kingdom-of-spain'];
+    await writeJsonRecord(fixture.sourcesPath, manifest);
+
+    const result = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('hashes passed offline');
+    expect(result.stderr).toContain('1492 Iberia');
+  });
+
+  it.each([
+    [
+      'sourceFeatureIds',
+      (review: Record<string, unknown>): void => {
+        review.sourceFeatureIds = ['cliopatria:v0.2.0:feature-index:9999'];
+      },
+    ],
+    [
+      'blockers',
+      (review: Record<string, unknown>): void => {
+        review.blockers = ['REORDERED_OR_REPLACED_BLOCKER'];
+      },
+    ],
+    [
+      'disposition',
+      (review: Record<string, unknown>): void => {
+        review.disposition = 'conditional';
+      },
+    ],
+    [
+      'approval state',
+      (review: Record<string, unknown>): void => {
+        const approvals = review.approvals as Record<string, unknown>;
+        approvals.sourceRights = 'approved';
+      },
+    ],
+  ] as const)(
+    'rejects hash-updated reviewer-member %s semantic tamper before success output',
+    async (_label, mutate): Promise<void> => {
+      const fixture = await createCandidatePacketFixture('1700');
+      await mutateReviewerMember(fixture, 'balkans', mutate);
+
+      const result = await runCliInDirectory(
+        fixture.rootDir,
+        candidateSourceArguments(fixture),
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(result.stdout).not.toContain('hashes passed offline');
+      expect(result.stderr).toContain('Reviewer record semantics drifted');
+    },
+  );
+
+  it('rejects manual-trace manifest readiness claims before success output', async (): Promise<void> => {
+    const fixture = await createCandidatePacketFixture('1492');
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    const preparation = manifest.preparation as Record<string, unknown>;
+    const manualTrace = preparation.manualTrace as Record<string, unknown>;
+    manualTrace.operatorRecordSha256 = 'a'.repeat(64);
+    await writeJsonRecord(fixture.sourcesPath, manifest);
+
+    const result = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('hashes passed offline');
+    expect(result.stderr).toContain('manual-trace candidate semantics');
+  });
+
+  it('rejects hash-updated manual-trace procedure approval tamper before success output', async (): Promise<void> => {
+    const fixture = await createCandidatePacketFixture('1492');
+    const procedure = fixture.members.find(
+      ({ path }) => path === 'specifications/1492-manual-trace-candidate.json',
+    );
+    if (procedure === undefined) throw new Error('Missing manual-trace procedure fixture.');
+    const value = JSON.parse(procedure.bytes.toString('utf8')) as Record<string, unknown>;
+    value.approvalStatus = 'approved';
+    procedure.bytes = jsonBuffer(value);
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    await refreshCandidatePacket(fixture, manifest);
+
+    const result = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('hashes passed offline');
+    expect(result.stderr).toContain('Manual-trace procedure semantics');
   });
 
   it('rejects missing rights and canonical archive-member drift', async (): Promise<void> => {

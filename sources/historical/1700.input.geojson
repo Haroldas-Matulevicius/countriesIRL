@@ -4,11 +4,11 @@
   "asOf": "1700-01-01",
   "dateContract": {
     "displayDate": "1700-01-01",
-    "displayCalendar": "historical-local-calendars",
-    "normalizedAsOf": "1700-01-01",
-    "normalizedCalendar": "product-date-lock",
-    "dayBoundary": "start-of-day",
-    "validityInterval": "half-open"
+    "displayCalendar": "product-label-only",
+    "normalizedAsOf": null,
+    "normalizedCalendar": null,
+    "dayBoundary": null,
+    "validityInterval": "pending-review"
   },
   "readinessStatus": "blocked",
   "candidateGeometryStatus": "not-generated",
@@ -21,6 +21,7 @@
   "features": [],
   "blockers": [
     "RIGHTS_REVIEW_REQUIRED",
+    "TEMPORAL_SEMANTICS_REVIEW_REQUIRED",
     "EXACT_DAY_FACTUAL_REVIEW_REQUIRED",
     "KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE",
     "CONSTITUENT_AND_TRIBUTARY_POLICY_REVIEW_REQUIRED",

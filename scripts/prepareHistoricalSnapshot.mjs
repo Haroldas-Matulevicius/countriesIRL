@@ -22,11 +22,11 @@ const CANDIDATE_PACKET_DATE_CONTRACTS = Object.freeze({
   }),
   '1700': Object.freeze({
     displayDate: '1700-01-01',
-    displayCalendar: 'historical-local-calendars',
-    normalizedAsOf: '1700-01-01',
-    normalizedCalendar: 'product-date-lock',
-    dayBoundary: 'start-of-day',
-    validityInterval: 'half-open',
+    displayCalendar: 'product-label-only',
+    normalizedAsOf: null,
+    normalizedCalendar: null,
+    dayBoundary: null,
+    validityInterval: 'pending-review',
   }),
 });
 const REGION_IDS = Object.freeze([
@@ -325,48 +325,187 @@ function arraysMatch(left, right) {
   );
 }
 
+function readStringArray(value, label, allowEmpty = true) {
+  if (!Array.isArray(value) || value.length > 64 || (!allowEmpty && value.length === 0)) {
+    throw new Error(`${label} must be a bounded ordered string array.`);
+  }
+  const result = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (!isBoundedString(item) || seen.has(item)) {
+      throw new Error(`${label} contains an invalid or duplicate value.`);
+    }
+    seen.add(item);
+    result.push(item);
+  }
+  return result;
+}
+
+function hasOnlyNullRegionalApprovals(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const expectedFields = ['factual', 'rights', 'topology'];
+  const fields = Object.keys(value).sort();
+  return (
+    fields.length === expectedFields.length &&
+    fields.every((field, index) => field === expectedFields[index] && value[field] === null)
+  );
+}
+
+function assertRegionContract(region, expected, label) {
+  if (
+    !isRecord(region) ||
+    region.disposition !== 'blocked' ||
+    !arraysMatch(region.entityIds, expected.entityIds) ||
+    !arraysMatch(region.colorOwnerIds, expected.colorOwnerIds) ||
+    !arraysMatch(region.sourceFeatureIds, expected.sourceFeatureIds)
+  ) {
+    throw new Error(`${label} identity, color-owner, source, or disposition contract drifted.`);
+  }
+}
+
 function validateCandidateIdentityContract(value, snapshotId) {
   const regionsById = new Map(value.regions.map((region) => [region.regionId, region]));
+  if (value.regions.some((region) => region.disposition !== 'blocked')) {
+    throw new Error('Candidate packet with zero approvals must keep all six regions blocked.');
+  }
   if (snapshotId === '1492') {
-    const poland = regionsById.get('poland');
-    const lithuania = regionsById.get('lithuania');
-    const iberia = regionsById.get('iberia');
-    const scandinavia = regionsById.get('scandinavia');
-    if (
-      !arraysMatch(poland?.entityIds, ['hist:crown-of-kingdom-of-poland']) ||
-      !arraysMatch(poland?.colorOwnerIds, ['hist:crown-of-kingdom-of-poland']) ||
-      !arraysMatch(lithuania?.entityIds, ['hist:grand-duchy-of-lithuania']) ||
-      !arraysMatch(lithuania?.colorOwnerIds, ['hist:grand-duchy-of-lithuania']) ||
-      !arraysMatch(iberia?.entityIds, [
-        'hist:crown-of-castile',
-        'hist:crown-of-aragon',
-        'hist:kingdom-of-portugal',
-        'hist:kingdom-of-navarre',
-      ]) ||
-      !arraysMatch(scandinavia?.entityIds, [
-        'hist:kingdom-of-denmark',
-        'hist:kingdom-of-norway',
-        'hist:kingdom-of-sweden',
-      ])
-    ) {
-      throw new Error('1492 candidate packet identity and color-owner contract drifted.');
-    }
+    assertRegionContract(
+      regionsById.get('poland'),
+      {
+        entityIds: ['hist:kingdom-of-poland'],
+        colorOwnerIds: ['hist:kingdom-of-poland'],
+        sourceFeatureIds: [],
+      },
+      '1492 Poland',
+    );
+    assertRegionContract(
+      regionsById.get('lithuania'),
+      {
+        entityIds: ['hist:grand-duchy-of-lithuania'],
+        colorOwnerIds: ['hist:grand-duchy-of-lithuania'],
+        sourceFeatureIds: [],
+      },
+      '1492 Lithuania',
+    );
+    assertRegionContract(
+      regionsById.get('iberia'),
+      {
+        entityIds: [
+          'hist:crown-of-castile',
+          'hist:crown-of-aragon',
+          'hist:kingdom-of-portugal',
+          'hist:kingdom-of-navarre',
+        ],
+        colorOwnerIds: [
+          'hist:crown-of-castile',
+          'hist:crown-of-aragon',
+          'hist:kingdom-of-portugal',
+          'hist:kingdom-of-navarre',
+        ],
+        sourceFeatureIds: [],
+      },
+      '1492 Iberia',
+    );
+    assertRegionContract(
+      regionsById.get('scandinavia'),
+      {
+        entityIds: [
+          'hist:kingdom-of-denmark',
+          'hist:kingdom-of-norway',
+          'hist:kingdom-of-sweden',
+        ],
+        colorOwnerIds: [
+          'hist:kingdom-of-denmark',
+          'hist:kingdom-of-norway',
+          'hist:kingdom-of-sweden',
+        ],
+        sourceFeatureIds: [],
+      },
+      '1492 Scandinavia',
+    );
   }
   if (snapshotId === '1700') {
-    const balkans = regionsById.get('balkans');
-    if (
-      !arraysMatch(balkans?.sourceFeatureIds, [
-        'cliopatria:v0.2.0:feature-index:7055',
-        'cliopatria:v0.2.0:feature-index:9361',
-        'cliopatria:v0.2.0:feature-index:9355',
-        'cliopatria:v0.2.0:feature-index:9390',
-        'cliopatria:v0.2.0:feature-index:9396',
-        'cliopatria:v0.2.0:feature-index:9391',
-      ])
-    ) {
-      throw new Error('1700 Balkans six-record candidate allowlist drifted.');
-    }
+    const commonwealth = {
+      entityIds: ['hist:polish-lithuanian-commonwealth'],
+      colorOwnerIds: ['hist:polish-lithuanian-commonwealth'],
+      sourceFeatureIds: ['cliopatria:v0.2.0:feature-index:9397'],
+    };
+    assertRegionContract(regionsById.get('poland'), commonwealth, '1700 Poland');
+    assertRegionContract(regionsById.get('lithuania'), commonwealth, '1700 Lithuania');
+    assertRegionContract(
+      regionsById.get('iberia'),
+      {
+        entityIds: ['hist:kingdom-of-spain', 'hist:kingdom-of-portugal'],
+        colorOwnerIds: ['hist:kingdom-of-spain', 'hist:kingdom-of-portugal'],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:9402',
+          'cliopatria:v0.2.0:feature-index:8862',
+        ],
+      },
+      '1700 Iberia',
+    );
+    assertRegionContract(
+      regionsById.get('balkans'),
+      {
+        entityIds: [
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+          'hist:republic-of-venice',
+          'hist:habsburg-monarchy',
+          'hist:ottoman-empire',
+        ],
+        colorOwnerIds: [
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+          'hist:republic-of-venice',
+          'hist:habsburg-monarchy',
+          'hist:ottoman-empire',
+        ],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:7055',
+          'cliopatria:v0.2.0:feature-index:9361',
+          'cliopatria:v0.2.0:feature-index:9355',
+          'cliopatria:v0.2.0:feature-index:9390',
+          'cliopatria:v0.2.0:feature-index:9396',
+          'cliopatria:v0.2.0:feature-index:9391',
+        ],
+      },
+      '1700 Balkans',
+    );
   }
+}
+
+function readCandidateManualTrace(value, snapshotId) {
+  const manualTrace = value.preparation?.manualTrace;
+  if (snapshotId === '1700') {
+    if (manualTrace !== null) {
+      throw new Error('1700 candidate packet must not claim a manual trace.');
+    }
+    return null;
+  }
+  if (
+    !isRecord(manualTrace) ||
+    manualTrace.evidencePath !== 'sources/semkowicz-romer-1929-current-hosted-scan.jpg' ||
+    !isSha256(manualTrace.evidenceSha256) ||
+    manualTrace.procedurePath !== 'specifications/1492-manual-trace-candidate.json' ||
+    !isSha256(manualTrace.procedureSha256) ||
+    manualTrace.operatorRecordSha256 !== null ||
+    manualTrace.controlPointsSha256 !== null ||
+    manualTrace.tracedGeoJsonSha256 !== null ||
+    !value.blockers.includes('MANUAL_TRACE_OPERATOR_CONTROL_POINTS_AND_GEOMETRY_MISSING')
+  ) {
+    throw new Error('1492 manual-trace candidate semantics are incomplete or overclaim readiness.');
+  }
+  return {
+    evidencePath: manualTrace.evidencePath,
+    evidenceSha256: manualTrace.evidenceSha256,
+    procedurePath: manualTrace.procedurePath,
+    procedureSha256: manualTrace.procedureSha256,
+  };
 }
 
 function readCandidateReviewerPacket(value, snapshotId, isBlocked) {
@@ -394,7 +533,9 @@ function readCandidateReviewerPacket(value, snapshotId, isBlocked) {
     value.reviewerPacket.factualDecision !== null ||
     value.reviewerPacket.topologyDecision !== null ||
     value.reviewerPacket.reviewerSignature !== null ||
-    value.reviewerPacket.productionReadinessDecision !== null
+    value.reviewerPacket.productionReadinessDecision !== null ||
+    (snapshotId === '1700' &&
+      !value.blockers.includes('TEMPORAL_SEMANTICS_REVIEW_REQUIRED'))
   ) {
     throw new Error('Candidate reviewer packet must remain hash-bound, blocked, and unapproved.');
   }
@@ -403,7 +544,8 @@ function readCandidateReviewerPacket(value, snapshotId, isBlocked) {
     'Candidate reviewer packet artifacts',
   );
   validateCandidateIdentityContract(value, snapshotId);
-  return { dateContract: expectedDateContract, artifacts };
+  const manualTrace = readCandidateManualTrace(value, snapshotId);
+  return { dateContract: expectedDateContract, artifacts, manualTrace };
 }
 
 function readReviewer(value, label) {
@@ -482,7 +624,13 @@ function readSourceManifest(value, snapshotId) {
   if (!isRecord(value.preparation)) {
     throw new Error('Source manifest preparation mode is invalid.');
   }
+  if (value.readinessStatus !== 'blocked' && value.readinessStatus !== 'ready') {
+    throw new Error('Source manifest readinessStatus must be explicitly blocked or ready.');
+  }
   const isBlocked = value.readinessStatus === 'blocked';
+  if (!isBlocked && value.deliveryCounted !== true) {
+    throw new Error('Ready source manifest must be explicitly counted as delivered.');
+  }
   let blockers = [];
   let preparation;
   if (isBlocked) {
@@ -529,6 +677,7 @@ function readSourceManifest(value, snapshotId) {
   }
   const regions = [];
   const seenRegions = new Set();
+  const isCandidatePacket = value.schemaVersion === 3 || value.packetKind !== undefined;
   let blockedRegionCount = 0;
   for (const region of value.regions) {
     if (!isRecord(region) || !REGION_ID_SET.has(region.regionId) || seenRegions.has(region.regionId)) {
@@ -536,29 +685,56 @@ function readSourceManifest(value, snapshotId) {
     }
     seenRegions.add(region.regionId);
     const evidencePath = normalizeLocalPath(region.evidencePath);
-    const isBlockedRegion =
-      isBlocked && (region.disposition === 'blocked' || region.disposition === 'conditional');
+    const uncertainties = readUncertainties(region.uncertainties, `source ${region.regionId}`);
+    const entityIds = isCandidatePacket
+      ? readStringArray(region.entityIds, `source ${region.regionId} entity IDs`, false)
+      : [];
+    const colorOwnerIds = isCandidatePacket
+      ? readStringArray(
+          region.colorOwnerIds,
+          `source ${region.regionId} color-owner IDs`,
+          false,
+        )
+      : [];
+    const sourceFeatureIds = isCandidatePacket
+      ? readStringArray(
+          region.sourceFeatureIds,
+          `source ${region.regionId} source-feature IDs`,
+        )
+      : [];
     const hasExpectedRights = isBlocked
       ? region.rightsDisposition === 'review-required'
       : region.rightsDisposition === 'approved';
+    const hasExpectedDisposition = isBlocked
+      ? isCandidatePacket
+        ? region.disposition === 'blocked'
+        : region.disposition === 'blocked' || region.disposition === 'conditional'
+      : region.disposition === 'approved';
     if (
       evidencePath === null ||
+      (isCandidatePacket && evidencePath !== `reviews/${snapshotId}-${region.regionId}.json`) ||
       !isSha256(region.evidenceSha256) ||
       !hasExpectedRights ||
+      !hasExpectedDisposition ||
       !isBoundedString(region.license) ||
       !(region.attribution === null || isBoundedString(region.attribution)) ||
-      !isIsoDate(region.retrievedOn)
+      !isIsoDate(region.retrievedOn) ||
+      uncertainties === null ||
+      (isCandidatePacket && !hasOnlyNullRegionalApprovals(region.approvals))
     ) {
       throw new Error(`Source rights record for ${region.regionId} is not complete for its readiness state.`);
-    }
-    if (isBlocked && !isBlockedRegion) {
-      throw new Error(`Blocked source region ${region.regionId} must be conditional or blocked.`);
     }
     if (region.disposition === 'blocked') {
       blockedRegionCount += 1;
     }
-    readUncertainties(region.uncertainties, `source ${region.regionId}`);
-    regions.push({ ...region, evidencePath });
+    regions.push({
+      ...region,
+      evidencePath,
+      uncertainties,
+      entityIds,
+      colorOwnerIds,
+      sourceFeatureIds,
+    });
   }
   if (REGION_IDS.some((regionId) => !seenRegions.has(regionId))) {
     throw new Error('Source manifest is missing one of the six required regions.');
@@ -767,6 +943,59 @@ function parseExtractionSpecification(bytes) {
   return { memberPath };
 }
 
+function validateReviewerRegionRecord(member, manifestRegion, snapshotId) {
+  const review = parseJson(member.bytes, `Reviewer record ${manifestRegion.regionId}`);
+  if (
+    !isRecord(review) ||
+    review.snapshotId !== snapshotId ||
+    review.regionId !== manifestRegion.regionId ||
+    review.packetStatus !== 'candidate-blocked' ||
+    review.disposition !== manifestRegion.disposition ||
+    review.rightsDisposition !== null ||
+    review.factualDisposition !== null ||
+    review.topologyDisposition !== null ||
+    review.reviewer !== null ||
+    !hasOnlyNullApprovalFields(review.approvals) ||
+    !arraysMatch(review.entityIds, manifestRegion.entityIds) ||
+    !arraysMatch(review.colorOwnerIds, manifestRegion.colorOwnerIds) ||
+    !arraysMatch(review.sourceFeatureIds, manifestRegion.sourceFeatureIds) ||
+    !arraysMatch(review.blockers, manifestRegion.uncertainties)
+  ) {
+    throw new Error(
+      `Reviewer record semantics drifted from manifest region ${manifestRegion.regionId}.`,
+    );
+  }
+}
+
+function validateCandidateManualTraceMembers(manifest, membersByPath) {
+  const manualTrace = manifest.reviewerPacket?.manualTrace;
+  if (manualTrace === null || manualTrace === undefined) {
+    return;
+  }
+  const evidenceMember = membersByPath.get(manualTrace.evidencePath);
+  const procedureMember = membersByPath.get(manualTrace.procedurePath);
+  if (
+    evidenceMember === undefined ||
+    evidenceMember.sha256 !== manualTrace.evidenceSha256 ||
+    procedureMember === undefined ||
+    procedureMember.sha256 !== manualTrace.procedureSha256
+  ) {
+    throw new Error('Manual-trace evidence or procedure member drifted.');
+  }
+  const procedure = parseJson(procedureMember.bytes, 'Manual-trace procedure');
+  if (
+    !isRecord(procedure) ||
+    procedure.mode !== 'manual-trace-candidate-only' ||
+    procedure.sourceImageSha256 !== manualTrace.evidenceSha256 ||
+    procedure.operatorRecordSha256 !== null ||
+    procedure.controlPointsSha256 !== null ||
+    procedure.tracedGeoJsonSha256 !== null ||
+    procedure.approvalStatus !== 'pending'
+  ) {
+    throw new Error('Manual-trace procedure semantics overclaim readiness or drifted.');
+  }
+}
+
 async function validateSourceReadiness(options) {
   const snapshotId = requireSnapshot(options);
   const sourcesPath = requirePathOption(options, 'sources', '--sources');
@@ -798,12 +1027,28 @@ async function validateSourceReadiness(options) {
     }
   }
   if (manifest.reviewerPacket !== null) {
+    const artifactsByPath = new Map(
+      manifest.reviewerPacket.artifacts.map((artifact) => [artifact.path, artifact]),
+    );
     for (const artifact of manifest.reviewerPacket.artifacts) {
       const member = membersByPath.get(artifact.path);
       if (member === undefined || member.sha256 !== artifact.sha256) {
         throw new Error(`Candidate reviewer artifact drifted for ${artifact.path}.`);
       }
     }
+    for (const region of manifest.regions) {
+      const member = membersByPath.get(region.evidencePath);
+      const artifact = artifactsByPath.get(region.evidencePath);
+      if (
+        member === undefined ||
+        artifact === undefined ||
+        artifact.sha256 !== member.sha256
+      ) {
+        throw new Error(`Reviewer record is not fully packet-bound for ${region.regionId}.`);
+      }
+      validateReviewerRegionRecord(member, region, snapshotId);
+    }
+    validateCandidateManualTraceMembers(manifest, membersByPath);
   }
 
   const inputPath =

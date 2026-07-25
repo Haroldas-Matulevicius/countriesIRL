@@ -285,11 +285,11 @@ function dateContract(snapshotId) {
   }
   return {
     displayDate: '1700-01-01',
-    displayCalendar: 'historical-local-calendars',
-    normalizedAsOf: '1700-01-01',
-    normalizedCalendar: 'product-date-lock',
-    dayBoundary: 'start-of-day',
-    validityInterval: 'half-open',
+    displayCalendar: 'product-label-only',
+    normalizedAsOf: null,
+    normalizedCalendar: null,
+    dayBoundary: null,
+    validityInterval: 'pending-review',
   };
 }
 
@@ -307,10 +307,10 @@ function reviewRecord(snapshotId, regionId) {
   if (snapshotId === '1492') {
     const records = {
       poland: {
-        disposition: 'conditional',
+        disposition: 'blocked',
         geometryRoute: 'manual-trace-reverse-1494',
-        entityIds: ['hist:crown-of-kingdom-of-poland'],
-        colorOwnerIds: ['hist:crown-of-kingdom-of-poland'],
+        entityIds: ['hist:kingdom-of-poland'],
+        colorOwnerIds: ['hist:kingdom-of-poland'],
         unionContext: 'Jagiellonian personal union only; no merged geometry.',
         sourceFeatureIds: [],
         blockers: [
@@ -324,7 +324,7 @@ function reviewRecord(snapshotId, regionId) {
         ],
       },
       lithuania: {
-        disposition: 'conditional',
+        disposition: 'blocked',
         geometryRoute: 'manual-trace-reverse-1494',
         entityIds: ['hist:grand-duchy-of-lithuania'],
         colorOwnerIds: ['hist:grand-duchy-of-lithuania'],
@@ -343,7 +343,7 @@ function reviewRecord(snapshotId, regionId) {
         ],
       },
       hungary: {
-        disposition: 'conditional',
+        disposition: 'blocked',
         geometryRoute: 'cliopatria-year-precision-candidate',
         entityIds: ['hist:kingdom-of-hungary'],
         colorOwnerIds: ['hist:kingdom-of-hungary'],
@@ -381,7 +381,7 @@ function reviewRecord(snapshotId, regionId) {
         ],
       },
       iberia: {
-        disposition: 'conditional',
+        disposition: 'blocked',
         geometryRoute: 'cnig-15094-bounded-manual-correction-candidate',
         entityIds: [
           'hist:crown-of-castile',
@@ -433,19 +433,24 @@ function reviewRecord(snapshotId, regionId) {
         ],
       },
     };
-    return { ...shared, ...records[regionId] };
+    return {
+      ...shared,
+      ...records[regionId],
+      colorOwnerIds: records[regionId].colorOwnerIds ?? records[regionId].entityIds,
+      sourceFeatureIds: records[regionId].sourceFeatureIds ?? [],
+    };
   }
 
   const records = {
     poland: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-shared-commonwealth-record',
       entityIds: ['hist:polish-lithuanian-commonwealth'],
       sourceFeatureIds: ['cliopatria:v0.2.0:feature-index:9397'],
       blockers: ['CROWN_GDL_INTERNAL_BOUNDARY_ABSENT', 'INDEPENDENT_CELL_REVIEW_REQUIRED'],
     },
     lithuania: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-shared-commonwealth-record',
       entityIds: ['hist:polish-lithuanian-commonwealth'],
       sourceFeatureIds: ['cliopatria:v0.2.0:feature-index:9397'],
@@ -466,7 +471,7 @@ function reviewRecord(snapshotId, regionId) {
       ],
     },
     balkans: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-six-record-mosaic',
       entityIds: [
         'hist:republic-of-ragusa',
@@ -506,7 +511,7 @@ function reviewRecord(snapshotId, regionId) {
       ],
     },
     iberia: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-year-precision-candidate',
       entityIds: ['hist:kingdom-of-spain', 'hist:kingdom-of-portugal'],
       sourceFeatureIds: [
@@ -516,7 +521,7 @@ function reviewRecord(snapshotId, regionId) {
       blockers: ['GIBRALTAR_OLIVENZA_REVIEW_REQUIRED', 'GEOGRAPHIC_SELECTION_REQUIRED'],
     },
     scandinavia: {
-      disposition: 'conditional',
+      disposition: 'blocked',
       geometryRoute: 'cliopatria-year-precision-candidate',
       entityIds: ['hist:denmark-norway', 'hist:swedish-empire'],
       sourceFeatureIds: [
@@ -526,7 +531,12 @@ function reviewRecord(snapshotId, regionId) {
       blockers: ['COAST_ISLAND_TOPOLOGY_REVIEW_REQUIRED', 'EASTERN_COVERAGE_REVIEW_REQUIRED'],
     },
   };
-  return { ...shared, ...records[regionId] };
+  return {
+      ...shared,
+      ...records[regionId],
+      colorOwnerIds: records[regionId].colorOwnerIds ?? records[regionId].entityIds,
+      sourceFeatureIds: records[regionId].sourceFeatureIds ?? [],
+    };
 }
 
 function sourceLock(snapshotId, cliopatria, recordLocks) {
@@ -552,17 +562,60 @@ function sourceLock(snapshotId, cliopatria, recordLocks) {
   };
 }
 
-async function createHarvardInventory(dataGdbPath) {
+async function createHarvardInventory(dataGdbPath, metadataBytes) {
+  const metadata = JSON.parse(metadataBytes.toString('utf8'));
+  const latestVersion = metadata?.data?.latestVersion;
+  if (
+    metadata?.data?.protocol !== 'doi' ||
+    metadata?.data?.authority !== '10.7910' ||
+    metadata?.data?.identifier !== 'DVN/GAVIQV' ||
+    latestVersion?.versionNumber !== 1 ||
+    latestVersion?.versionMinorNumber !== 0 ||
+    latestVersion?.license?.name !== 'CC0 1.0' ||
+    !Array.isArray(latestVersion.files)
+  ) {
+    throw new Error('Harvard Dataverse DOI, version, or license metadata drifted.');
+  }
+  const metadataFiles = new Map(
+    latestVersion.files
+      .filter(({ directoryLabel }) => directoryLabel === 'final_replication_files/data/data.gdb')
+      .map(({ dataFile }) => [dataFile.filename, dataFile]),
+  );
   const names = (await readdir(dataGdbPath)).sort();
   const rows = [];
+  let totalBytes = 0;
   for (const name of names) {
     const path = join(dataGdbPath, name);
     const fileStat = await stat(path);
     if (!fileStat.isFile()) continue;
     const bytes = await readFile(path);
-    rows.push(`${name}\t${bytes.length}\t${md5(bytes)}\t${sha256(bytes)}`);
+    const metadataFile = metadataFiles.get(name);
+    const actualMd5 = md5(bytes);
+    if (
+      metadataFile === undefined ||
+      metadataFile.filesize !== bytes.length ||
+      metadataFile.md5 !== actualMd5
+    ) {
+      throw new Error(`Harvard Dataverse checksum mismatch for ${name}.`);
+    }
+    totalBytes += bytes.length;
+    rows.push(
+      `${metadataFile.id}\t${name}\t${bytes.length}\t${actualMd5}\t${sha256(bytes)}`,
+    );
   }
-  return Buffer.from(`path\tbyteLength\tmd5\tsha256\n${rows.join('\n')}\n`, 'utf8');
+  if (rows.length !== 247 || rows.length !== metadataFiles.size) {
+    throw new Error('Harvard FileGDB inventory is incomplete.');
+  }
+  const bytes = Buffer.from(
+    `dataFileId\tpath\tbyteLength\tmd5\tsha256\n${rows.join('\n')}\n`,
+    'utf8',
+  );
+  return {
+    bytes,
+    fileCount: rows.length,
+    totalBytes,
+    sha256: sha256(bytes),
+  };
 }
 
 async function create1492Members(options, cliopatria, recordLocks) {
@@ -621,7 +674,7 @@ async function create1492Members(options, cliopatria, recordLocks) {
     snapshotId: '1492',
     dateContract: dateContract('1492'),
     polandLithuania: {
-      entityIds: ['hist:crown-of-kingdom-of-poland', 'hist:grand-duchy-of-lithuania'],
+      entityIds: ['hist:kingdom-of-poland', 'hist:grand-duchy-of-lithuania'],
       separateColorOwners: true,
       jagiellonianPersonalUnionContextOnly: true,
     },
@@ -701,10 +754,11 @@ async function create1700Members(options, cliopatria, recordLocks) {
     '1700 candidate/reviewer evidence packet. BLOCKED: comparison evidence is not approval and no production geometry is emitted.\n',
     'utf8',
   ));
+  const harvardInventory = await createHarvardInventory(dataGdbPath, harvardMetadataBytes);
   addMember(members, 'licenses/cliopatria-v0.2.0-LICENSE.md', cliopatria.licenseBytes);
   addMember(members, 'metadata/cliopatria-v0.2.0-README.md', cliopatria.readmeBytes);
   addMember(members, 'metadata/harvard-dataverse-gaviqv.json', harvardMetadataBytes);
-  addMember(members, 'metadata/harvard-data-gdb-inventory.tsv', await createHarvardInventory(dataGdbPath));
+  addMember(members, 'metadata/harvard-data-gdb-inventory.tsv', harvardInventory.bytes);
   addMember(members, 'research/historical-source-evidence-matrix.md', handoffBytes);
   for (const fileName of HARVARD_SELECTED_FILES) {
     addMember(
@@ -743,6 +797,10 @@ async function create1700Members(options, cliopatria, recordLocks) {
       license: 'CC0-1.0',
       metadataSha256: HARVARD_METADATA_SHA256,
       comparisonOnly: true,
+      payloadAuthenticatedToDataverseMetadata: true,
+      authenticatedFileCount: harvardInventory.fileCount,
+      authenticatedTotalBytes: harvardInventory.totalBytes,
+      authenticatedInventorySha256: harvardInventory.sha256,
       generatedBundleSha256: null,
       generatedBundleByteStable: false,
       selectedPhysicalPayloads: HARVARD_SELECTED_FILES,
@@ -790,6 +848,7 @@ function manifestFor(snapshotId, archiveBytes, members, inputBytes) {
       ]
     : [
         'RIGHTS_REVIEW_REQUIRED',
+        'TEMPORAL_SEMANTICS_REVIEW_REQUIRED',
         'EXACT_DAY_FACTUAL_REVIEW_REQUIRED',
         'KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE',
         'CONSTITUENT_AND_TRIBUTARY_POLICY_REVIEW_REQUIRED',
@@ -842,7 +901,9 @@ function manifestFor(snapshotId, archiveBytes, members, inputBytes) {
         'The packet binds candidate evidence for review but lacks approved exact production geometry and every required independent approval.',
       manualTrace: snapshotId === '1492'
         ? {
+            evidencePath: 'sources/semkowicz-romer-1929-current-hosted-scan.jpg',
             evidenceSha256: ROMER_JPEG_SHA256,
+            procedurePath: 'specifications/1492-manual-trace-candidate.json',
             procedureSha256: reviewArtifacts.find(
               ({ path }) => path === 'specifications/1492-manual-trace-candidate.json',
             )?.sha256 ?? null,
@@ -920,6 +981,7 @@ async function run() {
       ]
     : [
         'RIGHTS_REVIEW_REQUIRED',
+        'TEMPORAL_SEMANTICS_REVIEW_REQUIRED',
         'EXACT_DAY_FACTUAL_REVIEW_REQUIRED',
         'KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE',
         'CONSTITUENT_AND_TRIBUTARY_POLICY_REVIEW_REQUIRED',

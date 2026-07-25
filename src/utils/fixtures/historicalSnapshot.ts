@@ -207,6 +207,8 @@ export async function createHistoricalCliFixture(
   const manifest = {
     snapshotId: SNAPSHOT_ID,
     asOf: SNAPSHOT_AS_OF,
+    readinessStatus: 'ready',
+    deliveryCounted: true,
     evidenceArchive: {
       path: 'sources/historical/1700.evidence.zip',
       sha256: sha256(archiveBytes),
@@ -225,6 +227,7 @@ export async function createHistoricalCliFixture(
       }
       return {
         regionId,
+        disposition: 'approved',
         evidencePath: evidence.path,
         evidenceSha256: sha256(evidence.bytes),
         rightsDisposition: 'approved',

@@ -103,6 +103,8 @@ async function createFixture(
   const manifest: HistoricalSourceReadinessManifest = {
     snapshotId: '1700',
     asOf: '1700-01-01',
+    readinessStatus: 'ready',
+    deliveryCounted: true,
     evidenceArchive: {
       path: 'sources/historical/1700.evidence.zip',
       sha256: await calculateSha256(archiveBytes),
@@ -116,6 +118,7 @@ async function createFixture(
     preparation,
     regions: HISTORICAL_REGION_IDS.map((regionId): HistoricalSourceReadinessManifest['regions'][number] => ({
       regionId,
+      disposition: 'approved',
       evidencePath: `evidence/${regionId}.txt`,
       evidenceSha256: inventoryResult.value.members[0].sha256,
       rightsDisposition: 'approved',
@@ -249,6 +252,24 @@ describe('historical source readiness', (): void => {
     expect(fixture.manifest.regions.map(({ regionId }) => regionId)).toEqual(
       HISTORICAL_REGION_IDS,
     );
+  });
+
+  it('fails closed on omitted, unknown, or regionally unapproved readiness', async (): Promise<void> => {
+    const fixture = await createFixture();
+    const missing = structuredClone(fixture.manifest) as unknown as Record<string, unknown>;
+    delete missing.readinessStatus;
+    const unknown = structuredClone(fixture.manifest) as unknown as Record<string, unknown>;
+    unknown.readinessStatus = 'conditionally-ready';
+    const conditionalRegion = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    const regions = conditionalRegion.regions as Array<Record<string, unknown>>;
+    regions[0].disposition = 'conditional';
+
+    expect(validateSourceReadinessManifest(missing).ok).toBe(false);
+    expect(validateSourceReadinessManifest(unknown).ok).toBe(false);
+    expect(validateSourceReadinessManifest(conditionalRegion).ok).toBe(false);
   });
 
   it('rejects missing rights, a missing region, and merged Poland/Lithuania coverage', async (): Promise<void> => {
