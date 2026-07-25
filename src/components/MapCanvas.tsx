@@ -10,7 +10,11 @@ import {
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { geoPath, select } from 'd3';
 
-import type { CameraState, MapCanvasHandle } from '../types/composition';
+import type {
+  CameraState,
+  MapCanvasHandle,
+  SnapshotId,
+} from '../types/composition';
 import type {
   ColorMap,
   CountryId,
@@ -43,6 +47,11 @@ const UNDO_START_MARK = 'countriesirl-undo-start';
 const UNDO_VISIBLE_MEASURE = 'countriesirl-undo-visible';
 const REDO_START_MARK = 'countriesirl-redo-start';
 const REDO_VISIBLE_MEASURE = 'countriesirl-redo-visible';
+const COUNTRIES_LAYER_SELECTOR = '[data-layer="countries"]';
+const OUTGOING_LAYER_SELECTOR = '[data-layer="outgoing-scenes"]';
+const CROSSFADE_TRANSITION_NAME = 'scene-crossfade';
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+export const CROSSFADE_DURATION_MS = 160;
 const SCENE_PATH_SELECTOR = 'path.scene-path';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[data-path-kind="logical"]';
 const SCENE_PATH_CLASS = 'scene-path';
@@ -74,6 +83,8 @@ export type MapTooltipData =
     });
 
 export interface MapCanvasProps {
+  /** Identity of the active scene; a change starts the crossfade. */
+  snapshotId: SnapshotId;
   periodLabel: string;
   features: ReadonlyArray<SceneFeature>;
   locateFeatures?: ReadonlyArray<GeoFeature>;
@@ -141,6 +152,45 @@ function runAfterPaint(callback: () => void): () => void {
       cancelAnimationFrame(paintFrame);
     }
   };
+}
+
+export function resolveCrossfadeDuration(
+  prefersReducedMotion: boolean,
+): number {
+  return prefersReducedMotion ? 0 : CROSSFADE_DURATION_MS;
+}
+
+function prefersReducedMotion(): boolean {
+  return globalThis.matchMedia?.(REDUCED_MOTION_QUERY).matches === true;
+}
+
+/**
+ * The outgoing scene is decoration for the length of the crossfade: it keeps no
+ * role, no name, no focus, no hit area, and no country identity, so the incoming
+ * scene is the only scene a pointer, a screen reader, or a selector can reach.
+ */
+function makeOutgoingSceneInert(group: SVGGElement): void {
+  group.setAttribute('data-layer', 'outgoing-scene');
+  group.setAttribute('aria-hidden', 'true');
+  group.removeAttribute('role');
+  group.removeAttribute('aria-label');
+  group.removeAttribute('aria-multiselectable');
+  group.style.pointerEvents = 'none';
+
+  group.querySelectorAll('title').forEach((title): void => {
+    title.remove();
+  });
+  group.querySelectorAll('*').forEach((element): void => {
+    element.removeAttribute('role');
+    element.removeAttribute('aria-label');
+    element.removeAttribute('aria-selected');
+    element.removeAttribute('data-country-id');
+    element.removeAttribute('data-scene-unit-id');
+    element.setAttribute('aria-hidden', 'true');
+    element.setAttribute('focusable', 'false');
+    element.setAttribute('tabindex', '-1');
+    element.setAttribute('class', 'outgoing-scene-path');
+  });
 }
 
 function isSvgPathElement(
@@ -274,6 +324,7 @@ export function pointerLeaveTooltipData(
 export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
+      snapshotId,
       periodLabel,
       features,
       locateFeatures = features,
@@ -306,6 +357,29 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       onCameraCommit,
       controllerFactory,
     });
+    const previousSnapshotIdRef = useRef(snapshotId);
+    const finalizeSelectedScene = useCallback((): void => {
+      const svgElement = svgRef.current;
+      if (svgElement === null) {
+        return;
+      }
+
+      const outgoingHost = svgElement.querySelector<SVGGElement>(
+        OUTGOING_LAYER_SELECTOR,
+      );
+      if (outgoingHost !== null) {
+        select(outgoingHost).selectAll('*').interrupt(CROSSFADE_TRANSITION_NAME);
+        outgoingHost.replaceChildren();
+      }
+
+      const countriesLayer = svgElement.querySelector<SVGGElement>(
+        COUNTRIES_LAYER_SELECTOR,
+      );
+      if (countriesLayer !== null) {
+        select(countriesLayer).interrupt(CROSSFADE_TRANSITION_NAME);
+        countriesLayer.style.opacity = '1';
+      }
+    }, []);
     const focusCountry = useCallback((countryId: CountryId): void => {
       const source = exportSourceRef.current;
       const escapedCountryId = CSS.escape(countryId);
@@ -326,10 +400,64 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         locate: cameraController.locate,
         restore: cameraController.restore,
         focusCountry,
+        finalizeSelectedScene,
         getExportSource: (): HTMLDivElement | null => exportSourceRef.current,
       }),
-      [cameraController, focusCountry],
+      [cameraController, finalizeSelectedScene, focusCountry],
     );
+
+    // Runs before the data join below, so the countries layer still holds the
+    // outgoing scene when it is cloned.
+    useLayoutEffect((): void => {
+      if (previousSnapshotIdRef.current === snapshotId) {
+        return;
+      }
+      previousSnapshotIdRef.current = snapshotId;
+
+      const svgElement = svgRef.current;
+      const countriesLayer =
+        svgElement?.querySelector<SVGGElement>(COUNTRIES_LAYER_SELECTOR) ?? null;
+      const outgoingHost =
+        svgElement?.querySelector<SVGGElement>(OUTGOING_LAYER_SELECTOR) ?? null;
+      if (
+        countriesLayer === null ||
+        outgoingHost === null ||
+        countriesLayer.childElementCount === 0
+      ) {
+        return;
+      }
+
+      // A switch that lands mid-crossfade drops the older outgoing scene rather
+      // than stacking scenes nobody can see.
+      finalizeSelectedScene();
+
+      const outgoingScene = countriesLayer.cloneNode(true) as SVGGElement;
+      makeOutgoingSceneInert(outgoingScene);
+      outgoingHost.append(outgoingScene);
+
+      const duration = resolveCrossfadeDuration(prefersReducedMotion());
+      if (duration === 0) {
+        finalizeSelectedScene();
+        return;
+      }
+
+      countriesLayer.style.opacity = '0';
+      select(countriesLayer)
+        .transition(CROSSFADE_TRANSITION_NAME)
+        .duration(duration)
+        .style('opacity', 1)
+        .on('end', (): void => {
+          countriesLayer.style.opacity = '1';
+        });
+      select(outgoingScene)
+        .style('opacity', 1)
+        .transition(CROSSFADE_TRANSITION_NAME)
+        .duration(duration)
+        .style('opacity', 0)
+        .on('end interrupt', (): void => {
+          outgoingScene.remove();
+        });
+    }, [finalizeSelectedScene, snapshotId]);
 
     useLayoutEffect((): void => {
       colorsRef.current = colors;
@@ -652,6 +780,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           onClick={handleBackgroundClick}
         >
           <g ref={cameraLayerRef} data-layer="camera">
+            <g data-layer="outgoing-scenes" aria-hidden="true" />
             <g
               data-layer="countries"
               role="listbox"

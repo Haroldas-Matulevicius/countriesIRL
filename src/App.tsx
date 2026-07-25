@@ -725,6 +725,9 @@ export default function App(): JSX.Element {
     try {
       lease = mapCanvasHandle.freezeAndSnapshot();
       setCamera(lease.camera);
+      // Export captures the selected scene only: a crossfade still in flight
+      // would otherwise bake a half-faded predecessor into the PNG.
+      mapCanvasHandle.finalizeSelectedScene();
       const exportSource = mapCanvasHandle.getExportSource();
       if (exportSource !== null) {
         const result = await exportMapPng(exportSource);
@@ -836,6 +839,7 @@ export default function App(): JSX.Element {
       <MapWorkspace
         geoData={geoData}
         compositionBar={compositionBar}
+        snapshotId={compositionState.snapshotId}
         periodLabel={activePeriodLabel}
         features={visibleFeatures}
         colors={colors}
@@ -854,6 +858,7 @@ export default function App(): JSX.Element {
     <div key="selection-color" className="workspace__selection-color">
       <SelectionPanel countryLookup={effectiveCountryLookup} />
       <ColorPicker
+        selectableCountryIds={effectiveSelectableIds}
         customDraft={inspectorUi.customColorDraft}
         onCustomDraftChange={inspectorUi.setCustomColorDraft}
         isDisabled={!isMapReady}

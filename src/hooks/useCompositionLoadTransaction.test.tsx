@@ -116,6 +116,7 @@ function createHandle(label: string, calls: string[]): MapCanvasHandle {
     focusCountry: vi.fn((countryId): void => {
       calls.push(`${label}:focus:${countryId}`);
     }),
+    finalizeSelectedScene: vi.fn(),
     getExportSource: vi.fn(() => null),
   };
 }

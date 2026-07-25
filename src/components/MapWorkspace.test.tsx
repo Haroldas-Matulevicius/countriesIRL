@@ -90,6 +90,7 @@ describe('MapWorkspace loading state', (): void => {
       <MapWorkspace
         geoData={{ status: 'loading' }}
         compositionBar={createCompositionBar()}
+        snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
         colors={{}}
@@ -117,6 +118,7 @@ describe('MapWorkspace unavailable scene', (): void => {
       <MapWorkspace
         geoData={READY_GEO_DATA}
         compositionBar={createCompositionBar()}
+        snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
         colors={{}}
@@ -142,6 +144,7 @@ describe('MapWorkspace unavailable scene', (): void => {
           source: 'world-asset',
         }}
         compositionBar={createCompositionBar()}
+        snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
         colors={{}}
@@ -168,6 +171,7 @@ describe('composed workspace composition bar', (): void => {
       <MapWorkspace
         geoData={READY_GEO_DATA}
         compositionBar={createCompositionBar()}
+        snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={[]}
         colors={{}}

@@ -53,6 +53,7 @@ function createHandle(
     locate: vi.fn(),
     restore: vi.fn(() => true),
     focusCountry: vi.fn(),
+  finalizeSelectedScene: vi.fn(),
     getExportSource: vi.fn(() => null),
   };
 }

@@ -6,6 +6,7 @@ import type {
 } from 'react';
 
 import { COLOR_PRESETS } from '../constants/colors';
+import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
 import {
   getEffectiveCountryColor,
@@ -21,6 +22,12 @@ const CUSTOM_COLOR_ERROR =
 
 interface ColorPickerProps {
   /**
+   * Entities the active scene can render. Defence in depth behind the map and
+   * browser gates: a period switch reconciles the selection, but colouring must
+   * never write a country the scene does not contain even for one render.
+   */
+  selectableCountryIds: ReadonlySet<CountryId>;
+  /**
    * Owned by `App`: the 1200px transition remounts this subtree, so an
    * in-progress custom color would otherwise be lost on resize.
    */
@@ -31,6 +38,7 @@ interface ColorPickerProps {
 }
 
 export function ColorPicker({
+  selectableCountryIds,
   customDraft,
   onCustomDraftChange,
   isDisabled = false,
@@ -44,8 +52,11 @@ export function ColorPicker({
   const errorId = `${inputId}-error`;
 
   const selectedCountryIds = useMemo(
-    () => Array.from(selectedIds),
-    [selectedIds],
+    () =>
+      Array.from(selectedIds).filter((countryId): boolean =>
+        selectableCountryIds.has(countryId),
+      ),
+    [selectableCountryIds, selectedIds],
   );
   const selectedCount = selectedCountryIds.length;
   const controlsDisabled = isDisabled || selectedCount === 0;

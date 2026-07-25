@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import type { ReactNode, Ref } from 'react';
 
-import type { CameraState, MapCanvasHandle } from '../types/composition';
+import type {
+  CameraState,
+  MapCanvasHandle,
+  SnapshotId,
+} from '../types/composition';
 import type {
   ColorMap,
   CountryId,
@@ -23,6 +27,7 @@ interface MapWorkspaceProps {
    * subtree (UI-SPEC section 9).
    */
   compositionBar: ReactNode;
+  snapshotId: SnapshotId;
   periodLabel: string;
   /**
    * The composed effective scene, or `null` when it is unavailable. Required
@@ -43,6 +48,7 @@ interface MapWorkspaceProps {
 export function MapWorkspace({
   geoData,
   compositionBar,
+  snapshotId,
   periodLabel,
   features,
   colors,
@@ -105,6 +111,7 @@ export function MapWorkspace({
             ) : null}
             <MapCanvas
               ref={exportSourceRef}
+              snapshotId={snapshotId}
               periodLabel={periodLabel}
               features={features}
               locateFeatures={geoData.features}
