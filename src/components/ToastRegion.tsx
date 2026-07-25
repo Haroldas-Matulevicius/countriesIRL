@@ -21,12 +21,16 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   'Browser storage is full. Delete an older saved map, then save this map again.',
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.',
   'Saved map loaded, but some invalid saved colors were omitted.',
+  'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
+  'Saved map loaded, but some unavailable settings were restored to safe defaults.',
   EXPORT_FAILURE_MESSAGE,
 ]);
 
 const SELECTION_MESSAGE_PATTERN = /^\d+ (?:country|countries) selected\.$/;
 const COLOR_MESSAGE_PATTERN =
   /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ (?:country|countries)\.$/;
+const CENTERED_MESSAGE_PATTERN =
+  /^Centered on [\p{L}\p{N} .,'’()&-]{1,100}\.$/u;
 
 function countryCountLabel(count: number): string {
   return `${count} ${count === 1 ? 'country' : 'countries'}`;
@@ -79,7 +83,8 @@ function getSafeMessage(message: ToastMessage): string {
   if (
     APPROVED_STATIC_MESSAGES.has(message.message) ||
     SELECTION_MESSAGE_PATTERN.test(message.message) ||
-    COLOR_MESSAGE_PATTERN.test(message.message)
+    COLOR_MESSAGE_PATTERN.test(message.message) ||
+    CENTERED_MESSAGE_PATTERN.test(message.message)
   ) {
     return message.message;
   }

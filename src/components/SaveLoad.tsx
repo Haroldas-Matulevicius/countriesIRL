@@ -9,6 +9,7 @@ import type { FormEvent, KeyboardEvent } from 'react';
 
 import type { CompositionLoadTransactionOutcome } from '../hooks/useCompositionLoadTransaction';
 import type { CompositionSaveTransactionOutcome } from '../hooks/useCompositionSaveTransaction';
+import type { CompositionLoadWarning } from '../types/composition';
 import type {
   SavedMap,
   StorageErrorReason,
@@ -46,6 +47,10 @@ const OVERWRITE_NOTICE =
   'A saved map already uses this name. Saving will replace it.';
 const CORRUPT_STORAGE_WARNING =
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.';
+const LEGACY_LOAD_WARNING =
+  'Older saved map loaded with a modern world view. Save it again to keep the full composition.';
+const REPAIRED_COMPOSITION_WARNING =
+  'Saved map loaded, but some unavailable settings were restored to safe defaults.';
 const PARTIAL_LOAD_WARNING =
   'Saved map loaded, but some invalid saved colors were omitted.';
 const STORAGE_UNAVAILABLE_ERROR =
@@ -122,9 +127,18 @@ export function restoreSaveLoadFocus(
 }
 
 export function getLoadFeedback(
-  warnings: ReadonlyArray<StorageWarning>,
+  compositionWarnings: ReadonlyArray<CompositionLoadWarning>,
+  storageWarnings: ReadonlyArray<StorageWarning>,
 ): LoadFeedback {
-  return warnings.some((warning) => warning.code === 'corrupt-data')
+  if (compositionWarnings.some((warning) => warning.code === 'legacy-migrated')) {
+    return { message: LEGACY_LOAD_WARNING, severity: 'warning' };
+  }
+  if (
+    compositionWarnings.some((warning) => warning.code === 'composition-repaired')
+  ) {
+    return { message: REPAIRED_COMPOSITION_WARNING, severity: 'warning' };
+  }
+  return storageWarnings.some((warning) => warning.code === 'corrupt-data')
     ? { message: PARTIAL_LOAD_WARNING, severity: 'warning' }
     : { message: 'Saved map loaded.', severity: 'success' };
 }
@@ -357,7 +371,10 @@ export function SaveLoad({
         return;
       }
 
-      const feedback = getLoadFeedback(result.storageWarnings);
+      const feedback = getLoadFeedback(
+        result.compositionWarnings,
+        result.storageWarnings,
+      );
       onStatus(feedback.message, feedback.severity);
       shouldRestoreOpenerRef.current = false;
       onClose();

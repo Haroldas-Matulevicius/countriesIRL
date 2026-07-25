@@ -62,7 +62,7 @@ describe('SaveLoad load feedback', () => {
       throw new Error('Expected the valid subset to load.');
     }
 
-    const feedback = getLoadFeedback(result.warnings);
+    const feedback = getLoadFeedback([], result.warnings);
     expect(feedback).toEqual({
       message: 'Saved map loaded, but some invalid saved colors were omitted.',
       severity: 'warning',
@@ -111,14 +111,27 @@ describe('SaveLoad load feedback', () => {
       throw new Error('Expected the clean map to load.');
     }
 
-    expect(getLoadFeedback(result.warnings)).toEqual({
+    expect(getLoadFeedback([], result.warnings)).toEqual({
       message: 'Saved map loaded.',
       severity: 'success',
     });
   });
 
+  it('surfaces legacy migration and repaired composition warnings', () => {
+    expect(getLoadFeedback([{ code: 'legacy-migrated' }], [])).toEqual({
+      message:
+        'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
+      severity: 'warning',
+    });
+    expect(getLoadFeedback([{ code: 'composition-repaired' }], [])).toEqual({
+      message:
+        'Saved map loaded, but some unavailable settings were restored to safe defaults.',
+      severity: 'warning',
+    });
+  });
+
   it('uses success feedback only when the load has no warnings', () => {
-    expect(getLoadFeedback([])).toEqual({
+    expect(getLoadFeedback([], [])).toEqual({
       message: 'Saved map loaded.',
       severity: 'success',
     });

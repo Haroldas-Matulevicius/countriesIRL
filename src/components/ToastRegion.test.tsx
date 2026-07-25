@@ -16,6 +16,29 @@ describe('color application messages', (): void => {
     );
   });
 
+  it('allows composition migration warnings through the approved-message guard', (): void => {
+    const messages = [
+      'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
+      'Saved map loaded, but some unavailable settings were restored to safe defaults.',
+    ];
+
+    messages.forEach((message, index): void => {
+      const markup = renderToStaticMarkup(
+        <ToastRegion
+          message={{
+            id: `warning-${index}`,
+            severity: 'warning',
+            message,
+          }}
+          onDismiss={vi.fn()}
+        />,
+      );
+
+      expect(markup).toContain(message);
+      expect(markup).not.toContain('The operation completed with a warning.');
+    });
+  });
+
   it('allows singular color feedback through the approved-message guard', (): void => {
     const markup = renderToStaticMarkup(
       <ToastRegion
