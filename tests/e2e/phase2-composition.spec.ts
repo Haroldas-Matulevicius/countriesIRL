@@ -275,6 +275,45 @@ function createHistoricalBrowserFixture(): {
   };
 }
 
+/**
+ * Two units that normalize cleanly but share a `sourceFeatureId`, so
+ * `composeEffectiveScene` throws `duplicate-scene-source-feature-id` inside
+ * App's own `useMemo`. Only the `main.tsx` boundary can catch that.
+ */
+function createDuplicateIdentityWorldAsset(): string {
+  const createUnit = (
+    id: string,
+  ): Record<string, unknown> => ({
+    type: 'Feature',
+    id,
+    properties: { name: `Duplicate ${id}` },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [0, 10],
+          [10, 10],
+          [10, 0],
+          [0, 0],
+        ],
+      ],
+    },
+    sourceFeatureId: 'DUPLICATE-SOURCE',
+    entityId: id,
+    colorOwnerId: id,
+    isSelectable: true,
+    interactionMode: 'modern-core',
+    boundaryMode: 'modern',
+    provenanceId: 'duplicate-identity-fixture',
+  });
+
+  return JSON.stringify({
+    type: 'FeatureCollection',
+    features: [createUnit('DUPA'), createUnit('DUPB')],
+  });
+}
+
 function createHistoricalSavedRecord(): Record<string, unknown> {
   return {
     schemaVersion: 2,
@@ -707,6 +746,41 @@ test('real app saves and loads the complete composition after responsive rebindi
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
     .toBeGreaterThan(savedTransform.k);
+});
+
+test('a duplicate-identity scene degrades to the fatal error state instead of a blank page', async ({
+  page,
+}): Promise<void> => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message): void => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
+    }
+  });
+  await page.route('**/data/world-modern.geojson', async (route): Promise<void> => {
+    await route.fulfill({
+      body: createDuplicateIdentityWorldAsset(),
+      contentType: 'application/geo+json',
+    });
+  });
+
+  await page.goto('/');
+
+  // `composeEffectiveScene` throws during App's own render, so App's boundary
+  // cannot catch it - this is the failure only the `main.tsx` boundary covers,
+  // and it must reach a real error surface rather than an empty document.
+  const fatalError = page.getByRole('alert');
+  await expect(fatalError).toContainText("We couldn't load the Europe map");
+  await expect(
+    fatalError.getByRole('button', { name: 'Reload Map' }),
+  ).toBeVisible();
+  await expect(page.locator('svg.map-canvas')).toHaveCount(0);
+  await expect(page.locator('.app')).toHaveCount(0);
+  expect(
+    consoleErrors.some((message): boolean =>
+      message.includes('CountriesIRL could not render the map workspace.'),
+    ),
+  ).toBe(true);
 });
 
 test('the inspector keeps its in-progress UI state across the 1200px transition', async ({
