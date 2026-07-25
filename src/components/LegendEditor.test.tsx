@@ -70,7 +70,7 @@ describe('LegendEditor static semantics', (): void => {
         effectiveColors={['#DC2626', '#2563EB']}
         bounds={TEST_BOUNDS}
         commands={createCommands()}
-        onStatusMessage={vi.fn()}
+        onStatusMessage={vi.fn()}
       />,
     );
 
@@ -110,7 +110,7 @@ describe('LegendEditor static semantics', (): void => {
         effectiveColors={[]}
         bounds={{ width: 0, height: 0 }}
         commands={createCommands()}
-        onStatusMessage={vi.fn()}
+        onStatusMessage={vi.fn()}
       />,
     );
 
