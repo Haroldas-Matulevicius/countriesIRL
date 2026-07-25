@@ -42,6 +42,14 @@ describe('color application messages', (): void => {
   });
 
   it('preserves every bounded legend announcement category', (): void => {
+    // React escapes the message when it renders it as text, so compare against
+    // the escaped form rather than allowlisting a reduced charset upstream.
+    const escapeHtml = (value: string): string =>
+      value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
     const messages = [
       'Legend added. Open Legend to edit labels.',
       'Legend position updated.',
@@ -51,6 +59,11 @@ describe('color application messages', (): void => {
       'Legend moved to Bottom left.',
       'Legend moved to Bottom right.',
       'Moved Allies to position 2 of 3.',
+      'Moved Allies & "Central Powers" to position 1 of 3.',
+      'Moved Trip 2024 \u2192 2025 to position 2 of 3.',
+      'Moved 50% visited to position 3 of 3.',
+      'Moved A\u2013B route to position 1 of 2.',
+      'Moved \u{1F30D} Visited to position 2 of 2.',
     ];
 
     messages.forEach((message, index): void => {
@@ -61,7 +74,7 @@ describe('color application messages', (): void => {
         />,
       );
 
-      expect(markup).toContain(message);
+      expect(markup).toContain(escapeHtml(message));
       expect(markup).not.toContain('Map updated.');
     });
   });
@@ -71,6 +84,8 @@ describe('color application messages', (): void => {
       `Moved ${'x'.repeat(33)} to position 1 of 2.`,
       'Moved Allies to position 3 of 2.',
       'Moved Allies to position 1 of 31.',
+      'Moved Allies\nAll colors reset. to position 1 of 2.',
+      'Moved Allies\u202Ereset to position 1 of 2.',
     ];
 
     messages.forEach((message, index): void => {

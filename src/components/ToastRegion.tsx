@@ -51,8 +51,18 @@ const COLOR_MESSAGE_PATTERN =
   /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ (?:country|countries)\.$/;
 const CENTERED_MESSAGE_PATTERN =
   /^Centered on [\p{L}\p{N} .,'’()&-]{1,100}\.$/u;
+/**
+ * Legend labels accept any character up to 32 (`LegendEditor` + `legend.ts`),
+ * so the guard bounds the label by length rather than allowlisting a partial
+ * charset - an allowlist silently degraded legal labels such as
+ * `Allies & "Central Powers"`, `Trip 2024 → 2025`, `50% visited`, `A–B route`,
+ * or any emoji to the generic "Map updated.". React escapes the label when it
+ * renders it as text; the guard stays fail-closed for control characters
+ * (including newlines and bidi overrides) so an announcement can never be
+ * spoofed across lines.
+ */
 const LEGEND_REORDER_MESSAGE_PATTERN =
-  /^Moved ([\p{L}\p{N} #.,'’()&:_/!?-]{1,32}) to position (\d{1,2}) of (\d{1,2})\.$/u;
+  /^Moved ([^\p{Cc}\p{Cf}\p{Cn}\p{Co}\p{Cs}\p{Zl}\p{Zp}]{1,32}) to position (\d{1,2}) of (\d{1,2})\.$/u;
 
 function isApprovedLegendReorderMessage(message: string): boolean {
   const match = LEGEND_REORDER_MESSAGE_PATTERN.exec(message);
