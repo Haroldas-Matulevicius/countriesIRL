@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto';
+
 import { expect, test, type Page } from '@playwright/test';
+import { zoomIdentity } from 'd3';
 
 import { STORAGE_KEY } from '../../src/constants/config';
+import { transformToCamera } from '../../src/utils/camera';
 
 const LOGICAL_CORE_COUNT = 195;
 const VISIBLE_MODERN_UNIT_COUNT = 248;
@@ -10,6 +14,17 @@ const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
 const PRIMARY_UNIT_SELECTOR = 'path.scene-path[data-primary-unit="true"]';
 const ALL_SCENE_PATH_SELECTOR = 'path.scene-path';
+const HISTORICAL_ENTITY_ID = 'HIST-HRE';
+const HISTORICAL_LABEL = 'Holy Roman Empire';
+const HISTORICAL_ASSET_PATH = '/data/snapshots/1700.geojson';
+const HISTORICAL_REGIONS = [
+  'poland',
+  'lithuania',
+  'hungary',
+  'balkans',
+  'iberia',
+  'scandinavia',
+] as const;
 
 interface CameraFixtureApi {
   readonly controllerFactoryCalls: number;
@@ -58,6 +73,53 @@ async function readCameraTransform(
   });
 }
 
+async function expectD3ZoomSynchronized(page: Page): Promise<void> {
+  const synchronization = await page.locator('svg.map-canvas').evaluate((element) => {
+    const svg = element as SVGSVGElement & {
+      __zoom?: { readonly k: number; readonly x: number; readonly y: number };
+    };
+    const cameraGroup = svg.querySelector<SVGGElement>('[data-layer="camera"]');
+    const matrix = cameraGroup?.transform.baseVal.consolidate()?.matrix;
+    if (svg.__zoom === undefined || matrix === undefined) {
+      throw new Error('D3 zoom state is unavailable.');
+    }
+    return {
+      zoom: svg.__zoom,
+      transform: { k: matrix.a, x: matrix.e, y: matrix.f },
+    };
+  });
+
+  expect(synchronization.zoom.k).toBeCloseTo(synchronization.transform.k, 4);
+  expect(synchronization.zoom.x).toBeCloseTo(synchronization.transform.x, 2);
+  expect(synchronization.zoom.y).toBeCloseTo(synchronization.transform.y, 2);
+}
+
+async function waitForSettledCamera(
+  page: Page,
+): Promise<{ k: number; x: number; y: number }> {
+  let previous = await readCameraTransform(page);
+  await expect
+    .poll(async (): Promise<boolean> => {
+      await page.evaluate(
+        (): Promise<void> =>
+          new Promise((resolve): void => {
+            requestAnimationFrame((): void => {
+              requestAnimationFrame((): void => resolve());
+            });
+          }),
+      );
+      const current = await readCameraTransform(page);
+      const isSettled =
+        Math.abs(current.k - previous.k) < 0.000001 &&
+        Math.abs(current.x - previous.x) < 0.000001 &&
+        Math.abs(current.y - previous.y) < 0.000001;
+      previous = current;
+      return isSettled;
+    })
+    .toBe(true);
+  return readCameraTransform(page);
+}
+
 async function readWorldPointAtClient(
   page: Page,
   clientX: number,
@@ -81,6 +143,110 @@ async function readWorldPointAtClient(
     },
     { x: clientX, y: clientY },
   );
+}
+
+function createHistoricalBrowserFixture(): {
+  readonly assetBody: string;
+  readonly manifest: Record<string, unknown>;
+} {
+  const assetBody = JSON.stringify({
+    type: 'FeatureCollection',
+    snapshotId: '1700',
+    asOf: '1700-01-01',
+    replacedModernSourceFeatureIds: ['FRA'],
+    features: [
+      {
+        type: 'Feature',
+        id: 'historical-hre-1700',
+        properties: { name: HISTORICAL_LABEL },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [5, 45],
+              [5, 55],
+              [18, 55],
+              [18, 45],
+              [5, 45],
+            ],
+          ],
+        },
+        sourceFeatureId: 'historical-hre-1700',
+        entityId: HISTORICAL_ENTITY_ID,
+        colorOwnerId: HISTORICAL_ENTITY_ID,
+        isSelectable: true,
+        interactionMode: 'historical-entity',
+        boundaryMode: 'historical',
+        provenanceId: 'browser-fixture-1700',
+      },
+    ],
+  });
+  const sha256 = createHash('sha256').update(assetBody).digest('hex');
+  return {
+    assetBody,
+    manifest: {
+      version: 1,
+      snapshots: [
+        {
+          id: 'modern',
+          label: 'Modern — current borders',
+          asOf: 'Current',
+          assetPath: '/data/world-modern.geojson',
+          sha256: 'a'.repeat(64),
+          coverageRegions: [],
+          sourceRecords: [],
+          reviewStatus: 'source-reviewed',
+          fallbackLabel: 'Modern boundaries',
+        },
+        {
+          id: '1700',
+          label: '1700 — Browser integration fixture',
+          asOf: '1700-01-01',
+          assetPath: HISTORICAL_ASSET_PATH,
+          sha256,
+          coverageRegions: [...HISTORICAL_REGIONS],
+          sourceRecords: [
+            {
+              url: 'https://example.test/historical-browser-fixture',
+              license: 'Test fixture only',
+              accessedOn: '2026-07-24',
+              attribution: null,
+            },
+          ],
+          reviewStatus: 'historian-reviewed',
+          fallbackLabel: 'Modern fallback outside fixture coverage',
+        },
+      ],
+    },
+  };
+}
+
+function createHistoricalSavedRecord(): Record<string, unknown> {
+  return {
+    schemaVersion: 2,
+    name: 'Historical composition',
+    timestamp: 1_700_000_000_000,
+    composition: {
+      colors: { [HISTORICAL_ENTITY_ID]: '#DC2626' },
+      camera: {
+        zoom: 2,
+        centerLongitude: 11,
+        centerLatitude: 50,
+      },
+      snapshotId: '1700',
+      legend: {
+        entries: [
+          { color: '#DC2626', label: 'Imperial lands', order: 0 },
+        ],
+        position: { x: 64, y: 720, preset: null },
+        theme: 'dark',
+        textSize: 'large',
+        backgroundOpacity: 85,
+        borderStyle: 'strong',
+      },
+      settings: { backgroundColor: '#FFFFFF' },
+    },
+  };
 }
 
 test('world baseline exposes 195 logical states and 248 modern units', async ({
@@ -314,13 +480,54 @@ test('real app navigation controls move the sole live D3 camera accessibly', asy
   expect(panned.k).toBeCloseTo(1.5, 5);
   expect(panned.x - zoomed.x).toBeCloseTo(-135, 5);
   expect(panned.y).toBeCloseTo(zoomed.y, 5);
+
+  const svgBounds = await page.locator('svg.map-canvas').boundingBox();
+  if (svgBounds === null) {
+    throw new Error('Map bounds are unavailable.');
+  }
+  await page.mouse.move(
+    svgBounds.x + svgBounds.width / 2,
+    svgBounds.y + svgBounds.height / 2,
+  );
+  await page.mouse.wheel(0, -300);
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBeGreaterThan(panned.k);
+
+  const beforeDrag = await readCameraTransform(page);
+  await page.mouse.down();
+  await page.mouse.move(
+    svgBounds.x + svgBounds.width / 2 + 80,
+    svgBounds.y + svgBounds.height / 2 + 20,
+    { steps: 5 },
+  );
+  await page.mouse.up();
+  const afterDrag = await readCameraTransform(page);
+  expect(afterDrag.x).not.toBeCloseTo(beforeDrag.x, 3);
+  await expectD3ZoomSynchronized(page);
 });
 
 test('real app saves and loads the complete composition after responsive rebinding', async ({
   page,
 }): Promise<void> => {
+  await page.setViewportSize({ width: 1300, height: 900 });
   await waitForApp(page);
   await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
+  await page.locator('svg.map-canvas').evaluate((svg): void => {
+    svg.setAttribute('data-camera-owner-sentinel', 'stable-owner');
+  });
+  await expect(
+    page.locator('main > .workspace__map, main > .workspace__actions'),
+  ).toHaveCount(2);
+  expect(
+    await page
+      .locator('main > .workspace__map, main > .workspace__actions')
+      .evaluateAll((elements): string[] =>
+        elements.map((element): string =>
+          element.classList.contains('workspace__map') ? 'map' : 'actions',
+        ),
+      ),
+  ).toEqual(['map', 'actions']);
 
   const francePath = page.locator(
     'path.country-path[data-country-id="FRA"]',
@@ -328,6 +535,14 @@ test('real app saves and loads the complete composition after responsive rebindi
   await francePath.focus();
   await francePath.press('Enter');
   await page.getByRole('button', { name: 'Apply Red' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await page.getByRole('button', { name: /^Legend/ }).click();
+  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  await legendLabel.fill('Visited France');
+  await legendLabel.press('Enter');
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+    'Visited France',
+  );
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await page.getByRole('button', { name: 'Move Map' }).click();
   await page.getByRole('button', { name: 'Pan Right' }).click();
@@ -348,7 +563,10 @@ test('real app saves and loads the complete composition after responsive rebindi
         colors: Record<string, string>;
         camera: { zoom: number };
         snapshotId: string;
-        legend: { entries: unknown[] };
+        legend: {
+          entries: Array<{ label: string }>;
+          theme: string;
+        };
         settings: { backgroundColor: string };
       };
     }>;
@@ -361,7 +579,8 @@ test('real app saves and loads the complete composition after responsive rebindi
       color: record.composition.colors.FRA,
       zoom: record.composition.camera.zoom,
       snapshotId: record.composition.snapshotId,
-      hasLegend: Array.isArray(record.composition.legend.entries),
+      legendLabel: record.composition.legend.entries[0]?.label,
+      legendTheme: record.composition.legend.theme,
       backgroundColor: record.composition.settings.backgroundColor,
     };
   }, STORAGE_KEY);
@@ -370,7 +589,8 @@ test('real app saves and loads the complete composition after responsive rebindi
     schemaVersion: 2,
     zoom: 1.5,
     snapshotId: 'modern',
-    hasLegend: true,
+    legendLabel: 'Visited France',
+    legendTheme: 'light',
     backgroundColor: '#FFFFFF',
   });
   expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);
@@ -378,14 +598,43 @@ test('real app saves and loads the complete composition after responsive rebindi
   await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await page.getByRole('button', { name: 'Zoom In' }).click();
+  await francePath.focus();
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
     /workspace--compact/,
   );
+  await expect(page.locator('svg.map-canvas')).toHaveAttribute(
+    'data-camera-owner-sentinel',
+    'stable-owner',
+  );
+  await expect(francePath).toBeFocused();
+  expect(
+    await page
+      .locator('main > .workspace__map, main > .workspace__actions')
+      .evaluateAll((elements): string[] =>
+        elements.map((element): string =>
+          element.classList.contains('workspace__map') ? 'map' : 'actions',
+        ),
+      ),
+  ).toEqual(['actions', 'map']);
   await page.setViewportSize({ width: 1300, height: 900 });
   await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
     /workspace--desktop/,
   );
+  await expect(page.locator('svg.map-canvas')).toHaveAttribute(
+    'data-camera-owner-sentinel',
+    'stable-owner',
+  );
+  await expect(francePath).toBeFocused();
+  expect(
+    await page
+      .locator('main > .workspace__map, main > .workspace__actions')
+      .evaluateAll((elements): string[] =>
+        elements.map((element): string =>
+          element.classList.contains('workspace__map') ? 'map' : 'actions',
+        ),
+      ),
+  ).toEqual(['map', 'actions']);
 
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Integrated view' }).click();
@@ -395,11 +644,23 @@ test('real app saves and loads the complete composition after responsive rebindi
   expect(loadedTransform.k).toBeCloseTo(savedTransform.k, 5);
   expect(loadedTransform.x).toBeCloseTo(savedTransform.x, 5);
   expect(loadedTransform.y).toBeCloseTo(savedTransform.y, 5);
+  await expectD3ZoomSynchronized(page);
   await expect(
     page.locator('path.country-path[data-country-id="FRA"]'),
   ).toHaveAttribute('fill', savedEvidence.color);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+    'Visited France',
+  );
 
-  await page.getByRole('button', { name: 'Zoom In' }).click();
+  const mapBounds = await page.locator('svg.map-canvas').boundingBox();
+  if (mapBounds === null) {
+    throw new Error('Map bounds are unavailable after load.');
+  }
+  await page.mouse.move(
+    mapBounds.x + mapBounds.width / 2,
+    mapBounds.y + mapBounds.height / 2,
+  );
+  await page.mouse.wheel(0, -300);
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
     .toBeGreaterThan(savedTransform.k);
@@ -414,6 +675,13 @@ test('real app export failure and frozen load both release without false success
   await waitForApp(page);
   await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
 
+  const francePath = page.locator(
+    'path.country-path[data-country-id="FRA"]',
+  );
+  await francePath.focus();
+  await francePath.press('Enter');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Freeze baseline');
@@ -437,6 +705,21 @@ test('real app export failure and frozen load both release without false success
 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.getByRole('button', { name: 'Exporting PNG…' })).toBeVisible();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveCount(2);
+  expect(await page.locator('[data-layer="legend"] text').allTextContents()).toEqual([
+    '#DC2626',
+    '#DC2626',
+  ]);
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--compact/,
+  );
+  expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--desktop/,
+  );
+  expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Freeze baseline' }).click();
   await expect(page.getByText('Finish the current export before loading a saved composition.')).toBeVisible();
@@ -469,4 +752,140 @@ test('real app export failure and frozen load both release without false success
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
     .toBeGreaterThan(beforeFailedExport.k);
+});
+
+test('real app round-trips a historical scene with live catalog and exported legend', async ({
+  page,
+}): Promise<void> => {
+  const fixture = createHistoricalBrowserFixture();
+  await page.route('**/data/snapshots/index.json', async (route): Promise<void> => {
+    await route.fulfill({ json: fixture.manifest });
+  });
+  await page.route(`**${HISTORICAL_ASSET_PATH}`, async (route): Promise<void> => {
+    await route.fulfill({
+      body: fixture.assetBody,
+      contentType: 'application/geo+json',
+    });
+  });
+  await page.addInitScript(
+    ({ storageKey, record }): void => {
+      localStorage.setItem(storageKey, JSON.stringify([record]));
+    },
+    { storageKey: STORAGE_KEY, record: createHistoricalSavedRecord() },
+  );
+  page.on('download', (download): void => {
+    void download.cancel();
+  });
+
+  await waitForApp(page);
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page
+    .getByRole('button', { name: 'Load This Map: Historical composition' })
+    .click();
+
+  const historicalPath = page.locator(
+    `path.country-path[data-country-id="${HISTORICAL_ENTITY_ID}"]`,
+  );
+  await expect(historicalPath).toHaveCount(1);
+  await expect(historicalPath).toBeFocused();
+  await expect(
+    page.locator('path.country-path[data-country-id="FRA"]'),
+  ).toHaveCount(0);
+  await expect(historicalPath).toHaveAttribute('fill', '#DC2626');
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+    'Imperial lands',
+  );
+
+  const countrySearch = page.getByRole('searchbox', { name: 'Search countries' });
+  await countrySearch.fill('France');
+  await expect(
+    page.getByRole('checkbox', { name: /France Current color/ }),
+  ).toBeVisible();
+  await countrySearch.fill(HISTORICAL_LABEL);
+  await expect(
+    page.getByText(`No countries match “${HISTORICAL_LABEL}”.`),
+  ).toBeVisible();
+
+  const locateInput = page.getByRole('combobox', { name: 'Find a country' });
+  await locateInput.fill(HISTORICAL_LABEL);
+  await expect(
+    page.getByText(`No country matches “${HISTORICAL_LABEL}”.`),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Locate Country' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Clear Locate Search' }).click();
+  await locateInput.fill('Germany');
+  await locateInput.press('Enter');
+  await page.getByRole('button', { name: 'Locate Country' }).click();
+  await expect(page.getByText('Centered on Germany.')).toBeVisible();
+  await expect
+    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
+    .toBeGreaterThan(2);
+  const settledTransform = await waitForSettledCamera(page);
+  await expectD3ZoomSynchronized(page);
+  const settledCamera = transformToCamera(
+    zoomIdentity
+      .translate(settledTransform.x, settledTransform.y)
+      .scale(settledTransform.k),
+  );
+
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page.getByRole('textbox', { name: 'Map name' }).fill('Historical resaved');
+  await page.getByRole('button', { name: 'Save Current Map' }).click();
+  const roundTrip = await page.evaluate((storageKey) => {
+    const raw = localStorage.getItem(storageKey);
+    const records = raw === null
+      ? []
+      : (JSON.parse(raw) as Array<{
+          name: string;
+          composition?: {
+            snapshotId: string;
+            colors: Record<string, string>;
+            legend: { entries: Array<{ label: string }> };
+            camera: {
+              zoom: number;
+              centerLongitude: number;
+              centerLatitude: number;
+            };
+          };
+        }>);
+    const record = records.find((candidate) => candidate.name === 'Historical resaved');
+    return record?.composition ?? null;
+  }, STORAGE_KEY);
+  expect(roundTrip).toMatchObject({
+    snapshotId: '1700',
+    colors: { [HISTORICAL_ENTITY_ID]: '#DC2626' },
+    legend: { entries: [{ label: 'Imperial lands' }] },
+  });
+  expect(roundTrip?.camera.zoom).toBeCloseTo(settledCamera.zoom, 4);
+  expect(roundTrip?.camera.centerLongitude).toBeCloseTo(
+    settledCamera.centerLongitude,
+    4,
+  );
+  expect(roundTrip?.camera.centerLatitude).toBeCloseTo(
+    settledCamera.centerLatitude,
+    4,
+  );
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+
+  await page.evaluate((): void => {
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function delayedHistoricalToBlob(
+      callback: BlobCallback,
+      type?: string,
+      quality?: number,
+    ): void {
+      window.setTimeout((): void => {
+        originalToBlob.call(this, callback, type, quality);
+      }, 600);
+    };
+  });
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveCount(2);
+  expect(await page.locator('[data-layer="legend"] text').allTextContents()).toEqual([
+    'Imperial lands',
+    'Imperial lands',
+  ]);
+  await expect(page.getByRole('button', { name: 'Export PNG' })).toBeVisible({
+    timeout: 10_000,
+  });
 });
