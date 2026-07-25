@@ -69,6 +69,7 @@
       import {
         getActiveLegendEntries,
         getLegendCornerPosition,
+        validateActiveLegend,
       } from '/src/utils/legend.ts';
 
       const h = React.createElement;
@@ -97,7 +98,6 @@
           setLegendPosition,
         } = useCompositionState();
         const [isOverflowMode, setIsOverflowMode] = useState(false);
-        const [validation, setValidation] = useState({ ok: false, issues: [] });
         const [statusMessage, setStatusMessage] = useState('');
         const [cameraEvents, setCameraEvents] = useState(0);
         const [exportEditorOnlyCount, setExportEditorOnlyCount] = useState(null);
@@ -137,6 +137,13 @@
 
         const bounds = getLegendOverlayBounds(state.legend, effectiveColors);
         const activeEntries = getActiveLegendEntries(effectiveColors, state.legend);
+        // Mirrors App: the export gate is derived from live legend state, not
+        // reported up from the editor (which unmounts when the panel closes).
+        const validation = validateActiveLegend(
+          state.legend,
+          effectiveColors,
+          bounds,
+        );
         const positionLabel =
           state.legend.position.preset === null
             ? 'Custom'
@@ -214,7 +221,6 @@
                 bounds,
                 commands,
                 onStatusMessage: setStatusMessage,
-                onValidationChange: setValidation,
               }),
             ),
             h('output', { 'data-status': 'true', 'aria-live': 'polite' }, statusMessage),

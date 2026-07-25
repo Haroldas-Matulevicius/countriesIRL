@@ -114,7 +114,12 @@
           h(
             'div',
             { className: 'fixture-controls' },
-            h(CountryList, { countries: geoData.countryMetadata }),
+            h(CountryList, {
+              countries: geoData.countryMetadata,
+              selectableCountryIds: new Set(
+                geoData.countryMetadata.map((country) => country.id),
+              ),
+            }),
             h(LocateCountry, {
               countries: geoData.countryMetadata,
               onLocate: locateCountry,
