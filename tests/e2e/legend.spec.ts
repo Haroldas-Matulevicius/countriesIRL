@@ -4,6 +4,67 @@ const LEGEND_FIXTURE_URL = '/tests/e2e/fixtures/legend.html';
 const RED = '#DC2626';
 const BLUE = '#2563EB';
 const HISTORICAL = '#B45309';
+const CANVAS_SIZE = 1080;
+const SAFE_INSET = 32;
+
+interface LegendFrame {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+async function readLegendFrame(
+  page: import('@playwright/test').Page,
+): Promise<LegendFrame> {
+  return page
+    .locator('g[data-layer="legend"]')
+    .evaluate((element): LegendFrame => {
+      const panel = element.querySelector('rect');
+      const transform = element.getAttribute('transform') ?? '';
+      const match = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(transform);
+      if (panel === null || match === null) {
+        throw new Error(`Legend frame is unavailable: ${transform}`);
+      }
+      return {
+        x: Number(match[1]),
+        y: Number(match[2]),
+        width: Number(panel.getAttribute('width')),
+        height: Number(panel.getAttribute('height')),
+      };
+    });
+}
+
+function expectInsideExportFrame(frame: LegendFrame): void {
+  expect(frame.x).toBeGreaterThanOrEqual(SAFE_INSET);
+  expect(frame.y).toBeGreaterThanOrEqual(SAFE_INSET);
+  expect(frame.x + frame.width).toBeLessThanOrEqual(CANVAS_SIZE - SAFE_INSET);
+  expect(frame.y + frame.height).toBeLessThanOrEqual(CANVAS_SIZE - SAFE_INSET);
+}
+
+async function dragLegendToRightEdge(
+  page: import('@playwright/test').Page,
+): Promise<void> {
+  const moveTarget = page.getByRole('button', { name: 'Move legend' });
+  const canvas = page.locator('svg[data-legend-canvas="true"]');
+  const handleBox = await moveTarget.boundingBox();
+  const canvasBox = await canvas.boundingBox();
+  if (handleBox === null || canvasBox === null) {
+    throw new Error('Legend drag targets are not measurable.');
+  }
+
+  await page.mouse.move(
+    handleBox.x + handleBox.width / 2,
+    handleBox.y + handleBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    canvasBox.x + canvasBox.width - 2,
+    handleBox.y + handleBox.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+}
 
 async function openLegend(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(LEGEND_FIXTURE_URL);
@@ -174,5 +235,80 @@ test.describe('legend browser interactions', (): void => {
     await page.getByRole('button', { name: 'Use standard colors' }).click();
     await expect(page.locator('[data-legend-row-color]')).toHaveCount(3);
     await expect(page.getByLabel(`Legend label for ${BLUE}`)).toBeVisible();
+  });
+
+  test('a legend parked at the right edge never leaves the export frame when a column is added', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto(LEGEND_FIXTURE_URL);
+
+    // 8 colors: one column (width 336), so the far-right legal x is 712.
+    await page.getByRole('button', { name: 'Use 8 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(8);
+    await dragLegendToRightEdge(page);
+
+    const oneColumn = await readLegendFrame(page);
+    expect(oneColumn.width).toBe(336);
+    expect(oneColumn.x).toBe(712);
+    expectInsideExportFrame(oneColumn);
+    await expect(page.locator('[data-position="true"]')).toContainText('Custom');
+
+    // The 9th color reflows to two columns (width 648): the stored x of 712
+    // would put 280px of the legend outside the 1080 viewBox, and the export
+    // used to succeed anyway.
+    await page.getByRole('button', { name: 'Use 9 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(9);
+
+    const twoColumns = await readLegendFrame(page);
+    expect(twoColumns.width).toBe(648);
+    expect(twoColumns.x).toBe(400);
+    expectInsideExportFrame(twoColumns);
+
+    // 16 -> 17 is the worse step: three columns (width 960) leave only x <= 88.
+    await page.getByRole('button', { name: 'Use 16 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(16);
+    await dragLegendToRightEdge(page);
+    expectInsideExportFrame(await readLegendFrame(page));
+
+    await page.getByRole('button', { name: 'Use 17 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(17);
+
+    const threeColumns = await readLegendFrame(page);
+    expect(threeColumns.width).toBe(960);
+    expect(threeColumns.x).toBe(88);
+    expectInsideExportFrame(threeColumns);
+
+    // The export gate stays clear (no invalid-position), and the clone the
+    // exporter captures carries the whole legend, not a clipped one.
+    await expect(page.getByRole('button', { name: 'Export PNG' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Export PNG' }).click();
+    await expect(page.locator('[data-export-legend-frame="true"]')).toHaveText(
+      `${threeColumns.x},${threeColumns.y},${threeColumns.width},${threeColumns.height}`,
+    );
+  });
+
+  test('a preset legend tracks its corner as entries grow', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto(LEGEND_FIXTURE_URL);
+    await page.getByRole('button', { name: /Legend/ }).click();
+    await page.getByLabel('Bottom right').check();
+
+    await page.getByRole('button', { name: 'Use 8 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(8);
+    const oneColumn = await readLegendFrame(page);
+    expect(oneColumn.x + oneColumn.width).toBe(CANVAS_SIZE - SAFE_INSET);
+    expect(oneColumn.y + oneColumn.height).toBe(CANVAS_SIZE - SAFE_INSET);
+
+    await page.getByRole('button', { name: 'Use 17 colors' }).click();
+    await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(17);
+    const threeColumns = await readLegendFrame(page);
+    expect(threeColumns.width).toBe(960);
+    expect(threeColumns.x + threeColumns.width).toBe(CANVAS_SIZE - SAFE_INSET);
+    expect(threeColumns.y + threeColumns.height).toBe(CANVAS_SIZE - SAFE_INSET);
+    expectInsideExportFrame(threeColumns);
+    await expect(page.locator('[data-position="true"]')).toContainText(
+      'Bottom right',
+    );
   });
 });

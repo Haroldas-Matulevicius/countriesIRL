@@ -26,6 +26,7 @@ import {
   getActiveLegendEntries,
   getLegendCornerPosition,
   nudgeLegendPosition,
+  resolveLegendPosition,
   validateActiveLegend,
 } from '../utils/legend';
 import type {
@@ -333,8 +334,14 @@ export function LegendEditor({
   };
 
   const nudge = (direction: LegendNudgeDirection): void => {
+    // Nudge from the position the overlay is actually rendering, not from a
+    // stored value that may predate a column reflow.
     commands.setLegendPosition(
-      nudgeLegendPosition(legend.position, direction, bounds),
+      nudgeLegendPosition(
+        resolveLegendPosition(legend.position, bounds),
+        direction,
+        bounds,
+      ),
     );
     onStatusMessage('Legend position updated.');
   };

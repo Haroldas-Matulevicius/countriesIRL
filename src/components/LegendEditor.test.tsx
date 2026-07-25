@@ -147,7 +147,10 @@ describe('LegendOverlay export-safe SVG', (): void => {
     expect(overlayMarkup).not.toContain('<foreignObject');
     expect(overlayMarkup).not.toContain('filter=');
     expect(overlayMarkup).not.toContain('style=');
-    expect(overlayMarkup).toContain('transform="translate(688 32)"');
+    // The stored x (688) was authored against wider bounds; the preset is
+    // authoritative, so the overlay renders the corner for the live bounds.
+    expect(overlayMarkup).toContain('transform="translate(712 32)"');
+    expect(712 + bounds.width).toBe(1048);
     expect(overlayMarkup).toContain('fill="#FFFFFF"');
     expect(overlayMarkup).toContain('fill-opacity="0.9"');
     expect(overlayMarkup).toContain('stroke="#CBD5E1"');
