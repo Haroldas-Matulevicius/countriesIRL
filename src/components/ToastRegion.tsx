@@ -1,4 +1,8 @@
 import type { ToastMessage } from '../types/ui';
+import {
+  LEGEND_LABEL_FIT_MESSAGE,
+  LEGEND_OVERFLOW_MESSAGE,
+} from '../utils/legend';
 
 const EXPORT_FAILURE_MESSAGE =
   'The PNG could not be created. Refresh the page and try Export PNG again.';
@@ -44,6 +48,12 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   'Legend moved to Bottom left.',
   'Legend moved to Bottom right.',
   EXPORT_FAILURE_MESSAGE,
+  // A legend-blocked export names the actual problem and its clearing action
+  // instead of telling the user to refresh (which would destroy the unsaved
+  // map). Both strings are the exact output of `getLegendBlockingMessage`, so
+  // the allowlist stays fail-closed on anything else.
+  LEGEND_LABEL_FIT_MESSAGE,
+  LEGEND_OVERFLOW_MESSAGE,
 ]);
 
 const SELECTION_MESSAGE_PATTERN = /^\d+ (?:country|countries) selected\.$/;

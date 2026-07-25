@@ -602,6 +602,37 @@ export function validateActiveLegend(
   );
 }
 
+export const LEGEND_LABEL_FIT_MESSAGE =
+  'Shorten this label so it fits in the exported legend.';
+export const LEGEND_OVERFLOW_MESSAGE =
+  'This map uses more than 30 legend colors. Reduce the number of colors so every label stays readable in the export.';
+
+/**
+ * The one classifier that decides whether a legend problem may block Export
+ * PNG, and what the product tells the user about it. The export gate and the
+ * Legend editor both call it, so the gate can only ever block on something the
+ * user has been shown and can act on.
+ *
+ * Lives next to `validateActiveLegend` rather than in a component module so the
+ * gate does not have to import from the editor.
+ */
+export function getLegendBlockingMessage(
+  issues: ReadonlyArray<LegendValidationIssue>,
+): string | null {
+  if (issues.some((issue): boolean => issue.code === 'too-many-active-colors')) {
+    return LEGEND_OVERFLOW_MESSAGE;
+  }
+  if (
+    issues.some(
+      (issue): boolean =>
+        issue.code === 'label-does-not-fit' || issue.code === 'invalid-label',
+    )
+  ) {
+    return LEGEND_LABEL_FIT_MESSAGE;
+  }
+  return null;
+}
+
 export function validateLegendForScene(
   legend: LegendState,
   scene: EffectiveScene,

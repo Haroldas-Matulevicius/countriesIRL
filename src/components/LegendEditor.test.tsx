@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { LegendState } from '../types/composition';
 import type { LegendBounds } from '../utils/legend';
+import { getLegendBlockingMessage } from '../utils/legend';
 import { LegendDisclosure, getLegendDisclosureSummary } from './LegendDisclosure';
 import {
   LEGEND_LABEL_MAX_LENGTH,
   LegendEditor,
-  getLegendBlockingMessage,
   resolveLegendLabelCommit,
 } from './LegendEditor';
 import type { LegendEditorCommands } from './LegendEditor';

@@ -23,7 +23,9 @@ import type {
   LegendStyleState,
 } from '../providers/CompositionStateProvider';
 import {
+  LEGEND_LABEL_FIT_MESSAGE,
   getActiveLegendEntries,
+  getLegendBlockingMessage,
   getLegendCornerPosition,
   nudgeLegendPosition,
   resolveLegendPosition,
@@ -32,16 +34,12 @@ import {
 import type {
   LegendBounds,
   LegendNudgeDirection,
-  LegendValidationIssue,
   LegendValidationResult,
 } from '../utils/legend';
 
 export const LEGEND_LABEL_MAX_LENGTH = 32;
 
 const EMPTY_LABEL_MESSAGE = 'Enter a legend label.';
-const LABEL_FIT_MESSAGE = 'Shorten this label so it fits in the exported legend.';
-const LEGEND_OVERFLOW_MESSAGE =
-  'This map uses more than 30 legend colors. Reduce the number of colors so every label stays readable in the export.';
 const THEME_OPTIONS: ReadonlyArray<{ value: LegendTheme; label: string }> = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -118,27 +116,10 @@ export function resolveLegendLabelCommit(
     return {
       ok: false,
       restoredLabel: committedLabel,
-      message: LABEL_FIT_MESSAGE,
+      message: LEGEND_LABEL_FIT_MESSAGE,
     };
   }
   return { ok: true, label: draft };
-}
-
-export function getLegendBlockingMessage(
-  issues: ReadonlyArray<LegendValidationIssue>,
-): string | null {
-  if (issues.some((issue): boolean => issue.code === 'too-many-active-colors')) {
-    return LEGEND_OVERFLOW_MESSAGE;
-  }
-  if (
-    issues.some(
-      (issue): boolean =>
-        issue.code === 'label-does-not-fit' || issue.code === 'invalid-label',
-    )
-  ) {
-    return LABEL_FIT_MESSAGE;
-  }
-  return null;
 }
 
 function getStyleState(

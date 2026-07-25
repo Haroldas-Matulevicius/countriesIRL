@@ -1,6 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  LEGEND_LABEL_FIT_MESSAGE,
+  LEGEND_OVERFLOW_MESSAGE,
+  getLegendBlockingMessage,
+} from '../utils/legend';
 import { TOAST_MESSAGES, ToastRegion } from './ToastRegion';
 
 describe('color application messages', (): void => {
@@ -39,6 +44,54 @@ describe('color application messages', (): void => {
       expect(markup).toContain(message);
       expect(markup).not.toContain('The operation completed with a warning.');
     });
+  });
+
+  it('surfaces a legend-blocked export without a refresh instruction or retry', (): void => {
+    [LEGEND_LABEL_FIT_MESSAGE, LEGEND_OVERFLOW_MESSAGE].forEach(
+      (message, index): void => {
+        const markup = renderToStaticMarkup(
+          <ToastRegion
+            message={{ id: `legend-block-${index}`, severity: 'error', message }}
+            onDismiss={vi.fn()}
+          />,
+        );
+
+        expect(markup).toContain(message);
+        expect(markup).not.toContain('Refresh the page');
+        expect(markup).not.toContain(
+          'The operation could not be completed. Please try again.',
+        );
+        // Retrying an export blocked by the legend re-enters the same early
+        // return, so no retry affordance is offered.
+        expect(markup).not.toContain('Try Export Again');
+      },
+    );
+
+    expect(getLegendBlockingMessage([{ code: 'too-many-active-colors' }])).toBe(
+      LEGEND_OVERFLOW_MESSAGE,
+    );
+    expect(
+      getLegendBlockingMessage([
+        { code: 'invalid-label', path: 'entries[0].label' },
+      ]),
+    ).toBe(LEGEND_LABEL_FIT_MESSAGE);
+  });
+
+  it('still falls back for an unapproved error message', (): void => {
+    const markup = renderToStaticMarkup(
+      <ToastRegion
+        message={{
+          id: 'unapproved',
+          severity: 'error',
+          message: 'Shorten this label so it fits in the exported legend!',
+        }}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain(
+      'The operation could not be completed. Please try again.',
+    );
   });
 
   it('preserves every bounded legend announcement category', (): void => {

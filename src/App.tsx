@@ -27,10 +27,7 @@ import { CountryList } from './components/CountryList';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FatalErrorState } from './components/FatalErrorState';
 import { LegendDisclosure } from './components/LegendDisclosure';
-import {
-  LegendEditor,
-  getLegendBlockingMessage,
-} from './components/LegendEditor';
+import { LegendEditor } from './components/LegendEditor';
 import type { LegendEditorCommands } from './components/LegendEditor';
 import {
   LegendOverlay,
@@ -56,6 +53,7 @@ import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
 import {
   getActiveLegendEntries,
+  getLegendBlockingMessage,
   validateActiveLegend,
 } from './utils/legend';
 import {
@@ -585,7 +583,11 @@ export default function App(): JSX.Element {
       return;
     }
     if (legendExportBlocker !== null) {
-      showExportFailure();
+      // Not the generic export failure: refreshing cannot shorten a label, and
+      // the composition is in-memory only, so "Refresh the page" would destroy
+      // the user's unsaved map. Report the blocking condition itself, and offer
+      // no retry - retrying re-enters this same early return.
+      showError(legendExportBlocker);
       return;
     }
 
@@ -621,7 +623,13 @@ export default function App(): JSX.Element {
     } else {
       showExportFailure();
     }
-  }, [legendExportBlocker, setCamera, showExportFailure, showStatus]);
+  }, [
+    legendExportBlocker,
+    setCamera,
+    showError,
+    showExportFailure,
+    showStatus,
+  ]);
 
   useEffect((): void => {
     exportHandlerRef.current = (): void => {

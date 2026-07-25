@@ -822,13 +822,22 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
     page.getByText('Shorten this label so it fits in the exported legend.'),
   ).toBeVisible();
 
-  // The gate is live, so a genuinely invalid legend still blocks the export.
+  // The gate is live, so a genuinely invalid legend still blocks the export -
+  // and it names the actual problem instead of telling the user to refresh,
+  // which would destroy this unsaved map without fixing the label.
   await page.getByRole('button', { name: 'Export PNG' }).click();
+  const legendBlockedToast = page.locator('[data-severity="error"]');
+  await expect(legendBlockedToast).toContainText(
+    'Shorten this label so it fits in the exported legend.',
+  );
   await expect(
     page.getByText(
       'The PNG could not be created. Refresh the page and try Export PNG again.',
     ),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    legendBlockedToast.getByRole('button', { name: 'Try Export Again' }),
+  ).toHaveCount(0);
 
   // Collapsing the disclosure unmounts the editor; resetting the colors makes
   // the legend trivially valid again. The gate must follow the live state.
