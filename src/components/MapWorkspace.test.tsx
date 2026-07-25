@@ -8,6 +8,7 @@ describe('MapWorkspace loading state', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={{ status: 'loading' }}
+        features={null}
         colors={{}}
         selectedIds={new Set()}
         exportSourceRef={{ current: null }}
@@ -23,5 +24,35 @@ describe('MapWorkspace loading state', (): void => {
     expect(markup.match(/<path\b/gu)).toHaveLength(7);
     expect(markup.match(/<circle\b/gu)).toHaveLength(2);
     expect(markup).not.toContain('<span></span>');
+  });
+});
+
+describe('MapWorkspace unavailable scene', (): void => {
+  it('fails closed instead of rendering the modern world for an unavailable scene', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapWorkspace
+        geoData={{
+          status: 'ready',
+          features: [],
+          coreFeatures: [],
+          lookup: new Map(),
+          coreLookup: new Map(),
+          entityLookup: new Map(),
+          countryMetadata: [],
+          warnings: [],
+        }}
+        features={null}
+        colors={{}}
+        selectedIds={new Set()}
+        exportSourceRef={{ current: null }}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain('Reload Map');
+    expect(markup).not.toContain('svg class="map-canvas"');
   });
 });

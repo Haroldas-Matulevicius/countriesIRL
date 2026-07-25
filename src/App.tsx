@@ -200,7 +200,7 @@ export default function App(): JSX.Element {
       : compositionState.snapshotId === 'modern'
         ? modernScene
         : null;
-  const visibleFeatures = effectiveScene?.features;
+  const visibleFeatures = effectiveScene?.features ?? null;
   const countries =
     geoData.status === 'ready' ? geoData.countryMetadata : EMPTY_COUNTRIES;
   const modernCountryLookup =

@@ -15,7 +15,12 @@ import { Tooltip } from './Tooltip';
 
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
-  features?: ReadonlyArray<SceneFeature>;
+  /**
+   * The composed effective scene, or `null` when it is unavailable. Required
+   * and explicitly nullable: falling back to the modern world would render
+   * modern borders while the composition state claims a historical snapshot.
+   */
+  features: ReadonlyArray<SceneFeature> | null;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
@@ -77,7 +82,11 @@ export function MapWorkspace({
           <FatalErrorState onReload={onReload} />
         ) : null}
 
-        {geoData.status === 'ready' ? (
+        {geoData.status === 'ready' && features === null ? (
+          <FatalErrorState onReload={onReload} />
+        ) : null}
+
+        {geoData.status === 'ready' && features !== null ? (
           <>
             {geoData.warnings.length > 0 ? (
               <p className="map-workspace__warning" role="status">
@@ -87,7 +96,7 @@ export function MapWorkspace({
             ) : null}
             <MapCanvas
               ref={exportSourceRef}
-              features={features ?? geoData.features}
+              features={features}
               locateFeatures={geoData.features}
               colors={colors}
               selectedIds={selectedIds}
