@@ -4,6 +4,7 @@ import type { SnapshotManifestEntry } from '../types/composition';
 import { HISTORICAL_SNAPSHOT_DATES } from './historicalValidation';
 import {
   MODERN_PERIOD_OPTION,
+  getBoundaryLine,
   getHistoricalCoverageStatus,
   getMapAccessibleLabel,
   getPeriodFailureMessage,
@@ -130,5 +131,18 @@ describe('period copy', (): void => {
     ).toBe(
       'Historical borders: Poland, the Balkans, Scandinavia. Modern borders remain elsewhere.',
     );
+  });
+
+  it('tells modern, curated, and fallback geometry apart', (): void => {
+    expect(getBoundaryLine('modern', 'modern')).toBe('Modern boundary');
+    expect(getBoundaryLine('historical', '1700')).toBe(
+      'Historical boundary · 1700',
+    );
+    expect(getBoundaryLine('modern-fallback', '1700')).toBe(
+      'Modern fallback · 1700 composition',
+    );
+    // A modern scene can never claim historical provenance, whatever a feature
+    // carries over from an earlier composition.
+    expect(getBoundaryLine('historical', 'modern')).toBe('Modern boundary');
   });
 });

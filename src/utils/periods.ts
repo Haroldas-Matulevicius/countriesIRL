@@ -121,6 +121,17 @@ export function getShowingPeriodMessage(periodLabel: string): string {
   return `Showing ${periodLabel}.`;
 }
 
+/**
+ * Every announcement the period control can produce, built from approved copy
+ * so the toast allowlist stays fail-closed on manifest-supplied text.
+ */
+export const APPROVED_PERIOD_ANNOUNCEMENTS: ReadonlyArray<string> = [
+  PERIOD_COPY.viewReset,
+  ...SNAPSHOT_CATALOG.map((entry): string =>
+    getShowingPeriodMessage(entry.label),
+  ),
+];
+
 export function getHistoricalCoverageStatus(
   coverageRegions: ReadonlyArray<HistoricalRegionId>,
 ): string {

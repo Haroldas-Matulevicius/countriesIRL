@@ -110,6 +110,8 @@
           null,
           h(MapCanvas, {
             ref: mapRef,
+            snapshotId: 'modern',
+            periodLabel: 'Modern — current borders',
             features: geoData.features,
             colors: state.colors,
             selectedIds: state.selectedIds,

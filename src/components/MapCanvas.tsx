@@ -33,7 +33,7 @@ import {
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
 import { getEffectiveCountryColor } from '../utils/colors';
-import { getMapAccessibleLabel } from '../utils/periods';
+import { getBoundaryLine, getMapAccessibleLabel } from '../utils/periods';
 import {
   createSafeMapPath,
   createWorldProjection,
@@ -69,6 +69,8 @@ interface MapTooltipContent {
   countryId: CountryId;
   countryName: string;
   color: string;
+  /** Exact boundary provenance line (UI-SPEC section 19). */
+  boundaryLine: string;
   position: {
     x: number;
     y: number;
@@ -274,12 +276,14 @@ export function pointerTooltipData(
   event: PointerEvent,
   feature: GeoFeature,
   color: string,
+  boundaryLine: string,
   countryId: CountryId = feature.id,
 ): MapTooltipData {
   return {
     countryId,
     countryName: feature.properties.name,
     color,
+    boundaryLine,
     inputMethod: 'pointer',
     position: {
       x: event.clientX,
@@ -292,6 +296,7 @@ export function keyboardTooltipData(
   pathElement: SVGPathElement,
   feature: GeoFeature,
   color: string,
+  boundaryLine: string,
   countryId: CountryId = feature.id,
 ): MapTooltipData {
   const bounds = pathElement.getBoundingClientRect();
@@ -300,6 +305,7 @@ export function keyboardTooltipData(
     countryId,
     countryName: feature.properties.name,
     color,
+    boundaryLine,
     inputMethod: 'keyboard',
     anchorElement: pathElement,
     position: {
@@ -314,10 +320,11 @@ export function pointerLeaveTooltipData(
   activeElement: Element | null,
   feature: GeoFeature,
   color: string,
+  boundaryLine: string,
   countryId: CountryId = feature.id,
 ): MapTooltipData | null {
   return activeElement === pathElement
-    ? keyboardTooltipData(pathElement, feature, color, countryId)
+    ? keyboardTooltipData(pathElement, feature, color, boundaryLine, countryId)
     : null;
 }
 
@@ -563,6 +570,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               event,
               path.feature,
               getSceneFeatureColor(path.feature, colorsRef.current),
+              getBoundaryLine(path.feature.boundaryMode, snapshotId),
               getInteractionId(path.feature),
             ),
           );
@@ -573,6 +581,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               event,
               path.feature,
               getSceneFeatureColor(path.feature, colorsRef.current),
+              getBoundaryLine(path.feature.boundaryMode, snapshotId),
               getInteractionId(path.feature),
             ),
           );
@@ -586,6 +595,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
                 document.activeElement,
                 path.feature,
                 getSceneFeatureColor(path.feature, colorsRef.current),
+                getBoundaryLine(path.feature.boundaryMode, snapshotId),
                 getInteractionId(path.feature),
               ),
             );
@@ -609,6 +619,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               event.currentTarget,
               path.feature,
               getSceneFeatureColor(path.feature, colorsRef.current),
+              getBoundaryLine(path.feature.boundaryMode, snapshotId),
               path.entityId,
             ),
           );
@@ -688,7 +699,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         paths.on('.map', null);
         paths.interrupt();
       };
-    }, [focusCountry, selectableFeatures, wrappedScene]);
+    }, [focusCountry, selectableFeatures, snapshotId, wrappedScene]);
 
     useEffect((): (() => void) | undefined => {
       const svgElement = svgRef.current;
