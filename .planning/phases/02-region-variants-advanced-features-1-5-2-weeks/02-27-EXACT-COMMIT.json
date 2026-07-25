@@ -1,0 +1,139 @@
+{
+  "schema": "countriesirl.phase2.exact-commit.v1",
+  "status": "PASS",
+  "verifiedSha": "6297ecbeee19abe9355e38624d756ced9d56917e",
+  "startedAt": "2026-07-25T11:00:46.971Z",
+  "finishedAt": "2026-07-25T11:03:51.087Z",
+  "failureReason": null,
+  "descope": {
+    "applied": true,
+    "decision": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md",
+    "note": "Historical snapshots deferred. The four approval-aware promotion checks are replaced by Modern-only catalog verification plus blocked-packet fail-closed assertions. Zero historical snapshots are claimed delivered."
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "npm": "11.9.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "catalog": {
+    "catalogEntryCount": 1,
+    "modernAssetPath": "/data/world-modern.geojson",
+    "modernAssetSha256": "45ccfed198f2d3ba4cbeb1d1b06889b0ba6869ee944feff32a5355b94cf0827a",
+    "historicalSnapshotsPromoted": 0,
+    "unapprovedHistoricalArtifacts": []
+  },
+  "historicalPackets": {
+    "1492": {
+      "sourceManifestSha256": "90ba249266e974a4edae0ce3b1095985027cfda37f59ba5fa8d9161782b75002",
+      "evidenceArchiveSha256": "b4bfc5d8709fde58d7635a79cb80bd42574da04707b54de1887b84aac0f15911",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1700": {
+      "sourceManifestSha256": "6a32a2689d50db4a629b2ac3a05c8feb3995369aff1d8d547b20f489e3de790c",
+      "evidenceArchiveSha256": "b7066ba911745999a1c6d4bfd95e9ac6b421cd4f2b26719a094ba612a846dc8e",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1815": {
+      "sourceManifestSha256": "e6acf0eac1ea2d9939e2ab2aa21f897a6768b8ff76819af30e70153657580cfd",
+      "evidenceArchiveSha256": "8829e72be316b8c7040e91ea3a3c12d8de61a20796cacc3a8d47869a3ad2c2e9",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1914": {
+      "sourceManifestSha256": "49554aa3d893eb23ecc0409650c8e114a5d81c70e5ddeda785938fb66afa54ba",
+      "evidenceArchiveSha256": "94f8533eba3f1cdd29287ae0a36ebf357781a80664b077a68f5a0f1c74f118aa",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    }
+  },
+  "gates": [
+    {
+      "id": "npm ci",
+      "command": "npm ci",
+      "status": 0,
+      "passed": true
+    },
+    {
+      "id": "lint",
+      "command": "npm run lint",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 lint\n> eslint ."
+    },
+    {
+      "id": "test",
+      "command": "npm test",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.10 C:/Users/matul/AppData/Local/Temp/countriesirl-phase2-gate-qSq8Gx/worktree\n\n\n Test Files  34 passed (34)\n      Tests  404 passed (404)\n   Start at  06:01:03\n   Duration  6.21s (transform 3.02s, setup 0ms, import 16.15s, tests 9.60s, environment 5ms)"
+    },
+    {
+      "id": "typecheck",
+      "command": "npm exec tsc -- -b --pretty false",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": ""
+    },
+    {
+      "id": "data:world:check",
+      "command": "npm run data:world:check",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 data:world:check\n> node scripts/prepareWorldData.mjs --check\n\nWorld GeoJSON check passed: 248 units and 195 selectable core states."
+    },
+    {
+      "id": "history:1492:blocked",
+      "command": "node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --validate-sources",
+      "status": 1,
+      "expectFailure": true,
+      "passed": true,
+      "note": "BLOCKED packet must fail closed. Exit 0 would mean the gate was bypassed.",
+      "tail": "1492 BLOCKED packet integrity verified offline; readiness and approval remain absent."
+    },
+    {
+      "id": "history:1700:blocked",
+      "command": "node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --validate-sources",
+      "status": 1,
+      "expectFailure": true,
+      "passed": true,
+      "note": "BLOCKED packet must fail closed. Exit 0 would mean the gate was bypassed.",
+      "tail": "1700 BLOCKED packet integrity verified offline; readiness and approval remain absent."
+    },
+    {
+      "id": "build",
+      "command": "npm run build",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 build\n> tsc -b && vite build\n\n\u001b[36mvite v8.1.5 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\rtransforming...✓ 632 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.48 kB │ gzip:   0.31 kB\ndist/assets/index-DxY9AMqf.css   23.37 kB │ gzip:   4.66 kB\ndist/assets/index-CZDhUQ9h.js   536.13 kB │ gzip: 155.81 kB\n\n\u001b[32m✓ built in 232ms\u001b[39m"
+    },
+    {
+      "id": "e2e:chrome",
+      "command": "npm run test:e2e -- --project=chrome",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "  ✓  25 [chrome] › tests\\e2e\\phase2-composition.spec.ts:348:1 › world baseline exposes 195 logical states and 248 modern units (1.6s)\n  ✓  26 [chrome] › tests\\e2e\\phase2-composition.spec.ts:415:1 › camera input anchors wheel, wraps, clamps poles, and never regenerates geometry (1.3s)\n  ✓  27 [chrome] › tests\\e2e\\phase2-composition.spec.ts:496:1 › camera freeze uses one visible controller handle and renews input (1.4s)\n  ✓  28 [chrome] › tests\\e2e\\phase2-composition.spec.ts:548:1 › real app navigation controls move the sole live D3 camera accessibly (2.3s)\n  ✓  29 [chrome] › tests\\e2e\\phase2-composition.spec.ts:606:1 › real app saves and loads the complete composition after responsive rebinding (4.4s)\n  ✓  30 [chrome] › tests\\e2e\\phase2-composition.spec.ts:754:1 › a duplicate-identity scene degrades to the fatal error state instead of a blank page (615ms)\n  ✓  31 [chrome] › tests\\e2e\\phase2-composition.spec.ts:789:1 › the inspector keeps its in-progress UI state across the 1200px transition (2.4s)\n  ✓  32 [chrome] › tests\\e2e\\phase2-composition.spec.ts:847:1 › real app export failure and frozen load both release without false success (10.7s)\n  ✓  33 [chrome] › tests\\e2e\\phase2-composition.spec.ts:935:1 › a collapsed Legend panel never leaves Export PNG permanently blocked (5.9s)\n  ✓  34 [chrome] › tests\\e2e\\phase2-composition.spec.ts:996:1 › real app round-trips a historical scene with live catalog and exported legend (7.8s)\n\n  34 passed (1.2m)"
+    },
+    {
+      "id": "e2e:msedge",
+      "command": "npm run test:e2e -- --project=msedge",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "  ✓  25 [msedge] › tests\\e2e\\phase2-composition.spec.ts:348:1 › world baseline exposes 195 logical states and 248 modern units (1.8s)\n  ✓  26 [msedge] › tests\\e2e\\phase2-composition.spec.ts:415:1 › camera input anchors wheel, wraps, clamps poles, and never regenerates geometry (1.4s)\n  ✓  27 [msedge] › tests\\e2e\\phase2-composition.spec.ts:496:1 › camera freeze uses one visible controller handle and renews input (1.5s)\n  ✓  28 [msedge] › tests\\e2e\\phase2-composition.spec.ts:548:1 › real app navigation controls move the sole live D3 camera accessibly (2.3s)\n  ✓  29 [msedge] › tests\\e2e\\phase2-composition.spec.ts:606:1 › real app saves and loads the complete composition after responsive rebinding (4.4s)\n  ✓  30 [msedge] › tests\\e2e\\phase2-composition.spec.ts:754:1 › a duplicate-identity scene degrades to the fatal error state instead of a blank page (722ms)\n  ✓  31 [msedge] › tests\\e2e\\phase2-composition.spec.ts:789:1 › the inspector keeps its in-progress UI state across the 1200px transition (2.4s)\n  ✓  32 [msedge] › tests\\e2e\\phase2-composition.spec.ts:847:1 › real app export failure and frozen load both release without false success (10.8s)\n  ✓  33 [msedge] › tests\\e2e\\phase2-composition.spec.ts:935:1 › a collapsed Legend panel never leaves Export PNG permanently blocked (5.9s)\n  ✓  34 [msedge] › tests\\e2e\\phase2-composition.spec.ts:996:1 › real app round-trips a historical scene with live catalog and exported legend (7.9s)\n\n  34 passed (1.2m)"
+    }
+  ],
+  "cleanup": {
+    "worktreeRemoved": true,
+    "worktreePruned": true,
+    "broadCleanUsed": false
+  }
+}

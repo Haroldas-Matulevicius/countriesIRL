@@ -63,8 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 16/36 executed. 9 deferred with the historical chain, 11 remaining (2 are owner
-gates). See the [Progress](#progress) ledger for the exact per-group breakdown.
+**Plans:** 17/36 complete. 8 deferred with the historical chain, 9 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -83,35 +82,35 @@ Plans:
 - [x] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
 - [x] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
 
-**Wave 4 — partially complete (3/4 plans, 6/8 tasks)**
+**Wave 4** — `02-31` deferred
 - [x] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
 - [x] 02-19-PLAN.md — Upgrade the sole localStorage authority with pre-parse resource bounds and full modern/historical composition persistence
-- [ ] 02-31-PLAN.md — INCOMPLETE/BLOCKED with zero commits: assemble complete offline source/license/tracing readiness bundles for 1492 and 1700 before geometry curation
+- [~] 02-31-PLAN.md — **DEFERRED** (was BLOCKED): 1492/1700 source readiness. Infrastructure is integrated and both packets verify offline as truthfully BLOCKED. Missing archival material, not missing approval.
 - [x] 02-32-PLAN.md — Complete as hash-bound BLOCKED source readiness for 1815 and 1914; no production snapshots delivered
 
-**Wave 5 — partially complete (3/4 plans, 7/9 tasks)**
+**Wave 5** — `02-33` deferred
 - [x] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
 - [x] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
 - [x] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
-- [ ] 02-33-PLAN.md — BLOCKED by 02-31 and independent approvals: obtain non-executor source/license review and seal one durable machine-validated source-approval JSON per snapshot
+- [~] 02-33-PLAN.md — **DEFERRED**: no reviewable evidence exists, so the non-executor source/license review cannot run.
 
 **Wave 6**
-- [ ] 02-13-PLAN.md — Generate and preflight the exact 1492 candidate from the approved source bundle
-- [ ] 02-14-PLAN.md — Generate and preflight the exact 1700 candidate from approved evidence
-- [ ] 02-15-PLAN.md — Generate and preflight the exact 1815 candidate from approved evidence
-- [ ] 02-16-PLAN.md — Generate and preflight the exact 1914 candidate from approved evidence
+- [~] 02-13-PLAN.md — **DEFERRED** — Generate and preflight the exact 1492 candidate from the approved source bundle
+- [~] 02-14-PLAN.md — **DEFERRED** — Generate and preflight the exact 1700 candidate from approved evidence
+- [~] 02-15-PLAN.md — **DEFERRED** — Generate and preflight the exact 1815 candidate from approved evidence
+- [~] 02-16-PLAN.md — **DEFERRED** — Generate and preflight the exact 1914 candidate from approved evidence
 
 **Wave 7**
-- [ ] 02-34-PLAN.md — Obtain qualified factual approval for the exact four candidate bundles after curation
+- [~] 02-34-PLAN.md — **DEFERRED** — Obtain qualified factual approval for the exact four candidate bundles after curation
 
 **Wave 8**
-- [ ] 02-35-PLAN.md — Seal the qualified structured factual review into durable per-snapshot approval artifacts
+- [~] 02-35-PLAN.md — **DEFERRED** — Seal the qualified structured factual review into durable per-snapshot approval artifacts
 
 **Wave 9**
-- [ ] 02-17-PLAN.md — Promote only exact source-approved, factually approved, unchanged historical bytes into production
+- [x] 02-17-PLAN.md — **RESCOPED + complete**: verifies the Modern-only catalog and proves non-promotion. Original promotion tasks preserved in the plan for the follow-on phase.
 
 **Wave 10**
-- [ ] 02-18-PLAN.md — Integrate world/history states plus the sole handle and React legend slot inside the one canonical SVG
+- [x] 02-18-PLAN.md — **RESCOPED + complete**: CompositionBar (sole Reset View owner), catalog-driven period select, exact world copy, crossfade, tooltip period context.
 
 **Wave 11**
 - [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions using focused live-camera save and atomic load transactions
@@ -311,17 +310,40 @@ elsewhere.
 
 ### Phase 2 plan ledger
 
+**17 complete · 8 deferred · 9 engineering remaining · 2 owner gates.**
+
 | Group | Plans | Status |
 |---|---|---|
 | Foundation + contracts | `02-01`–`02-06` | ✅ complete |
 | Camera, browser, Locate, persistence | `02-07`, `02-08`, `02-09`, `02-19`, `02-29` | ✅ complete |
 | Historical validation + snapshot loading | `02-10`, `02-11`, `02-12` | ✅ complete |
-| Historical source readiness | `02-31`, `02-32` | ⛔ **BLOCKED** — hash-bound BLOCKED evidence, `deliveryCounted=false`, zero production snapshots |
+| Catalog verification | `02-17` | ✅ complete (rescoped — Modern-only hash-verified, zero promotion) |
+| Period selector + world states | `02-18` | ✅ complete (rescoped — closed the missing Reset View and the stale Europe fatal copy) |
+| Historical source readiness | `02-31`, `02-32` | ⏸ **DEFERRED** — hash-bound BLOCKED evidence, `deliveryCounted=false`, zero production snapshots |
 | Historical approval + curation chain | `02-33`, `02-13`–`02-16`, `02-34`, `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
-| Catalog promotion | `02-17` | ✅ complete (rescoped — Modern-only verified, zero promotion) |
-| Remaining engineering | `02-18`, `02-20`–`02-24`, `02-26`, `02-30`, `02-36` | 🔄 in progress |
-| Human gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
-| Final exact-SHA gate | `02-27` | ⏳ pending |
+| Remaining engineering | `02-20`–`02-24`, `02-26`, `02-30`, `02-36` | ⬜ not started |
+| Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
+| Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
+
+> The nine remaining engineering plans are smaller than they look. Their *behavior* already
+> ships and is covered by 404 unit tests and 34 Chrome/Edge E2E cases; what remains is mostly
+> refactoring into the plans' named file shapes (`useCompositionExportTransaction.ts`, split
+> per-domain E2E specs, a CSS contract test). See
+> [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
+> for the per-plan breakdown.
+
+### Verified gates (current HEAD)
+
+| Gate | Result |
+|---|---|
+| `npm test` | 34 files, **404 tests** |
+| `npm run lint` | clean |
+| `tsc -b` | clean |
+| `npm run data:world:check` | 248 units, 195 selectable core states |
+| `npm run build` | clean |
+| Chrome E2E | **34/34** |
+| Edge E2E | **34/34** |
+| Historical promotion | **zero** — catalog Modern-only, hash-verified |
 
 ## Deferred out of v1.0
 

@@ -1,255 +1,131 @@
 {
-  "version": "1.1",
-  "timestamp": "2026-07-25T02:08:31Z",
+  "version": "2.0",
+  "timestamp": "2026-07-25T06:00:00Z",
   "phase": "02",
   "phase_name": "Region Variants & Advanced Features",
   "phase_dir": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks",
   "canonical_continuation_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md",
-  "status": "executing_with_unintegrated_corrections",
+  "status": "executing_descoped",
+  "supersedes": {
+    "version": "1.1",
+    "timestamp": "2026-07-25T02:08:31Z",
+    "note": "That version described a phase blocked behind the historical approval chain with two unintegrated correction worktrees. Both are now integrated and the historical chain is formally deferred. Do not act on its wording."
+  },
   "primary_checkout": {
     "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL",
-    "branch": "gsd/phase-01-pattern-map",
-    "head": "b910875e65d91cc3113137f6f57610ca1e26874a",
-    "head_short": "b910875",
-    "head_subject": "docs(02): record verified Wave 5 integrations"
+    "branch": "gsd/phase-01-pattern-map"
+  },
+  "descope": {
+    "applied": true,
+    "decided_on": "2026-07-25",
+    "decision_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md",
+    "summary": "Historical snapshots 1492/1700/1815/1914 deferred to a data-acquisition phase. The engine ships and is tested; the rights-cleared archival geometry does not exist.",
+    "reason_class": "missing_source_material_not_missing_approval",
+    "evidence": "prepareHistoricalSnapshot.mjs --validate-sources exits nonzero for 1492 and 1700 with blockers naming missing scans, product archives, operator records, control points, and frontier demarcation.",
+    "engine_retained": true,
+    "rework_required_when_data_arrives": false
   },
   "execution_progress": {
     "total_plans": 36,
-    "completed_plans_count": 15,
-    "remaining_plans_count": 21,
-    "total_tasks": 72,
-    "completed_tasks_count": 33,
-    "remaining_tasks_count": 39,
-    "total_waves": 18,
-    "percent_plans_complete": 42
+    "complete": 17,
+    "deferred_historical": 8,
+    "engineering_remaining": 9,
+    "owner_gates": 2,
+    "percent_plans_complete": 47
   },
-  "completed_plans": [
-    "02-01",
-    "02-02",
-    "02-03",
-    "02-04",
-    "02-05",
-    "02-06",
-    "02-07",
-    "02-08",
-    "02-09",
-    "02-10",
-    "02-11",
-    "02-12",
-    "02-19",
-    "02-29",
-    "02-32"
+  "complete_plans": [
+    "02-01", "02-02", "02-03", "02-04", "02-05", "02-06",
+    "02-07", "02-08", "02-09", "02-10", "02-11", "02-12",
+    "02-17", "02-18", "02-19", "02-29", "02-32"
   ],
-  "remaining_plans": [
-    "02-13",
-    "02-14",
-    "02-15",
-    "02-16",
-    "02-17",
-    "02-18",
-    "02-20",
-    "02-21",
-    "02-22",
-    "02-23",
-    "02-24",
-    "02-25",
-    "02-26",
-    "02-27",
-    "02-28",
-    "02-30",
-    "02-31",
-    "02-33",
-    "02-34",
-    "02-35",
-    "02-36"
-  ],
+  "deferred_plans": ["02-31", "02-33", "02-13", "02-14", "02-15", "02-16", "02-34", "02-35"],
+  "engineering_remaining": ["02-20", "02-21", "02-22", "02-23", "02-24", "02-26", "02-27", "02-30", "02-36"],
+  "owner_gates": ["02-25", "02-28"],
   "plan_status_notes": {
-    "02-31": "Active and incomplete source-readiness correction. Unintegrated commits exist, but no completion checkpoint or integration approval exists.",
-    "02-32": "Plan execution is complete only as hash-bound BLOCKED readiness evidence. It delivered zero production snapshots; 1815 and 1914 remain BLOCKED and deliveryCounted=false.",
-    "02-33": "Direct human source/license approval gate. Blocked until 02-31 is complete and both readiness inputs pass fresh review.",
-    "02-34": "Direct qualified factual human approval gate after all four exact candidates exist.",
-    "not_executed": [
-      "02-13",
-      "02-14",
-      "02-15",
-      "02-16",
-      "02-17",
-      "02-18",
-      "02-20",
-      "02-21",
-      "02-22",
-      "02-23",
-      "02-24",
-      "02-25",
-      "02-26",
-      "02-27",
-      "02-28",
-      "02-30",
-      "02-35",
-      "02-36"
-    ]
+    "02-17": "Complete as RESCOPED. Verifies a Modern-only catalog and proves non-promotion. Original promotion tasks preserved verbatim in the plan for the follow-on phase.",
+    "02-18": "Complete as RESCOPED. Catalog-driven selector renders the single Modern entry. Closed two real functional gaps: no Reset View control existed anywhere, and FatalErrorState carried Phase 1 Europe copy.",
+    "02-27": "PARTIAL. scripts/verifyPhase2ExactCommit.mjs is written and validated end-to-end. tests/e2e/final-integration.spec.ts is not written.",
+    "02-32": "Complete only as hash-bound BLOCKED readiness evidence. Zero production snapshots, deliveryCounted=false.",
+    "02-25": "Owner gave blanket pre-approval SIGHT-UNSEEN; the patches do not exist yet. Record that honestly rather than claiming hash-bound approval.",
+    "02-28": "CANNOT be delegated or approved in the abstract. Its resume-signal rejects generic approval and forbids automation substitution for physical claims."
   },
-  "critical_path": [
-    ["02-31", "02-32"],
-    ["02-33"],
-    ["02-13", "02-14", "02-15", "02-16"],
-    ["02-34"],
-    ["02-35"],
-    ["02-17"],
-    ["02-18"],
-    ["02-20", "02-21"],
-    ["02-22", "02-30"],
-    ["02-23"],
-    ["02-24"],
-    ["02-25"],
-    ["02-26", "02-36"],
-    ["02-27"],
-    ["02-28"]
-  ],
-  "active_unintegrated_correction_worktrees": [
+  "verified_gates": {
+    "test_files": 34,
+    "tests": 404,
+    "lint": "clean",
+    "typecheck": "clean",
+    "world_data": "248 units, 195 selectable core states",
+    "build": "clean",
+    "e2e_chrome": "34/34",
+    "e2e_msedge": "34/34",
+    "historical_promotion": "zero; catalog Modern-only and hash-verified"
+  },
+  "integrated_this_session": [
     {
-      "name": "wave_5_production_wiring",
-      "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.claude\\worktrees\\agent-a7d36e7ddf6a00457",
-      "known_head": "51eabd4223564a573ec17059517772970b45622e",
-      "known_commits": [
-        "8465f66",
-        "2e08f55",
-        "ab8cb95",
-        "fbd53d1",
-        "51eabd4"
-      ],
-      "stack_description": "Initial unverified Wave 5 production-wiring correction stack.",
-      "known_blockers": {
-        "count": 10,
-        "category": "production wiring blockers under correction",
-        "durable_detail_status": "The individual blocker-resolution checkpoint is not present in the primary checkout; treat all ten as open until a fresh executor checkpoint and independent review prove otherwise."
-      },
-      "known_diff_scope": [
-        "src/App.tsx and src/App.test.tsx",
-        "MapCanvas, MapWorkspace, and SaveLoad",
-        "camera/composition/load/save/snapshot hooks and providers",
-        "historical validation boundary",
-        "tests/e2e/phase2-composition.spec.ts"
-      ],
-      "checkpoint_received": false,
-      "integration_approved": false,
-      "progress_certainty": "unresolved",
-      "integration_rule": "Do not cherry-pick or merge this stack without a fresh independent diff review and passing focused plus full gates."
+      "stack": "historical source-readiness infrastructure",
+      "review_rounds": 1,
+      "outcome": "integrated; packets truthfully BLOCKED, zero promotion"
     },
     {
-      "name": "historical_1492_1700_packet_corrections",
-      "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.claude\\worktrees\\agent-a57bbba6129ef1f11",
-      "known_head": "0d8b82c9e7fea969c5e13a52aaacf8dc5dacf2b7",
-      "known_commits": [
-        "f4d61b1",
-        "ea09565",
-        "1b15b4a",
-        "0d8b82c"
-      ],
-      "stack_description": "Reviewed but not integration-approved 1492/1700 source-readiness packet stack under further correction.",
-      "known_blockers": {
-        "count": 11,
-        "category": "fail-closed, semantic, and handoff blockers under correction",
-        "durable_detail_status": "The final correction checkpoint is not present in the primary checkout; treat all eleven as open and Plan 02-31 as incomplete."
-      },
-      "known_diff_scope": [
-        "scripts/assembleHistoricalCandidatePackets.mjs",
-        "scripts/prepareHistoricalSnapshot.mjs",
-        "1492 and 1700 source manifests, evidence ZIPs, and input GeoJSON",
-        "historical preparation and validation tests"
-      ],
-      "checkpoint_received": false,
-      "integration_approved": false,
-      "progress_certainty": "unresolved",
-      "integration_rule": "Do not cherry-pick or merge this stack until exact offline hashes, six-region semantics, rights dispositions, fail-closed behavior, and independent review pass."
+      "stack": "Wave 5 production wiring",
+      "review_rounds": 3,
+      "defects_found_by_independent_review": 5,
+      "outcome": "integrated after two fix rounds; final review APPROVE, 0 critical / 0 high"
+    },
+    {
+      "stack": "plan 02-18",
+      "review_rounds": 1,
+      "outcome": "integrated after correcting a tautological NFR3 gate"
     }
   ],
-  "blockers": [
-    "Plan 02-31 has no accepted completion checkpoint and remains active/incomplete.",
-    "Plan 02-33 cannot begin until 02-31 and 02-32 inputs are reconciled and independently reviewed; 02-32 remains blocked evidence, not approved source readiness.",
-    "1815 and 1914 have zero approved production snapshots and remain BLOCKED.",
-    "Plans 02-13 through 02-18 and all downstream engineering plans remain behind the historical approval and promotion chain.",
-    "Neither active correction worktree is integration-approved."
-  ],
-  "human_actions_pending": [
-    {
-      "plan": "02-33",
-      "action": "Provide named qualified non-executor/non-implementer source and license review with 24 separate regional decisions bound to exact current packet bytes.",
-      "blocking": true
-    },
-    {
-      "plan": "02-34",
-      "action": "Provide named qualified factual review for all four exact candidate bundles, six regions each, bound to current source-approval and candidate/review hashes.",
-      "blocking": true
-    },
-    {
-      "plan": "02-25",
-      "action": "Approve the exact proposed coding-rule and authoritative-document patches before Plans 02-26 and 02-36 edit those sources of truth.",
-      "blocking": true
-    },
-    {
-      "plan": "02-28",
-      "action": "Complete the fixed human acceptance matrix against the same exact SHA verified by Plan 02-27.",
-      "blocking": true
-    }
+  "live_invariants": [
+    "Selection/color can never reach a country absent from the active scene. Eleven routes enumerated and gated. Undo/redo is safe ONLY because history stores colors, never selection.",
+    "Nothing reads legend.position raw on a render or export path; all go through resolveLegendPosition/resolveLegendRender. One bypass clips legend content out of the exported PNG.",
+    "Exactly one MapCanvasHandle and one svg.map-canvas across the 1200px transition.",
+    "CountryList and Locate keep the unfiltered modern 195-core catalog; out-of-scene rows are disabled, never removed.",
+    "The period selector is catalog-driven; deferred snapshots stay structurally unreachable and a manifest label can never override an approved catalog label.",
+    "Legend opacity is a single 0-100 scale; a stored 0-1 fraction is repaired and reported, not silently clamped."
   ],
   "immutable_safety_constraints": [
     "Historical geometry, source rights, and factual approvals must never be inferred, synthesized, or fabricated.",
     "No unapproved historical geometry may be promoted to public/data or added to the production catalog.",
-    "BLOCKED source packets and empty fail-closed inputs are not delivered snapshots and must not be counted as such.",
+    "BLOCKED source packets are not delivered snapshots and must not be counted as such.",
     "Executor self-approval is forbidden for source/license and factual review.",
     "Any changed byte covered by a source or factual approval invalidates that approval until reviewed again.",
-    "Do not cherry-pick either active worktree without fresh independent review and verification.",
-    "Do not report uncertain live-agent work as complete without a durable checkpoint.",
-    "Phase 2 remains browser-only and localhost-only; no deployment, production URL, backend, auth, or cloud work is authorized.",
-    "Full completion requires all 36 plans, a passing Plan 02-27 exact-SHA detached-clean-worktree gate, and Plan 02-28 human acceptance against that same SHA."
+    "The six region IDs must never be silently merged.",
+    "Phase 2 remains browser-only and localhost-only; no deployment, production URL, backend, auth, or cloud work is authorized."
   ],
-  "required_review_and_tests_before_integration": {
-    "both_worktrees": [
-      "Obtain or reconstruct a durable executor checkpoint containing exact HEAD, clean/dirty state, resolved and unresolved blocker list, and commands/results.",
-      "Independently review every commit and the aggregate diff against primary b910875; verify declared scope, commit lineage, and absence of unapproved historical promotion.",
-      "Treat any work after the recorded known HEAD as unresolved until separately reviewed."
-    ],
-    "wave_5_wiring": [
-      "Verify all ten production wiring blockers are individually resolved rather than hidden by tests.",
-      "Run the focused App, MapCanvas, camera, composition-state, load/save transaction, historical-validation, and phase2-composition E2E coverage touched by the stack.",
-      "Run npm test, npm run lint, node_modules/.bin/tsc -b --pretty false, npm run data:world:check, npm run build, and the relevant installed-Chrome E2E route before integration.",
-      "After integration into primary, rerun the full integrated gate and confirm no camera-owner, selection, persistence, historical fallback, legend, or export regression."
-    ],
-    "historical_packets": [
-      "Verify all eleven fail-closed, semantic, and handoff blockers are individually resolved.",
-      "Recompute and compare canonical manifest, evidence ZIP, member inventory, input, procedure/operator/control-point, and mode hashes as applicable.",
-      "Run offline --validate-sources for 1492 and 1700 and confirm the result is truthful READY or explicit BLOCKED per snapshot; nonzero BLOCKED is not completion-by-delivery.",
-      "Run focused historicalPreparationCli and historicalValidation tests plus npm test, npm run lint, strict TypeScript, and npm run build.",
-      "Confirm no 1492/1700 candidate, public/data asset, catalog entry, source approval, factual approval, or production snapshot was created without its declared gate."
-    ],
-    "final_phase_gate": [
-      "Plan 02-27 must commit final E2E/tooling, record its exact implementation SHA, and pass fresh npm ci plus the complete lint/test/type/world/history/build/Chrome/Edge chain in a detached clean worktree.",
-      "Plan 02-28 must use a detached preview of exactly the Plan 02-27 verified SHA and record every mandatory human matrix cell as PASS; UNAVAILABLE mandatory evidence does not pass."
-    ]
+  "open_owner_decisions": [
+    {
+      "id": "nfr3-threshold",
+      "question": "Set an NFR3 warm-switch timing threshold, or explicitly extend D-63 to Phase 2.",
+      "context": "D-63 retired timing gates for Phase 1 ONLY and does not carry into Phase 2. Phase 2 asserts no threshold and records warm period-switch samples plus their median as advisory annotations in tests/e2e/history.spec.ts.",
+      "blocking": false
+    },
+    {
+      "id": "02-28-acceptance",
+      "question": "Perform the physical acceptance matrix.",
+      "context": "Touch, screen-reader, and visual checks cannot be automated or delegated. Automated cells can be pre-filled.",
+      "blocking": true
+    }
+  ],
+  "process_lesson": "Executor self-reported checkpoints were not reliable for integration. Independent non-author review of the aggregate diff caught five real defects across three rounds on one stack that the executor had marked resolved. Keep the independent review step for every stack.",
+  "housekeeping": {
+    "gitignored_now": [".claude/ (24 agent worktrees)", "ui-reviews browser profiles, caches, and verification-root nested checkouts"],
+    "note": "24 git worktrees exist on disk, ~20 from earlier sessions. None are prunable and all are gitignored. Left in place rather than deleted; clean up with `git worktree remove` when confirmed unneeded."
   },
   "first_actions_next_session": [
-    "Read this file and the canonical .continue-here.md; treat them as the live audit over older integrated-baseline wording in STATE.md and ROADMAP.md.",
-    "Run /gsd-execute-phase 2 in the primary checkout.",
-    "Before dispatching new plan work or integrating commits, reconcile both surviving worktrees: capture any executor checkpoints, compare actual heads with the known heads above, and mark all uncheckpointed progress unresolved.",
-    "Send both stacks through fresh independent review; do not cherry-pick on commit-message or agent assertion alone.",
-    "Integrate only reviewed, dependency-valid, passing corrections into primary, then rerun the combined gate and update Phase 2 summaries/state.",
-    "Continue the exact critical path from incomplete 02-31; do not start 02-33 or geometry plans until prerequisites and direct human approvals exist."
+    "Start in the primary checkout only.",
+    "Read the canonical .continue-here.md and this file.",
+    "Continue with 02-30 and 02-21 (mutually independent), then 02-20/02-22, 02-23, 02-24.",
+    "Generate the 02-25 patches and apply via 02-26/02-36.",
+    "Add tests/e2e/final-integration.spec.ts, then re-run node scripts/verifyPhase2ExactCommit.mjs against the final SHA.",
+    "Hand 02-28 to the owner with automated cells pre-filled."
   ],
-  "next_action": "In a fresh session at C:\\Users\\matul\\ClaudeProjects\\CountriesIRL, run /gsd-execute-phase 2. The resumed orchestrator must first reconcile surviving worktree commits/checkpoints and independently verify them before any integration or new dependent dispatch.",
-  "uncertainty_note": "The two recorded worktree heads are known Git checkpoints, not completion checkpoints. Live or uncommitted correction progress after those heads was not inspected and must remain unresolved.",
-  "uncommitted_primary_files": [
-    ".claude/",
-    ".planning/CODEX_PROMPT.md",
-    ".planning/CODING_RULES.md",
-    ".planning/PHASE1_CODEX_BRIEF.md",
-    ".planning/coding-rules/data.md",
-    ".planning/coding-rules/frontend.md",
-    ".planning/coding-rules/general.md",
-    ".planning/coding-rules/storage.md",
-    ".planning/debug/",
-    ".planning/phases/01-foundation-modern-map-1-1-5-weeks/01-UI-REVIEW.md",
-    ".planning/ui-reviews/",
-    "CLAUDE.md"
+  "do_not": [
+    "Do not dispatch any historical plan; the material does not exist.",
+    "Do not treat the owner's blanket approval as satisfying 02-28.",
+    "Do not cite D-63 to justify a Phase 2 timing decision.",
+    "Do not put selection into a map-state history snapshot."
   ]
 }

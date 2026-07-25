@@ -20,3 +20,6 @@ pnpm-debug.log*
 *.swo
 .DS_Store
 Thumbs.db
+
+# Playwright + acceptance evidence artifacts
+.artifacts/
