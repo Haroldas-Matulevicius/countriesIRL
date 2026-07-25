@@ -30,6 +30,8 @@ describe('MapNavigation semantics', (): void => {
     expect(markup).toContain('block-size:44px');
     expect(markup.match(/width="20"/g)).toHaveLength(3);
     expect(markup.match(/height="20"/g)).toHaveLength(3);
+    // Reset View belongs to CompositionBar (UI-SPEC section 9). Duplicating it
+    // here would give the composed workspace two Reset View controls.
     expect(markup).not.toMatch(/Reset View/i);
   });
 

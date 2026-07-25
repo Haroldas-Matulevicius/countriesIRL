@@ -770,7 +770,7 @@ test('a duplicate-identity scene degrades to the fatal error state instead of a 
   // cannot catch it - this is the failure only the `main.tsx` boundary covers,
   // and it must reach a real error surface rather than an empty document.
   const fatalError = page.getByRole('alert');
-  await expect(fatalError).toContainText("We couldn't load the Europe map");
+  await expect(fatalError).toContainText("We couldn't load the world map");
   await expect(
     fatalError.getByRole('button', { name: 'Reload Map' }),
   ).toBeVisible();

@@ -304,6 +304,7 @@ describe('MapCanvas accessibility structure', (): void => {
   it('keeps the editable legend outside the country listbox', (): void => {
     const markup = renderToStaticMarkup(
       <MapCanvas
+        periodLabel="Modern — current borders"
         features={[]}
         colors={{}}
         selectedIds={new Set()}

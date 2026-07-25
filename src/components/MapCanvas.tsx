@@ -29,6 +29,7 @@ import {
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
 import { getEffectiveCountryColor } from '../utils/colors';
+import { getMapAccessibleLabel } from '../utils/periods';
 import {
   createSafeMapPath,
   createWorldProjection,
@@ -73,6 +74,7 @@ export type MapTooltipData =
     });
 
 export interface MapCanvasProps {
+  periodLabel: string;
   features: ReadonlyArray<SceneFeature>;
   locateFeatures?: ReadonlyArray<GeoFeature>;
   colors: ColorMap;
@@ -272,6 +274,7 @@ export function pointerLeaveTooltipData(
 export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
+      periodLabel,
       features,
       locateFeatures = features,
       colors,
@@ -652,7 +655,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
             <g
               data-layer="countries"
               role="listbox"
-              aria-label="Interactive map of the world"
+              aria-label={getMapAccessibleLabel(periodLabel)}
               aria-multiselectable="true"
             />
           </g>

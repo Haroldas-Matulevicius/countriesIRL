@@ -146,7 +146,7 @@ describe('fatal error boundary wiring', (): void => {
     const boundaryIndex = markup.indexOf('data-error-boundary="true"');
 
     expect(boundaryIndex).toBeGreaterThan(-1);
-    expect(markup).toContain('We couldn&#x27;t load the Europe map');
+    expect(markup).toContain('We couldn&#x27;t load the world map');
     expect(markup).toContain('>Reload Map<');
     // The boundary is inside the workspace landmark and wraps its sections.
     expect(markup.indexOf('aria-label="Map creator workspace"')).toBeLessThan(
@@ -181,7 +181,7 @@ describe('fatal error boundary wiring', (): void => {
     // own render (`composeEffectiveScene`), so it must be the root element.
     expect(markup.startsWith('<div data-error-boundary="true">')).toBe(true);
     expect(boundaryIndex).toBeGreaterThan(-1);
-    expect(markup).toContain('We couldn&#x27;t load the Europe map');
+    expect(markup).toContain('We couldn&#x27;t load the world map');
     expect(markup).toContain('>Reload Map<');
     expect(markup.indexOf('data-selection-live-region="true"')).toBeGreaterThan(
       boundaryIndex,

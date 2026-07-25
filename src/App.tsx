@@ -22,6 +22,7 @@ import type { ToastMessage } from './types/ui';
 import { DEFAULT_COLOR } from './constants/colors';
 import { AppHeader } from './components/AppHeader';
 import { ColorPicker } from './components/ColorPicker';
+import { CompositionBar } from './components/CompositionBar';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -50,6 +51,7 @@ import type { WorldCountryMetadata } from './hooks/useGeoData';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useMapState } from './hooks/useMapState';
 import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
+import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
 import {
@@ -58,9 +60,23 @@ import {
   validateActiveLegend,
 } from './utils/legend';
 import {
+  PERIOD_COPY,
+  getHistoricalCoverageStatus,
+  getPeriodFailureMessage,
+  getPeriodLabel,
+  getPeriodLoadingMessage,
+  getShowingPeriodMessage,
+} from './utils/periods';
+import {
   composeEffectiveScene,
   getEffectiveSceneColors,
+  reconcileSelectionForScene,
 } from './utils/scene';
+
+type PeriodLoadState =
+  | { readonly status: 'idle' }
+  | { readonly status: 'loading'; readonly snapshotId: SnapshotId }
+  | { readonly status: 'error'; readonly snapshotId: SnapshotId };
 
 const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
@@ -130,6 +146,7 @@ export default function App(): JSX.Element {
   const {
     state: compositionState,
     setCamera,
+    setSnapshot,
     setLegendEntry,
     setLegendStyle,
     setLegendOrder,
@@ -148,7 +165,11 @@ export default function App(): JSX.Element {
     dismissOnboarding,
   } = useLocalStorage();
   const layout = useResponsiveLayout();
+  const snapshotCatalog = useSnapshotCatalog();
   const mapCanvasHandleRef = useRef<MapCanvasHandle | null>(null);
+  const periodRequestRef = useRef<AbortController | null>(null);
+  const modernSceneRef = useRef<EffectiveScene | null>(null);
+  const periodOptionsRef = useRef(snapshotCatalog.options);
   const colorsRef = useRef(colors);
   const selectedIdsRef = useRef(selectedIds);
   const mapStateRef = useRef(mapState);
@@ -168,6 +189,9 @@ export default function App(): JSX.Element {
   const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
   const [pendingLoadedFocusId, setPendingLoadedFocusId] =
     useState<CountryId | null>(null);
+  const [periodLoad, setPeriodLoad] = useState<PeriodLoadState>({
+    status: 'idle',
+  });
   const [isExporting, setIsExporting] = useState(false);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
@@ -276,7 +300,25 @@ export default function App(): JSX.Element {
     mapStateRef.current = mapState;
     compositionRef.current = compositionState;
     activeSceneRef.current = activeScene;
-  }, [activeScene, colors, compositionState, mapState, selectedIds]);
+    modernSceneRef.current = modernScene;
+    periodOptionsRef.current = snapshotCatalog.options;
+  }, [
+    activeScene,
+    colors,
+    compositionState,
+    mapState,
+    modernScene,
+    selectedIds,
+    snapshotCatalog.options,
+  ]);
+
+  useEffect(
+    () => (): void => {
+      periodRequestRef.current?.abort();
+      periodRequestRef.current = null;
+    },
+    [],
+  );
 
   useEffect((): void => {
     const existingColors = new Set(
@@ -424,6 +466,79 @@ export default function App(): JSX.Element {
       currentMessage?.id === messageId ? null : currentMessage,
     );
   }, []);
+
+  // Committing a scene and reconciling the selection are one step. A switch that
+  // left stale ids selected would let the color controls write colors for
+  // entities the incoming scene does not contain: silently discarded work, and
+  // selection counts announcing countries that are not on the map.
+  const commitScene = useCallback(
+    (scene: EffectiveScene): void => {
+      setActiveScene(scene);
+      setSnapshot(scene.snapshotId);
+      replaceSelection([
+        ...reconcileSelectionForScene(selectedIdsRef.current, scene),
+      ]);
+    },
+    [replaceSelection, setSnapshot],
+  );
+  const startPeriodLoad = useCallback(
+    (snapshotId: SnapshotId): void => {
+      periodRequestRef.current?.abort();
+      periodRequestRef.current = null;
+
+      const periodLabel = getPeriodLabel(periodOptionsRef.current, snapshotId);
+      const modernSceneValue = modernSceneRef.current;
+      if (snapshotId === 'modern' && modernSceneValue !== null) {
+        setPeriodLoad({ status: 'idle' });
+        commitScene(modernSceneValue);
+        showStatus(getShowingPeriodMessage(periodLabel), 'info');
+        return;
+      }
+
+      const controller = new AbortController();
+      periodRequestRef.current = controller;
+      setPeriodLoad({ status: 'loading', snapshotId });
+
+      resolveScene(snapshotId, controller.signal)
+        .then((scene): void => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          periodRequestRef.current = null;
+          setPeriodLoad({ status: 'idle' });
+          commitScene(scene);
+          showStatus(getShowingPeriodMessage(periodLabel), 'info');
+        })
+        .catch((): void => {
+          if (controller.signal.aborted) {
+            return;
+          }
+          // The prior scene and the prior selected option both stay: the
+          // selector is driven by the committed snapshot id, which never moved.
+          periodRequestRef.current = null;
+          setPeriodLoad({ status: 'error', snapshotId });
+        });
+    },
+    [commitScene, resolveScene, showStatus],
+  );
+  const handlePeriodChange = useCallback(
+    (snapshotId: SnapshotId): void => {
+      if (snapshotId === compositionRef.current.snapshotId) {
+        return;
+      }
+      startPeriodLoad(snapshotId);
+    },
+    [startPeriodLoad],
+  );
+  const handleRetryPeriod = useCallback((): void => {
+    if (periodLoad.status === 'error') {
+      startPeriodLoad(periodLoad.snapshotId);
+    }
+  }, [periodLoad, startPeriodLoad]);
+  const handleResetView = useCallback((): void => {
+    mapCanvasHandleRef.current?.resetView();
+    showStatus(PERIOD_COPY.viewReset, 'info');
+  }, [showStatus]);
 
   const focusMap = useCallback((): boolean => {
     const mapSource = mapCanvasHandleRef.current?.getExportSource();
@@ -680,10 +795,48 @@ export default function App(): JSX.Element {
     />
   );
 
+  const activePeriodLabel = getPeriodLabel(
+    snapshotCatalog.options,
+    compositionState.snapshotId,
+  );
+  const activeCatalogEntry = snapshotCatalog.entries.find(
+    (entry): boolean => entry.id === compositionState.snapshotId,
+  );
+  const periodStatusMessage =
+    periodLoad.status === 'loading'
+      ? getPeriodLoadingMessage(
+          getPeriodLabel(snapshotCatalog.options, periodLoad.snapshotId),
+        )
+      : periodLoad.status === 'error'
+        ? getPeriodFailureMessage(
+            getPeriodLabel(snapshotCatalog.options, periodLoad.snapshotId),
+          )
+        : compositionState.snapshotId === 'modern' ||
+            activeCatalogEntry === undefined
+          ? PERIOD_COPY.modernStatus
+          : getHistoricalCoverageStatus(activeCatalogEntry.coverageRegions);
+
+  const compositionBar = (
+    <CompositionBar
+      periods={snapshotCatalog.options}
+      selectedPeriodId={compositionState.snapshotId}
+      statusMessage={periodStatusMessage}
+      isPeriodDisabled={!isMapReady || periodLoad.status === 'loading'}
+      isResetViewDisabled={!isMapReady}
+      onPeriodChange={handlePeriodChange}
+      onResetView={handleResetView}
+      onRetryPeriod={
+        periodLoad.status === 'error' ? handleRetryPeriod : undefined
+      }
+    />
+  );
+
   const mapWorkspace = (
     <div key="map" className="workspace__map">
       <MapWorkspace
         geoData={geoData}
+        compositionBar={compositionBar}
+        periodLabel={activePeriodLabel}
         features={visibleFeatures}
         colors={colors}
         selectedIds={selectedIds}

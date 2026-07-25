@@ -9,12 +9,21 @@ import type {
   SelectedCountryIds,
 } from '../types/map';
 import type { WorldGeoDataState } from '../hooks/useGeoData';
+import { PERIOD_COPY } from '../utils/periods';
+import { MAP_PREVIEW_LABEL_ID } from './CompositionBar';
 import { FatalErrorState } from './FatalErrorState';
 import { MapCanvas, type MapTooltipData } from './MapCanvas';
 import { Tooltip } from './Tooltip';
 
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
+  /**
+   * The composition bar owns the preview label, the period selector, and the
+   * only Reset View control; it sits above the square and outside the export
+   * subtree (UI-SPEC section 9).
+   */
+  compositionBar: ReactNode;
+  periodLabel: string;
   /**
    * The composed effective scene, or `null` when it is unavailable. Required
    * and explicitly nullable: falling back to the modern world would render
@@ -33,6 +42,8 @@ interface MapWorkspaceProps {
 
 export function MapWorkspace({
   geoData,
+  compositionBar,
+  periodLabel,
   features,
   colors,
   selectedIds,
@@ -46,10 +57,8 @@ export function MapWorkspace({
   const [tooltipData, setTooltipData] = useState<MapTooltipData | null>(null);
 
   return (
-    <section className="map-workspace" aria-labelledby="map-preview-label">
-      <p className="map-workspace__label" id="map-preview-label">
-        1080 × 1080 PNG preview
-      </p>
+    <section className="map-workspace" aria-labelledby={MAP_PREVIEW_LABEL_ID}>
+      {compositionBar}
 
       <div className="map-workspace__square">
         {geoData.status === 'loading' ? (
@@ -74,7 +83,7 @@ export function MapWorkspace({
               <circle cx="136" cy="177" r="5" />
               <circle cx="154" cy="188" r="4" />
             </svg>
-            <p>Loading Europe map…</p>
+            <p>{PERIOD_COPY.worldLoading}</p>
           </div>
         ) : null}
 
@@ -96,6 +105,7 @@ export function MapWorkspace({
             ) : null}
             <MapCanvas
               ref={exportSourceRef}
+              periodLabel={periodLabel}
               features={features}
               locateFeatures={geoData.features}
               colors={colors}
