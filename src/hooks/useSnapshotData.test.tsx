@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { HISTORICAL_REGION_IDS } from '../constants/snapshots';
 import type { SnapshotManifestEntry } from '../types/composition';
+import type { SceneFeature } from '../types/map';
 import {
   SNAPSHOT_READY_MEASURE_PREFIX,
   SnapshotDataLoader,
   clearSnapshotDataCache,
+  resolveEffectiveSnapshotScene,
   type SnapshotDataState,
   type SnapshotFetch,
 } from './useSnapshotData';
@@ -317,5 +319,91 @@ describe('SnapshotDataLoader', (): void => {
     );
     expect(ready.current?.features).toHaveLength(1);
     warn.mockRestore();
+  });
+});
+
+const MODERN_MANIFEST_ENTRY = {
+  id: 'modern',
+  label: 'Modern — current borders',
+  asOf: 'Current',
+  assetPath: '/data/world-modern.geojson',
+  sha256: 'a'.repeat(64),
+  coverageRegions: [],
+  sourceRecords: [],
+  reviewStatus: 'source-reviewed',
+  fallbackLabel: 'Modern boundaries',
+};
+
+function createModernFeature(): SceneFeature {
+  return {
+    type: 'Feature',
+    id: 'modern-FRA',
+    properties: { name: 'France' },
+    geometry: { type: 'Polygon', coordinates: [TEST_RING] },
+    sourceFeatureId: 'modern-FRA',
+    entityId: 'FRA',
+    colorOwnerId: 'FRA',
+    isSelectable: true,
+    interactionMode: 'modern-core',
+    boundaryMode: 'modern',
+    provenanceId: 'world-modern',
+  };
+}
+
+describe('resolveEffectiveSnapshotScene warning propagation', (): void => {
+  it('carries dropped historical entries onto the scene instead of discarding them', async (): Promise<void> => {
+    clearSnapshotDataCache();
+    const warn = vi
+      .spyOn(globalThis.console, 'warn')
+      .mockImplementation(() => undefined);
+    const bytes = createAsset('1700', true);
+    const entry = await createEntry('1700', bytes);
+    const fetcher: SnapshotFetch = async (input) =>
+      String(input).endsWith('index.json')
+        ? new Response(
+            JSON.stringify({
+              version: 1,
+              snapshots: [MODERN_MANIFEST_ENTRY, entry],
+            }),
+            { status: 200 },
+          )
+        : responseFromBytes(bytes);
+
+    const scene = await resolveEffectiveSnapshotScene(
+      '1700',
+      [createModernFeature()],
+      new AbortController().signal,
+      fetcher,
+    );
+
+    expect(scene.assetWarnings).toEqual([
+      'Historical feature 1 is malformed and was skipped.',
+    ]);
+    warn.mockRestore();
+  });
+
+  it('leaves the scene unannotated when nothing was dropped', async (): Promise<void> => {
+    clearSnapshotDataCache();
+    const bytes = createAsset('1700');
+    const entry = await createEntry('1700', bytes);
+    const fetcher: SnapshotFetch = async (input) =>
+      String(input).endsWith('index.json')
+        ? new Response(
+            JSON.stringify({
+              version: 1,
+              snapshots: [MODERN_MANIFEST_ENTRY, entry],
+            }),
+            { status: 200 },
+          )
+        : responseFromBytes(bytes);
+
+    const scene = await resolveEffectiveSnapshotScene(
+      '1700',
+      [createModernFeature()],
+      new AbortController().signal,
+      fetcher,
+    );
+
+    expect(scene.assetWarnings).toBeUndefined();
   });
 });

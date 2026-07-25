@@ -129,6 +129,18 @@ function cloneSnapshot(snapshot: CompositionSnapshot): CompositionSnapshot {
   };
 }
 
+/**
+ * A historical asset that lost features to the validator still loads, so the
+ * repaired-composition warning is the honest signal for it.
+ */
+function toSceneWarnings(
+  scene: EffectiveScene,
+): ReadonlyArray<CompositionLoadWarning> {
+  return scene.assetWarnings === undefined || scene.assetWarnings.length === 0
+    ? []
+    : [{ code: 'composition-repaired', path: 'snapshot' }];
+}
+
 function cancelledOutcome(
   storageWarnings: ReadonlyArray<StorageWarning> = [],
 ): CompositionLoadTransactionOutcome {
@@ -334,7 +346,10 @@ export function createCompositionLoadTransaction(
       return finish({
         ok: true,
         sourceVersion: storedResult.value.sourceVersion,
-        compositionWarnings: storedResult.value.warnings,
+        compositionWarnings: [
+          ...storedResult.value.warnings,
+          ...toSceneWarnings(scene),
+        ],
         storageWarnings: storedResult.warnings,
       });
     },

@@ -467,6 +467,35 @@ describe('createCompositionLoadTransaction', (): void => {
     expect(disposedDependencies.onOutcome).not.toHaveBeenCalled();
   });
 
+  it('surfaces dropped historical entries as a repaired-composition warning', async (): Promise<void> => {
+    const scene: EffectiveScene = {
+      ...createScene('1700', ['FRA', 'HIST-HRE']),
+      assetWarnings: ['Historical feature 3 is malformed and was skipped.'],
+    };
+    const dependencies = createDependencies({
+      resolveScene: vi.fn(async () => scene),
+    });
+
+    await expect(
+      createCompositionLoadTransaction(dependencies).load('Historical'),
+    ).resolves.toEqual({
+      ok: true,
+      sourceVersion: 2,
+      compositionWarnings: [{ code: 'composition-repaired', path: 'snapshot' }],
+      storageWarnings: [],
+    });
+  });
+
+  it('reports no warning when the scene dropped nothing', async (): Promise<void> => {
+    const dependencies = createDependencies({
+      resolveScene: vi.fn(async () => createScene('1700', ['FRA'])),
+    });
+
+    await expect(
+      createCompositionLoadTransaction(dependencies).load('Historical'),
+    ).resolves.toMatchObject({ ok: true, compositionWarnings: [] });
+  });
+
   it('focuses the first incoming map entity when prior selection has no valid identity', async (): Promise<void> => {
     const calls: string[] = [];
     const handle = createHandle('visible', calls);

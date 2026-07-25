@@ -44,6 +44,12 @@ export interface EffectiveScene {
   readonly snapshotId: SnapshotId;
   readonly features: ReadonlyArray<SceneFeature>;
   readonly selectableEntityIds: ReadonlySet<CountryId>;
+  /**
+   * Entries the historical asset validator dropped while building this scene.
+   * Carried on the scene so the load transaction can surface them instead of
+   * handing the user a silently partial map.
+   */
+  readonly assetWarnings?: ReadonlyArray<string>;
 }
 
 export interface SnapshotSourceRecord {

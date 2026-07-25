@@ -250,13 +250,20 @@ export async function resolveEffectiveSnapshotScene(
     data: historicalData,
   });
 
-  return composeEffectiveScene({
+  const scene = composeEffectiveScene({
     snapshotId,
     modernFeatures,
     historicalFeatures: historicalData.features,
     replacedModernSourceFeatureIds:
       historicalData.replacedModernSourceFeatureIds,
   });
+
+  // `validateHistoricalAsset` skips duplicate/malformed entries and continues.
+  // Keep those warnings attached to the scene so the load path can tell the
+  // user the map was repaired rather than discarding them here.
+  return historicalData.warnings.length === 0
+    ? scene
+    : { ...scene, assetWarnings: historicalData.warnings };
 }
 
 export function clearSnapshotDataCache(): void {
