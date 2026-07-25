@@ -24,6 +24,8 @@ import {
   composeEffectiveScene,
   getEffectiveSceneColors,
 } from './scene';
+import { createLegacyCompatibleSnapshot } from '../hooks/useLocalStorage';
+import { createInitialCompositionState } from '../providers/CompositionStateProvider';
 
 const TEST_RING: number[][] = [
   [0, 0],
@@ -75,6 +77,46 @@ function withEntries(
     entries,
   };
 }
+
+describe('legend defaults', (): void => {
+  it('gives a fresh map, the provider, and a legacy-migrated map the same legend', (): void => {
+    const fresh = createDefaultLegendState();
+
+    expect(fresh.position).toEqual({ x: 32, y: 32, preset: 'top-left' });
+    expect(fresh.backgroundOpacity).toBe(90);
+    // The coordinates agree with the preset they claim, so the disclosure
+    // summary can never describe a position the render contradicts.
+    expect(getLegendCornerPosition('top-left', { width: 0, height: 0 })).toEqual(
+      fresh.position,
+    );
+    expect(getLegendCornerPosition('top-left', TEST_LEGEND_BOUNDS)).toEqual(
+      fresh.position,
+    );
+
+    expect(createInitialCompositionState().legend).toEqual(fresh);
+    expect(createLegacyCompatibleSnapshot({ FRA: '#DC2626' }).legend).toEqual({
+      ...fresh,
+      entries: [{ color: '#DC2626', label: '#DC2626', order: 0 }],
+    });
+  });
+
+  it('keeps the default valid for the export gate at boot and after the first color', (): void => {
+    const fresh = createDefaultLegendState();
+    const empty = resolveLegendRender(fresh, []);
+    expect(empty.position).toEqual(fresh.position);
+    expect(validateActiveLegend(fresh, [], empty.bounds)).toEqual({
+      ok: true,
+      activeEntries: [],
+    });
+
+    const colored = reconcileLegend(['#DC2626'], fresh);
+    const rendered = resolveLegendRender(colored, ['#DC2626']);
+    expect(rendered.position).toEqual(fresh.position);
+    expect(
+      validateActiveLegend(colored, ['#DC2626'], rendered.bounds),
+    ).toMatchObject({ ok: true });
+  });
+});
 
 describe('reconcileLegend', (): void => {
   it('creates one uppercase entry per unique non-white effective scene color', (): void => {
@@ -301,7 +343,7 @@ describe('validateLegend', (): void => {
         position: { x: 728, y: 32, preset: 'top-right' },
         theme: 'dark',
         textSize: 'large',
-        backgroundOpacity: 0.7,
+        backgroundOpacity: 70,
         borderStyle: 'strong',
       },
     );
@@ -338,7 +380,8 @@ describe('validateLegend', (): void => {
         position: { x: Number.NaN, y: 2000, preset: null },
         theme: 'glass' as LegendState['theme'],
         textSize: 'huge' as LegendState['textSize'],
-        backgroundOpacity: 0.4,
+        // The retired 0-1 scale is now simply out of range.
+        backgroundOpacity: 0.9,
         borderStyle: 'shadow' as LegendState['borderStyle'],
       },
     );
@@ -428,36 +471,38 @@ describe('validateActiveLegend export gate', (): void => {
     // The raw validator still sees the stale stored value, which is exactly why
     // nothing may read the stored position directly.
     expect(
-      validateLegend(
-        { ...strandedRight, backgroundOpacity: 0.9 },
-        effectiveColors,
-        bounds,
-      ),
+      validateLegend(strandedRight, effectiveColors, bounds),
     ).toMatchObject({
       ok: false,
       issues: [{ code: 'invalid-position', path: 'position' }],
     });
   });
 
-  it('converts the stored 0-100 background opacity to the exported ratio', (): void => {
-    const state = withEntries(
-      [{ color: '#DC2626', label: 'Category', order: 0 }],
-      { backgroundOpacity: 90 },
-    );
+  it('validates background opacity on the single stored 0-100 scale', (): void => {
+    const entry = { color: '#DC2626', label: 'Category', order: 0 };
+    const atDefault = withEntries([entry], { backgroundOpacity: 90 });
 
     expect(
-      validateActiveLegend(state, ['#DC2626'], TEST_LEGEND_BOUNDS),
-    ).toEqual({
-      ok: true,
-      activeEntries: [{ color: '#DC2626', label: 'Category', order: 0 }],
-    });
+      validateActiveLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [entry] });
     expect(
-      validateLegend(state, ['#DC2626'], TEST_LEGEND_BOUNDS),
-    ).toMatchObject({
-      ok: false,
-      issues: [
-        { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
-      ],
-    });
+      validateLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [entry] });
+
+    // Off-step, below the floor, and the retired 0-1 scale all fail closed.
+    for (const backgroundOpacity of [72, 65, 105, 0.9]) {
+      expect(
+        validateActiveLegend(
+          withEntries([entry], { backgroundOpacity }),
+          ['#DC2626'],
+          TEST_LEGEND_BOUNDS,
+        ),
+      ).toMatchObject({
+        ok: false,
+        issues: [
+          { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
+        ],
+      });
+    }
   });
 });

@@ -81,10 +81,14 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+/**
+ * `backgroundOpacity` is stored, validated, clamped and displayed on a single
+ * 0-100 percent scale, so there is exactly one conversion to the SVG ratio.
+ * The previous dual handling silently accepted a 0-1 value, which is how a
+ * legacy-migrated map could differ from a fresh one.
+ */
 function getBackgroundOpacity(backgroundOpacity: number): number {
-  return backgroundOpacity <= 1
-    ? clamp(backgroundOpacity, 0.7, 1)
-    : clamp(backgroundOpacity / 100, 0.7, 1);
+  return clamp(backgroundOpacity / 100, 0.7, 1);
 }
 
 function getBorderWidth(borderStyle: LegendState['borderStyle']): number {

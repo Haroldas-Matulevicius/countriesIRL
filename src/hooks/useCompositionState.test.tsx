@@ -17,9 +17,11 @@ import type {
 } from '../types/composition';
 import { useCompositionState } from './useCompositionState';
 
+// Written out rather than imported so a silent change to the single default
+// still has to be acknowledged here.
 const DEFAULT_LEGEND: LegendState = {
   entries: [],
-  position: { x: 0, y: 0, preset: 'top-right' },
+  position: { x: 32, y: 32, preset: 'top-left' },
   theme: 'light',
   textSize: 'medium',
   backgroundOpacity: 90,

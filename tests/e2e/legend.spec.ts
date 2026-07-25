@@ -69,7 +69,7 @@ async function dragLegendToRightEdge(
 async function openLegend(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(LEGEND_FIXTURE_URL);
   await expect(page.getByRole('button', { name: /Legend/ })).toContainText(
-    '3 entries · Top right',
+    '3 entries · Top left',
   );
   await page.getByRole('button', { name: /Legend/ }).click();
   await expect(page.getByLabel(`Legend label for ${RED}`)).toBeVisible();

@@ -26,23 +26,17 @@ import type {
   VisibleCompositionSettings,
 } from '../types/composition';
 import { normalizeColor } from '../utils/colors';
+import { createDefaultLegendState } from '../utils/legend';
 
 const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
 const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
   '#FFFFFF';
-const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
-  x: 0,
-  y: 0,
-  preset: 'top-right',
-});
-const DEFAULT_LEGEND: LegendState = Object.freeze({
-  entries: Object.freeze([]),
-  position: DEFAULT_LEGEND_POSITION,
-  theme: 'light',
-  textSize: 'medium',
-  backgroundOpacity: 90,
-  borderStyle: 'hairline',
-});
+// One default, shared with the legacy save-migration path
+// (`createLegacyCompatibleSnapshot`). A provider-local copy previously stored
+// `{x:0, y:0, preset:'top-right'}`, which both failed `isPositionValid` and
+// contradicted the "Top right" label the disclosure summary showed.
+const DEFAULT_LEGEND: LegendState = Object.freeze(createDefaultLegendState());
+const DEFAULT_LEGEND_POSITION: LegendPosition = DEFAULT_LEGEND.position;
 const DEFAULT_SETTINGS: VisibleCompositionSettings = Object.freeze({
   backgroundColor: DEFAULT_BACKGROUND_COLOR,
 });

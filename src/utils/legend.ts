@@ -23,9 +23,24 @@ const LEGEND_LABEL_MAX_LENGTH = 32;
 const LEGEND_MAX_ACTIVE_ENTRIES = 30;
 const LEGEND_SMALL_NUDGE = 8;
 const LEGEND_LARGE_NUDGE = 32;
-const BACKGROUND_OPACITY_MIN = 0.7;
-const BACKGROUND_OPACITY_MAX = 1;
-const BACKGROUND_OPACITY_STEP = 0.05;
+// One scale, everywhere: the slider, the provider clamp, storage, the
+// validator and the renderer all speak 0-100 percent. The previous 0-1 /
+// 0-100 split is what let two "default" legends disagree.
+const BACKGROUND_OPACITY_MIN = 70;
+const BACKGROUND_OPACITY_MAX = 100;
+const BACKGROUND_OPACITY_STEP = 5;
+
+/**
+ * The single legend default. `top-left` is the only preset whose coordinates
+ * are bounds-independent (32,32 is valid for every legend that fits the
+ * canvas), so the stored value can never contradict its own preset.
+ */
+export const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
+  x: LEGEND_SAFE_INSET,
+  y: LEGEND_SAFE_INSET,
+  preset: 'top-left',
+});
+export const DEFAULT_LEGEND_BACKGROUND_OPACITY = 90;
 
 const LEGEND_THEMES = new Set(['light', 'dark', 'soft']);
 const LEGEND_TEXT_SIZES = new Set(['small', 'medium', 'large']);
@@ -230,14 +245,10 @@ export function clampLegendPosition(
 export function createDefaultLegendState(): LegendState {
   return {
     entries: [],
-    position: {
-      x: LEGEND_SAFE_INSET,
-      y: LEGEND_SAFE_INSET,
-      preset: 'top-right',
-    },
+    position: { ...DEFAULT_LEGEND_POSITION },
     theme: 'light',
     textSize: 'medium',
-    backgroundOpacity: 0.9,
+    backgroundOpacity: DEFAULT_LEGEND_BACKGROUND_OPACITY,
     borderStyle: 'hairline',
   };
 }
@@ -564,9 +575,8 @@ export function validateLegend(
 
 /**
  * Validates the legend exactly as the exporter will render it: only the entries
- * whose color is still active in the scene, with the stored 0-100 background
- * opacity converted to the 0-1 ratio the renderer uses, and the position
- * resolved against the current bounds exactly as `LegendOverlay` resolves it.
+ * whose color is still active in the scene, and the position resolved against
+ * the current bounds exactly as `LegendOverlay` resolves it.
  *
  * Because the renderer and this gate share `resolveLegendPosition`,
  * `invalid-position` is unreachable here for any legend whose bounds fit the
@@ -585,7 +595,6 @@ export function validateActiveLegend(
     {
       ...legend,
       entries: getActiveLegendEntries(effectiveColors, legend),
-      backgroundOpacity: legend.backgroundOpacity / 100,
       position: resolveLegendPosition(legend.position, bounds),
     },
     effectiveColors,

@@ -40,7 +40,14 @@ export interface UseLocalStorageValue {
   dismissOnboarding: () => StorageResult<boolean>;
 }
 
-function createLegacyCompatibleSnapshot(colors: ColorMap): CompositionSnapshot {
+/**
+ * Phase 1 -> Phase 2 migration path: a legacy colors-only save is widened into
+ * a full composition. Its legend must come from the same default as a fresh
+ * map, or legacy-migrated maps silently get different legend styling.
+ */
+export function createLegacyCompatibleSnapshot(
+  colors: ColorMap,
+): CompositionSnapshot {
   return {
     colors,
     camera: INITIAL_WORLD_CAMERA,
