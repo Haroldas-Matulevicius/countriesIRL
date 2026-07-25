@@ -43,7 +43,7 @@ interface DriverHarness {
   readonly finishTransition: () => void;
   readonly commitCamera: ReturnType<typeof vi.fn>;
   readonly interrupt: ReturnType<typeof vi.fn>;
-  readonly cancelFrame: ReturnType<typeof vi.fn>;
+  readonly setInputEnabled: ReturnType<typeof vi.fn>;
   readonly cleanup: ReturnType<typeof vi.fn>;
 }
 
@@ -54,7 +54,9 @@ function createDriverHarness(): DriverHarness {
   let transitionEnd: (() => void) | null = null;
   const commitCamera = vi.fn();
   const interrupt = vi.fn();
-  const cancelFrame = vi.fn();
+  const setInputEnabled = vi.fn((isEnabled: boolean): void => {
+    isInputEnabled = isEnabled;
+  });
   const cleanup = vi.fn();
 
   return {
@@ -63,11 +65,8 @@ function createDriverHarness(): DriverHarness {
       paintTransform: (transform): void => {
         paintedTransform = transform;
       },
-      setInputEnabled: (isEnabled): void => {
-        isInputEnabled = isEnabled;
-      },
+      setInputEnabled,
       interrupt,
-      cancelFrame,
       transitionTo: (target, onFrame, onEnd): void => {
         transitionFrame = onFrame;
         transitionEnd = onEnd;
@@ -84,7 +83,7 @@ function createDriverHarness(): DriverHarness {
     finishTransition: (): void => transitionEnd?.(),
     commitCamera,
     interrupt,
-    cancelFrame,
+    setInputEnabled,
     cleanup,
   };
 }
@@ -184,7 +183,6 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(false);
     expect(harness.interrupt).toHaveBeenCalledTimes(1);
-    expect(harness.cancelFrame).toHaveBeenCalledTimes(1);
     expect(lease.camera).toEqual(transformToCamera(visibleTransform));
     expect(controller.readCurrentCamera()).toEqual(lease.camera);
     expect(harness.commitCamera).toHaveBeenLastCalledWith(lease.camera);
@@ -194,6 +192,29 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(true);
     expect(harness.getPaintedTransform()).toMatchObject({ k: 2, x: -120, y: 0 });
+  });
+
+  it('takes no freeze lease when a driver side effect throws', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    harness.interrupt.mockImplementationOnce((): void => {
+      throw new Error('interrupt failed');
+    });
+
+    expect((): void => {
+      controller.freezeAndSnapshot();
+    }).toThrow('interrupt failed');
+
+    // Input is renewed and the camera is not locked: a later freeze/release
+    // pair still works, so the camera never gets stuck without a lease holder.
+    expect(harness.getInputEnabled()).toBe(true);
+    controller.zoomBy(2);
+    expect(harness.getPaintedTransform().k).toBeGreaterThan(1);
+
+    const lease = controller.freezeAndSnapshot();
+    expect(harness.getInputEnabled()).toBe(false);
+    lease.release();
+    expect(harness.getInputEnabled()).toBe(true);
   });
 
   it('keeps nested and repeated lease release exact-once in effect', (): void => {
@@ -236,7 +257,6 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(true);
     expect(harness.interrupt).toHaveBeenCalled();
-    expect(harness.cancelFrame).toHaveBeenCalled();
     expect(harness.cleanup).toHaveBeenCalledTimes(1);
   });
 });

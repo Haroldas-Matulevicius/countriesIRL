@@ -175,6 +175,17 @@ export function createCompositionLoadTransaction(
     return outcome;
   };
 
+  /**
+   * Drops the reference only when it still points at this request, so a load
+   * that lost the race can release its aborted controller without clobbering
+   * the controller of the load that superseded it.
+   */
+  const releaseController = (controller: AbortController): void => {
+    if (activeController === controller) {
+      activeController = null;
+    }
+  };
+
   const cancel = (): void => {
     requestVersion += 1;
     activeController?.abort();
@@ -201,9 +212,10 @@ export function createCompositionLoadTransaction(
         storedResult = dependencies.loadStoredComposition(name);
       } catch {
         if (version !== requestVersion || controller.signal.aborted) {
+          releaseController(controller);
           return cancelledOutcome();
         }
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'storage-unavailable',
@@ -212,10 +224,11 @@ export function createCompositionLoadTransaction(
       }
 
       if (version !== requestVersion || controller.signal.aborted) {
+        releaseController(controller);
         return cancelledOutcome(storedResult.ok ? storedResult.warnings : []);
       }
       if (!storedResult.ok) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: storedResult.reason,
@@ -223,7 +236,7 @@ export function createCompositionLoadTransaction(
         });
       }
       if (!storedResult.value.ok) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: storedResult.value.reason,
@@ -240,9 +253,10 @@ export function createCompositionLoadTransaction(
         );
       } catch {
         if (version !== requestVersion || controller.signal.aborted) {
+          releaseController(controller);
           return cancelledOutcome(storedResult.warnings);
         }
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'snapshot-resolution-failed',
@@ -255,10 +269,11 @@ export function createCompositionLoadTransaction(
         controller.signal.aborted ||
         isDisposed
       ) {
+        releaseController(controller);
         return cancelledOutcome(storedResult.warnings);
       }
       if (scene.snapshotId !== snapshot.snapshotId) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'snapshot-resolution-failed',
@@ -268,7 +283,7 @@ export function createCompositionLoadTransaction(
 
       const mapCanvasHandle = dependencies.getMapCanvasHandle();
       if (mapCanvasHandle === null) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'map-canvas-unavailable',
@@ -293,7 +308,7 @@ export function createCompositionLoadTransaction(
       try {
         rollbackState = dependencies.captureRollbackState();
       } catch {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'commit-failed',
@@ -308,7 +323,7 @@ export function createCompositionLoadTransaction(
         didRestoreCamera = false;
       }
       if (!didRestoreCamera) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'camera-restore-blocked',
@@ -327,14 +342,14 @@ export function createCompositionLoadTransaction(
         try {
           dependencies.rollback(rollbackState, mapCanvasHandle);
         } catch {
-          activeController = null;
+          releaseController(controller);
           return finish({
             ok: false,
             reason: 'commit-failed',
             storageWarnings: storedResult.warnings,
           });
         }
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'commit-failed',
@@ -342,7 +357,7 @@ export function createCompositionLoadTransaction(
         });
       }
 
-      activeController = null;
+      releaseController(controller);
       return finish({
         ok: true,
         sourceVersion: storedResult.value.sourceVersion,

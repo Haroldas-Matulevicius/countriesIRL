@@ -35,7 +35,6 @@ export interface CameraControllerDriver {
   paintTransform(transform: ZoomTransform): void;
   setInputEnabled(isEnabled: boolean): void;
   interrupt(): void;
-  cancelFrame(): void;
   transitionTo(
     target: ZoomTransform,
     onFrame: (transform: ZoomTransform) => void,
@@ -122,17 +121,31 @@ export function createCameraController(
         return { camera, release: (): void => undefined };
       }
 
-      activeFreezeCount += 1;
-      if (activeFreezeCount === 1) {
-        driver.setInputEnabled(false);
-        driver.interrupt();
-        driver.cancelFrame();
-        currentTransform = constrainCameraTransform(
-          driver.readPaintedTransform(),
-        );
-        driver.paintTransform(currentTransform);
-        driver.commitCamera(transformToCamera(currentTransform));
+      // Count the lease only after the driver side effects succeed: a throwing
+      // setInputEnabled/interrupt used to leave the camera locked forever
+      // because no lease was ever returned to release.
+      if (activeFreezeCount === 0) {
+        try {
+          driver.setInputEnabled(false);
+          driver.interrupt();
+          currentTransform = constrainCameraTransform(
+            driver.readPaintedTransform(),
+          );
+          driver.paintTransform(currentTransform);
+          driver.commitCamera(transformToCamera(currentTransform));
+        } catch (error) {
+          try {
+            driver.setInputEnabled(true);
+          } catch (renewError) {
+            globalThis.console.error(
+              'CountriesIRL could not renew camera input after a failed freeze.',
+              renewError,
+            );
+          }
+          throw error;
+        }
       }
+      activeFreezeCount += 1;
 
       let isReleased = false;
       const camera = transformToCamera(currentTransform);
@@ -229,7 +242,6 @@ export function createCameraController(
       isDestroyed = true;
       activeFreezeCount = 0;
       driver.interrupt();
-      driver.cancelFrame();
       driver.setInputEnabled(true);
       driver.cleanup();
     },
@@ -285,7 +297,6 @@ export function useCameraController({
     const initialTransform = cameraToTransform(INITIAL_WORLD_CAMERA);
     let paintedTransform = initialTransform;
     let isInputEnabled = true;
-    let frameId: number | null = null;
     let activeTransition: ProgrammaticTransition | null = null;
 
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<
@@ -350,12 +361,6 @@ export function useCameraController({
       interrupt: (): void => {
         activeTransition = null;
         svgSelection.interrupt(CAMERA_TRANSITION_NAME);
-      },
-      cancelFrame: (): void => {
-        if (frameId !== null) {
-          cancelAnimationFrame(frameId);
-          frameId = null;
-        }
       },
       transitionTo: (target, onFrame, onEnd): void => {
         activeTransition = { onFrame, onEnd };
