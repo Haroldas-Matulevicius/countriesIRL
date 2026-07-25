@@ -248,7 +248,10 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
       style={positionStyle}
     >
       <strong className="map-tooltip__country">{data.countryName}</strong>
-      <span className="map-tooltip__color">Current color: {data.color}</span>
+      <span className="map-tooltip__color">
+        Current color: {data.color.toUpperCase()}
+      </span>
+      <span className="map-tooltip__boundary">{data.boundaryLine}</span>
     </div>
   );
 }

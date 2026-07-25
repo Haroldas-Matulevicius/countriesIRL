@@ -160,6 +160,7 @@ describe('observeKeyboardTooltipAnchor', () => {
       pathElement,
       TOOLTIP_TEST_FEATURE,
       '#123456',
+      'Modern boundary',
     );
     expect(initialKeyboardData).toMatchObject({
       inputMethod: 'keyboard',
@@ -170,11 +171,13 @@ describe('observeKeyboardTooltipAnchor', () => {
       { clientX: 50, clientY: 60 } as PointerEvent,
       TOOLTIP_TEST_FEATURE,
       '#123456',
+      'Modern boundary',
     );
     const pointerMoveData = pointerTooltipData(
       { clientX: 70, clientY: 80 } as PointerEvent,
       TOOLTIP_TEST_FEATURE,
       '#123456',
+      'Modern boundary',
     );
     expect(pointerEnterData.inputMethod).toBe('pointer');
     expect(pointerMoveData).toMatchObject({
@@ -188,6 +191,7 @@ describe('observeKeyboardTooltipAnchor', () => {
       pathElement,
       TOOLTIP_TEST_FEATURE,
       '#123456',
+      'Modern boundary',
     );
     expect(restoredData).toMatchObject({
       countryId: 'TST',
@@ -203,6 +207,7 @@ describe('observeKeyboardTooltipAnchor', () => {
         null,
         TOOLTIP_TEST_FEATURE,
         '#123456',
+        'Modern boundary',
       ),
     ).toBeNull();
     if (restoredData?.inputMethod !== 'keyboard') {

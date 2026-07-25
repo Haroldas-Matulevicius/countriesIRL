@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL History fixture</title>
+    <link rel="stylesheet" href="/src/styles/theme.css" />
+    <link rel="stylesheet" href="/src/styles/MapCanvas.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        font-family: sans-serif;
+      }
+
+      #root {
+        padding: 24px;
+      }
+
+      .map-workspace {
+        width: 540px;
+      }
+
+      .map-export-source,
+      .map-canvas {
+        display: block;
+        width: 540px;
+        height: 540px;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement as h, useCallback, useRef, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { CompositionBar } from '/src/components/CompositionBar.tsx';
+      import { MapWorkspace } from '/src/components/MapWorkspace.tsx';
+      import { composeEffectiveScene, reconcileSelectionForScene } from '/src/utils/scene.ts';
+      import { getPeriodLabel, PERIOD_COPY, getHistoricalCoverageStatus } from '/src/utils/periods.ts';
+
+      const RING = (west, south, east, north) => [
+        [
+          [west, south],
+          [west, north],
+          [east, north],
+          [east, south],
+          [west, south],
+        ],
+      ];
+
+      function unit(id, name, box, overrides = {}) {
+        return {
+          type: 'Feature',
+          id,
+          properties: { name },
+          geometry: { type: 'Polygon', coordinates: RING(...box) },
+          sourceFeatureId: id,
+          entityId: id,
+          colorOwnerId: id,
+          isSelectable: true,
+          interactionMode: 'modern-core',
+          boundaryMode: 'modern',
+          provenanceId: 'history-fixture',
+          ...overrides,
+        };
+      }
+
+      const MODERN_FEATURES = [
+        unit('FRA', 'France', [-5, 42, 8, 51]),
+        unit('DEU', 'Germany', [22, 47, 32, 55]),
+      ];
+      const HISTORICAL_FEATURES = [
+        unit('HIST-HRE', 'Holy Roman Empire', [5, 45, 18, 55], {
+          interactionMode: 'historical-entity',
+          boundaryMode: 'historical',
+        }),
+      ];
+
+      const MODERN_SCENE = composeEffectiveScene({
+        snapshotId: 'modern',
+        modernFeatures: MODERN_FEATURES,
+      });
+      const HISTORICAL_SCENE = composeEffectiveScene({
+        snapshotId: '1700',
+        modernFeatures: MODERN_FEATURES,
+        historicalFeatures: HISTORICAL_FEATURES,
+        replacedModernSourceFeatureIds: new Set(['FRA']),
+      });
+      const SCENES = { modern: MODERN_SCENE, 1700: HISTORICAL_SCENE };
+      const PERIODS = [
+        { id: 'modern', label: 'Modern — current borders' },
+        { id: '1700', label: '1700 — Post-Westphalia Europe' },
+      ];
+
+      // Records every outgoing crossfade group the moment it is attached, so the
+      // assertions do not race the 160ms fade.
+      const outgoingObservations = [];
+      new MutationObserver((records) => {
+        records.forEach((record) => {
+          record.addedNodes.forEach((node) => {
+            if (
+              node.nodeType === 1 &&
+              node.getAttribute('data-layer') === 'outgoing-scene'
+            ) {
+              outgoingObservations.push({
+                ariaHidden: node.getAttribute('aria-hidden'),
+                pointerEvents: node.style.pointerEvents,
+                role: node.getAttribute('role'),
+                countryIdCount: node.querySelectorAll('[data-country-id]').length,
+                titleCount: node.querySelectorAll('title').length,
+                focusableCount: node.querySelectorAll(
+                  '[focusable="true"], [tabindex="0"]',
+                ).length,
+                pathCount: node.querySelectorAll('path').length,
+              });
+            }
+          });
+        });
+      }).observe(document.body, { childList: true, subtree: true });
+
+      function HistoryFixture() {
+        const mapRef = useRef(null);
+        const [snapshotId, setSnapshotId] = useState('modern');
+        const [selectedIds, setSelectedIds] = useState(new Set());
+        const [status, setStatus] = useState('');
+        const scene = SCENES[snapshotId];
+
+        const handlePeriodChange = useCallback((nextSnapshotId) => {
+          const nextScene = SCENES[nextSnapshotId];
+          if (nextScene === undefined) {
+            return;
+          }
+          setSnapshotId(nextSnapshotId);
+          setSelectedIds((current) =>
+            reconcileSelectionForScene(current, nextScene),
+          );
+          setStatus(`Showing ${getPeriodLabel(PERIODS, nextSnapshotId)}.`);
+        }, []);
+
+        const handleSelectCountry = useCallback(
+          (countryId) => {
+            setSelectedIds((current) => {
+              const next = new Set(current);
+              if (next.has(countryId)) {
+                next.delete(countryId);
+              } else if (scene.selectableEntityIds.has(countryId)) {
+                next.add(countryId);
+              }
+              return next;
+            });
+          },
+          [scene],
+        );
+
+        window.__historyFixture = {
+          readSelectedIds: () => [...selectedIds].sort(),
+          readOutgoingObservations: () => outgoingObservations.slice(),
+          readCamera: () => mapRef.current?.readCurrentCamera() ?? null,
+          finalizeSelectedScene: () => mapRef.current?.finalizeSelectedScene(),
+        };
+
+        return h(
+          'div',
+          null,
+          h(MapWorkspace, {
+            geoData: {
+              status: 'ready',
+              features: MODERN_FEATURES,
+              coreFeatures: MODERN_FEATURES,
+              lookup: new Map(),
+              coreLookup: new Map(),
+              entityLookup: new Map(),
+              countryMetadata: [],
+              warnings: [],
+            },
+            compositionBar: h(CompositionBar, {
+              periods: PERIODS,
+              selectedPeriodId: snapshotId,
+              statusMessage:
+                snapshotId === 'modern'
+                  ? PERIOD_COPY.modernStatus
+                  : getHistoricalCoverageStatus([
+                      'poland',
+                      'lithuania',
+                      'hungary',
+                      'balkans',
+                      'iberia',
+                      'scandinavia',
+                    ]),
+              isPeriodDisabled: false,
+              isResetViewDisabled: false,
+              onPeriodChange: handlePeriodChange,
+              onResetView: () => {
+                mapRef.current?.resetView();
+                setStatus(PERIOD_COPY.viewReset);
+              },
+            }),
+            snapshotId,
+            periodLabel: getPeriodLabel(PERIODS, snapshotId),
+            features: scene.features,
+            colors: {},
+            selectedIds,
+            exportSourceRef: mapRef,
+            onSelectCountry: handleSelectCountry,
+            onClearSelection: () => setSelectedIds(new Set()),
+            onReload: () => undefined,
+          }),
+          h('p', { 'data-fixture-status': 'true', role: 'status' }, status),
+        );
+      }
+
+      createRoot(document.getElementById('root')).render(h(HistoryFixture));
+    </script>
+  </body>
+</html>

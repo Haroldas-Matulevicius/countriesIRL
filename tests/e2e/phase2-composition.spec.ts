@@ -14,6 +14,9 @@ const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
 const PRIMARY_UNIT_SELECTOR = 'path.scene-path[data-primary-unit="true"]';
 const ALL_SCENE_PATH_SELECTOR = 'path.scene-path';
+// UI-SPEC section 20: the map label names the active period.
+const MODERN_MAP_LISTBOX_NAME =
+  'Interactive world map, Modern — current borders';
 const HISTORICAL_ENTITY_ID = 'HIST-HRE';
 const HISTORICAL_LABEL = 'Holy Roman Empire';
 const HISTORICAL_ASSET_PATH = '/data/snapshots/1700.geojson';
@@ -359,7 +362,7 @@ test('world baseline exposes 195 logical states and 248 modern units', async ({
   await page.goto('/');
 
   const mapListbox = page.getByRole('listbox', {
-    name: 'Interactive map of the world',
+    name: MODERN_MAP_LISTBOX_NAME,
   });
   const logicalPaths = mapListbox.locator(LOGICAL_PATH_SELECTOR);
   const primaryUnits = mapListbox.locator(PRIMARY_UNIT_SELECTOR);
@@ -626,7 +629,7 @@ test('real app saves and loads the complete composition after responsive rebindi
     'Visited France',
   );
   const mapListbox = page.getByRole('listbox', {
-    name: 'Interactive map of the world',
+    name: MODERN_MAP_LISTBOX_NAME,
   });
   const moveLegend = page.getByRole('button', { name: 'Move legend' });
   await expect(mapListbox).toHaveCount(1);
@@ -770,7 +773,7 @@ test('a duplicate-identity scene degrades to the fatal error state instead of a 
   // cannot catch it - this is the failure only the `main.tsx` boundary covers,
   // and it must reach a real error surface rather than an empty document.
   const fatalError = page.getByRole('alert');
-  await expect(fatalError).toContainText("We couldn't load the Europe map");
+  await expect(fatalError).toContainText("We couldn't load the world map");
   await expect(
     fatalError.getByRole('button', { name: 'Reload Map' }),
   ).toBeVisible();

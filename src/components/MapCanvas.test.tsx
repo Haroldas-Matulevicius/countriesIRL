@@ -10,8 +10,10 @@ import {
   type CameraControllerDriver,
 } from '../hooks/useCameraController';
 import {
+  CROSSFADE_DURATION_MS,
   MapCanvas,
   createWrappedSceneModel,
+  resolveCrossfadeDuration,
   getSceneFeatureColor,
   getSelectableSceneFeatures,
 } from './MapCanvas';
@@ -304,6 +306,8 @@ describe('MapCanvas accessibility structure', (): void => {
   it('keeps the editable legend outside the country listbox', (): void => {
     const markup = renderToStaticMarkup(
       <MapCanvas
+        snapshotId="modern"
+        periodLabel="Modern — current borders"
         features={[]}
         colors={{}}
         selectedIds={new Set()}
@@ -328,6 +332,42 @@ describe('MapCanvas accessibility structure', (): void => {
     expect(markup.match(/role="button"/gu)).toHaveLength(1);
     expect(listboxStart).toBeGreaterThan(svgOpeningEnd);
     expect(listboxEnd).toBeLessThan(legendStart);
+  });
+
+  it('keeps one canonical SVG with the camera group before the legend group', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapCanvas
+        snapshotId="modern"
+        periodLabel="Modern — current borders"
+        features={[]}
+        colors={{}}
+        selectedIds={new Set()}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onTooltipChange={vi.fn()}
+        legendSlot={<g data-layer="legend" />}
+      />,
+    );
+    const cameraStart = markup.indexOf('data-layer="camera"');
+    const cameraEnd = markup.indexOf('data-layer="legend"');
+    const outgoingStart = markup.indexOf('data-layer="outgoing-scenes"');
+
+    expect(markup.match(/<svg\b/gu)).toHaveLength(1);
+    expect(cameraStart).toBeGreaterThan(-1);
+    expect(cameraStart).toBeLessThan(outgoingStart);
+    expect(outgoingStart).toBeLessThan(markup.indexOf('data-layer="countries"'));
+    expect(cameraEnd).toBeGreaterThan(markup.indexOf('data-layer="countries"'));
+    // The outgoing host is named out of the accessibility tree even when empty,
+    // so a scene fading out can never be announced alongside the selected one.
+    expect(
+      markup.slice(outgoingStart, markup.indexOf('/>', outgoingStart)),
+    ).toContain('aria-hidden="true"');
+  });
+
+  it('removes the crossfade under reduced motion and keeps 160ms otherwise', (): void => {
+    expect(CROSSFADE_DURATION_MS).toBe(160);
+    expect(resolveCrossfadeDuration(true)).toBe(0);
+    expect(resolveCrossfadeDuration(false)).toBe(160);
   });
 });
 

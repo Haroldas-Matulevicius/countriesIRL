@@ -3,6 +3,7 @@ import {
   LEGEND_LABEL_FIT_MESSAGE,
   LEGEND_OVERFLOW_MESSAGE,
 } from '../utils/legend';
+import { APPROVED_PERIOD_ANNOUNCEMENTS } from '../utils/periods';
 
 const EXPORT_FAILURE_MESSAGE =
   'The PNG could not be created. Refresh the page and try Export PNG again.';
@@ -54,6 +55,9 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   // the allowlist stays fail-closed on anything else.
   LEGEND_LABEL_FIT_MESSAGE,
   LEGEND_OVERFLOW_MESSAGE,
+  // Reset View and the period switch announce approved copy only: a period
+  // label supplied by the catalog can never reach the live region.
+  ...APPROVED_PERIOD_ANNOUNCEMENTS,
 ]);
 
 const SELECTION_MESSAGE_PATTERN = /^\d+ (?:country|countries) selected\.$/;

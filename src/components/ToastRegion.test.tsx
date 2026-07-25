@@ -94,6 +94,28 @@ describe('color application messages', (): void => {
     );
   });
 
+  it('announces approved period copy and degrades catalog-supplied text', (): void => {
+    const renderStatus = (message: string): string =>
+      renderToStaticMarkup(
+        <ToastRegion
+          message={{ id: 'period', severity: 'info', message }}
+          onDismiss={vi.fn()}
+        />,
+      );
+
+    expect(renderStatus('Map view reset.')).toContain('Map view reset.');
+    expect(renderStatus('Showing Modern — current borders.')).toContain(
+      'Showing Modern — current borders.',
+    );
+    expect(renderStatus('Showing 1700 — Post-Westphalia Europe.')).toContain(
+      'Showing 1700 — Post-Westphalia Europe.',
+    );
+    // A label the catalog supplied is data, not approved copy.
+    expect(renderStatus('Showing 1700 — click here now.')).toContain(
+      'Map updated.',
+    );
+  });
+
   it('preserves every bounded legend announcement category', (): void => {
     // React escapes the message when it renders it as text, so compare against
     // the escaped form rather than allowlisting a reduced charset upstream.

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { COLOR_PRESETS } from '../constants/colors';
-import type { ColorMap, MapState } from '../types/map';
+import type { ColorMap, CountryId, MapState } from '../types/map';
 import {
   MapStateContext,
   MapStateProvider,
@@ -11,6 +11,7 @@ import {
 import { ColorPicker } from './ColorPicker';
 
 const NATIVE_DISABLED_ATTRIBUTE = /\sdisabled(?:=""|(?=[\s>]))/;
+const SELECTABLE_COUNTRY_IDS: ReadonlySet<CountryId> = new Set(['FR']);
 
 function renderColorPickerWithState(state: MapState): string {
   const value: MapStateContextValue = {
@@ -34,6 +35,7 @@ function renderColorPickerWithState(state: MapState): string {
   return renderToStaticMarkup(
     <MapStateContext.Provider value={value}>
       <ColorPicker
+        selectableCountryIds={SELECTABLE_COUNTRY_IDS}
         customDraft=""
         onCustomDraftChange={vi.fn()}
         onStatus={vi.fn()}
@@ -57,6 +59,7 @@ describe('ColorPicker', () => {
     const markup = renderToStaticMarkup(
       <MapStateProvider>
         <ColorPicker
+          selectableCountryIds={SELECTABLE_COUNTRY_IDS}
           customDraft=""
           onCustomDraftChange={vi.fn()}
           onStatus={onStatus}
@@ -91,6 +94,41 @@ describe('ColorPicker', () => {
     expect(customInput).toMatch(NATIVE_DISABLED_ATTRIBUTE);
     expect(customApplyButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
     expect(onStatus).not.toHaveBeenCalled();
+  });
+
+  it('ignores selected ids the active scene cannot render', () => {
+    const value: MapStateContextValue = {
+      state: createSelectedState({}),
+      canUndo: false,
+      canRedo: false,
+      canReset: false,
+      selectCountry: vi.fn(),
+      replaceSelection: vi.fn(),
+      toggleSelection: vi.fn(),
+      clearSelection: vi.fn(),
+      setColor: vi.fn(() => false),
+      setColors: vi.fn(() => false),
+      resetColors: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      loadState: vi.fn(),
+      restoreState: vi.fn(),
+    };
+    const markup = renderToStaticMarkup(
+      <MapStateContext.Provider value={value}>
+        <ColorPicker
+          selectableCountryIds={new Set()}
+          customDraft=""
+          onCustomDraftChange={vi.fn()}
+          onStatus={vi.fn()}
+        />
+      </MapStateContext.Provider>,
+    );
+    const redButton = markup.match(
+      /<button\b[^>]*aria-label="Apply Red"[^>]*>/,
+    )?.[0];
+
+    expect(redButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
   });
 
   it('natively disables the active preset for colored and effective-white selections', () => {

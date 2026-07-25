@@ -37,6 +37,12 @@ export interface MapCanvasHandle {
   locate(countryId: CountryId): boolean;
   restore(camera: CameraState): boolean;
   focusCountry(countryId: CountryId): void;
+  /**
+   * Removes the outgoing crossfade scene and paints the selected scene at full
+   * opacity before the caller reads the DOM. Synchronous by contract: export
+   * captures the frame it returns on.
+   */
+  finalizeSelectedScene(): void;
   getExportSource(): HTMLDivElement | null;
 }
 
