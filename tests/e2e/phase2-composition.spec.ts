@@ -770,6 +770,58 @@ test('real app export failure and frozen load both release without false success
     .toBeGreaterThan(beforeFailedExport.k);
 });
 
+test('a collapsed Legend panel never leaves Export PNG permanently blocked', async ({
+  page,
+}): Promise<void> => {
+  page.on('download', (download): void => {
+    void download.cancel();
+  });
+  await waitForApp(page);
+  await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
+
+  const francePath = page.locator('path.country-path[data-country-id="FRA"]');
+  await francePath.focus();
+  await francePath.press('Enter');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+
+  const legendToggle = page.getByRole('button', { name: /^Legend/ });
+  await legendToggle.click();
+  await page.getByLabel('Large').check();
+  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  await legendLabel.fill('12345678901234567890123456789012');
+  await legendLabel.press('Enter');
+  await expect(
+    page.getByText('Shorten this label so it fits in the exported legend.'),
+  ).toBeVisible();
+
+  // The gate is live, so a genuinely invalid legend still blocks the export.
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(
+    page.getByText(
+      'The PNG could not be created. Refresh the page and try Export PNG again.',
+    ),
+  ).toBeVisible();
+
+  // Collapsing the disclosure unmounts the editor; resetting the colors makes
+  // the legend trivially valid again. The gate must follow the live state.
+  await legendToggle.click();
+  await expect(page.getByLabel('Legend label for #DC2626')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Reset All Colors' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Dismiss Message' }).click();
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.getByText(
+      'The PNG could not be created. Refresh the page and try Export PNG again.',
+    ),
+  ).toHaveCount(0);
+});
+
 test('real app round-trips a historical scene with live catalog and exported legend', async ({
   page,
 }): Promise<void> => {

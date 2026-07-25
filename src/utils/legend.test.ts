@@ -14,6 +14,7 @@ import {
   nudgeLegendPosition,
   reconcileLegend,
   reconcileLegendForScene,
+  validateActiveLegend,
   validateLegend,
   validateLegendForScene,
 } from './legend';
@@ -299,6 +300,50 @@ describe('validateLegend', (): void => {
     ).toMatchObject({
       ok: false,
       issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
+    });
+  });
+});
+
+describe('validateActiveLegend export gate', (): void => {
+  it('re-evaluates from live state so a cleared color unblocks a previously failing legend', (): void => {
+    const overflowing = withEntries(
+      [{ color: '#DC2626', label: 'x'.repeat(32), order: 0 }],
+      { textSize: 'large', backgroundOpacity: 90 },
+    );
+
+    expect(
+      validateActiveLegend(overflowing, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toMatchObject({
+      ok: false,
+      issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
+    });
+
+    // Reset All Colors leaves the stored entry in place but drops every active
+    // color, so the export gate must clear even though the entry never changed.
+    expect(
+      validateActiveLegend(overflowing, ['#FFFFFF'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [] });
+  });
+
+  it('converts the stored 0-100 background opacity to the exported ratio', (): void => {
+    const state = withEntries(
+      [{ color: '#DC2626', label: 'Category', order: 0 }],
+      { backgroundOpacity: 90 },
+    );
+
+    expect(
+      validateActiveLegend(state, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({
+      ok: true,
+      activeEntries: [{ color: '#DC2626', label: 'Category', order: 0 }],
+    });
+    expect(
+      validateLegend(state, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toMatchObject({
+      ok: false,
+      issues: [
+        { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
+      ],
     });
   });
 });

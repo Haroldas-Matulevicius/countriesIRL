@@ -25,7 +25,10 @@ import { ColorPicker } from './components/ColorPicker';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
 import { LegendDisclosure } from './components/LegendDisclosure';
-import { LegendEditor } from './components/LegendEditor';
+import {
+  LegendEditor,
+  getLegendBlockingMessage,
+} from './components/LegendEditor';
 import type { LegendEditorCommands } from './components/LegendEditor';
 import {
   LegendOverlay,
@@ -51,7 +54,7 @@ import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
 import {
   getActiveLegendEntries,
-  type LegendValidationResult,
+  validateActiveLegend,
 } from './utils/legend';
 import {
   composeEffectiveScene,
@@ -164,8 +167,6 @@ export default function App(): JSX.Element {
   const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
   const [pendingLoadedFocusId, setPendingLoadedFocusId] =
     useState<CountryId | null>(null);
-  const [legendValidation, setLegendValidation] =
-    useState<LegendValidationResult | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
@@ -232,6 +233,21 @@ export default function App(): JSX.Element {
     () => getLegendOverlayBounds(compositionState.legend, effectiveColors),
     [compositionState.legend, effectiveColors],
   );
+  // Derived in App, never reported up from the Legend editor: the editor only
+  // exists while the disclosure is expanded, so an editor-owned verdict would
+  // outlive the component that can clear it and permanently block Export PNG.
+  //
+  // The gate uses the same classification the editor shows the user, so it can
+  // only ever block on an issue the user is told about and can fix (an
+  // over-long label, or more than 30 legend colors).
+  const legendExportBlocker = useMemo((): string | null => {
+    const validation = validateActiveLegend(
+      compositionState.legend,
+      effectiveColors,
+      legendBounds,
+    );
+    return validation.ok ? null : getLegendBlockingMessage(validation.issues);
+  }, [compositionState.legend, effectiveColors, legendBounds]);
   const legendCommands = useMemo<LegendEditorCommands>(
     () => ({
       setLegendEntry,
@@ -555,7 +571,7 @@ export default function App(): JSX.Element {
     if (exportInProgressRef.current) {
       return;
     }
-    if (legendValidation?.ok === false) {
+    if (legendExportBlocker !== null) {
       showExportFailure();
       return;
     }
@@ -592,7 +608,7 @@ export default function App(): JSX.Element {
     } else {
       showExportFailure();
     }
-  }, [legendValidation, setCamera, showExportFailure, showStatus]);
+  }, [legendExportBlocker, setCamera, showExportFailure, showStatus]);
 
   useEffect((): void => {
     exportHandlerRef.current = (): void => {
@@ -675,7 +691,6 @@ export default function App(): JSX.Element {
           bounds={legendBounds}
           commands={legendCommands}
           onStatusMessage={showStatus}
-          onValidationChange={setLegendValidation}
         />
       </LegendDisclosure>
     </div>

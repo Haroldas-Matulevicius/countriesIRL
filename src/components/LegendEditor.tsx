@@ -26,7 +26,7 @@ import {
   getActiveLegendEntries,
   getLegendCornerPosition,
   nudgeLegendPosition,
-  validateLegend,
+  validateActiveLegend,
 } from '../utils/legend';
 import type {
   LegendBounds,
@@ -92,7 +92,6 @@ interface LegendEditorProps {
   bounds: LegendBounds;
   commands: LegendEditorCommands;
   onStatusMessage: (message: string) => void;
-  onValidationChange: (result: LegendValidationResult) => void;
 }
 
 export type LegendLabelCommitResult =
@@ -168,7 +167,6 @@ export function LegendEditor({
   bounds,
   commands,
   onStatusMessage,
-  onValidationChange,
 }: LegendEditorProps): JSX.Element {
   const activeEntries = useMemo(
     (): ReadonlyArray<LegendEntryState> =>
@@ -180,7 +178,6 @@ export function LegendEditor({
     Readonly<Record<string, string>>
   >({});
   const draggedColorRef = useRef<string | null>(null);
-  const validationSignatureRef = useRef<string | null>(null);
 
   useEffect((): void => {
     const entriesByColor = new Map(
@@ -207,23 +204,11 @@ export function LegendEditor({
     });
   }, [commands, effectiveColors, legend.entries]);
 
-  const validation = useMemo((): LegendValidationResult => {
-    const validationLegend: LegendState = {
-      ...legend,
-      entries: activeEntries,
-      backgroundOpacity: legend.backgroundOpacity / 100,
-    };
-    return validateLegend(validationLegend, effectiveColors, bounds);
-  }, [activeEntries, bounds, effectiveColors, legend]);
-
-  const validationSignature = JSON.stringify(validation);
-
-  useEffect((): void => {
-    if (validationSignatureRef.current !== validationSignature) {
-      validationSignatureRef.current = validationSignature;
-      onValidationChange(validation);
-    }
-  }, [onValidationChange, validation, validationSignature]);
+  const validation = useMemo(
+    (): LegendValidationResult =>
+      validateActiveLegend(legend, effectiveColors, bounds),
+    [bounds, effectiveColors, legend],
+  );
 
   const blockingMessage = validation.ok
     ? null

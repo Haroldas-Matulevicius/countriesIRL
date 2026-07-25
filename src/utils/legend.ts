@@ -499,6 +499,30 @@ export function validateLegend(
   };
 }
 
+/**
+ * Validates the legend exactly as the exporter will render it: only the entries
+ * whose color is still active in the scene, with the stored 0-100 background
+ * opacity converted to the 0-1 ratio the renderer uses.
+ *
+ * Both the export gate and the Legend editor call this so a collapsed editor can
+ * never leave a stale verdict behind.
+ */
+export function validateActiveLegend(
+  legend: LegendState,
+  effectiveColors: ReadonlyArray<string>,
+  bounds: LegendBounds,
+): LegendValidationResult {
+  return validateLegend(
+    {
+      ...legend,
+      entries: getActiveLegendEntries(effectiveColors, legend),
+      backgroundOpacity: legend.backgroundOpacity / 100,
+    },
+    effectiveColors,
+    bounds,
+  );
+}
+
 export function validateLegendForScene(
   legend: LegendState,
   scene: EffectiveScene,
