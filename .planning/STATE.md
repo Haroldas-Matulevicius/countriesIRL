@@ -129,7 +129,12 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 - Acceptance evidence contains source tests only; `.claude/**` is gitignored and excluded.
 - Executable evidence harnesses, profiles, cache files, and nested checkouts stay outside
   authoritative product evidence; immutable JSON/log history is retained unchanged.
-- Performance marks remain diagnostic only — no timing threshold gates release (D-63).
+- **NFR3 timing threshold is an OPEN owner decision, not a settled one.** D-63 retired
+  timing gates for **Phase 1 only** ("the user explicitly directs that Phase 1 stop gating
+  on millisecond timing") and does not carry into Phase 2 on its own. Phase 2 currently
+  asserts no timing threshold and records warm period-switch samples plus their median as
+  advisory annotations in `tests/e2e/history.spec.ts`, so a threshold can be set from real
+  numbers. Do not cite D-63 to justify a Phase 2 timing decision.
 
 ## Session Continuity
 
