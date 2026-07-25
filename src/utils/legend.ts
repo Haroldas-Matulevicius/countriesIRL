@@ -23,9 +23,24 @@ const LEGEND_LABEL_MAX_LENGTH = 32;
 const LEGEND_MAX_ACTIVE_ENTRIES = 30;
 const LEGEND_SMALL_NUDGE = 8;
 const LEGEND_LARGE_NUDGE = 32;
-const BACKGROUND_OPACITY_MIN = 0.7;
-const BACKGROUND_OPACITY_MAX = 1;
-const BACKGROUND_OPACITY_STEP = 0.05;
+// One scale, everywhere: the slider, the provider clamp, storage, the
+// validator and the renderer all speak 0-100 percent. The previous 0-1 /
+// 0-100 split is what let two "default" legends disagree.
+const BACKGROUND_OPACITY_MIN = 70;
+const BACKGROUND_OPACITY_MAX = 100;
+const BACKGROUND_OPACITY_STEP = 5;
+
+/**
+ * The single legend default. `top-left` is the only preset whose coordinates
+ * are bounds-independent (32,32 is valid for every legend that fits the
+ * canvas), so the stored value can never contradict its own preset.
+ */
+export const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
+  x: LEGEND_SAFE_INSET,
+  y: LEGEND_SAFE_INSET,
+  preset: 'top-left',
+});
+export const DEFAULT_LEGEND_BACKGROUND_OPACITY = 90;
 
 const LEGEND_THEMES = new Set(['light', 'dark', 'soft']);
 const LEGEND_TEXT_SIZES = new Set(['small', 'medium', 'large']);
@@ -205,7 +220,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
-function clampLegendPosition(
+export function clampLegendPosition(
   position: LegendPosition,
   bounds: LegendBounds,
 ): LegendPosition {
@@ -213,8 +228,16 @@ function clampLegendPosition(
   const maximumY = LEGEND_CANVAS_SIZE - LEGEND_SAFE_INSET - bounds.height;
 
   return {
-    x: clamp(position.x, LEGEND_SAFE_INSET, maximumX),
-    y: clamp(position.y, LEGEND_SAFE_INSET, maximumY),
+    x: clamp(
+      Number.isFinite(position.x) ? position.x : LEGEND_SAFE_INSET,
+      LEGEND_SAFE_INSET,
+      Math.max(LEGEND_SAFE_INSET, maximumX),
+    ),
+    y: clamp(
+      Number.isFinite(position.y) ? position.y : LEGEND_SAFE_INSET,
+      LEGEND_SAFE_INSET,
+      Math.max(LEGEND_SAFE_INSET, maximumY),
+    ),
     preset: position.preset,
   };
 }
@@ -222,14 +245,10 @@ function clampLegendPosition(
 export function createDefaultLegendState(): LegendState {
   return {
     entries: [],
-    position: {
-      x: LEGEND_SAFE_INSET,
-      y: LEGEND_SAFE_INSET,
-      preset: 'top-right',
-    },
+    position: { ...DEFAULT_LEGEND_POSITION },
     theme: 'light',
     textSize: 'medium',
-    backgroundOpacity: 0.9,
+    backgroundOpacity: DEFAULT_LEGEND_BACKGROUND_OPACITY,
     borderStyle: 'hairline',
   };
 }
@@ -393,6 +412,61 @@ export function getLegendCornerPosition(
   };
 }
 
+/**
+ * The single chokepoint that turns a *stored* legend position into the
+ * position the product actually uses (render, export clone, editor display,
+ * export gate).
+ *
+ * A stored position is only ever valid for the bounds it was authored against.
+ * Colouring a ninth country reflows the legend from one column to two
+ * (`getLegendColumnCount`), which grows `bounds.width` by 312 and drops the
+ * maximum legal `x` by the same amount; the seventeenth colour does it again.
+ * Nothing writes the stored position back on those transitions, so resolving it
+ * against the *current* bounds on every read is what makes an out-of-frame
+ * legend unrepresentable instead of merely detectable:
+ *
+ * - `preset !== null` is authoritative - the legend tracks its corner, so a
+ *   "Bottom right" legend stays bottom-right as it grows.
+ * - a custom position (`preset === null`) is re-clamped into the 32px safe
+ *   inset for the current bounds.
+ */
+export function resolveLegendPosition(
+  position: LegendPosition,
+  bounds: LegendBounds,
+): LegendPosition {
+  return position.preset !== null && LEGEND_CORNERS.has(position.preset)
+    ? getLegendCornerPosition(position.preset, bounds)
+    : clampLegendPosition({ ...position, preset: null }, bounds);
+}
+
+export interface ResolvedLegendRender {
+  readonly activeEntries: ReadonlyArray<LegendEntryState>;
+  readonly layout: LegendLayout;
+  readonly bounds: LegendBounds;
+  readonly position: LegendPosition;
+}
+
+/**
+ * Everything the overlay, the export clone, the editor, and the export gate
+ * need, derived from live state in one place so they cannot drift apart - the
+ * same discipline `validateActiveLegend` established for the gate.
+ */
+export function resolveLegendRender(
+  legend: LegendState,
+  effectiveColors: ReadonlyArray<string>,
+): ResolvedLegendRender {
+  const activeEntries = getActiveLegendEntries(effectiveColors, legend);
+  const layout = createLegendLayout(activeEntries, legend.textSize);
+  const bounds: LegendBounds = { width: layout.width, height: layout.height };
+
+  return {
+    activeEntries,
+    layout,
+    bounds,
+    position: resolveLegendPosition(legend.position, bounds),
+  };
+}
+
 export function nudgeLegendPosition(
   position: LegendPosition,
   direction: LegendNudgeDirection,
@@ -497,6 +571,66 @@ export function validateLegend(
     ok: true,
     activeEntries: getActiveLegendEntries(activeColors, legend),
   };
+}
+
+/**
+ * Validates the legend exactly as the exporter will render it: only the entries
+ * whose color is still active in the scene, and the position resolved against
+ * the current bounds exactly as `LegendOverlay` resolves it.
+ *
+ * Because the renderer and this gate share `resolveLegendPosition`,
+ * `invalid-position` is unreachable here for any legend whose bounds fit the
+ * canvas: the exported legend is inside the safe inset by construction rather
+ * than by inspection.
+ *
+ * Both the export gate and the Legend editor call this so a collapsed editor can
+ * never leave a stale verdict behind.
+ */
+export function validateActiveLegend(
+  legend: LegendState,
+  effectiveColors: ReadonlyArray<string>,
+  bounds: LegendBounds,
+): LegendValidationResult {
+  return validateLegend(
+    {
+      ...legend,
+      entries: getActiveLegendEntries(effectiveColors, legend),
+      position: resolveLegendPosition(legend.position, bounds),
+    },
+    effectiveColors,
+    bounds,
+  );
+}
+
+export const LEGEND_LABEL_FIT_MESSAGE =
+  'Shorten this label so it fits in the exported legend.';
+export const LEGEND_OVERFLOW_MESSAGE =
+  'This map uses more than 30 legend colors. Reduce the number of colors so every label stays readable in the export.';
+
+/**
+ * The one classifier that decides whether a legend problem may block Export
+ * PNG, and what the product tells the user about it. The export gate and the
+ * Legend editor both call it, so the gate can only ever block on something the
+ * user has been shown and can act on.
+ *
+ * Lives next to `validateActiveLegend` rather than in a component module so the
+ * gate does not have to import from the editor.
+ */
+export function getLegendBlockingMessage(
+  issues: ReadonlyArray<LegendValidationIssue>,
+): string | null {
+  if (issues.some((issue): boolean => issue.code === 'too-many-active-colors')) {
+    return LEGEND_OVERFLOW_MESSAGE;
+  }
+  if (
+    issues.some(
+      (issue): boolean =>
+        issue.code === 'label-does-not-fit' || issue.code === 'invalid-label',
+    )
+  ) {
+    return LEGEND_LABEL_FIT_MESSAGE;
+  }
+  return null;
 }
 
 export function validateLegendForScene(

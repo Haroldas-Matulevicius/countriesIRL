@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { LegendState } from '../types/composition';
 import type { LegendBounds } from '../utils/legend';
+import { getLegendBlockingMessage } from '../utils/legend';
 import { LegendDisclosure, getLegendDisclosureSummary } from './LegendDisclosure';
 import {
   LEGEND_LABEL_MAX_LENGTH,
   LegendEditor,
-  getLegendBlockingMessage,
   resolveLegendLabelCommit,
 } from './LegendEditor';
 import type { LegendEditorCommands } from './LegendEditor';
@@ -49,7 +49,12 @@ describe('LegendDisclosure', (): void => {
     );
 
     const markup = renderToStaticMarkup(
-      <LegendDisclosure entryCount={2} positionLabel="Top right">
+      <LegendDisclosure
+        entryCount={2}
+        positionLabel="Top right"
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+      >
         <p>Legend controls</p>
       </LegendDisclosure>,
     );
@@ -71,7 +76,6 @@ describe('LegendEditor static semantics', (): void => {
         bounds={TEST_BOUNDS}
         commands={createCommands()}
         onStatusMessage={vi.fn()}
-        onValidationChange={vi.fn()}
       />,
     );
 
@@ -112,7 +116,6 @@ describe('LegendEditor static semantics', (): void => {
         bounds={{ width: 0, height: 0 }}
         commands={createCommands()}
         onStatusMessage={vi.fn()}
-        onValidationChange={vi.fn()}
       />,
     );
 
@@ -149,7 +152,10 @@ describe('LegendOverlay export-safe SVG', (): void => {
     expect(overlayMarkup).not.toContain('<foreignObject');
     expect(overlayMarkup).not.toContain('filter=');
     expect(overlayMarkup).not.toContain('style=');
-    expect(overlayMarkup).toContain('transform="translate(688 32)"');
+    // The stored x (688) was authored against wider bounds; the preset is
+    // authoritative, so the overlay renders the corner for the live bounds.
+    expect(overlayMarkup).toContain('transform="translate(712 32)"');
+    expect(712 + bounds.width).toBe(1048);
     expect(overlayMarkup).toContain('fill="#FFFFFF"');
     expect(overlayMarkup).toContain('fill-opacity="0.9"');
     expect(overlayMarkup).toContain('stroke="#CBD5E1"');

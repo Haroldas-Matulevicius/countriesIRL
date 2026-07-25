@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 
-import type { MapCanvasHandle } from '../types/composition';
-import type { ColorMap, CountryId, SelectedCountryIds } from '../types/map';
+import type { CameraState, MapCanvasHandle } from '../types/composition';
+import type {
+  ColorMap,
+  CountryId,
+  SceneFeature,
+  SelectedCountryIds,
+} from '../types/map';
 import type { WorldGeoDataState } from '../hooks/useGeoData';
 import { FatalErrorState } from './FatalErrorState';
 import { MapCanvas, type MapTooltipData } from './MapCanvas';
@@ -10,9 +15,17 @@ import { Tooltip } from './Tooltip';
 
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
+  /**
+   * The composed effective scene, or `null` when it is unavailable. Required
+   * and explicitly nullable: falling back to the modern world would render
+   * modern borders while the composition state claims a historical snapshot.
+   */
+  features: ReadonlyArray<SceneFeature> | null;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
+  legendSlot?: ReactNode;
+  onCameraCommit?: (camera: CameraState) => void;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onReload: () => void;
@@ -20,9 +33,12 @@ interface MapWorkspaceProps {
 
 export function MapWorkspace({
   geoData,
+  features,
   colors,
   selectedIds,
   exportSourceRef,
+  legendSlot,
+  onCameraCommit,
   onSelectCountry,
   onClearSelection,
   onReload,
@@ -66,7 +82,11 @@ export function MapWorkspace({
           <FatalErrorState onReload={onReload} />
         ) : null}
 
-        {geoData.status === 'ready' ? (
+        {geoData.status === 'ready' && features === null ? (
+          <FatalErrorState onReload={onReload} />
+        ) : null}
+
+        {geoData.status === 'ready' && features !== null ? (
           <>
             {geoData.warnings.length > 0 ? (
               <p className="map-workspace__warning" role="status">
@@ -76,12 +96,15 @@ export function MapWorkspace({
             ) : null}
             <MapCanvas
               ref={exportSourceRef}
-              features={geoData.features}
+              features={features}
+              locateFeatures={geoData.features}
               colors={colors}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}
               onTooltipChange={setTooltipData}
+              legendSlot={legendSlot}
+              onCameraCommit={onCameraCommit}
             />
             <Tooltip data={tooltipData} />
           </>

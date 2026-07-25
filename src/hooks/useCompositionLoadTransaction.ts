@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type {
+  CameraState,
   Composition,
   CompositionLoadOutcome,
   CompositionLoadWarning,
   CompositionSnapshot,
+  CompositionState,
   EffectiveScene,
   MapCanvasHandle,
   SnapshotId,
 } from '../types/composition';
-import type { ColorMap, CountryId, SelectedCountryIds } from '../types/map';
+import type {
+  ColorMap,
+  CountryId,
+  MapState,
+  SelectedCountryIds,
+} from '../types/map';
 import type {
   StorageErrorReason,
   StorageResult,
@@ -22,6 +29,8 @@ export type CompositionLoadFailureReason =
   | Extract<CompositionLoadOutcome, { readonly ok: false }>['reason']
   | 'snapshot-resolution-failed'
   | 'map-canvas-unavailable'
+  | 'camera-restore-blocked'
+  | 'commit-failed'
   | 'cancelled';
 
 export type CompositionLoadTransactionOutcome =
@@ -45,6 +54,13 @@ export type CompositionLoadTransactionState =
       readonly outcome: CompositionLoadTransactionOutcome;
     };
 
+export interface CompositionLoadRollbackState {
+  readonly camera: CameraState;
+  readonly scene: EffectiveScene | null;
+  readonly mapState: MapState;
+  readonly compositionState: CompositionState;
+}
+
 export interface CompositionLoadTransactionDependencies {
   readonly loadStoredComposition: (
     name: string,
@@ -55,10 +71,17 @@ export interface CompositionLoadTransactionDependencies {
   ) => Promise<EffectiveScene>;
   readonly getMapCanvasHandle: () => MapCanvasHandle | null;
   readonly getSelectedIds: () => SelectedCountryIds;
+  readonly captureRollbackState: () => CompositionLoadRollbackState;
+  readonly rollback: (
+    state: CompositionLoadRollbackState,
+    mapCanvasHandle: MapCanvasHandle,
+  ) => void;
+  readonly loadScene: (scene: EffectiveScene) => void;
   readonly loadColors: (colors: ColorMap) => void;
   readonly loadComposition: (composition: Composition) => void;
   readonly replaceSelection: (selectedIds: ReadonlyArray<CountryId>) => void;
   readonly markBaseline: (snapshot: CompositionSnapshot) => void;
+  readonly requestFocus: (countryId: CountryId | null) => void;
   readonly onOutcome?: (outcome: CompositionLoadTransactionOutcome) => void;
 }
 
@@ -106,6 +129,18 @@ function cloneSnapshot(snapshot: CompositionSnapshot): CompositionSnapshot {
   };
 }
 
+/**
+ * A historical asset that lost features to the validator still loads, so the
+ * repaired-composition warning is the honest signal for it.
+ */
+function toSceneWarnings(
+  scene: EffectiveScene,
+): ReadonlyArray<CompositionLoadWarning> {
+  return scene.assetWarnings === undefined || scene.assetWarnings.length === 0
+    ? []
+    : [{ code: 'composition-repaired', path: 'snapshot' }];
+}
+
 function cancelledOutcome(
   storageWarnings: ReadonlyArray<StorageWarning> = [],
 ): CompositionLoadTransactionOutcome {
@@ -140,10 +175,24 @@ export function createCompositionLoadTransaction(
     return outcome;
   };
 
+  /**
+   * Drops the reference only when it still points at this request, so a load
+   * that lost the race can release its aborted controller without clobbering
+   * the controller of the load that superseded it.
+   */
+  const releaseController = (controller: AbortController): void => {
+    if (activeController === controller) {
+      activeController = null;
+    }
+  };
+
   const cancel = (): void => {
     requestVersion += 1;
     activeController?.abort();
     activeController = null;
+    if (state.status === 'loading') {
+      updateState({ status: 'idle' });
+    }
   };
 
   return {
@@ -163,9 +212,10 @@ export function createCompositionLoadTransaction(
         storedResult = dependencies.loadStoredComposition(name);
       } catch {
         if (version !== requestVersion || controller.signal.aborted) {
+          releaseController(controller);
           return cancelledOutcome();
         }
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'storage-unavailable',
@@ -174,10 +224,11 @@ export function createCompositionLoadTransaction(
       }
 
       if (version !== requestVersion || controller.signal.aborted) {
+        releaseController(controller);
         return cancelledOutcome(storedResult.ok ? storedResult.warnings : []);
       }
       if (!storedResult.ok) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: storedResult.reason,
@@ -185,7 +236,7 @@ export function createCompositionLoadTransaction(
         });
       }
       if (!storedResult.value.ok) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: storedResult.value.reason,
@@ -202,9 +253,10 @@ export function createCompositionLoadTransaction(
         );
       } catch {
         if (version !== requestVersion || controller.signal.aborted) {
+          releaseController(controller);
           return cancelledOutcome(storedResult.warnings);
         }
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'snapshot-resolution-failed',
@@ -217,10 +269,11 @@ export function createCompositionLoadTransaction(
         controller.signal.aborted ||
         isDisposed
       ) {
+        releaseController(controller);
         return cancelledOutcome(storedResult.warnings);
       }
       if (scene.snapshotId !== snapshot.snapshotId) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'snapshot-resolution-failed',
@@ -230,7 +283,7 @@ export function createCompositionLoadTransaction(
 
       const mapCanvasHandle = dependencies.getMapCanvasHandle();
       if (mapCanvasHandle === null) {
-        activeController = null;
+        releaseController(controller);
         return finish({
           ok: false,
           reason: 'map-canvas-unavailable',
@@ -244,22 +297,74 @@ export function createCompositionLoadTransaction(
       );
       const selectedIds = [...reconciledSelection];
       const focusCountryId =
-        selectedIds[0] ?? scene.selectableEntityIds.values().next().value;
+        selectedIds[0] ??
+        scene.features.find(
+          (feature): boolean =>
+            feature.isSelectable && feature.boundaryMode === 'historical',
+        )?.entityId ??
+        scene.selectableEntityIds.values().next().value;
 
-      dependencies.loadColors(snapshot.colors);
-      dependencies.loadComposition(toComposition(snapshot));
-      dependencies.replaceSelection(selectedIds);
-      mapCanvasHandle.restore(snapshot.camera);
-      if (focusCountryId !== undefined) {
-        mapCanvasHandle.focusCountry(focusCountryId);
+      let rollbackState: CompositionLoadRollbackState;
+      try {
+        rollbackState = dependencies.captureRollbackState();
+      } catch {
+        releaseController(controller);
+        return finish({
+          ok: false,
+          reason: 'commit-failed',
+          storageWarnings: storedResult.warnings,
+        });
       }
-      dependencies.markBaseline(snapshot);
 
-      activeController = null;
+      let didRestoreCamera: boolean;
+      try {
+        didRestoreCamera = mapCanvasHandle.restore(snapshot.camera);
+      } catch {
+        didRestoreCamera = false;
+      }
+      if (!didRestoreCamera) {
+        releaseController(controller);
+        return finish({
+          ok: false,
+          reason: 'camera-restore-blocked',
+          storageWarnings: storedResult.warnings,
+        });
+      }
+
+      try {
+        dependencies.loadScene(scene);
+        dependencies.loadColors(snapshot.colors);
+        dependencies.loadComposition(toComposition(snapshot));
+        dependencies.replaceSelection(selectedIds);
+        dependencies.markBaseline(snapshot);
+        dependencies.requestFocus(focusCountryId ?? null);
+      } catch {
+        try {
+          dependencies.rollback(rollbackState, mapCanvasHandle);
+        } catch {
+          releaseController(controller);
+          return finish({
+            ok: false,
+            reason: 'commit-failed',
+            storageWarnings: storedResult.warnings,
+          });
+        }
+        releaseController(controller);
+        return finish({
+          ok: false,
+          reason: 'commit-failed',
+          storageWarnings: storedResult.warnings,
+        });
+      }
+
+      releaseController(controller);
       return finish({
         ok: true,
         sourceVersion: storedResult.value.sourceVersion,
-        compositionWarnings: storedResult.value.warnings,
+        compositionWarnings: [
+          ...storedResult.value.warnings,
+          ...toSceneWarnings(scene),
+        ],
         storageWarnings: storedResult.warnings,
       });
     },
@@ -291,10 +396,14 @@ export function useCompositionLoadTransaction(
   const {
     getMapCanvasHandle,
     getSelectedIds,
+    captureRollbackState,
+    rollback,
+    loadScene,
     loadColors,
     loadComposition,
     loadStoredComposition,
     markBaseline,
+    requestFocus,
     onOutcome,
     replaceSelection,
     resolveScene,
@@ -304,10 +413,14 @@ export function useCompositionLoadTransaction(
       createCompositionLoadTransaction({
         getMapCanvasHandle,
         getSelectedIds,
+        captureRollbackState,
+        rollback,
+        loadScene,
         loadColors,
         loadComposition,
         loadStoredComposition,
         markBaseline,
+        requestFocus,
         onOutcome,
         replaceSelection,
         resolveScene,
@@ -315,10 +428,14 @@ export function useCompositionLoadTransaction(
     [
       getMapCanvasHandle,
       getSelectedIds,
+      captureRollbackState,
+      rollback,
+      loadScene,
       loadColors,
       loadComposition,
       loadStoredComposition,
       markBaseline,
+      requestFocus,
       onOutcome,
       replaceSelection,
       resolveScene,

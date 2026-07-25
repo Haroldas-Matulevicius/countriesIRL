@@ -36,6 +36,35 @@ function withBoundaryMode(
   };
 }
 
+function assertUniqueSceneIdentities(
+  features: ReadonlyArray<SceneFeature>,
+): void {
+  const featureIds = new Set<string>();
+  const sourceFeatureIds = new Set<string>();
+  const selectableEntityIds = new Set<CountryId>();
+
+  for (const feature of features) {
+    if (featureIds.has(feature.id)) {
+      throw new Error('duplicate-scene-feature-id');
+    }
+    if (sourceFeatureIds.has(feature.sourceFeatureId)) {
+      throw new Error('duplicate-scene-source-feature-id');
+    }
+    if (
+      hasSelectableIdentity(feature) &&
+      selectableEntityIds.has(feature.entityId)
+    ) {
+      throw new Error('duplicate-scene-selectable-entity-id');
+    }
+
+    featureIds.add(feature.id);
+    sourceFeatureIds.add(feature.sourceFeatureId);
+    if (hasSelectableIdentity(feature)) {
+      selectableEntityIds.add(feature.entityId);
+    }
+  }
+}
+
 export function getSelectableEntityIds(
   features: ReadonlyArray<SceneFeature>,
 ): ReadonlySet<CountryId> {
@@ -54,20 +83,36 @@ export function composeEffectiveScene(input: EffectiveSceneInput): EffectiveScen
   const historicalFeatures = input.historicalFeatures ?? [];
   const replacedModernSourceFeatureIds = input.replacedModernSourceFeatureIds ?? new Set();
 
+  const retainedModernFeatures = input.modernFeatures.filter(
+    (feature): boolean =>
+      !replacedModernSourceFeatureIds.has(feature.sourceFeatureId),
+  );
+  if (input.snapshotId !== 'modern') {
+    const retainedSelectableEntityIds = getSelectableEntityIds(
+      retainedModernFeatures,
+    );
+    const hasSelectableCollision = historicalFeatures.some(
+      (feature): boolean =>
+        hasSelectableIdentity(feature) &&
+        retainedSelectableEntityIds.has(feature.entityId),
+    );
+    if (hasSelectableCollision) {
+      throw new Error('historical-selectable-entity-collision');
+    }
+  }
+
   const features =
     input.snapshotId === 'modern'
       ? input.modernFeatures.map((feature) => withBoundaryMode(feature, 'modern'))
       : [
-          ...input.modernFeatures
-            .filter(
-              (feature) =>
-                !replacedModernSourceFeatureIds.has(feature.sourceFeatureId),
-            )
-            .map((feature) => withBoundaryMode(feature, 'modern-fallback')),
+          ...retainedModernFeatures.map((feature) =>
+            withBoundaryMode(feature, 'modern-fallback'),
+          ),
           ...historicalFeatures.map((feature) =>
             withBoundaryMode(feature, 'historical'),
           ),
         ];
+  assertUniqueSceneIdentities(features);
 
   return {
     snapshotId: input.snapshotId,

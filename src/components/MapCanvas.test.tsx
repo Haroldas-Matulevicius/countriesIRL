@@ -1,5 +1,6 @@
 import { zoomIdentity, type ZoomTransform } from 'd3';
 import type { Polygon } from 'geojson';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
@@ -9,8 +10,10 @@ import {
   type CameraControllerDriver,
 } from '../hooks/useCameraController';
 import {
+  MapCanvas,
   createWrappedSceneModel,
   getSceneFeatureColor,
+  getSelectableSceneFeatures,
 } from './MapCanvas';
 import { cameraToTransform, transformToCamera } from '../utils/camera';
 
@@ -40,7 +43,7 @@ interface DriverHarness {
   readonly finishTransition: () => void;
   readonly commitCamera: ReturnType<typeof vi.fn>;
   readonly interrupt: ReturnType<typeof vi.fn>;
-  readonly cancelFrame: ReturnType<typeof vi.fn>;
+  readonly setInputEnabled: ReturnType<typeof vi.fn>;
   readonly cleanup: ReturnType<typeof vi.fn>;
 }
 
@@ -51,7 +54,9 @@ function createDriverHarness(): DriverHarness {
   let transitionEnd: (() => void) | null = null;
   const commitCamera = vi.fn();
   const interrupt = vi.fn();
-  const cancelFrame = vi.fn();
+  const setInputEnabled = vi.fn((isEnabled: boolean): void => {
+    isInputEnabled = isEnabled;
+  });
   const cleanup = vi.fn();
 
   return {
@@ -60,11 +65,8 @@ function createDriverHarness(): DriverHarness {
       paintTransform: (transform): void => {
         paintedTransform = transform;
       },
-      setInputEnabled: (isEnabled): void => {
-        isInputEnabled = isEnabled;
-      },
+      setInputEnabled,
       interrupt,
-      cancelFrame,
       transitionTo: (target, onFrame, onEnd): void => {
         transitionFrame = onFrame;
         transitionEnd = onEnd;
@@ -81,7 +83,7 @@ function createDriverHarness(): DriverHarness {
     finishTransition: (): void => transitionEnd?.(),
     commitCamera,
     interrupt,
-    cancelFrame,
+    setInputEnabled,
     cleanup,
   };
 }
@@ -109,6 +111,54 @@ describe('live camera controller', (): void => {
     );
   });
 
+  it('zooms around the viewport center and pans by a viewport fraction', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+
+    controller.zoomBy(1.5);
+
+    expect(harness.getPaintedTransform()).toMatchObject({
+      k: 1.5,
+      x: -270,
+      y: -270,
+    });
+    expect(harness.commitCamera).toHaveBeenCalledTimes(1);
+
+    controller.pan('right', 0.125);
+
+    expect(harness.getPaintedTransform()).toMatchObject({
+      k: 1.5,
+      x: -405,
+      y: -270,
+    });
+    expect(harness.commitCamera).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks navigation and restore while an export lease is active', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    const lease = controller.freezeAndSnapshot();
+    const frozenTransform = harness.getPaintedTransform();
+
+    controller.zoomBy(1.5);
+    controller.pan('right', 0.125);
+    const didRestore = controller.restore({
+      zoom: 3,
+      centerLongitude: 20,
+      centerLatitude: 10,
+    });
+
+    expect(didRestore).toBe(false);
+    expect(harness.getPaintedTransform()).toEqual(frozenTransform);
+
+    lease.release();
+    expect(controller.restore({
+      zoom: 3,
+      centerLongitude: 20,
+      centerLatitude: 10,
+    })).toBe(true);
+  });
+
   it('animates Locate through the shared constrained transition boundary', (): void => {
     const harness = createDriverHarness();
     const controller = createCameraController(harness.driver);
@@ -133,7 +183,6 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(false);
     expect(harness.interrupt).toHaveBeenCalledTimes(1);
-    expect(harness.cancelFrame).toHaveBeenCalledTimes(1);
     expect(lease.camera).toEqual(transformToCamera(visibleTransform));
     expect(controller.readCurrentCamera()).toEqual(lease.camera);
     expect(harness.commitCamera).toHaveBeenLastCalledWith(lease.camera);
@@ -143,6 +192,29 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(true);
     expect(harness.getPaintedTransform()).toMatchObject({ k: 2, x: -120, y: 0 });
+  });
+
+  it('takes no freeze lease when a driver side effect throws', (): void => {
+    const harness = createDriverHarness();
+    const controller = createCameraController(harness.driver);
+    harness.interrupt.mockImplementationOnce((): void => {
+      throw new Error('interrupt failed');
+    });
+
+    expect((): void => {
+      controller.freezeAndSnapshot();
+    }).toThrow('interrupt failed');
+
+    // Input is renewed and the camera is not locked: a later freeze/release
+    // pair still works, so the camera never gets stuck without a lease holder.
+    expect(harness.getInputEnabled()).toBe(true);
+    controller.zoomBy(2);
+    expect(harness.getPaintedTransform().k).toBeGreaterThan(1);
+
+    const lease = controller.freezeAndSnapshot();
+    expect(harness.getInputEnabled()).toBe(false);
+    lease.release();
+    expect(harness.getInputEnabled()).toBe(true);
   });
 
   it('keeps nested and repeated lease release exact-once in effect', (): void => {
@@ -185,7 +257,6 @@ describe('live camera controller', (): void => {
 
     expect(harness.getInputEnabled()).toBe(true);
     expect(harness.interrupt).toHaveBeenCalled();
-    expect(harness.cancelFrame).toHaveBeenCalled();
     expect(harness.cleanup).toHaveBeenCalledTimes(1);
   });
 });
@@ -229,6 +300,37 @@ function createSceneFeature(
   };
 }
 
+describe('MapCanvas accessibility structure', (): void => {
+  it('keeps the editable legend outside the country listbox', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapCanvas
+        features={[]}
+        colors={{}}
+        selectedIds={new Set()}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onTooltipChange={vi.fn()}
+        legendSlot={
+          <g data-layer="legend">
+            <rect role="button" aria-label="Move legend" tabIndex={0} />
+          </g>
+        }
+      />,
+    );
+    const svgStart = markup.indexOf('<svg');
+    const svgOpeningEnd = markup.indexOf('>', svgStart);
+    const listboxStart = markup.indexOf('role="listbox"');
+    const listboxEnd = markup.indexOf('</g>', listboxStart);
+    const legendStart = markup.indexOf('data-layer="legend"');
+
+    expect(markup.slice(svgStart, svgOpeningEnd)).not.toContain('role="listbox"');
+    expect(markup.match(/role="listbox"/gu)).toHaveLength(1);
+    expect(markup.match(/role="button"/gu)).toHaveLength(1);
+    expect(listboxStart).toBeGreaterThan(svgOpeningEnd);
+    expect(listboxEnd).toBeLessThan(legendStart);
+  });
+});
+
 describe('wrapped effective scene model', (): void => {
   it('creates one logical path and two decorative repeats per selectable entity', (): void => {
     const model = createWrappedSceneModel([
@@ -247,6 +349,22 @@ describe('wrapped effective scene model', (): void => {
         (path) => path.isAccessible === false && path.isFocusable === false,
       ),
     ).toBe(true);
+  });
+
+  it('rejects duplicate selectable identities before rendering', (): void => {
+    const primary = createSceneFeature('HIST-PLC', 'historical-entity');
+    const duplicate: SceneFeature = {
+      ...primary,
+      id: 'unit-HIST-PLC-duplicate',
+      sourceFeatureId: 'source-HIST-PLC-duplicate',
+    };
+
+    expect((): ReadonlyArray<unknown> =>
+      createWrappedSceneModel([primary, duplicate]),
+    ).toThrow('duplicate-scene-selectable-entity-id');
+    expect((): ReadonlyArray<SceneFeature> =>
+      getSelectableSceneFeatures([primary, duplicate]),
+    ).toThrow('duplicate-scene-selectable-entity-id');
   });
 
   it('keeps inherited, disputed, and neutral geometry unfocusable', (): void => {

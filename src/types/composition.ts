@@ -26,12 +26,16 @@ export interface CameraFreezeLease {
   release(): void;
 }
 
+export type CameraPanDirection = 'up' | 'right' | 'down' | 'left';
+
 export interface MapCanvasHandle {
   readCurrentCamera(): CameraState;
   freezeAndSnapshot(): CameraFreezeLease;
+  zoomBy(factor: number): void;
+  pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
-  locate(countryId: CountryId): void;
-  restore(camera: CameraState): void;
+  locate(countryId: CountryId): boolean;
+  restore(camera: CameraState): boolean;
   focusCountry(countryId: CountryId): void;
   getExportSource(): HTMLDivElement | null;
 }
@@ -40,6 +44,12 @@ export interface EffectiveScene {
   readonly snapshotId: SnapshotId;
   readonly features: ReadonlyArray<SceneFeature>;
   readonly selectableEntityIds: ReadonlySet<CountryId>;
+  /**
+   * Entries the historical asset validator dropped while building this scene.
+   * Carried on the scene so the load transaction can surface them instead of
+   * handing the user a silently partial map.
+   */
+  readonly assetWarnings?: ReadonlyArray<string>;
 }
 
 export interface SnapshotSourceRecord {

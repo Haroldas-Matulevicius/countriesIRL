@@ -26,23 +26,17 @@ import type {
   VisibleCompositionSettings,
 } from '../types/composition';
 import { normalizeColor } from '../utils/colors';
+import { createDefaultLegendState } from '../utils/legend';
 
 const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
 const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
   '#FFFFFF';
-const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
-  x: 0,
-  y: 0,
-  preset: 'top-right',
-});
-const DEFAULT_LEGEND: LegendState = Object.freeze({
-  entries: Object.freeze([]),
-  position: DEFAULT_LEGEND_POSITION,
-  theme: 'light',
-  textSize: 'medium',
-  backgroundOpacity: 90,
-  borderStyle: 'hairline',
-});
+// One default, shared with the legacy save-migration path
+// (`createLegacyCompatibleSnapshot`). A provider-local copy previously stored
+// `{x:0, y:0, preset:'top-right'}`, which both failed `isPositionValid` and
+// contradicted the "Top right" label the disclosure summary showed.
+const DEFAULT_LEGEND: LegendState = Object.freeze(createDefaultLegendState());
+const DEFAULT_LEGEND_POSITION: LegendPosition = DEFAULT_LEGEND.position;
 const DEFAULT_SETTINGS: VisibleCompositionSettings = Object.freeze({
   backgroundColor: DEFAULT_BACKGROUND_COLOR,
 });
@@ -95,7 +89,8 @@ export type CompositionAction =
       payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
     }
   | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
-  | { type: 'MARK_SAVED' };
+  | { type: 'MARK_SAVED'; payload?: { composition: Composition } }
+  | { type: 'RESTORE_STATE'; payload: { state: CompositionState } };
 
 export interface CompositionStateContextValue {
   state: CompositionState;
@@ -111,7 +106,8 @@ export interface CompositionStateContextValue {
     backgroundColor: VisibleCompositionSettings['backgroundColor'],
   ) => void;
   loadComposition: (composition: Composition) => void;
-  markSaved: () => void;
+  markSaved: (composition?: Composition) => void;
+  restoreState: (state: CompositionState) => void;
 }
 
 export const CompositionStateContext = createContext<
@@ -493,14 +489,22 @@ export function compositionStateReducer(
     }
 
     case 'MARK_SAVED': {
-      const composition = getVisibleComposition(state);
-      return areCompositionsEqual(state.savedBaseline, composition)
+      const composition =
+        action.payload === undefined
+          ? getVisibleComposition(state)
+          : canonicalizeComposition(action.payload.composition);
+      return areCompositionsEqual(state.savedBaseline, composition) &&
+        areCompositionsEqual(getVisibleComposition(state), composition)
         ? state
         : {
             ...state,
+            ...composition,
             savedBaseline: composition,
           };
     }
+
+    case 'RESTORE_STATE':
+      return action.payload.state;
   }
 }
 
@@ -557,8 +561,16 @@ export function CompositionStateProvider({
     dispatch({ type: 'LOAD_COMPOSITION', payload: { composition } });
   }, []);
 
-  const markSaved = useCallback((): void => {
-    dispatch({ type: 'MARK_SAVED' });
+  const markSaved = useCallback((composition?: Composition): void => {
+    dispatch(
+      composition === undefined
+        ? { type: 'MARK_SAVED' }
+        : { type: 'MARK_SAVED', payload: { composition } },
+    );
+  }, []);
+
+  const restoreState = useCallback((state: CompositionState): void => {
+    dispatch({ type: 'RESTORE_STATE', payload: { state } });
   }, []);
 
   const isDirty = isCompositionStateDirty(state);
@@ -577,6 +589,7 @@ export function CompositionStateProvider({
       setBackgroundColor,
       loadComposition,
       markSaved,
+      restoreState,
     }),
     [
       state,
@@ -591,6 +604,7 @@ export function CompositionStateProvider({
       setBackgroundColor,
       loadComposition,
       markSaved,
+      restoreState,
     ],
   );
 

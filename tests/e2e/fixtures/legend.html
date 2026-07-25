@@ -68,7 +68,7 @@
       import { useCompositionState } from '/src/hooks/useCompositionState.ts';
       import {
         getActiveLegendEntries,
-        getLegendCornerPosition,
+        validateActiveLegend,
       } from '/src/utils/legend.ts';
 
       const h = React.createElement;
@@ -81,9 +81,11 @@
         'bottom-right': 'Bottom right',
       };
 
-      function createOverflowColors() {
+      const COLOR_COUNT_OPTIONS = [8, 9, 16, 17, 31];
+
+      function createColorSet(count) {
         return Array.from(
-          { length: 31 },
+          { length: count },
           (_, index) => `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
         );
       }
@@ -96,14 +98,16 @@
           setLegendOrder,
           setLegendPosition,
         } = useCompositionState();
-        const [isOverflowMode, setIsOverflowMode] = useState(false);
-        const [validation, setValidation] = useState({ ok: false, issues: [] });
+        const [colorCount, setColorCount] = useState(null);
+        const [isLegendExpanded, setIsLegendExpanded] = useState(false);
         const [statusMessage, setStatusMessage] = useState('');
         const [cameraEvents, setCameraEvents] = useState(0);
         const [exportEditorOnlyCount, setExportEditorOnlyCount] = useState(null);
-        const effectiveColors = isOverflowMode
-          ? createOverflowColors()
-          : STANDARD_COLORS;
+        const [exportLegendFrame, setExportLegendFrame] = useState(null);
+        const effectiveColors = useMemo(
+          () => (colorCount === null ? STANDARD_COLORS : createColorSet(colorCount)),
+          [colorCount],
+        );
         const commands = useMemo(
           () => ({
             setLegendEntry,
@@ -137,30 +141,21 @@
 
         const bounds = getLegendOverlayBounds(state.legend, effectiveColors);
         const activeEntries = getActiveLegendEntries(effectiveColors, state.legend);
+        // Mirrors App: the export gate is derived from live legend state, not
+        // reported up from the editor (which unmounts when the panel closes).
+        const validation = validateActiveLegend(
+          state.legend,
+          effectiveColors,
+          bounds,
+        );
         const positionLabel =
           state.legend.position.preset === null
             ? 'Custom'
             : POSITION_LABELS[state.legend.position.preset];
 
-        useEffect(() => {
-          if (
-            activeEntries.length > 0 &&
-            state.legend.position.preset !== null &&
-            (state.legend.position.x === 0 || state.legend.position.y === 0)
-          ) {
-            setLegendPosition(
-              getLegendCornerPosition(state.legend.position.preset, bounds),
-            );
-          }
-        }, [
-          activeEntries.length,
-          bounds.height,
-          bounds.width,
-          setLegendPosition,
-          state.legend.position.preset,
-          state.legend.position.x,
-          state.legend.position.y,
-        ]);
+        // No position write-back effect on purpose: `resolveLegendPosition`
+        // derives the rendered position from the live bounds, so a stored
+        // position can never leave the export frame.
 
         const handleExport = () => {
           const source = document.querySelector('svg[data-legend-canvas="true"]');
@@ -169,6 +164,23 @@
           setExportEditorOnlyCount(
             clone.querySelectorAll('[data-editor-only]').length,
           );
+          const clonedLegend = clone.querySelector('g[data-layer="legend"]');
+          const clonedPanel = clonedLegend?.querySelector('rect') ?? null;
+          if (clonedPanel === null) {
+            setExportLegendFrame('no-legend');
+          } else {
+            const [, x, y] = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(
+              clonedLegend.getAttribute('transform'),
+            );
+            setExportLegendFrame(
+              [
+                x,
+                y,
+                clonedPanel.getAttribute('width'),
+                clonedPanel.getAttribute('height'),
+              ].join(','),
+            );
+          }
           setStatusMessage('PNG downloaded at 1080 × 1080.');
         };
 
@@ -181,14 +193,20 @@
             h(
               'div',
               { className: 'fixture-controls' },
-              h(
-                'button',
-                { type: 'button', onClick: () => setIsOverflowMode(true) },
-                'Use 31 colors',
+              ...COLOR_COUNT_OPTIONS.map((count) =>
+                h(
+                  'button',
+                  {
+                    key: `colors-${count}`,
+                    type: 'button',
+                    onClick: () => setColorCount(count),
+                  },
+                  `Use ${count} colors`,
+                ),
               ),
               h(
                 'button',
-                { type: 'button', onClick: () => setIsOverflowMode(false) },
+                { type: 'button', onClick: () => setColorCount(null) },
                 'Use standard colors',
               ),
               h(
@@ -206,6 +224,8 @@
               {
                 entryCount: activeEntries.length,
                 positionLabel,
+                isExpanded: isLegendExpanded,
+                onExpandedChange: setIsLegendExpanded,
                 onStatusMessage: setStatusMessage,
               },
               h(LegendEditor, {
@@ -214,7 +234,6 @@
                 bounds,
                 commands,
                 onStatusMessage: setStatusMessage,
-                onValidationChange: setValidation,
               }),
             ),
             h('output', { 'data-status': 'true', 'aria-live': 'polite' }, statusMessage),
@@ -233,6 +252,11 @@
               'output',
               { 'data-export-editor-only': 'true' },
               exportEditorOnlyCount === null ? 'not-exported' : String(exportEditorOnlyCount),
+            ),
+            h(
+              'output',
+              { 'data-export-legend-frame': 'true' },
+              exportLegendFrame === null ? 'not-exported' : exportLegendFrame,
             ),
             h('output', { 'data-historical-color': 'true' }, HISTORICAL_COLOR),
           ),

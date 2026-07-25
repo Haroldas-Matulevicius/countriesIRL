@@ -47,9 +47,11 @@ function createHandle(
       calls.push(`${label}:freeze`);
       return { camera, release: vi.fn() };
     }),
+    zoomBy: vi.fn(),
+    pan: vi.fn(),
     resetView: vi.fn(),
     locate: vi.fn(),
-    restore: vi.fn(),
+    restore: vi.fn(() => true),
     focusCountry: vi.fn(),
     getExportSource: vi.fn(() => null),
   };

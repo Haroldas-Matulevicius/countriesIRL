@@ -23,24 +23,23 @@ import type {
   LegendStyleState,
 } from '../providers/CompositionStateProvider';
 import {
+  LEGEND_LABEL_FIT_MESSAGE,
   getActiveLegendEntries,
+  getLegendBlockingMessage,
   getLegendCornerPosition,
   nudgeLegendPosition,
-  validateLegend,
+  resolveLegendPosition,
+  validateActiveLegend,
 } from '../utils/legend';
 import type {
   LegendBounds,
   LegendNudgeDirection,
-  LegendValidationIssue,
   LegendValidationResult,
 } from '../utils/legend';
 
 export const LEGEND_LABEL_MAX_LENGTH = 32;
 
 const EMPTY_LABEL_MESSAGE = 'Enter a legend label.';
-const LABEL_FIT_MESSAGE = 'Shorten this label so it fits in the exported legend.';
-const LEGEND_OVERFLOW_MESSAGE =
-  'This map uses more than 30 legend colors. Reduce the number of colors so every label stays readable in the export.';
 const THEME_OPTIONS: ReadonlyArray<{ value: LegendTheme; label: string }> = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -92,7 +91,6 @@ interface LegendEditorProps {
   bounds: LegendBounds;
   commands: LegendEditorCommands;
   onStatusMessage: (message: string) => void;
-  onValidationChange: (result: LegendValidationResult) => void;
 }
 
 export type LegendLabelCommitResult =
@@ -118,27 +116,10 @@ export function resolveLegendLabelCommit(
     return {
       ok: false,
       restoredLabel: committedLabel,
-      message: LABEL_FIT_MESSAGE,
+      message: LEGEND_LABEL_FIT_MESSAGE,
     };
   }
   return { ok: true, label: draft };
-}
-
-export function getLegendBlockingMessage(
-  issues: ReadonlyArray<LegendValidationIssue>,
-): string | null {
-  if (issues.some((issue): boolean => issue.code === 'too-many-active-colors')) {
-    return LEGEND_OVERFLOW_MESSAGE;
-  }
-  if (
-    issues.some(
-      (issue): boolean =>
-        issue.code === 'label-does-not-fit' || issue.code === 'invalid-label',
-    )
-  ) {
-    return LABEL_FIT_MESSAGE;
-  }
-  return null;
 }
 
 function getStyleState(
@@ -168,7 +149,6 @@ export function LegendEditor({
   bounds,
   commands,
   onStatusMessage,
-  onValidationChange,
 }: LegendEditorProps): JSX.Element {
   const activeEntries = useMemo(
     (): ReadonlyArray<LegendEntryState> =>
@@ -180,7 +160,6 @@ export function LegendEditor({
     Readonly<Record<string, string>>
   >({});
   const draggedColorRef = useRef<string | null>(null);
-  const validationSignatureRef = useRef<string | null>(null);
 
   useEffect((): void => {
     const entriesByColor = new Map(
@@ -207,23 +186,11 @@ export function LegendEditor({
     });
   }, [commands, effectiveColors, legend.entries]);
 
-  const validation = useMemo((): LegendValidationResult => {
-    const validationLegend: LegendState = {
-      ...legend,
-      entries: activeEntries,
-      backgroundOpacity: legend.backgroundOpacity / 100,
-    };
-    return validateLegend(validationLegend, effectiveColors, bounds);
-  }, [activeEntries, bounds, effectiveColors, legend]);
-
-  const validationSignature = JSON.stringify(validation);
-
-  useEffect((): void => {
-    if (validationSignatureRef.current !== validationSignature) {
-      validationSignatureRef.current = validationSignature;
-      onValidationChange(validation);
-    }
-  }, [onValidationChange, validation, validationSignature]);
+  const validation = useMemo(
+    (): LegendValidationResult =>
+      validateActiveLegend(legend, effectiveColors, bounds),
+    [bounds, effectiveColors, legend],
+  );
 
   const blockingMessage = validation.ok
     ? null
@@ -348,8 +315,14 @@ export function LegendEditor({
   };
 
   const nudge = (direction: LegendNudgeDirection): void => {
+    // Nudge from the position the overlay is actually rendering, not from a
+    // stored value that may predate a column reflow.
     commands.setLegendPosition(
-      nudgeLegendPosition(legend.position, direction, bounds),
+      nudgeLegendPosition(
+        resolveLegendPosition(legend.position, bounds),
+        direction,
+        bounds,
+      ),
     );
     onStatusMessage('Legend position updated.');
   };

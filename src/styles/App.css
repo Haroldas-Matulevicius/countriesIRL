@@ -123,11 +123,17 @@
 .workspace__control-column,
 .workspace__actions,
 .workspace__selection-color,
+.workspace__legend,
 .workspace__country-list {
   min-width: 0;
   max-width: 100%;
 }
 
+/*
+ * UI-SPEC 7.1: the inspector is one shell that scrolls independently, capped at
+ * the viewport minus the app bar and 32px of bottom breathing room, so the map
+ * never scrolls out of view while the user works in the country list.
+ */
 .workspace__control-column {
   display: flex;
   flex-direction: column;

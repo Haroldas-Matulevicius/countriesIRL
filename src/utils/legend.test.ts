@@ -14,6 +14,9 @@ import {
   nudgeLegendPosition,
   reconcileLegend,
   reconcileLegendForScene,
+  resolveLegendPosition,
+  resolveLegendRender,
+  validateActiveLegend,
   validateLegend,
   validateLegendForScene,
 } from './legend';
@@ -21,6 +24,8 @@ import {
   composeEffectiveScene,
   getEffectiveSceneColors,
 } from './scene';
+import { createLegacyCompatibleSnapshot } from '../hooks/useLocalStorage';
+import { createInitialCompositionState } from '../providers/CompositionStateProvider';
 
 const TEST_RING: number[][] = [
   [0, 0],
@@ -72,6 +77,46 @@ function withEntries(
     entries,
   };
 }
+
+describe('legend defaults', (): void => {
+  it('gives a fresh map, the provider, and a legacy-migrated map the same legend', (): void => {
+    const fresh = createDefaultLegendState();
+
+    expect(fresh.position).toEqual({ x: 32, y: 32, preset: 'top-left' });
+    expect(fresh.backgroundOpacity).toBe(90);
+    // The coordinates agree with the preset they claim, so the disclosure
+    // summary can never describe a position the render contradicts.
+    expect(getLegendCornerPosition('top-left', { width: 0, height: 0 })).toEqual(
+      fresh.position,
+    );
+    expect(getLegendCornerPosition('top-left', TEST_LEGEND_BOUNDS)).toEqual(
+      fresh.position,
+    );
+
+    expect(createInitialCompositionState().legend).toEqual(fresh);
+    expect(createLegacyCompatibleSnapshot({ FRA: '#DC2626' }).legend).toEqual({
+      ...fresh,
+      entries: [{ color: '#DC2626', label: '#DC2626', order: 0 }],
+    });
+  });
+
+  it('keeps the default valid for the export gate at boot and after the first color', (): void => {
+    const fresh = createDefaultLegendState();
+    const empty = resolveLegendRender(fresh, []);
+    expect(empty.position).toEqual(fresh.position);
+    expect(validateActiveLegend(fresh, [], empty.bounds)).toEqual({
+      ok: true,
+      activeEntries: [],
+    });
+
+    const colored = reconcileLegend(['#DC2626'], fresh);
+    const rendered = resolveLegendRender(colored, ['#DC2626']);
+    expect(rendered.position).toEqual(fresh.position);
+    expect(
+      validateActiveLegend(colored, ['#DC2626'], rendered.bounds),
+    ).toMatchObject({ ok: true });
+  });
+});
 
 describe('reconcileLegend', (): void => {
   it('creates one uppercase entry per unique non-white effective scene color', (): void => {
@@ -210,6 +255,86 @@ describe('legend positioning', (): void => {
   });
 });
 
+describe('resolveLegendPosition', (): void => {
+  const ONE_COLUMN = Object.freeze({ width: 336, height: 488 });
+  const TWO_COLUMNS = Object.freeze({ width: 648, height: 304 });
+  const THREE_COLUMNS = Object.freeze({ width: 960, height: 360 });
+
+  it('re-clamps a custom position when a 9th color adds a legend column', (): void => {
+    // Dragged to the far right edge while 8 colors made one column.
+    const parkedRight = { x: 712, y: 32, preset: null };
+
+    expect(resolveLegendPosition(parkedRight, ONE_COLUMN)).toEqual({
+      x: 712,
+      y: 32,
+      preset: null,
+    });
+    // The 9th color reflows to two columns: 712 + 648 = 1360 would put 280px
+    // outside the 1080 canvas, so the resolved x drops to the new maximum.
+    expect(resolveLegendPosition(parkedRight, TWO_COLUMNS)).toEqual({
+      x: 400,
+      y: 32,
+      preset: null,
+    });
+    expect(400 + TWO_COLUMNS.width).toBe(1048);
+  });
+
+  it('re-clamps at the harsher 16 to 17 entry step', (): void => {
+    const parkedRight = { x: 400, y: 32, preset: null };
+
+    expect(resolveLegendPosition(parkedRight, THREE_COLUMNS)).toEqual({
+      x: 88,
+      y: 32,
+      preset: null,
+    });
+    expect(88 + THREE_COLUMNS.width).toBe(1048);
+  });
+
+  it('treats a preset as authoritative so the legend tracks its corner', (): void => {
+    expect(
+      resolveLegendPosition(
+        { x: 0, y: 0, preset: 'bottom-right' },
+        ONE_COLUMN,
+      ),
+    ).toEqual({ x: 712, y: 560, preset: 'bottom-right' });
+    expect(
+      resolveLegendPosition(
+        { x: 712, y: 560, preset: 'bottom-right' },
+        THREE_COLUMNS,
+      ),
+    ).toEqual({ x: 88, y: 688, preset: 'bottom-right' });
+  });
+
+  it('falls back to the safe inset for non-finite or unknown stored values', (): void => {
+    expect(
+      resolveLegendPosition(
+        { x: Number.NaN, y: -4000, preset: null },
+        ONE_COLUMN,
+      ),
+    ).toEqual({ x: 32, y: 32, preset: null });
+    expect(
+      resolveLegendPosition(
+        { x: 900, y: 900, preset: 'middle' as never },
+        ONE_COLUMN,
+      ),
+    ).toEqual({ x: 712, y: 560, preset: null });
+  });
+
+  it('derives bounds and position together from live state', (): void => {
+    const legend = withEntries(createEntries(9), {
+      position: { x: 712, y: 32, preset: null },
+    });
+    const resolved = resolveLegendRender(
+      legend,
+      createEntries(9).map((entry) => entry.color),
+    );
+
+    expect(resolved.bounds).toEqual({ width: 648, height: resolved.layout.height });
+    expect(resolved.position).toEqual({ x: 400, y: 32, preset: null });
+    expect(resolved.activeEntries).toHaveLength(9);
+  });
+});
+
 describe('validateLegend', (): void => {
   it('accepts exact enums, bounds, labels, and active effective colors', (): void => {
     const state = withEntries(
@@ -218,7 +343,7 @@ describe('validateLegend', (): void => {
         position: { x: 728, y: 32, preset: 'top-right' },
         theme: 'dark',
         textSize: 'large',
-        backgroundOpacity: 0.7,
+        backgroundOpacity: 70,
         borderStyle: 'strong',
       },
     );
@@ -255,7 +380,8 @@ describe('validateLegend', (): void => {
         position: { x: Number.NaN, y: 2000, preset: null },
         theme: 'glass' as LegendState['theme'],
         textSize: 'huge' as LegendState['textSize'],
-        backgroundOpacity: 0.4,
+        // The retired 0-1 scale is now simply out of range.
+        backgroundOpacity: 0.9,
         borderStyle: 'shadow' as LegendState['borderStyle'],
       },
     );
@@ -300,5 +426,83 @@ describe('validateLegend', (): void => {
       ok: false,
       issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
     });
+  });
+});
+
+describe('validateActiveLegend export gate', (): void => {
+  it('re-evaluates from live state so a cleared color unblocks a previously failing legend', (): void => {
+    const overflowing = withEntries(
+      [{ color: '#DC2626', label: 'x'.repeat(32), order: 0 }],
+      { textSize: 'large', backgroundOpacity: 90 },
+    );
+
+    expect(
+      validateActiveLegend(overflowing, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toMatchObject({
+      ok: false,
+      issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
+    });
+
+    // Reset All Colors leaves the stored entry in place but drops every active
+    // color, so the export gate must clear even though the entry never changed.
+    expect(
+      validateActiveLegend(overflowing, ['#FFFFFF'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [] });
+  });
+
+  it('cannot report invalid-position, because it validates the resolved position', (): void => {
+    const entries = createEntries(9);
+    const effectiveColors = entries.map((entry) => entry.color);
+    // The exact HI-1 state: parked at the far right while 8 colors made one
+    // column, then a 9th color reflowed the legend into two.
+    const strandedRight = withEntries(entries, {
+      position: { x: 712, y: 32, preset: null },
+      backgroundOpacity: 90,
+    });
+    const bounds = resolveLegendRender(strandedRight, effectiveColors).bounds;
+
+    expect(bounds.width).toBe(648);
+    expect(validateActiveLegend(strandedRight, effectiveColors, bounds)).toEqual(
+      {
+        ok: true,
+        activeEntries: getActiveLegendEntries(effectiveColors, strandedRight),
+      },
+    );
+    // The raw validator still sees the stale stored value, which is exactly why
+    // nothing may read the stored position directly.
+    expect(
+      validateLegend(strandedRight, effectiveColors, bounds),
+    ).toMatchObject({
+      ok: false,
+      issues: [{ code: 'invalid-position', path: 'position' }],
+    });
+  });
+
+  it('validates background opacity on the single stored 0-100 scale', (): void => {
+    const entry = { color: '#DC2626', label: 'Category', order: 0 };
+    const atDefault = withEntries([entry], { backgroundOpacity: 90 });
+
+    expect(
+      validateActiveLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [entry] });
+    expect(
+      validateLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [entry] });
+
+    // Off-step, below the floor, and the retired 0-1 scale all fail closed.
+    for (const backgroundOpacity of [72, 65, 105, 0.9]) {
+      expect(
+        validateActiveLegend(
+          withEntries([entry], { backgroundOpacity }),
+          ['#DC2626'],
+          TEST_LEGEND_BOUNDS,
+        ),
+      ).toMatchObject({
+        ok: false,
+        issues: [
+          { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
+        ],
+      });
+    }
   });
 });

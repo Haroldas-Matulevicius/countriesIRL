@@ -14,14 +14,20 @@ import {
   MIN_ZOOM,
   WORLD_SIZE,
 } from '../constants/camera';
-import type { CameraFreezeLease, CameraState } from '../types/composition';
+import type {
+  CameraFreezeLease,
+  CameraPanDirection,
+  CameraState,
+} from '../types/composition';
 import type { CountryId, GeoFeature } from '../types/map';
 import {
   cameraToTransform,
   constrainCameraTransform,
   createLocateTransform,
   createResetTransform,
+  panCameraTransform,
   transformToCamera,
+  zoomCameraTransform,
 } from '../utils/camera';
 
 export interface CameraControllerDriver {
@@ -29,7 +35,6 @@ export interface CameraControllerDriver {
   paintTransform(transform: ZoomTransform): void;
   setInputEnabled(isEnabled: boolean): void;
   interrupt(): void;
-  cancelFrame(): void;
   transitionTo(
     target: ZoomTransform,
     onFrame: (transform: ZoomTransform) => void,
@@ -43,9 +48,11 @@ export interface CameraControllerDriver {
 export interface CameraController {
   readCurrentCamera(): CameraState;
   freezeAndSnapshot(): CameraFreezeLease;
+  zoomBy(factor: number): void;
+  pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
-  locate(countryId: CountryId): void;
-  restore(camera: CameraState): void;
+  locate(countryId: CountryId): boolean;
+  restore(camera: CameraState): boolean;
   onGestureFrame(transform: ZoomTransform): void;
   onGestureEnd(transform: ZoomTransform): void;
   destroy(): void;
@@ -58,7 +65,7 @@ export type CameraControllerFactory = (
 interface UseCameraControllerOptions {
   readonly svgRef: React.RefObject<SVGSVGElement | null>;
   readonly cameraLayerRef: React.RefObject<SVGGElement | null>;
-  readonly features: ReadonlyArray<GeoFeature>;
+  readonly locateFeatures: ReadonlyArray<GeoFeature>;
   readonly onCameraCommit?: (camera: CameraState) => void;
   readonly controllerFactory?: CameraControllerFactory;
 }
@@ -114,17 +121,31 @@ export function createCameraController(
         return { camera, release: (): void => undefined };
       }
 
-      activeFreezeCount += 1;
-      if (activeFreezeCount === 1) {
-        driver.setInputEnabled(false);
-        driver.interrupt();
-        driver.cancelFrame();
-        currentTransform = constrainCameraTransform(
-          driver.readPaintedTransform(),
-        );
-        driver.paintTransform(currentTransform);
-        driver.commitCamera(transformToCamera(currentTransform));
+      // Count the lease only after the driver side effects succeed: a throwing
+      // setInputEnabled/interrupt used to leave the camera locked forever
+      // because no lease was ever returned to release.
+      if (activeFreezeCount === 0) {
+        try {
+          driver.setInputEnabled(false);
+          driver.interrupt();
+          currentTransform = constrainCameraTransform(
+            driver.readPaintedTransform(),
+          );
+          driver.paintTransform(currentTransform);
+          driver.commitCamera(transformToCamera(currentTransform));
+        } catch (error) {
+          try {
+            driver.setInputEnabled(true);
+          } catch (renewError) {
+            globalThis.console.error(
+              'CountriesIRL could not renew camera input after a failed freeze.',
+              renewError,
+            );
+          }
+          throw error;
+        }
       }
+      activeFreezeCount += 1;
 
       let isReleased = false;
       const camera = transformToCamera(currentTransform);
@@ -142,6 +163,33 @@ export function createCameraController(
         },
       };
     },
+    zoomBy: (factor): void => {
+      if (isLocked() || !Number.isFinite(factor) || factor <= 0) {
+        return;
+      }
+      driver.interrupt();
+      const paintedTransform = constrainCameraTransform(
+        driver.readPaintedTransform(),
+      );
+      commit(zoomCameraTransform(paintedTransform, paintedTransform.k * factor));
+    },
+    pan: (direction, viewportFraction): void => {
+      if (
+        isLocked() ||
+        !Number.isFinite(viewportFraction) ||
+        viewportFraction <= 0
+      ) {
+        return;
+      }
+      driver.interrupt();
+      commit(
+        panCameraTransform(
+          driver.readPaintedTransform(),
+          direction,
+          viewportFraction,
+        ),
+      );
+    },
     resetView: (): void => {
       if (isLocked()) {
         return;
@@ -153,13 +201,13 @@ export function createCameraController(
         (): void => controller.onGestureEnd(driver.readPaintedTransform()),
       );
     },
-    locate: (countryId): void => {
+    locate: (countryId): boolean => {
       if (isLocked()) {
-        return;
+        return false;
       }
       const feature = driver.getFeature(countryId);
       if (feature === undefined) {
-        return;
+        return false;
       }
       driver.interrupt();
       driver.transitionTo(
@@ -167,13 +215,15 @@ export function createCameraController(
         controller.onGestureFrame,
         (): void => controller.onGestureEnd(driver.readPaintedTransform()),
       );
+      return true;
     },
-    restore: (camera): void => {
+    restore: (camera): boolean => {
       if (isLocked()) {
-        return;
+        return false;
       }
       driver.interrupt();
       commit(cameraToTransform(camera));
+      return true;
     },
     onGestureFrame: (transform): void => {
       if (!isLocked()) {
@@ -192,7 +242,6 @@ export function createCameraController(
       isDestroyed = true;
       activeFreezeCount = 0;
       driver.interrupt();
-      driver.cancelFrame();
       driver.setInputEnabled(true);
       driver.cleanup();
     },
@@ -209,9 +258,11 @@ function createInactiveController(): CameraController {
       camera,
       release: (): void => undefined,
     }),
+    zoomBy: (): void => undefined,
+    pan: (): void => undefined,
     resetView: (): void => undefined,
-    locate: (): void => undefined,
-    restore: (): void => undefined,
+    locate: (): boolean => false,
+    restore: (): boolean => false,
     onGestureFrame: (): void => undefined,
     onGestureEnd: (): void => undefined,
     destroy: (): void => undefined,
@@ -221,18 +272,18 @@ function createInactiveController(): CameraController {
 export function useCameraController({
   svgRef,
   cameraLayerRef,
-  features,
+  locateFeatures,
   onCameraCommit,
   controllerFactory = createCameraController,
 }: UseCameraControllerOptions): CameraController {
   const controllerRef = useRef<CameraController | null>(null);
-  const featuresRef = useRef(features);
+  const locateFeaturesRef = useRef(locateFeatures);
   const commitRef = useRef(onCameraCommit);
 
   useLayoutEffect((): void => {
-    featuresRef.current = features;
+    locateFeaturesRef.current = locateFeatures;
     commitRef.current = onCameraCommit;
-  }, [features, onCameraCommit]);
+  }, [locateFeatures, onCameraCommit]);
 
   useLayoutEffect((): (() => void) | undefined => {
     const svgElement = svgRef.current;
@@ -246,7 +297,6 @@ export function useCameraController({
     const initialTransform = cameraToTransform(INITIAL_WORLD_CAMERA);
     let paintedTransform = initialTransform;
     let isInputEnabled = true;
-    let frameId: number | null = null;
     let activeTransition: ProgrammaticTransition | null = null;
 
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = zoom<
@@ -297,6 +347,7 @@ export function useCameraController({
       paintTransform: (transform): void => {
         paintedTransform = constrainCameraTransform(transform);
         cameraLayer.attr('transform', paintedTransform.toString());
+        svgSelection.property('__zoom', paintedTransform);
       },
       setInputEnabled: (isEnabled): void => {
         isInputEnabled = isEnabled;
@@ -311,12 +362,6 @@ export function useCameraController({
         activeTransition = null;
         svgSelection.interrupt(CAMERA_TRANSITION_NAME);
       },
-      cancelFrame: (): void => {
-        if (frameId !== null) {
-          cancelAnimationFrame(frameId);
-          frameId = null;
-        }
-      },
       transitionTo: (target, onFrame, onEnd): void => {
         activeTransition = { onFrame, onEnd };
         svgSelection
@@ -325,7 +370,7 @@ export function useCameraController({
           .call(zoomBehavior.transform, constrainCameraTransform(target));
       },
       getFeature: (countryId): GeoFeature | undefined =>
-        featuresRef.current.find(
+        locateFeaturesRef.current.find(
           (feature): boolean =>
             feature.id === countryId ||
             ('entityId' in feature && feature.entityId === countryId),
@@ -361,9 +406,14 @@ export function useCameraController({
       freezeAndSnapshot: (): CameraFreezeLease =>
         controllerRef.current?.freezeAndSnapshot() ??
         inactive.freezeAndSnapshot(),
+      zoomBy: (factor): void => controllerRef.current?.zoomBy(factor),
+      pan: (direction, viewportFraction): void =>
+        controllerRef.current?.pan(direction, viewportFraction),
       resetView: (): void => controllerRef.current?.resetView(),
-      locate: (countryId): void => controllerRef.current?.locate(countryId),
-      restore: (camera): void => controllerRef.current?.restore(camera),
+      locate: (countryId): boolean =>
+        controllerRef.current?.locate(countryId) ?? false,
+      restore: (camera): boolean =>
+        controllerRef.current?.restore(camera) ?? false,
       onGestureFrame: (transform): void =>
         controllerRef.current?.onGestureFrame(transform),
       onGestureEnd: (transform): void =>

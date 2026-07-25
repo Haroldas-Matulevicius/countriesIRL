@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useId,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useId, useMemo } from 'react';
 import type {
   ChangeEvent,
   FormEvent,
@@ -25,11 +20,19 @@ const CUSTOM_COLOR_ERROR =
   'Enter #RGB, #RRGGBB, or rgb values from 0 to 255.';
 
 interface ColorPickerProps {
+  /**
+   * Owned by `App`: the 1200px transition remounts this subtree, so an
+   * in-progress custom color would otherwise be lost on resize.
+   */
+  customDraft: string;
+  onCustomDraftChange: (draft: string) => void;
   isDisabled?: boolean;
   onStatus: (message: string) => void;
 }
 
 export function ColorPicker({
+  customDraft,
+  onCustomDraftChange,
   isDisabled = false,
   onStatus,
 }: ColorPickerProps): JSX.Element {
@@ -39,7 +42,6 @@ export function ColorPicker({
   } = useMapState();
   const inputId = useId();
   const errorId = `${inputId}-error`;
-  const [customDraft, setCustomDraft] = useState('');
 
   const selectedCountryIds = useMemo(
     () => Array.from(selectedIds),
@@ -81,9 +83,9 @@ export function ColorPicker({
 
   const handleCustomDraftChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
-      setCustomDraft(event.currentTarget.value);
+      onCustomDraftChange(event.currentTarget.value);
     },
-    [],
+    [onCustomDraftChange],
   );
 
   const handleCustomSubmit = useCallback(
@@ -102,7 +104,7 @@ export function ColorPicker({
         return;
       }
 
-      setCustomDraft(customColorResult.value);
+      onCustomDraftChange(customColorResult.value);
       onStatus(
         TOAST_MESSAGES.customColorApplied(
           customColorResult.value,
@@ -113,6 +115,7 @@ export function ColorPicker({
     [
       controlsDisabled,
       customColorResult,
+      onCustomDraftChange,
       onStatus,
       selectedCountryIds,
       setColors,

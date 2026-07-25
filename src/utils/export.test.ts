@@ -170,6 +170,16 @@ class FakeElement {
         (this.getAttribute('class') ?? '').split(/\s+/u).includes('country-path')
       );
     }
+    const attributeMatch = /^\[([^=\]]+)(?:="([^"]*)")?\]$/u.exec(selector);
+    if (attributeMatch !== null) {
+      const attributeName = attributeMatch[1];
+      const expectedValue = attributeMatch[2];
+      if (attributeName === undefined) {
+        return false;
+      }
+      const value = this.getAttribute(attributeName);
+      return expectedValue === undefined ? value !== null : value === expectedValue;
+    }
     return this.tagName === selector.toUpperCase();
   }
 
@@ -238,6 +248,15 @@ function createSource(): {
   sourcePath.setAttribute('data-selected', 'true');
   countries.appendChild(sourcePath);
   svg.appendChild(countries);
+  const legend = new FakeElement('G');
+  legend.setAttribute('data-layer', 'legend');
+  const legendText = new FakeElement('TEXT');
+  legendText.setAttribute('data-label', 'Visited France');
+  const editorHitArea = new FakeElement('RECT');
+  editorHitArea.setAttribute('data-editor-only', 'true');
+  legend.appendChild(legendText);
+  legend.appendChild(editorHitArea);
+  svg.appendChild(legend);
   sourceElement.appendChild(svg);
 
   return {
@@ -328,6 +347,12 @@ describe('exportMapPng', (): void => {
     expect(clonedPath?.getAttribute('aria-selected')).toBeNull();
     expect(clonedPath?.getAttribute('tabindex')).toBeNull();
     expect(clonedPath?.getAttribute('data-selected')).toBeNull();
+    const clonedLegend = clonedSvg?.querySelector('[data-layer="legend"]');
+    expect(clonedLegend).not.toBeNull();
+    expect(clonedLegend?.querySelector('TEXT')?.getAttribute('data-label')).toBe(
+      'Visited France',
+    );
+    expect(clonedLegend?.querySelector('[data-editor-only]')).toBeNull();
 
     const anchor = getCreatedElement(documentMock, 'A');
     expect(anchor.getAttribute('href')).toBe('blob:countriesirl-export');
@@ -465,5 +490,20 @@ describe('exportMapPng', (): void => {
 
     expect(html2canvasMock).not.toHaveBeenCalled();
     expect(documentMock.createdElements).toEqual([]);
+  });
+
+  it('rejects a source with duplicate canonical SVG roots', async (): Promise<void> => {
+    const source = new FakeElement('DIV', true);
+    source.appendChild(new FakeElement('SVG'));
+    source.appendChild(new FakeElement('SVG'));
+
+    await expect(
+      exportMapPng(source as unknown as HTMLElement),
+    ).resolves.toEqual({
+      ok: false,
+      reason: 'source-not-found',
+    });
+
+    expect(html2canvasMock).not.toHaveBeenCalled();
   });
 });

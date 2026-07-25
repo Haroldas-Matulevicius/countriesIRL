@@ -17,9 +17,11 @@ import type {
 } from '../types/composition';
 import { useCompositionState } from './useCompositionState';
 
+// Written out rather than imported so a silent change to the single default
+// still has to be acknowledged here.
 const DEFAULT_LEGEND: LegendState = {
   entries: [],
-  position: { x: 0, y: 0, preset: 'top-right' },
+  position: { x: 32, y: 32, preset: 'top-left' },
   theme: 'light',
   textSize: 'medium',
   backgroundOpacity: 90,
@@ -203,6 +205,27 @@ describe('compositionStateReducer', () => {
     expect(saved.legend).toBe(edited.legend);
     expect(saved.settings).toBe(edited.settings);
     expect(saved.savedBaseline).toEqual(visibleComposition);
+    expect(isCompositionStateDirty(saved)).toBe(false);
+  });
+
+  it('marks the exact live-camera save snapshot as visible and baseline state', () => {
+    const state = createInitialCompositionState();
+    const liveComposition: Composition = {
+      ...toComposition(state),
+      camera: {
+        zoom: 4,
+        centerLongitude: 35,
+        centerLatitude: 18,
+      },
+    };
+
+    const saved = reduce(state, {
+      type: 'MARK_SAVED',
+      payload: { composition: liveComposition },
+    });
+
+    expect(toComposition(saved)).toEqual(liveComposition);
+    expect(saved.savedBaseline).toEqual(liveComposition);
     expect(isCompositionStateDirty(saved)).toBe(false);
   });
 

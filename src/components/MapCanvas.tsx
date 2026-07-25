@@ -7,7 +7,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { geoPath, select } from 'd3';
 
 import type { CameraState, MapCanvasHandle } from '../types/composition';
@@ -74,11 +74,13 @@ export type MapTooltipData =
 
 export interface MapCanvasProps {
   features: ReadonlyArray<SceneFeature>;
+  locateFeatures?: ReadonlyArray<GeoFeature>;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onTooltipChange: (data: MapTooltipData | null) => void;
+  legendSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
   controllerFactory?: CameraControllerFactory;
 }
@@ -149,13 +151,49 @@ function getInteractionId(feature: SceneFeature): CountryId {
   return feature.entityId;
 }
 
+function assertUniqueMapSceneIdentities(
+  features: ReadonlyArray<SceneFeature>,
+): void {
+  const featureIds = new Set<CountryId>();
+  const sourceFeatureIds = new Set<string>();
+  const selectableEntityIds = new Set<CountryId>();
+
+  for (const feature of features) {
+    if (featureIds.has(feature.id)) {
+      throw new Error('duplicate-scene-feature-id');
+    }
+    if (sourceFeatureIds.has(feature.sourceFeatureId)) {
+      throw new Error('duplicate-scene-source-feature-id');
+    }
+    if (feature.isSelectable && selectableEntityIds.has(feature.entityId)) {
+      throw new Error('duplicate-scene-selectable-entity-id');
+    }
+
+    featureIds.add(feature.id);
+    sourceFeatureIds.add(feature.sourceFeatureId);
+    if (feature.isSelectable) {
+      selectableEntityIds.add(feature.entityId);
+    }
+  }
+}
+
+export function getSelectableSceneFeatures(
+  features: ReadonlyArray<SceneFeature>,
+): SceneFeature[] {
+  assertUniqueMapSceneIdentities(features);
+  return features.filter((feature): boolean => feature.isSelectable);
+}
+
 export function createWrappedSceneModel(
   features: ReadonlyArray<SceneFeature>,
 ): ReadonlyArray<WrappedScenePath> {
-  return features.flatMap((feature): ReadonlyArray<WrappedScenePath> =>
-    WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
+  assertUniqueMapSceneIdentities(features);
+  return features.flatMap((feature): ReadonlyArray<WrappedScenePath> => {
+    const hasLogicalPath = feature.isSelectable;
+
+    return WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
       const isPrimaryVisual = offsetX === 0;
-      const isLogical = feature.isSelectable && isPrimaryVisual;
+      const isLogical = hasLogicalPath && isPrimaryVisual;
       return {
         key: `${feature.id}:${offsetX}`,
         sceneUnitId: feature.id,
@@ -167,8 +205,8 @@ export function createWrappedSceneModel(
         isFocusable: isLogical,
         isPrimaryVisual,
       };
-    }),
-  );
+    });
+  });
 }
 
 export function getSceneFeatureColor(
@@ -235,11 +273,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
       features,
+      locateFeatures = features,
       colors,
       selectedIds,
       onSelectCountry,
       onClearSelection,
       onTooltipChange,
+      legendSlot,
       onCameraCommit,
       controllerFactory,
     }: MapCanvasProps,
@@ -259,7 +299,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const cameraController = useCameraController({
       svgRef,
       cameraLayerRef,
-      features,
+      locateFeatures,
       onCameraCommit,
       controllerFactory,
     });
@@ -277,6 +317,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       (): MapCanvasHandle => ({
         readCurrentCamera: cameraController.readCurrentCamera,
         freezeAndSnapshot: cameraController.freezeAndSnapshot,
+        zoomBy: cameraController.zoomBy,
+        pan: cameraController.pan,
         resetView: cameraController.resetView,
         locate: cameraController.locate,
         restore: cameraController.restore,
@@ -297,8 +339,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
 
     const selectableFeatures = useMemo<ReadonlyArray<SceneFeature>>(
       () =>
-        features
-          .filter((feature): boolean => feature.isSelectable)
+        getSelectableSceneFeatures(features)
           .sort(
             (first, second): number =>
               first.properties.name.localeCompare(second.properties.name) ||
@@ -605,14 +646,17 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           className="map-canvas"
           viewBox={`0 0 ${MAP_VIEWBOX_SIZE} ${MAP_VIEWBOX_SIZE}`}
           preserveAspectRatio="xMidYMid meet"
-          role="listbox"
-          aria-label="Interactive map of the world"
-          aria-multiselectable="true"
           onClick={handleBackgroundClick}
         >
           <g ref={cameraLayerRef} data-layer="camera">
-            <g data-layer="countries" />
+            <g
+              data-layer="countries"
+              role="listbox"
+              aria-label="Interactive map of the world"
+              aria-multiselectable="true"
+            />
           </g>
+          {legendSlot}
         </svg>
       </div>
     );

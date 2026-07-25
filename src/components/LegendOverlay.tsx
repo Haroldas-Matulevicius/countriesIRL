@@ -10,11 +10,7 @@ import type {
   LegendState,
   LegendTextSize,
 } from '../types/composition';
-import {
-  createLegendLayout,
-  getActiveLegendEntries,
-  nudgeLegendPosition,
-} from '../utils/legend';
+import { nudgeLegendPosition, resolveLegendRender } from '../utils/legend';
 import type { LegendBounds, LegendLayoutItem } from '../utils/legend';
 
 const LEGEND_CANVAS_SIZE = 1080;
@@ -85,10 +81,14 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
 
+/**
+ * `backgroundOpacity` is stored, validated, clamped and displayed on a single
+ * 0-100 percent scale, so there is exactly one conversion to the SVG ratio.
+ * The previous dual handling silently accepted a 0-1 value, which is how a
+ * legacy-migrated map could differ from a fresh one.
+ */
 function getBackgroundOpacity(backgroundOpacity: number): number {
-  return backgroundOpacity <= 1
-    ? clamp(backgroundOpacity, 0.7, 1)
-    : clamp(backgroundOpacity / 100, 0.7, 1);
+  return clamp(backgroundOpacity / 100, 0.7, 1);
 }
 
 function getBorderWidth(borderStyle: LegendState['borderStyle']): number {
@@ -113,9 +113,7 @@ export function getLegendOverlayBounds(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
 ): LegendBounds {
-  const activeEntries = getActiveLegendEntries(effectiveColors, legend);
-  const layout = createLegendLayout(activeEntries, legend.textSize);
-  return { width: layout.width, height: layout.height };
+  return resolveLegendRender(legend, effectiveColors).bounds;
 }
 
 export function clampLegendDragPosition(
@@ -186,9 +184,14 @@ export function LegendOverlay({
   onPositionChange,
   onStatusMessage,
 }: LegendOverlayProps): JSX.Element {
-  const activeEntries = getActiveLegendEntries(effectiveColors, legend);
-  const layout = createLegendLayout(activeEntries, legend.textSize);
-  const bounds = { width: layout.width, height: layout.height };
+  // Resolved, never stored: a stored position is only valid for the bounds it
+  // was authored against, and adding a 9th (or 17th) color reflows the legend
+  // into another column. Rendering the resolved position is what keeps the
+  // exported PNG - which is a clone of exactly this SVG - inside the frame.
+  const { activeEntries, layout, bounds, position } = resolveLegendRender(
+    legend,
+    effectiveColors,
+  );
   const colors = THEME_COLORS[legend.theme];
   const borderWidth = getBorderWidth(legend.borderStyle);
   const dragStateRef = useRef<DragState | null>(null);
@@ -205,7 +208,7 @@ export function LegendOverlay({
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
-      startPosition: legend.position,
+      startPosition: position,
     };
   };
 
@@ -267,7 +270,7 @@ export function LegendOverlay({
     event.stopPropagation();
     onPositionChange(
       nudgeLegendPosition(
-        legend.position,
+        position,
         direction,
         bounds,
         event.shiftKey ? 'large' : 'small',
@@ -283,7 +286,7 @@ export function LegendOverlay({
   return (
     <g
       data-layer="legend"
-      transform={`translate(${legend.position.x} ${legend.position.y})`}
+      transform={`translate(${position.x} ${position.y})`}
     >
       {activeEntries.length === 0 ? null : (
         <>

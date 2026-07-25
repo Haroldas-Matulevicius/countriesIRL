@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useId, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
 import type { WorldCountryMetadata } from '../hooks/useGeoData';
@@ -16,9 +10,23 @@ const COUNTRY_SEARCH_MAX_LENGTH = 100;
 const COUNTRY_SEARCH_PLACEHOLDER = 'Type a country name';
 const COUNTRY_SEARCH_EMPTY_BODY = 'Try a different country name.';
 const COUNTRY_SEARCH_CLEAR_LABEL = 'Clear Country Search';
+export const COUNTRY_NOT_IN_SCENE_HINT = 'Not in this map';
 
 interface CountryListProps {
   countries: ReadonlyArray<WorldCountryMetadata>;
+  /**
+   * Entities the active scene can actually select. The browsable catalog stays
+   * the modern 195-core list (historical entities are never searchable), so
+   * rows outside the scene are shown but rejected instead of being hidden.
+   */
+  selectableCountryIds: ReadonlySet<CountryId>;
+  /**
+   * Owned by `App`, not by this component: crossing the 1200px breakpoint
+   * moves this subtree into and out of the inspector shell, which remounts it.
+   * Component-local search state would be silently discarded on every resize.
+   */
+  query: string;
+  onQueryChange: (query: string) => void;
   isDisabled?: boolean;
 }
 
@@ -53,6 +61,21 @@ export function getVisibleCountryIds(
   return countries.map((country) => country.id);
 }
 
+/**
+ * Bulk selection must never reach past the active scene: a historical snapshot
+ * that replaced France still lists France in the browser, but selecting it
+ * would produce a selection the map, the selection panel, and the legend all
+ * disagree about.
+ */
+export function getSelectableVisibleCountryIds(
+  countries: ReadonlyArray<WorldCountryMetadata>,
+  selectableCountryIds: ReadonlySet<CountryId>,
+): ReadonlyArray<CountryId> {
+  return getVisibleCountryIds(countries).filter((countryId) =>
+    selectableCountryIds.has(countryId),
+  );
+}
+
 export function getCountrySearchEmptyState(
   query: string,
 ): CountrySearchEmptyState {
@@ -65,6 +88,9 @@ export function getCountrySearchEmptyState(
 
 export function CountryList({
   countries,
+  selectableCountryIds,
+  query,
+  onQueryChange,
   isDisabled = false,
 }: CountryListProps): JSX.Element {
   const {
@@ -75,7 +101,6 @@ export function CountryList({
   } = useMapState();
   const listId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState('');
   const filteredCountries = useMemo(
     () => filterCountryCatalog(countries, query),
     [countries, query],
@@ -84,15 +109,26 @@ export function CountryList({
     () => getVisibleCountryIds(filteredCountries),
     [filteredCountries],
   );
+  const selectableVisibleCountryIds = useMemo(
+    () =>
+      getSelectableVisibleCountryIds(filteredCountries, selectableCountryIds),
+    [filteredCountries, selectableCountryIds],
+  );
   const validCountryIds = useMemo(
-    () => new Set<CountryId>(countries.map((country) => country.id)),
-    [countries],
+    () =>
+      new Set<CountryId>(
+        countries
+          .map((country) => country.id)
+          .filter((countryId) => selectableCountryIds.has(countryId)),
+      ),
+    [countries, selectableCountryIds],
   );
   const hasVisibleCountries = visibleCountryIds.length > 0;
+  const hasSelectableVisibleCountries = selectableVisibleCountryIds.length > 0;
   const hasExactVisibleSelection =
-    hasVisibleCountries &&
-    selectedIds.size === visibleCountryIds.length &&
-    visibleCountryIds.every((countryId) => selectedIds.has(countryId));
+    hasSelectableVisibleCountries &&
+    selectedIds.size === selectableVisibleCountryIds.length &&
+    selectableVisibleCountryIds.every((countryId) => selectedIds.has(countryId));
   const emptyState = useMemo(
     () => getCountrySearchEmptyState(query),
     [query],
@@ -100,19 +136,21 @@ export function CountryList({
 
   const handleQueryChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
-      setQuery(event.currentTarget.value.slice(0, COUNTRY_SEARCH_MAX_LENGTH));
+      onQueryChange(
+        event.currentTarget.value.slice(0, COUNTRY_SEARCH_MAX_LENGTH),
+      );
     },
-    [],
+    [onQueryChange],
   );
 
   const handleClearSearch = useCallback((): void => {
-    setQuery('');
+    onQueryChange('');
     searchInputRef.current?.focus();
-  }, []);
+  }, [onQueryChange]);
 
   const handleSelectVisible = useCallback((): void => {
-    replaceSelection(visibleCountryIds);
-  }, [replaceSelection, visibleCountryIds]);
+    replaceSelection(selectableVisibleCountryIds);
+  }, [replaceSelection, selectableVisibleCountryIds]);
 
   const handleCountryChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
@@ -147,7 +185,9 @@ export function CountryList({
             type="button"
             onClick={handleSelectVisible}
             disabled={
-              isDisabled || !hasVisibleCountries || hasExactVisibleSelection
+              isDisabled ||
+              !hasSelectableVisibleCountries ||
+              hasExactVisibleSelection
             }
           >
             Select Visible
@@ -174,16 +214,24 @@ export function CountryList({
         <ul className="country-list__items">
           {filteredCountries.map((country) => {
             const countryColor = getEffectiveCountryColor(colors, country.id);
+            const isInActiveScene = selectableCountryIds.has(country.id);
 
             return (
               <li key={country.id} className="country-list__item">
-                <label className="country-list__label" title={country.name}>
+                <label
+                  className="country-list__label"
+                  title={
+                    isInActiveScene
+                      ? country.name
+                      : `${country.name} — ${COUNTRY_NOT_IN_SCENE_HINT}`
+                  }
+                >
                   <input
                     type="checkbox"
                     value={country.id}
                     checked={selectedIds.has(country.id)}
                     onChange={handleCountryChange}
-                    disabled={isDisabled}
+                    disabled={isDisabled || !isInActiveScene}
                   />
                   <span className="country-list__name">{country.name}</span>
                   <span
@@ -192,6 +240,11 @@ export function CountryList({
                     role="img"
                     aria-label={`Current color ${countryColor}`}
                   />
+                  {isInActiveScene ? null : (
+                    <span className="country-list__unavailable">
+                      {COUNTRY_NOT_IN_SCENE_HINT}
+                    </span>
+                  )}
                 </label>
               </li>
             );

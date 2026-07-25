@@ -34,6 +34,9 @@ const EDITOR_STATE_ATTRIBUTES = [
 ] as const;
 
 function sanitizeEditorState(svg: SVGSVGElement): void {
+  svg.querySelectorAll('[data-editor-only]').forEach((element): void => {
+    element.remove();
+  });
   const elements: Element[] = [svg, ...svg.querySelectorAll('*')];
 
   elements.forEach((element: Element): void => {
@@ -120,8 +123,12 @@ export async function exportMapPng(
     return { ok: false, reason: 'source-not-found' };
   }
 
-  const sourceSvg = source.querySelector<SVGSVGElement>('svg');
-  if (!sourceSvg) {
+  const sourceSvgs = source.querySelectorAll<SVGSVGElement>('svg');
+  if (sourceSvgs.length !== 1) {
+    return { ok: false, reason: 'source-not-found' };
+  }
+  const sourceSvg = sourceSvgs[0];
+  if (sourceSvg === undefined) {
     return { ok: false, reason: 'source-not-found' };
   }
 
