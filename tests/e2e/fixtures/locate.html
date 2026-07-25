@@ -47,10 +47,12 @@
         createElement as h,
         useCallback,
         useRef,
+        useState,
       } from 'react';
       import { createRoot } from 'react-dom/client';
       import { CountryList } from '/src/components/CountryList.tsx';
       import { LocateCountry } from '/src/components/LocateCountry.tsx';
+      import { useInspectorUiState } from '/src/hooks/useInspectorUiState.ts';
       import { MapCanvas } from '/src/components/MapCanvas.tsx';
       import { useGeoData } from '/src/hooks/useGeoData.ts';
       import { useMapState } from '/src/hooks/useMapState.ts';
@@ -61,6 +63,11 @@
 
       function LocateFixture() {
         const geoData = useGeoData();
+        const countries =
+          geoData.status === 'ready' ? geoData.countryMetadata : [];
+        // Mirrors App: the inspector's transient UI state is owned above the
+        // sections that render it.
+        const inspectorUi = useInspectorUiState(countries);
         const mapRef = useRef(null);
         const locateCallsRef = useRef(0);
         const controllerFactoryCallsRef = useRef(0);
@@ -119,9 +126,13 @@
               selectableCountryIds: new Set(
                 geoData.countryMetadata.map((country) => country.id),
               ),
+              query: inspectorUi.countryQuery,
+              onQueryChange: inspectorUi.setCountryQuery,
             }),
             h(LocateCountry, {
               countries: geoData.countryMetadata,
+              state: inspectorUi.locateState,
+              dispatch: inspectorUi.dispatchLocate,
               onLocate: locateCountry,
             }),
           ),

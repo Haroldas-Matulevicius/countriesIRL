@@ -26,6 +26,7 @@ function renderCountryList(
   selectableCountryIds: ReadonlySet<string> = new Set(
     countries.map((country) => country.id),
   ),
+  query = '',
 ): string {
   const state: MapState = {
     colors: { FRA: '#DC2626' },
@@ -56,6 +57,8 @@ function renderCountryList(
       <CountryList
         countries={countries}
         selectableCountryIds={selectableCountryIds}
+        query={query}
+        onQueryChange={vi.fn()}
       />
     </MapStateContext.Provider>,
   );

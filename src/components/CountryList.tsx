@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useId, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
 import type { WorldCountryMetadata } from '../hooks/useGeoData';
@@ -26,6 +20,13 @@ interface CountryListProps {
    * rows outside the scene are shown but rejected instead of being hidden.
    */
   selectableCountryIds: ReadonlySet<CountryId>;
+  /**
+   * Owned by `App`, not by this component: crossing the 1200px breakpoint
+   * moves this subtree into and out of the inspector shell, which remounts it.
+   * Component-local search state would be silently discarded on every resize.
+   */
+  query: string;
+  onQueryChange: (query: string) => void;
   isDisabled?: boolean;
 }
 
@@ -88,6 +89,8 @@ export function getCountrySearchEmptyState(
 export function CountryList({
   countries,
   selectableCountryIds,
+  query,
+  onQueryChange,
   isDisabled = false,
 }: CountryListProps): JSX.Element {
   const {
@@ -98,7 +101,6 @@ export function CountryList({
   } = useMapState();
   const listId = useId();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState('');
   const filteredCountries = useMemo(
     () => filterCountryCatalog(countries, query),
     [countries, query],
@@ -134,15 +136,17 @@ export function CountryList({
 
   const handleQueryChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
-      setQuery(event.currentTarget.value.slice(0, COUNTRY_SEARCH_MAX_LENGTH));
+      onQueryChange(
+        event.currentTarget.value.slice(0, COUNTRY_SEARCH_MAX_LENGTH),
+      );
     },
-    [],
+    [onQueryChange],
   );
 
   const handleClearSearch = useCallback((): void => {
-    setQuery('');
+    onQueryChange('');
     searchInputRef.current?.focus();
-  }, []);
+  }, [onQueryChange]);
 
   const handleSelectVisible = useCallback((): void => {
     replaceSelection(selectableVisibleCountryIds);

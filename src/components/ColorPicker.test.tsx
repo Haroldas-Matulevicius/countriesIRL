@@ -33,7 +33,11 @@ function renderColorPickerWithState(state: MapState): string {
 
   return renderToStaticMarkup(
     <MapStateContext.Provider value={value}>
-      <ColorPicker onStatus={vi.fn()} />
+      <ColorPicker
+        customDraft=""
+        onCustomDraftChange={vi.fn()}
+        onStatus={vi.fn()}
+      />
     </MapStateContext.Provider>,
   );
 }
@@ -52,7 +56,11 @@ describe('ColorPicker', () => {
     const onStatus = vi.fn();
     const markup = renderToStaticMarkup(
       <MapStateProvider>
-        <ColorPicker onStatus={onStatus} />
+        <ColorPicker
+          customDraft=""
+          onCustomDraftChange={vi.fn()}
+          onStatus={onStatus}
+        />
       </MapStateProvider>,
     );
 

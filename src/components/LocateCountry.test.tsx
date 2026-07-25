@@ -19,7 +19,12 @@ const NATIVE_DISABLED_ATTRIBUTE = /\sdisabled(?:=""|(?=[\s>]))/;
 describe('LocateCountry', () => {
   it('exposes a semantic combobox and keeps Locate disabled before a commit', () => {
     const markup = renderToStaticMarkup(
-      <LocateCountry countries={COUNTRY_CATALOG} onLocate={vi.fn()} />,
+      <LocateCountry
+        countries={COUNTRY_CATALOG}
+        state={createInitialLocateState()}
+        dispatch={vi.fn()}
+        onLocate={vi.fn()}
+      />,
     );
     const locateButton = markup.match(
       /<button\b[^>]*type="button"[^>]*>Locate Country<\/button>/,

@@ -709,6 +709,64 @@ test('real app saves and loads the complete composition after responsive rebindi
     .toBeGreaterThan(savedTransform.k);
 });
 
+test('the inspector keeps its in-progress UI state across the 1200px transition', async ({
+  page,
+}): Promise<void> => {
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await waitForApp(page);
+  await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
+  await page.locator('svg.map-canvas').evaluate((svg): void => {
+    svg.setAttribute('data-camera-owner-sentinel', 'stable-owner');
+  });
+  await expectDesktopWorkspaceShell(page);
+
+  const francePath = page.locator('path.country-path[data-country-id="FRA"]');
+  await francePath.focus();
+  await francePath.press('Enter');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+
+  const legendToggle = page.getByRole('button', { name: /^Legend/ });
+  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  const countrySearch = page.getByRole('searchbox', { name: 'Search countries' });
+  const customColor = page.getByLabel('Custom color');
+  const locateInput = page.getByRole('combobox', { name: 'Find a country' });
+
+  await legendToggle.click();
+  await expect(legendLabel).toBeVisible();
+  await countrySearch.fill('Ger');
+  await customColor.fill('#123456');
+  await locateInput.fill('Spa');
+
+  // Desktop wraps these four sections in the inspector shell and compact does
+  // not, so React remounts them on every crossing. The state they show must be
+  // owned above the branch, exactly like the map and composition state.
+  const expectPreservedInspectorState = async (): Promise<void> => {
+    await expect(countrySearch).toHaveValue('Ger');
+    await expect(customColor).toHaveValue('#123456');
+    await expect(locateInput).toHaveValue('Spa');
+    await expect(legendToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(legendLabel).toBeVisible();
+    await expect(page.locator('svg.map-canvas')).toHaveAttribute(
+      'data-camera-owner-sentinel',
+      'stable-owner',
+    );
+  };
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--compact/,
+  );
+  await expectCompactWorkspaceOrder(page);
+  await expectPreservedInspectorState();
+
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    /workspace--desktop/,
+  );
+  await expectDesktopWorkspaceShell(page);
+  await expectPreservedInspectorState();
+});
+
 test('real app export failure and frozen load both release without false success', async ({
   page,
 }): Promise<void> => {

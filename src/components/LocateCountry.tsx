@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useId,
-  useMemo,
-  useReducer,
-  useRef,
-} from 'react';
+import { useCallback, useId, useMemo, useRef } from 'react';
 import type {
   ChangeEvent,
   FocusEvent,
@@ -23,6 +17,12 @@ const LOCATE_CLEAR_LABEL = 'Clear Locate Search';
 
 interface LocateCountryProps {
   countries: ReadonlyArray<WorldCountryMetadata>;
+  /**
+   * Owned by `App`: the 1200px transition remounts this subtree, so the
+   * combobox draft and its committed target would otherwise be lost on resize.
+   */
+  state: LocateState;
+  dispatch: (action: LocateAction) => void;
   isDisabled?: boolean;
   onLocate: (countryId: CountryId) => void;
 }
@@ -146,6 +146,8 @@ export function getLocateEmptyState(query: string): LocateEmptyState {
 
 export function LocateCountry({
   countries,
+  state,
+  dispatch,
   isDisabled = false,
   onLocate,
 }: LocateCountryProps): JSX.Element {
@@ -154,17 +156,6 @@ export function LocateCountry({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const suppressNextFocusOpenRef = useRef(false);
-  const [state, dispatch] = useReducer(
-    (currentState: LocateState, action: LocateAction): LocateState => {
-      const optionCount =
-        action.type === 'change'
-          ? filterLocateCountries(countries, action.draft).length
-          : filterLocateCountries(countries, currentState.draft).length;
-      return reduceLocateState(currentState, action, optionCount);
-    },
-    undefined,
-    createInitialLocateState,
-  );
   const options = useMemo(
     () => filterLocateCountries(countries, state.draft),
     [countries, state.draft],
@@ -184,7 +175,7 @@ export function LocateCountry({
         countryName: country.name,
       });
     },
-    [],
+    [dispatch],
   );
 
   const handleDraftChange = useCallback(
@@ -194,7 +185,7 @@ export function LocateCountry({
         draft: event.currentTarget.value.slice(0, LOCATE_DRAFT_MAX_LENGTH),
       });
     },
-    [],
+    [dispatch],
   );
 
   const handleInputFocus = useCallback((): void => {
@@ -204,7 +195,7 @@ export function LocateCountry({
     }
 
     dispatch({ type: 'open' });
-  }, []);
+  }, [dispatch]);
 
   const handleInputKeyDown = useCallback(
     (event: KeyboardEvent<HTMLInputElement>): void => {
@@ -228,7 +219,7 @@ export function LocateCountry({
         dispatch({ type: 'escape' });
       }
     },
-    [activeOption, commitOption],
+    [activeOption, commitOption, dispatch],
   );
 
   const handleContainerBlur = useCallback(
@@ -243,7 +234,7 @@ export function LocateCountry({
 
       dispatch({ type: 'escape' });
     },
-    [],
+    [dispatch],
   );
 
   const handleOptionMouseDown = useCallback(
@@ -257,7 +248,7 @@ export function LocateCountry({
     dispatch({ type: 'clear' });
     suppressNextFocusOpenRef.current = true;
     inputRef.current?.focus();
-  }, []);
+  }, [dispatch]);
 
   const handleLocate = useCallback((): void => {
     if (state.committedTargetId !== null) {

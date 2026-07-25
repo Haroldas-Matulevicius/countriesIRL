@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { PropsWithChildren } from 'react';
 
 const LEGEND_PANEL_ID = 'legend-editor-panel';
@@ -8,6 +8,12 @@ const LEGEND_ADDED_MESSAGE = 'Legend added. Open Legend to edit labels.';
 interface LegendDisclosureProps extends PropsWithChildren {
   entryCount: number;
   positionLabel: string;
+  /**
+   * Owned by `App`: the 1200px transition remounts this subtree, so a panel
+   * the user opened would otherwise snap shut on resize.
+   */
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
   onStatusMessage?: (message: string) => void;
 }
 
@@ -23,10 +29,11 @@ export function getLegendDisclosureSummary(
 export function LegendDisclosure({
   entryCount,
   positionLabel,
+  isExpanded,
+  onExpandedChange,
   onStatusMessage,
   children,
 }: LegendDisclosureProps): JSX.Element {
-  const [isExpanded, setIsExpanded] = useState(false);
   const previousEntryCountRef = useRef(entryCount);
 
   useEffect((): void => {
@@ -43,7 +50,7 @@ export function LegendDisclosure({
         type="button"
         aria-expanded={isExpanded}
         aria-controls={LEGEND_PANEL_ID}
-        onClick={(): void => setIsExpanded((current): boolean => !current)}
+        onClick={(): void => onExpandedChange(!isExpanded)}
       >
         <span>Legend</span>
         <span>{getLegendDisclosureSummary(entryCount, positionLabel)}</span>

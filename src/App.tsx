@@ -45,6 +45,7 @@ import type { CompositionLoadRollbackState } from './hooks/useCompositionLoadTra
 import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
 import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
+import { useInspectorUiState } from './hooks/useInspectorUiState';
 import type { WorldCountryMetadata } from './hooks/useGeoData';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useMapState } from './hooks/useMapState';
@@ -201,6 +202,10 @@ export default function App(): JSX.Element {
   const visibleFeatures = effectiveScene?.features ?? null;
   const countries =
     geoData.status === 'ready' ? geoData.countryMetadata : EMPTY_COUNTRIES;
+  // Held above the responsive branch: the inspector sections change parent
+  // across the 1200px transition and are therefore remounted, so their
+  // transient UI state cannot live inside them.
+  const inspectorUi = useInspectorUiState(countries);
   const modernCountryLookup =
     geoData.status === 'ready' ? geoData.coreLookup : EMPTY_COUNTRY_LOOKUP;
   const effectiveCountryLookup = useMemo<ReadonlyMap<CountryId, GeoFeature>>(
@@ -695,7 +700,12 @@ export default function App(): JSX.Element {
   const selectionAndColorControls = (
     <div key="selection-color" className="workspace__selection-color">
       <SelectionPanel countryLookup={effectiveCountryLookup} />
-      <ColorPicker isDisabled={!isMapReady} onStatus={showStatus} />
+      <ColorPicker
+        customDraft={inspectorUi.customColorDraft}
+        onCustomDraftChange={inspectorUi.setCustomColorDraft}
+        isDisabled={!isMapReady}
+        onStatus={showStatus}
+      />
     </div>
   );
 
@@ -704,6 +714,8 @@ export default function App(): JSX.Element {
       <LegendDisclosure
         entryCount={activeLegendEntries.length}
         positionLabel={getLegendPositionLabel(compositionState.legend.position)}
+        isExpanded={inspectorUi.isLegendExpanded}
+        onExpandedChange={inspectorUi.setLegendExpanded}
         onStatusMessage={showStatus}
       >
         <LegendEditor
@@ -722,10 +734,14 @@ export default function App(): JSX.Element {
       <CountryList
         countries={countries}
         selectableCountryIds={effectiveSelectableIds}
+        query={inspectorUi.countryQuery}
+        onQueryChange={inspectorUi.setCountryQuery}
         isDisabled={!isMapReady}
       />
       <LocateCountry
         countries={countries}
+        state={inspectorUi.locateState}
+        dispatch={inspectorUi.dispatchLocate}
         isDisabled={!isMapReady}
         onLocate={handleLocateCountry}
       />

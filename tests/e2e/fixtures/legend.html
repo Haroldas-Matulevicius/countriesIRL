@@ -99,6 +99,7 @@
           setLegendPosition,
         } = useCompositionState();
         const [colorCount, setColorCount] = useState(null);
+        const [isLegendExpanded, setIsLegendExpanded] = useState(false);
         const [statusMessage, setStatusMessage] = useState('');
         const [cameraEvents, setCameraEvents] = useState(0);
         const [exportEditorOnlyCount, setExportEditorOnlyCount] = useState(null);
@@ -223,6 +224,8 @@
               {
                 entryCount: activeEntries.length,
                 positionLabel,
+                isExpanded: isLegendExpanded,
+                onExpandedChange: setIsLegendExpanded,
                 onStatusMessage: setStatusMessage,
               },
               h(LegendEditor, {

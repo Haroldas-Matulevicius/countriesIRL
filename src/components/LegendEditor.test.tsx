@@ -49,7 +49,12 @@ describe('LegendDisclosure', (): void => {
     );
 
     const markup = renderToStaticMarkup(
-      <LegendDisclosure entryCount={2} positionLabel="Top right">
+      <LegendDisclosure
+        entryCount={2}
+        positionLabel="Top right"
+        isExpanded={false}
+        onExpandedChange={vi.fn()}
+      >
         <p>Legend controls</p>
       </LegendDisclosure>,
     );
