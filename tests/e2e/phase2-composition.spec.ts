@@ -866,9 +866,21 @@ test('real app round-trips a historical scene with live catalog and exported leg
 
   const countrySearch = page.getByRole('searchbox', { name: 'Search countries' });
   await countrySearch.fill('France');
+  const franceRow = page.getByRole('checkbox', { name: /France Current color/ });
+  await expect(franceRow).toBeVisible();
+  // The catalog stays the modern 195-core list, but a scene without FRA must
+  // not let the browser create a selection the map cannot show.
+  await expect(franceRow).toBeDisabled();
+  await expect(franceRow).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Select Visible' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Apply Red' })).toBeDisabled();
+  await expect(page.locator('[data-selection-live-region="true"]')).not.toHaveText(
+    /country selected\./,
+  );
   await expect(
-    page.getByRole('checkbox', { name: /France Current color/ }),
+    page.getByRole('heading', { name: 'Select countries to color' }),
   ).toBeVisible();
+
   await countrySearch.fill(HISTORICAL_LABEL);
   await expect(
     page.getByText(`No countries match “${HISTORICAL_LABEL}”.`),
@@ -924,6 +936,8 @@ test('real app round-trips a historical scene with live catalog and exported leg
     colors: { [HISTORICAL_ENTITY_ID]: '#DC2626' },
     legend: { entries: [{ label: 'Imperial lands' }] },
   });
+  // No phantom color for an entity the scene never contained.
+  expect(roundTrip?.colors).toEqual({ [HISTORICAL_ENTITY_ID]: '#DC2626' });
   expect(roundTrip?.camera.zoom).toBeCloseTo(settledCamera.zoom, 4);
   expect(roundTrip?.camera.centerLongitude).toBeCloseTo(
     settledCamera.centerLongitude,

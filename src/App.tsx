@@ -218,6 +218,13 @@ export default function App(): JSX.Element {
     },
     [effectiveScene],
   );
+  // Single source of truth for "can this entity be selected right now"; the map
+  // gate (handleSelectCountry) and the country browser both read it, so the
+  // browser can never create a selection the scene does not contain.
+  const effectiveSelectableIds = useMemo<ReadonlySet<CountryId>>(
+    () => new Set(effectiveCountryLookup.keys()),
+    [effectiveCountryLookup],
+  );
   const effectiveColors = useMemo<ReadonlyArray<string>>(
     () =>
       effectiveScene === null
@@ -698,7 +705,11 @@ export default function App(): JSX.Element {
 
   const countryList = (
     <div key="countries" className="workspace__country-list">
-      <CountryList countries={countries} isDisabled={!isMapReady} />
+      <CountryList
+        countries={countries}
+        selectableCountryIds={effectiveSelectableIds}
+        isDisabled={!isMapReady}
+      />
       <LocateCountry
         countries={countries}
         isDisabled={!isMapReady}

@@ -9,9 +9,11 @@ import {
 } from '../providers/MapStateProvider';
 import type { WorldCountryMetadata } from '../hooks/useGeoData';
 import {
+  COUNTRY_NOT_IN_SCENE_HINT,
   CountryList,
   filterCountryCatalog,
   getCountrySearchEmptyState,
+  getSelectableVisibleCountryIds,
   getVisibleCountryIds,
 } from './CountryList';
 
@@ -19,7 +21,12 @@ const COUNTRY_CATALOG: ReadonlyArray<WorldCountryMetadata> =
   worldManifest.coreStates.map(({ id, name }) => ({ id, name }));
 const HISTORICAL_ENTITY_ID = 'HIST-PLC';
 
-function renderCountryList(countries: ReadonlyArray<WorldCountryMetadata>): string {
+function renderCountryList(
+  countries: ReadonlyArray<WorldCountryMetadata>,
+  selectableCountryIds: ReadonlySet<string> = new Set(
+    countries.map((country) => country.id),
+  ),
+): string {
   const state: MapState = {
     colors: { FRA: '#DC2626' },
     history: [{}],
@@ -46,7 +53,10 @@ function renderCountryList(countries: ReadonlyArray<WorldCountryMetadata>): stri
 
   return renderToStaticMarkup(
     <MapStateContext.Provider value={value}>
-      <CountryList countries={countries} />
+      <CountryList
+        countries={countries}
+        selectableCountryIds={selectableCountryIds}
+      />
     </MapStateContext.Provider>,
   );
 }
@@ -76,6 +86,41 @@ describe('CountryList modern-core catalog', () => {
     expect(getVisibleCountryIds(COUNTRY_CATALOG)).not.toContain(
       HISTORICAL_ENTITY_ID,
     );
+  });
+
+  it('keeps the modern catalog visible but rejects rows outside the active scene', () => {
+    const markup = renderCountryList(
+      [
+        { id: 'DEU', name: 'Germany' },
+        { id: 'FRA', name: 'France' },
+      ],
+      new Set(['DEU', 'HIST-HRE']),
+    );
+
+    // The browsable catalog is unchanged: France is still listed and searchable.
+    expect(markup).toContain('>France<');
+    expect(markup).toContain('>Germany<');
+    expect(markup).not.toContain(HISTORICAL_ENTITY_ID);
+    // ...but the row the active scene does not contain cannot be selected.
+    expect(markup.match(/type="checkbox"/g)).toHaveLength(2);
+    expect(markup.match(/disabled=""/g)).toHaveLength(1);
+    expect(markup).toContain(`France — ${COUNTRY_NOT_IN_SCENE_HINT}`);
+  });
+
+  it('limits Select Visible to entities the active scene contains', () => {
+    const filtered = filterCountryCatalog(
+      [
+        { id: 'DEU', name: 'Germany' },
+        { id: 'FRA', name: 'France' },
+      ],
+      '',
+    );
+
+    expect(getVisibleCountryIds(filtered)).toEqual(['FRA', 'DEU']);
+    expect(
+      getSelectableVisibleCountryIds(filtered, new Set(['DEU', 'HIST-HRE'])),
+    ).toEqual(['DEU']);
+    expect(getSelectableVisibleCountryIds(filtered, new Set())).toEqual([]);
   });
 
   it('provides the exact no-results and clear-search copy', () => {

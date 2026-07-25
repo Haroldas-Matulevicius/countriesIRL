@@ -345,6 +345,17 @@
   overflow-wrap: anywhere;
 }
 
+.country-list__label:has(input:disabled) {
+  cursor: not-allowed;
+  color: var(--text-secondary);
+}
+
+.country-list__unavailable {
+  grid-column: 2 / -1;
+  font-size: var(--font-label);
+  color: var(--text-secondary);
+}
+
 .country-list__color-swatch {
   display: block;
   width: var(--space-xl);
