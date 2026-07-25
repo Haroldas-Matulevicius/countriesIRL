@@ -1,5 +1,6 @@
 import { zoomIdentity, type ZoomTransform } from 'd3';
 import type { Polygon } from 'geojson';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
@@ -9,6 +10,7 @@ import {
   type CameraControllerDriver,
 } from '../hooks/useCameraController';
 import {
+  MapCanvas,
   createWrappedSceneModel,
   getSceneFeatureColor,
   getSelectableSceneFeatures,
@@ -277,6 +279,37 @@ function createSceneFeature(
     isSelectable: false,
   };
 }
+
+describe('MapCanvas accessibility structure', (): void => {
+  it('keeps the editable legend outside the country listbox', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapCanvas
+        features={[]}
+        colors={{}}
+        selectedIds={new Set()}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onTooltipChange={vi.fn()}
+        legendSlot={
+          <g data-layer="legend">
+            <rect role="button" aria-label="Move legend" tabIndex={0} />
+          </g>
+        }
+      />,
+    );
+    const svgStart = markup.indexOf('<svg');
+    const svgOpeningEnd = markup.indexOf('>', svgStart);
+    const listboxStart = markup.indexOf('role="listbox"');
+    const listboxEnd = markup.indexOf('</g>', listboxStart);
+    const legendStart = markup.indexOf('data-layer="legend"');
+
+    expect(markup.slice(svgStart, svgOpeningEnd)).not.toContain('role="listbox"');
+    expect(markup.match(/role="listbox"/gu)).toHaveLength(1);
+    expect(markup.match(/role="button"/gu)).toHaveLength(1);
+    expect(listboxStart).toBeGreaterThan(svgOpeningEnd);
+    expect(listboxEnd).toBeLessThan(legendStart);
+  });
+});
 
 describe('wrapped effective scene model', (): void => {
   it('creates one logical path and two decorative repeats per selectable entity', (): void => {

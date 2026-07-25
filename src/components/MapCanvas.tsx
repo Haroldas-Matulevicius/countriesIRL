@@ -646,13 +646,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           className="map-canvas"
           viewBox={`0 0 ${MAP_VIEWBOX_SIZE} ${MAP_VIEWBOX_SIZE}`}
           preserveAspectRatio="xMidYMid meet"
-          role="listbox"
-          aria-label="Interactive map of the world"
-          aria-multiselectable="true"
           onClick={handleBackgroundClick}
         >
           <g ref={cameraLayerRef} data-layer="camera">
-            <g data-layer="countries" />
+            <g
+              data-layer="countries"
+              role="listbox"
+              aria-label="Interactive map of the world"
+              aria-multiselectable="true"
+            />
           </g>
           {legendSlot}
         </svg>

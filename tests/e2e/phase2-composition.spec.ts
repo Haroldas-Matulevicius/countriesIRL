@@ -543,6 +543,22 @@ test('real app saves and loads the complete composition after responsive rebindi
   await expect(page.locator('[data-layer="legend"] text')).toHaveText(
     'Visited France',
   );
+  const mapListbox = page.getByRole('listbox', {
+    name: 'Interactive map of the world',
+  });
+  const moveLegend = page.getByRole('button', { name: 'Move legend' });
+  await expect(mapListbox).toHaveCount(1);
+  await expect(mapListbox.locator('[data-layer="legend"]')).toHaveCount(0);
+  await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(1);
+  expect(
+    await moveLegend.evaluate((element): boolean =>
+      element.closest('[role="listbox"]') !== null,
+    ),
+  ).toBe(false);
+  await moveLegend.focus();
+  await expect(moveLegend).toBeFocused();
+  await moveLegend.press('ArrowRight');
+  await expect(page.getByText('Legend position updated.')).toBeVisible();
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await page.getByRole('button', { name: 'Move Map' }).click();
   await page.getByRole('button', { name: 'Pan Right' }).click();
