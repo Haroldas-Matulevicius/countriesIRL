@@ -81,7 +81,7 @@ function createCompositionSnapshot(
       position: { x: 720, y: 64, preset: 'top-right' },
       theme: 'soft',
       textSize: 'large',
-      backgroundOpacity: 0.85,
+      backgroundOpacity: 85,
       borderStyle: 'strong',
     },
     settings: { backgroundColor: '#FFFFFF' },
@@ -767,6 +767,40 @@ describe('createStorageAdapter', () => {
           entries: [{ color: '#DC2626', label: 'Safe', order: 0 }],
         },
       },
+      warnings: [{ code: 'composition-repaired' }],
+    });
+    expect(storage.setCalls).toBe(0);
+  });
+
+  it('repairs a legacy fractional legend opacity to the canonical percent scale', () => {
+    // Builds before the scale was unified stored backgroundOpacity as a 0-1
+    // fraction. Accepting it as-is let a stored 0.9 load unrepaired and then be
+    // clamped up to the 70 floor, so a legacy map silently rendered at 70%
+    // where the creator had chosen 90%.
+    const storage = new FakeStorage();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Legacy opacity',
+          timestamp: 100,
+          composition: {
+            ...createCompositionSnapshot(),
+            legend: {
+              ...createCompositionSnapshot().legend,
+              backgroundOpacity: 0.9,
+            },
+          },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Legacy opacity');
+    expectSuccess(result);
+    expect(result.value).toMatchObject({
+      ok: true,
+      value: { legend: { backgroundOpacity: 90 } },
       warnings: [{ code: 'composition-repaired' }],
     });
     expect(storage.setCalls).toBe(0);

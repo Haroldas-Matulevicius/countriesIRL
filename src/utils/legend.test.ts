@@ -427,6 +427,44 @@ describe('validateLegend', (): void => {
       issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
     });
   });
+
+  it('measures label fit at the size the layout renders, not the requested size', (): void => {
+    // createLegendLayout shrinks text to 'small' at >= 17 active entries.
+    // Measuring with the requested 'large' size reported label-does-not-fit for
+    // labels that do fit, producing an export block the creator could not clear.
+    const uniqueColors = Array.from(
+      { length: 17 },
+      (_unused, index): string =>
+        `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
+    );
+    expect(new Set(uniqueColors).size).toBe(17);
+    // 30 chars: 3 lines at 'large' (14/line) but 2 at 'small' (24/line), so it
+    // discriminates between the requested and the effective size.
+    const label = 'Thirty characters exactly here';
+    expect(label).toHaveLength(30);
+
+    const manyEntries: LegendState = {
+      ...createDefaultLegendState(),
+      textSize: 'large',
+      entries: uniqueColors.map(
+        (color, order): LegendEntryState => ({ color, label, order }),
+      ),
+    };
+
+    const layout = createLegendLayout(
+      getActiveLegendEntries(uniqueColors, manyEntries),
+      manyEntries.textSize,
+    );
+    expect(layout.effectiveTextSize).toBe('small');
+
+    // 24 chars fits one 'small' line (24 chars/line) but overflows 'large'.
+    expect(
+      validateLegend(manyEntries, uniqueColors, {
+        width: layout.width,
+        height: layout.height,
+      }),
+    ).toMatchObject({ ok: true });
+  });
 });
 
 describe('validateActiveLegend export gate', (): void => {

@@ -497,6 +497,16 @@ export function validateLegend(
   const entryColors = new Set<string>();
   const entryOrders = new Set<number>();
   const isTextSizeValid = LEGEND_TEXT_SIZES.has(legend.textSize);
+  // Measure labels at the size the layout actually renders, not the requested
+  // size. `createLegendLayout` shrinks text to 'small' at >= 17 active entries,
+  // so measuring with the requested size reports `label-does-not-fit` for labels
+  // that do fit — a spurious export block the creator cannot clear.
+  const effectiveTextSize = isTextSizeValid
+    ? getEffectiveTextSize(
+        getActiveLegendEntries(effectiveColors, legend).length,
+        legend.textSize,
+      )
+    : legend.textSize;
 
   if (activeColors.length > LEGEND_MAX_ACTIVE_ENTRIES) {
     issues.push({ code: 'too-many-active-colors' });
@@ -524,7 +534,7 @@ export function validateLegend(
       issues.push({ code: 'invalid-label', path: labelPath });
     } else if (
       isTextSizeValid &&
-      getLabelLineCount(entry.label, legend.textSize) > 2
+      getLabelLineCount(entry.label, effectiveTextSize) > 2
     ) {
       issues.push({ code: 'label-does-not-fit', path: labelPath });
     }

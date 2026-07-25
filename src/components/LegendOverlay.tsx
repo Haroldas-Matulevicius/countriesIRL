@@ -10,11 +10,14 @@ import type {
   LegendState,
   LegendTextSize,
 } from '../types/composition';
-import { nudgeLegendPosition, resolveLegendRender } from '../utils/legend';
+import {
+  clampLegendPosition,
+  nudgeLegendPosition,
+  resolveLegendRender,
+} from '../utils/legend';
 import type { LegendBounds, LegendLayoutItem } from '../utils/legend';
 
 const LEGEND_CANVAS_SIZE = 1080;
-const LEGEND_SAFE_INSET = 32;
 const LEGEND_CORNER_RADIUS = 16;
 const LEGEND_SWATCH_SIZE = 24;
 const LEGEND_SWATCH_LABEL_GAP = 16;
@@ -116,23 +119,19 @@ export function getLegendOverlayBounds(
   return resolveLegendRender(legend, effectiveColors).bounds;
 }
 
+/**
+ * Drag positions are clamped by the same implementation every other path uses.
+ *
+ * This was previously a second clamp that omitted `clampLegendPosition`'s
+ * inverted-range guard (`Math.max(LEGEND_SAFE_INSET, maximum)`), so a legend
+ * wider than the safe area produced a range whose maximum fell below its
+ * minimum. Delegating keeps the guard in exactly one place.
+ */
 export function clampLegendDragPosition(
   position: LegendPosition,
   bounds: LegendBounds,
 ): LegendPosition {
-  return {
-    x: clamp(
-      position.x,
-      LEGEND_SAFE_INSET,
-      LEGEND_CANVAS_SIZE - LEGEND_SAFE_INSET - bounds.width,
-    ),
-    y: clamp(
-      position.y,
-      LEGEND_SAFE_INSET,
-      LEGEND_CANVAS_SIZE - LEGEND_SAFE_INSET - bounds.height,
-    ),
-    preset: null,
-  };
+  return clampLegendPosition({ ...position, preset: null }, bounds);
 }
 
 function getCanonicalPointerScale(target: SVGRectElement): number {

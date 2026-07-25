@@ -288,14 +288,33 @@ function normalizeCamera(
   return { camera, isRepaired: !areCamerasEqual(source, camera) };
 }
 
-function isLegendOpacityValid(value: number): boolean {
-  return (
-    Number.isFinite(value) &&
-    ((value >= MIN_FRACTIONAL_LEGEND_OPACITY &&
-      value <= MAX_FRACTIONAL_LEGEND_OPACITY) ||
-      (value >= MIN_PERCENT_LEGEND_OPACITY &&
-        value <= MAX_PERCENT_LEGEND_OPACITY))
-  );
+/**
+ * Legend background opacity is canonically a 0-100 percentage.
+ *
+ * Builds before the scale was unified wrote a 0-1 fraction. Accepting that
+ * fraction as-is let a stored `0.9` load unrepaired and then be silently
+ * clamped up to the 70 floor, so a legacy map quietly rendered at 70% where the
+ * creator had chosen 90%. Convert the fraction and report it as a repair.
+ */
+function normalizeLegendOpacity(
+  value: number,
+): { opacity: number; isRepaired: boolean } | null {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  if (
+    value >= MIN_PERCENT_LEGEND_OPACITY &&
+    value <= MAX_PERCENT_LEGEND_OPACITY
+  ) {
+    return { opacity: value, isRepaired: false };
+  }
+  if (
+    value >= MIN_FRACTIONAL_LEGEND_OPACITY &&
+    value <= MAX_FRACTIONAL_LEGEND_OPACITY
+  ) {
+    return { opacity: value * 100, isRepaired: true };
+  }
+  return null;
 }
 
 function normalizeLegendEntries(
@@ -417,9 +436,10 @@ function normalizeLegend(
   const isTextSizeValid =
     typeof textSize === 'string' &&
     LEGEND_TEXT_SIZES.has(textSize as LegendTextSize);
-  const isOpacityValid =
-    typeof backgroundOpacity === 'number' &&
-    isLegendOpacityValid(backgroundOpacity);
+  const opacityResult =
+    typeof backgroundOpacity === 'number'
+      ? normalizeLegendOpacity(backgroundOpacity)
+      : null;
   const isBorderStyleValid =
     typeof borderStyle === 'string' &&
     LEGEND_BORDER_STYLES.has(borderStyle as LegendBorderStyle);
@@ -432,9 +452,10 @@ function normalizeLegend(
       textSize: isTextSizeValid
         ? (textSize as LegendTextSize)
         : fallback.textSize,
-      backgroundOpacity: isOpacityValid
-        ? backgroundOpacity
-        : fallback.backgroundOpacity,
+      backgroundOpacity:
+        opacityResult !== null
+          ? opacityResult.opacity
+          : fallback.backgroundOpacity,
       borderStyle: isBorderStyleValid
         ? (borderStyle as LegendBorderStyle)
         : fallback.borderStyle,
@@ -444,7 +465,8 @@ function normalizeLegend(
       isPositionRepaired ||
       !isThemeValid ||
       !isTextSizeValid ||
-      !isOpacityValid ||
+      opacityResult === null ||
+      opacityResult.isRepaired ||
       !isBorderStyleValid,
   };
 }
