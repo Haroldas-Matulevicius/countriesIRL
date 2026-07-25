@@ -438,15 +438,19 @@ export default function App(): JSX.Element {
   }, []);
 
   useLayoutEffect((): (() => void) | undefined => {
-    if (
-      pendingLoadedFocusId === null ||
-      !effectiveCountryLookup.has(pendingLoadedFocusId)
-    ) {
+    if (pendingLoadedFocusId === null) {
       return undefined;
     }
 
+    // The load commits the scene and the focus request together, so a miss
+    // means the target is not in this scene. The request is consumed either
+    // way: a surviving id would steal keyboard focus later, whenever some
+    // unrelated scene change made that id selectable again.
+    const canFocusTarget = effectiveCountryLookup.has(pendingLoadedFocusId);
     const frame = requestAnimationFrame((): void => {
-      mapCanvasHandleRef.current?.focusCountry(pendingLoadedFocusId);
+      if (canFocusTarget) {
+        mapCanvasHandleRef.current?.focusCountry(pendingLoadedFocusId);
+      }
       setPendingLoadedFocusId(null);
     });
     return (): void => cancelAnimationFrame(frame);
