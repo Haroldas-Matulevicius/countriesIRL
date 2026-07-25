@@ -1,11 +1,11 @@
 # Plan 02-31 Correction Checkpoint
 
-**Recorded:** 2026-07-25T05:33:53Z  
-**Worktree:** `C:\Users\matul\ClaudeProjects\CountriesIRL\.claude\worktrees\agent-a57bbba6129ef1f11`  
-**Branch:** `worktree-agent-a57bbba6129ef1f11`  
-**Baseline:** `b910875e65d91cc3113137f6f57610ca1e26874a`  
-**Exact implementation HEAD before this checkpoint commit:** `f7b1daca290d84c6e4fa815316e070e78555326d`  
-**Worktree state at checkpoint authoring:** clean  
+**Recorded:** 2026-07-25T05:33:53Z
+**Worktree:** `C:\Users\matul\ClaudeProjects\CountriesIRL\.claude\worktrees\agent-a57bbba6129ef1f11`
+**Branch:** `worktree-agent-a57bbba6129ef1f11`
+**Baseline:** `b910875e65d91cc3113137f6f57610ca1e26874a`
+**Exact implementation HEAD before this checkpoint commit:** `f7b1daca290d84c6e4fa815316e070e78555326d`
+**Worktree state at checkpoint authoring:** clean
 **Checkpoint commit identity:** the commit containing this file; resolve exactly with `git log -1 --format=%H -- .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-31-CORRECTION-CHECKPOINT.md` after commit. The checkpoint cannot contain its own Git object ID because that ID is derived from the bytes of this file.
 
 ## Truthful Outcome
