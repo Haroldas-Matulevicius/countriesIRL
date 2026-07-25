@@ -1,0 +1,31 @@
+{
+  "type": "FeatureCollection",
+  "snapshotId": "1492",
+  "asOf": "1492-01-03",
+  "dateContract": {
+    "displayDate": "1492-01-03",
+    "displayCalendar": "julian",
+    "normalizedAsOf": "1492-01-12",
+    "normalizedCalendar": "proleptic-gregorian",
+    "dayBoundary": "start-of-day",
+    "validityInterval": "half-open"
+  },
+  "readinessStatus": "blocked",
+  "candidateGeometryStatus": "not-generated",
+  "reason": "Candidate and reviewer evidence exists, but exact production geometry and independent approvals are absent.",
+  "coverageContainersCreatePoliticalEntities": false,
+  "longitudeDomain": "[-180,180]",
+  "sourceBoundaryArcsSeparatedFromGeneratedMaskEdges": true,
+  "generatedMaskEdgesPresent": false,
+  "replacedModernSourceFeatureIds": [],
+  "features": [],
+  "blockers": [
+    "RIGHTS_REVIEW_REQUIRED",
+    "AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING",
+    "MANUAL_TRACE_OPERATOR_CONTROL_POINTS_AND_GEOMETRY_MISSING",
+    "REVERSE_1494_FACTUAL_REVIEW_REQUIRED",
+    "CNIG_15094_PRODUCT_ARCHIVE_AND_MEMBER_HASHES_MISSING",
+    "1492_SIX_REGION_EXACT_GEOMETRY_INCOMPLETE",
+    "TOPOLOGY_AND_1080PX_REVIEW_REQUIRED"
+  ]
+}

@@ -1,8 +1,16 @@
 import { Buffer } from 'node:buffer';
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import {
+  lstat,
+  open,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+} from 'node:fs/promises';
 import process from 'node:process';
-import { isAbsolute, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 
 const SNAPSHOT_DATES = Object.freeze({
@@ -10,6 +18,24 @@ const SNAPSHOT_DATES = Object.freeze({
   '1700': '1700-01-01',
   '1815': '1815-12-31',
   '1914': '1914-07-27',
+});
+const CANDIDATE_PACKET_DATE_CONTRACTS = Object.freeze({
+  '1492': Object.freeze({
+    displayDate: '1492-01-03',
+    displayCalendar: 'julian',
+    normalizedAsOf: '1492-01-12',
+    normalizedCalendar: 'proleptic-gregorian',
+    dayBoundary: 'start-of-day',
+    validityInterval: 'half-open',
+  }),
+  '1700': Object.freeze({
+    displayDate: '1700-01-01',
+    displayCalendar: 'product-label-only',
+    normalizedAsOf: null,
+    normalizedCalendar: null,
+    dayBoundary: null,
+    validityInterval: 'pending-review',
+  }),
 });
 const REGION_IDS = Object.freeze([
   'poland',
@@ -20,7 +46,59 @@ const REGION_IDS = Object.freeze([
   'scandinavia',
 ]);
 const REGION_ID_SET = new Set(REGION_IDS);
+const CANDIDATE_PACKET_SNAPSHOT_IDS = new Set(['1492', '1700']);
+const EXPECTED_CLIOPATRIA_RECORDS = Object.freeze({
+  '1492': Object.freeze([
+    [6999, 'source-records/cliopatria-06999-principality-of-wallachia.geojson', 'b95de46813c4da365bda4df30433933e2d5b5fa71d46da6d94bf1c07288bd119', 'Principality of Wallachia', 1422, 1528, 'Q171393', 'ro_wallachia_principality_2'],
+    [7055, 'source-records/cliopatria-07055-republic-of-ragusa.geojson', 'b84946b0fc1a72399c4c7a16f9538144c7d48dc18601426bb3ad0d763b2a61e0', 'Republic of Ragusa', 1429, 1771, 'Q208169', ''],
+    [7513, 'source-records/cliopatria-07513-crown-of-aragon.geojson', '6bf2e42e4711bdd1abe2ff2213b7831653c61dc197450125532fe84c3316bb86', 'Crown of Aragon', 1482, 1496, 'Q204920', 'es_aragon_crown'],
+    [7546, 'source-records/cliopatria-07546-kalmar-union.geojson', 'b26ccdf784ad1e4d2511b86cd4c989fe30b29098d917b3a96ab45e66710bb072', 'Kalmar Union', 1482, 1501, 'Q62623', 'sv_kalmar_union'],
+    [7584, 'source-records/cliopatria-07584-principality-of-moldavia.geojson', '6ec099918b51167f0405af3af2263239ce9b548730044a9a4b8b95de5c8cefe5', 'Principality of Moldavia', 1487, 1506, 'Q10957559', 'md_moldavia_principality_1'],
+    [7602, 'source-records/cliopatria-07602-crown-of-castile.geojson', '2167497938700daf9a2f05320703b4c386b4cfd8b76967ff98760b286a69a5f5', 'Crown of Castile', 1492, 1496, 'Q217196', 'es_castile_crown'],
+    [7603, 'source-records/cliopatria-07603-kingdom-of-hungary.geojson', 'f10b1909ad41cac35935461c6ac9875b905f2a9a9199c763a539bf5b903c1c7f', 'Kingdom of Hungary', 1492, 1520, 'Q171150', 'hu_later_dyn'],
+    [7618, 'source-records/cliopatria-07618-house-of-jagiellon.geojson', '34f8697ef911be2d713c111e2c6fbddcb8ce68bc45750fa0ca2c0a0eb90e0a64', 'House of Jagiellon', 1492, 1496, 'Q194355', 'pl_jagiellonian_dyn'],
+    [7629, 'source-records/cliopatria-07629-ottoman-empire.geojson', '36ea35349f7f6b7c2ad9238230d37e20fe465fce02d71c99f6ea04773db34dbf', 'Ottoman Empire', 1492, 1501, 'Q12560', 'tr_ottoman_emp_1'],
+    [7630, 'source-records/cliopatria-07630-republic-of-venice.geojson', '543a603edecea9069211e4a97d10f711a096cf8a1b631a1cea848c1ff847d6ea', 'Republic of Venice', 1492, 1501, 'Q4948', 'it_venetian_rep_3'],
+    [7635, 'source-records/cliopatria-07635-kingdom-of-portugal.geojson', '857d8f75038f6f3b62167b7e16976e86b6749b038a7b4eeb44ec269b5ddb48a6', 'Kingdom of Portugal', 1492, 1496, 'Q45670', 'pt_portugal_k'],
+  ]),
+  '1700': Object.freeze([
+    [7055, 'source-records/cliopatria-07055-republic-of-ragusa.geojson', 'b84946b0fc1a72399c4c7a16f9538144c7d48dc18601426bb3ad0d763b2a61e0', 'Republic of Ragusa', 1429, 1771, 'Q208169', ''],
+    [8862, 'source-records/cliopatria-08862-kingdom-of-portugal.geojson', '488a637d9d2be213a63ba3cd42e696cba2191ec85a06f9f084118fb944802cef', 'Kingdom of Portugal', 1640, 1705, 'Q45670', 'pt_portuguese_emp_2'],
+    [9098, 'source-records/cliopatria-09098-denmark-norway.geojson', '6d3b67d7069314c8cebae907bea8e55892cb630f1c53c10ea56dc60aa7622d3d', 'Denmark-Norway', 1670, 1708, 'Q62651', 'dk_denmark_norway'],
+    [9236, 'source-records/cliopatria-09236-swedish-empire.geojson', '165000dc87401e796a24fc3aed483a48875c66cae9c1090130115efadd619608', 'Swedish Empire', 1683, 1701, 'Q215443', 'sv_swedish_emp'],
+    [9355, 'source-records/cliopatria-09355-principality-of-moldavia.geojson', 'e32a4820c248565a93c0003c79bb9e87968bb382e49f00d79f1df09eea0815d3', 'Principality of Moldavia', 1696, 1712, 'Q10957559', 'md_moldavia_principality_2'],
+    [9361, 'source-records/cliopatria-09361-principality-of-wallachia.geojson', 'c0de94701c54ab62a481d82cf5f19e08fb164e3913a4e0950f0387b88611b8c4', 'Principality of Wallachia', 1696, 1717, 'Q171393', 'ro_wallachia_principality_2'],
+    [9390, 'source-records/cliopatria-09390-republic-of-venice.geojson', '421bae94ed6a7d54a814f25c1c242ed2fe70c152d2635a7238019999df65db86', 'Republic of Venice', 1700, 1708, 'Q4948', 'it_venetian_rep_4'],
+    [9391, 'source-records/cliopatria-09391-ottoman-empire.geojson', '8f533edfcbbfc68f67ce1d2246cdf0adb56d38f1a192cb64b8b0e2aca2f0cfb8', 'Ottoman Empire', 1700, 1705, 'Q12560', 'tr_ottoman_emp_3'],
+    [9396, 'source-records/cliopatria-09396-habsburg-monarchy.geojson', '88bcd6139c96c3521c0623663a6d4049508c551bfdf1ba0b40122a8624f0b367', 'Habsburg Monarchy', 1700, 1701, 'Q66504140', 'at_habsburg_2'],
+    [9397, 'source-records/cliopatria-09397-polish-lithuanian-commonwealth.geojson', '37b2dcb583874fa6f0b65d4496b4929d12d6bc6535043c0e16e2597e8278dfce', 'Polish-Lithuanian Commonwealth', 1700, 1701, 'Q172107', 'pl_poland_lithuania_commonwealth'],
+    [9402, 'source-records/cliopatria-09402-kingdom-of-spain.geojson', '0e0e148c245e0e882a4e90843f22dac3a07caac9e632bca0585a9781c2c2c308', 'Kingdom of Spain', 1700, 1701, 'Q29', 'es_spanish_emp_1'],
+  ]),
+});
+const HARVARD_SELECTED_FILES = Object.freeze([
+  'a00000021.gdbindexes', 'a00000021.gdbtable', 'a00000021.gdbtablx', 'a00000021.spx',
+  'a00000022.gdbindexes', 'a00000022.gdbtable', 'a00000022.gdbtablx', 'a00000022.spx',
+  'a00000023.gdbindexes', 'a00000023.gdbtable', 'a00000023.gdbtablx', 'a00000023.spx',
+  'a00000024.gdbindexes', 'a00000024.gdbtable', 'a00000024.gdbtablx', 'a00000024.spx',
+]);
+const TRACE_RECONSTRUCTION_RULE = '1494 Lithuanian geometry plus only territory explicitly marked lost in 1494; exclude territories marked only as losses in 1503 or 1522.';
+const TRACE_SHARED_ARC_RULE = 'Build the Crown-GDL shared arc once and polygonize both identities from it.';
+const REVIEWER_HASH_INVALIDATION_RULE =
+  'Changing any listed byte invalidates every future approval.';
+const TRACE_LINE_CLASSES = Object.freeze([
+  'Crown exterior', 'Crown-GDL shared boundary', 'GDL exterior as of 1494',
+  '1494 loss boundary', '1503 loss boundary', '1522 loss boundary',
+  'fiefs dependencies and administrative lines',
+]);
+const MOSAIC_1700_ALLOWLIST = Object.freeze([7055, 9361, 9355, 9390, 9396, 9391]);
+const MOSAIC_1700_CAVEATS = Object.freeze([
+  'Harvard Ottoman geometry substantially includes tributary Wallachia, Moldavia, and Ragusa.',
+  'Harvard Military Frontier polygons cross parent boundaries and are not inserted into the candidate.',
+  'The January 1, 1700 Karlowitz frontier was not fully demarcated in every sector.',
+  'Server-generated Harvard bundle ZIP bytes are not assumed stable; the local per-file inventory is authoritative for this packet.',
+]);
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const MD5_PATTERN = /^[0-9a-f]{32}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const FORBIDDEN_REVIEWER_PATTERN = /\b(?:executor|implementer|claude|codex)\b/i;
 const LOCAL_FILE_SIGNATURE = 0x04034b50;
@@ -39,6 +117,10 @@ const MAX_TOTAL_MEMBER_BYTES = 64 * 1024 * 1024;
 const MAX_FEATURES = 10_000;
 const MAX_STRING_LENGTH = 2_048;
 const MAX_PATH_LENGTH = 240;
+const CLIOPATRIA_LICENSE_SHA256 =
+  '62ca7e92dee4ebe402372d5e64f87845de445a6c0e5d76fddb68b3e33739d1a6';
+const CLIOPATRIA_README_SHA256 =
+  '25a2723e607dd03b01cfa0c9e0ecc83ea3e4c227198bd77faee04c3646be46b8';
 
 function printHelp() {
   globalThis.console.info(`Usage:
@@ -121,6 +203,23 @@ function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function hasExactKeys(value, expectedKeys) {
+  if (!isRecord(value)) return false;
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  return arraysMatch(actual, expected);
+}
+
+function canonicalizeJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalizeJson);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, canonicalizeJson(value[key])]),
+  );
+}
+
 function isBoundedString(value, maxLength = MAX_STRING_LENGTH) {
   return (
     typeof value === 'string' &&
@@ -141,6 +240,10 @@ function isIsoDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
+function pathCollisionKey(value) {
+  return value.normalize('NFKC').toLowerCase();
+}
+
 function normalizeLocalPath(value) {
   if (
     typeof value !== 'string' ||
@@ -148,6 +251,7 @@ function normalizeLocalPath(value) {
     value.length > MAX_PATH_LENGTH ||
     value.includes('\\') ||
     value.includes('\0') ||
+    value !== value.normalize('NFC') ||
     value.startsWith('/') ||
     /^[A-Za-z]:/.test(value)
   ) {
@@ -178,6 +282,10 @@ function resolveManifestPath(value) {
 
 function calculateSha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
+}
+
+function calculateMd5(bytes) {
+  return createHash('md5').update(bytes).digest('hex');
 }
 
 function crc32(bytes) {
@@ -222,9 +330,9 @@ function requirePathOption(options, field, flag) {
   return resolveArgumentPath(value);
 }
 
-function readHashReference(value, label) {
-  if (!isRecord(value)) {
-    throw new Error(`${label} must be an object.`);
+function readHashReference(value, label, expectedKeys = ['path', 'sha256']) {
+  if (!hasExactKeys(value, expectedKeys)) {
+    throw new Error(`${label} must use the exact expected schema.`);
   }
   const path = normalizeLocalPath(value.path);
   if (path === null || !isSha256(value.sha256)) {
@@ -238,15 +346,24 @@ function readMemberInventory(value, label) {
     throw new Error(`${label} has an invalid member count.`);
   }
   const members = [];
+  const collisionKeys = new Set();
   let previousPath = '';
   for (const candidate of value) {
     if (!isRecord(candidate)) {
       throw new Error(`${label} contains an invalid member.`);
     }
     const path = normalizeLocalPath(candidate.path);
-    if (path === null || !isSha256(candidate.sha256) || path <= previousPath) {
-      throw new Error(`${label} member paths must be normalized, unique, and sorted.`);
+    const collisionKey = path === null ? null : pathCollisionKey(path);
+    if (
+      path === null ||
+      collisionKey === null ||
+      collisionKeys.has(collisionKey) ||
+      !isSha256(candidate.sha256) ||
+      path <= previousPath
+    ) {
+      throw new Error(`${label} member paths must be normalized, collision-free, unique, and sorted.`);
     }
+    collisionKeys.add(collisionKey);
     previousPath = path;
     members.push({ path, sha256: candidate.sha256 });
   }
@@ -281,9 +398,348 @@ function readBlockers(value) {
   return blockers;
 }
 
+function hasOnlyNullApprovalFields(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const expectedFields = [
+    'factual',
+    'productionReadiness',
+    'reviewerSignature',
+    'sourceRights',
+    'topology',
+  ];
+  const fields = Object.keys(value).sort();
+  return (
+    fields.length === expectedFields.length &&
+    fields.every((field, index) => field === expectedFields[index] && value[field] === null)
+  );
+}
+
+function arraysMatch(left, right) {
+  return (
+    Array.isArray(left) &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function readStringArray(value, label, allowEmpty = true) {
+  if (!Array.isArray(value) || value.length > 64 || (!allowEmpty && value.length === 0)) {
+    throw new Error(`${label} must be a bounded ordered string array.`);
+  }
+  const result = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (!isBoundedString(item) || seen.has(item)) {
+      throw new Error(`${label} contains an invalid or duplicate value.`);
+    }
+    seen.add(item);
+    result.push(item);
+  }
+  return result;
+}
+
+function hasOnlyNullRegionalApprovals(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const expectedFields = ['factual', 'rights', 'topology'];
+  const fields = Object.keys(value).sort();
+  return (
+    fields.length === expectedFields.length &&
+    fields.every((field, index) => field === expectedFields[index] && value[field] === null)
+  );
+}
+
+function assertRegionContract(region, expected, label) {
+  if (
+    !isRecord(region) ||
+    region.disposition !== 'blocked' ||
+    !arraysMatch(region.entityIds, expected.entityIds) ||
+    !arraysMatch(region.colorOwnerIds, expected.colorOwnerIds) ||
+    !arraysMatch(region.sourceFeatureIds, expected.sourceFeatureIds)
+  ) {
+    throw new Error(`${label} identity, color-owner, source, or disposition contract drifted.`);
+  }
+}
+
+function validateCandidateIdentityContract(value, snapshotId) {
+  const regionsById = new Map(value.regions.map((region) => [region.regionId, region]));
+  if (value.regions.some((region) => region.disposition !== 'blocked')) {
+    throw new Error('Candidate packet with zero approvals must keep all six regions blocked.');
+  }
+  if (snapshotId === '1492') {
+    assertRegionContract(
+      regionsById.get('poland'),
+      {
+        entityIds: ['hist:kingdom-of-poland'],
+        colorOwnerIds: ['hist:kingdom-of-poland'],
+        sourceFeatureIds: [],
+      },
+      '1492 Poland',
+    );
+    assertRegionContract(
+      regionsById.get('lithuania'),
+      {
+        entityIds: ['hist:grand-duchy-of-lithuania'],
+        colorOwnerIds: ['hist:grand-duchy-of-lithuania'],
+        sourceFeatureIds: [],
+      },
+      '1492 Lithuania',
+    );
+    assertRegionContract(
+      regionsById.get('hungary'),
+      {
+        entityIds: ['hist:kingdom-of-hungary'],
+        colorOwnerIds: ['hist:kingdom-of-hungary'],
+        sourceFeatureIds: ['cliopatria:v0.2.0:feature-index:7603'],
+      },
+      '1492 Hungary',
+    );
+    assertRegionContract(
+      regionsById.get('balkans'),
+      {
+        entityIds: [
+          'hist:ottoman-empire',
+          'hist:republic-of-venice',
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+        ],
+        colorOwnerIds: [
+          'hist:ottoman-empire',
+          'hist:republic-of-venice',
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+        ],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:7629',
+          'cliopatria:v0.2.0:feature-index:7630',
+          'cliopatria:v0.2.0:feature-index:7055',
+          'cliopatria:v0.2.0:feature-index:6999',
+          'cliopatria:v0.2.0:feature-index:7584',
+        ],
+      },
+      '1492 Balkans',
+    );
+    assertRegionContract(
+      regionsById.get('iberia'),
+      {
+        entityIds: [
+          'hist:crown-of-castile',
+          'hist:crown-of-aragon',
+          'hist:kingdom-of-portugal',
+          'hist:kingdom-of-navarre',
+        ],
+        colorOwnerIds: [
+          'hist:crown-of-castile',
+          'hist:crown-of-aragon',
+          'hist:kingdom-of-portugal',
+          'hist:kingdom-of-navarre',
+        ],
+        sourceFeatureIds: [],
+      },
+      '1492 Iberia',
+    );
+    assertRegionContract(
+      regionsById.get('scandinavia'),
+      {
+        entityIds: [
+          'hist:kingdom-of-denmark',
+          'hist:kingdom-of-norway',
+          'hist:kingdom-of-sweden',
+        ],
+        colorOwnerIds: [
+          'hist:kingdom-of-denmark',
+          'hist:kingdom-of-norway',
+          'hist:kingdom-of-sweden',
+        ],
+        sourceFeatureIds: [],
+      },
+      '1492 Scandinavia',
+    );
+  }
+  if (snapshotId === '1700') {
+    const commonwealth = {
+      entityIds: ['hist:polish-lithuanian-commonwealth'],
+      colorOwnerIds: ['hist:polish-lithuanian-commonwealth'],
+      sourceFeatureIds: ['cliopatria:v0.2.0:feature-index:9397'],
+    };
+    assertRegionContract(regionsById.get('poland'), commonwealth, '1700 Poland');
+    assertRegionContract(regionsById.get('lithuania'), commonwealth, '1700 Lithuania');
+    assertRegionContract(
+      regionsById.get('hungary'),
+      {
+        entityIds: ['hist:habsburg-monarchy', 'hist:ottoman-empire'],
+        colorOwnerIds: ['hist:habsburg-monarchy', 'hist:ottoman-empire'],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:9396',
+          'cliopatria:v0.2.0:feature-index:9391',
+        ],
+      },
+      '1700 Hungary',
+    );
+    assertRegionContract(
+      regionsById.get('iberia'),
+      {
+        entityIds: ['hist:kingdom-of-spain', 'hist:kingdom-of-portugal'],
+        colorOwnerIds: ['hist:kingdom-of-spain', 'hist:kingdom-of-portugal'],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:9402',
+          'cliopatria:v0.2.0:feature-index:8862',
+        ],
+      },
+      '1700 Iberia',
+    );
+    assertRegionContract(
+      regionsById.get('balkans'),
+      {
+        entityIds: [
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+          'hist:republic-of-venice',
+          'hist:habsburg-monarchy',
+          'hist:ottoman-empire',
+        ],
+        colorOwnerIds: [
+          'hist:republic-of-ragusa',
+          'hist:principality-of-wallachia',
+          'hist:principality-of-moldavia',
+          'hist:republic-of-venice',
+          'hist:habsburg-monarchy',
+          'hist:ottoman-empire',
+        ],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:7055',
+          'cliopatria:v0.2.0:feature-index:9361',
+          'cliopatria:v0.2.0:feature-index:9355',
+          'cliopatria:v0.2.0:feature-index:9390',
+          'cliopatria:v0.2.0:feature-index:9396',
+          'cliopatria:v0.2.0:feature-index:9391',
+        ],
+      },
+      '1700 Balkans',
+    );
+    assertRegionContract(
+      regionsById.get('scandinavia'),
+      {
+        entityIds: ['hist:denmark-norway', 'hist:swedish-empire'],
+        colorOwnerIds: ['hist:denmark-norway', 'hist:swedish-empire'],
+        sourceFeatureIds: [
+          'cliopatria:v0.2.0:feature-index:9098',
+          'cliopatria:v0.2.0:feature-index:9236',
+        ],
+      },
+      '1700 Scandinavia',
+    );
+  }
+}
+
+function readCandidateManualTrace(value, snapshotId) {
+  if (!hasExactKeys(value.preparation, ['mode', 'reason', 'manualTrace'])) {
+    throw new Error('Candidate preparation schema drifted.');
+  }
+  const manualTrace = value.preparation.manualTrace;
+  if (snapshotId === '1700') {
+    if (manualTrace !== null) {
+      throw new Error('1700 candidate packet must not claim a manual trace.');
+    }
+    return null;
+  }
+  if (
+    !hasExactKeys(manualTrace, [
+      'evidencePath', 'evidenceSha256', 'procedurePath', 'procedureSha256',
+      'operatorRecordSha256', 'controlPointsSha256', 'tracedGeoJsonSha256',
+    ]) ||
+    manualTrace.evidencePath !== 'sources/semkowicz-romer-1929-current-hosted-scan.jpg' ||
+    !isSha256(manualTrace.evidenceSha256) ||
+    manualTrace.procedurePath !== 'specifications/1492-manual-trace-candidate.json' ||
+    !isSha256(manualTrace.procedureSha256) ||
+    manualTrace.operatorRecordSha256 !== null ||
+    manualTrace.controlPointsSha256 !== null ||
+    manualTrace.tracedGeoJsonSha256 !== null ||
+    !value.blockers.includes('MANUAL_TRACE_OPERATOR_CONTROL_POINTS_AND_GEOMETRY_MISSING')
+  ) {
+    throw new Error('1492 manual-trace candidate semantics are incomplete or overclaim readiness.');
+  }
+  return {
+    evidencePath: manualTrace.evidencePath,
+    evidenceSha256: manualTrace.evidenceSha256,
+    procedurePath: manualTrace.procedurePath,
+    procedureSha256: manualTrace.procedureSha256,
+  };
+}
+
+function readCandidateReviewerPacket(value, snapshotId, isBlocked) {
+  if (value.schemaVersion !== 3 && value.packetKind === undefined) {
+    return null;
+  }
+  const expectedDateContract = CANDIDATE_PACKET_DATE_CONTRACTS[snapshotId];
+  if (
+    !hasExactKeys(value, [
+      'schemaVersion', 'packetKind', 'snapshotId', 'asOf', 'dateContract',
+      'readinessStatus', 'deliveryCounted', 'snapshotPass', 'productionReady',
+      'catalogEligible', 'blockers', 'approvals', 'evidenceArchive', 'inputGeometry',
+      'preparation', 'geometryPolicy', 'reviewerPacket', 'regions',
+    ]) ||
+    value.schemaVersion !== 3 ||
+    value.packetKind !== 'candidate-reviewer' ||
+    !isBlocked ||
+    value.snapshotPass !== false ||
+    value.productionReady !== false ||
+    value.catalogEligible !== false ||
+    expectedDateContract === undefined ||
+    !hasExactKeys(value.dateContract, Object.keys(expectedDateContract)) ||
+    Object.entries(expectedDateContract).some(
+      ([field, expected]) => value.dateContract[field] !== expected,
+    ) ||
+    !hasOnlyNullApprovalFields(value.approvals) ||
+    !hasExactKeys(value.geometryPolicy, [
+      'longitudeDomain', 'coverageContainersArePoliticalEntities',
+      'sourceBoundaryArcsSeparatedFromGeneratedMaskEdges',
+      'generatedMaskEdgesPolitical', 'generatedMaskEdgesSelectable',
+      'generatedMaskEdgesExportVisibleAsPoliticalBorders',
+    ]) ||
+    value.geometryPolicy.longitudeDomain !== '[-180,180]' ||
+    value.geometryPolicy.coverageContainersArePoliticalEntities !== false ||
+    value.geometryPolicy.sourceBoundaryArcsSeparatedFromGeneratedMaskEdges !== true ||
+    value.geometryPolicy.generatedMaskEdgesPolitical !== false ||
+    value.geometryPolicy.generatedMaskEdgesSelectable !== false ||
+    value.geometryPolicy.generatedMaskEdgesExportVisibleAsPoliticalBorders !== false ||
+    !hasExactKeys(value.reviewerPacket, [
+      'status', 'hashInvalidationRule', 'artifacts', 'sourceRightsDecision',
+      'factualDecision', 'topologyDecision', 'reviewerSignature',
+      'productionReadinessDecision',
+    ]) ||
+    value.reviewerPacket.status !== 'candidate-blocked' ||
+    value.reviewerPacket.hashInvalidationRule !== REVIEWER_HASH_INVALIDATION_RULE ||
+    value.reviewerPacket.sourceRightsDecision !== null ||
+    value.reviewerPacket.factualDecision !== null ||
+    value.reviewerPacket.topologyDecision !== null ||
+    value.reviewerPacket.reviewerSignature !== null ||
+    value.reviewerPacket.productionReadinessDecision !== null ||
+    (snapshotId === '1700' &&
+      !value.blockers.includes('TEMPORAL_SEMANTICS_REVIEW_REQUIRED'))
+  ) {
+    throw new Error('Candidate reviewer packet must remain hash-bound, blocked, and unapproved.');
+  }
+  const artifacts = readMemberInventory(
+    value.reviewerPacket.artifacts,
+    'Candidate reviewer packet artifacts',
+  );
+  validateCandidateIdentityContract(value, snapshotId);
+  const manualTrace = readCandidateManualTrace(value, snapshotId);
+  return { dateContract: expectedDateContract, artifacts, manualTrace };
+}
+
 function readReviewer(value, label) {
   if (
-    !isRecord(value) ||
+    !hasExactKeys(value, [
+      'name', 'role', 'reviewedOn', 'isExecutor', 'isImplementer',
+    ]) ||
     !isBoundedString(value.name) ||
     !isBoundedString(value.role) ||
     !isIsoDate(value.reviewedOn) ||
@@ -312,8 +768,11 @@ function readExactRegionalDecisions(value, kind) {
 
   for (const regionId of REGION_IDS) {
     const decision = value[regionId];
+    const expectedDecisionKeys = kind === 'source'
+      ? ['regionId', 'disposition', 'rightsDisposition', 'attribution', 'uncertainties']
+      : ['regionId', 'disposition', 'uncertainties'];
     if (
-      !isRecord(decision) ||
+      !hasExactKeys(decision, expectedDecisionKeys) ||
       decision.regionId !== regionId ||
       decision.disposition !== 'approved'
     ) {
@@ -341,39 +800,110 @@ function readSourceManifest(value, snapshotId) {
   if (value.asOf !== expectedDate) {
     throw new Error(`Source manifest asOf must be exactly ${expectedDate}.`);
   }
-  if (!isRecord(value.evidenceArchive)) {
+  if (!hasExactKeys(value.evidenceArchive, [
+    'path', 'sha256', 'memberInventorySha256', 'members',
+  ])) {
     throw new Error('Source manifest evidence archive is invalid.');
   }
   const evidenceArchive = {
-    ...readHashReference(value.evidenceArchive, 'Evidence archive'),
+    ...readHashReference(
+      value.evidenceArchive,
+      'Evidence archive',
+      ['path', 'sha256', 'memberInventorySha256', 'members'],
+    ),
     memberInventorySha256: value.evidenceArchive.memberInventorySha256,
     members: readMemberInventory(value.evidenceArchive.members, 'Evidence archive'),
   };
   if (!isSha256(evidenceArchive.memberInventorySha256)) {
     throw new Error('Evidence archive member inventory SHA-256 is invalid.');
   }
-  const inputGeometry = readHashReference(value.inputGeometry, 'Input geometry');
-
   if (!isRecord(value.preparation)) {
     throw new Error('Source manifest preparation mode is invalid.');
   }
+  if (value.readinessStatus !== 'blocked' && value.readinessStatus !== 'ready') {
+    throw new Error('Source manifest readinessStatus must be explicitly blocked or ready.');
+  }
   const isBlocked = value.readinessStatus === 'blocked';
+  const requiresCandidatePacket =
+    isBlocked && CANDIDATE_PACKET_SNAPSHOT_IDS.has(snapshotId);
+  const isSchema2Blocked =
+    isBlocked && value.schemaVersion === 2 && value.packetKind === undefined;
+  if (
+    requiresCandidatePacket &&
+    (value.schemaVersion !== 3 || value.packetKind !== 'candidate-reviewer')
+  ) {
+    throw new Error('1492 and 1700 blocked packets require the exact candidate schema markers.');
+  }
+  if (!requiresCandidatePacket && isBlocked && !isSchema2Blocked) {
+    throw new Error('1815 and 1914 blocked packets require the exact schemaVersion 2 marker.');
+  }
+  if (!requiresCandidatePacket && isBlocked) {
+    const expectedKeys = isSchema2Blocked
+      ? [
+          'schemaVersion', 'snapshotId', 'asOf', 'calendarBasis', 'readinessStatus',
+          'deliveryCounted', 'blockers', 'source', 'evidenceArchive', 'inputGeometry',
+          'preparation', 'geometryPolicy', 'regions', 'sourceRecordManifests',
+        ]
+      : [
+          'snapshotId', 'asOf', 'readinessStatus', 'deliveryCounted', 'blockers',
+          'evidenceArchive', 'inputGeometry', 'preparation', 'regions',
+        ];
+    if (!hasExactKeys(value, expectedKeys)) {
+      throw new Error('Blocked source manifest schema marker or fields are contradictory.');
+    }
+  }
+  if (
+    !isBlocked &&
+    !hasExactKeys(value, [
+      'snapshotId', 'asOf', 'readinessStatus', 'deliveryCounted', 'evidenceArchive',
+      'inputGeometry', 'preparation', 'regions',
+    ])
+  ) {
+    throw new Error('Ready source manifest contains contradictory or extra fields.');
+  }
+  if (!isBlocked && value.deliveryCounted !== true) {
+    throw new Error('Ready source manifest must be explicitly counted as delivered.');
+  }
+  const inputGeometryKeys = isBlocked
+    ? ['path', 'sha256', 'candidateGenerated']
+    : ['path', 'sha256'];
+  const inputGeometry = readHashReference(
+    value.inputGeometry,
+    'Input geometry',
+    inputGeometryKeys,
+  );
+  if (isBlocked && value.inputGeometry.candidateGenerated !== false) {
+    throw new Error('Blocked inputGeometry must declare candidateGenerated exactly false.');
+  }
+
   let blockers = [];
   let preparation;
   if (isBlocked) {
+    const expectedPreparationKeys = requiresCandidatePacket
+      ? ['mode', 'reason', 'manualTrace']
+      : isSchema2Blocked
+        ? ['mode', 'vectorExtractionSpecification', 'manualTrace', 'reason']
+        : ['mode', 'reason'];
     if (
       value.deliveryCounted !== false ||
+      !hasExactKeys(value.preparation, expectedPreparationKeys) ||
       value.preparation.mode !== 'blocked' ||
-      !isBoundedString(value.preparation.reason)
+      !isBoundedString(value.preparation.reason) ||
+      (isSchema2Blocked &&
+        (value.preparation.vectorExtractionSpecification !== null ||
+          value.preparation.manualTrace !== null))
     ) {
-      throw new Error('Blocked source manifest must be non-delivered with an explicit reason.');
+      throw new Error('Blocked source manifest must be non-delivered with an exact blocked preparation schema.');
     }
     blockers = readBlockers(value.blockers);
     preparation = {
       mode: 'blocked',
       reason: value.preparation.reason,
     };
-  } else if (value.preparation.mode === 'vector-extraction') {
+  } else if (
+    hasExactKeys(value.preparation, ['mode', 'extractionSpecification']) &&
+    value.preparation.mode === 'vector-extraction'
+  ) {
     preparation = {
       mode: 'vector-extraction',
       extractionSpecification: readHashReference(
@@ -381,7 +911,12 @@ function readSourceManifest(value, snapshotId) {
         'Extraction specification',
       ),
     };
-  } else if (value.preparation.mode === 'manual-trace') {
+  } else if (
+    hasExactKeys(value.preparation, [
+      'mode', 'evidence', 'procedure', 'operatorRecord', 'controlPoints',
+    ]) &&
+    value.preparation.mode === 'manual-trace'
+  ) {
     preparation = {
       mode: 'manual-trace',
       evidence: readHashReference(value.preparation.evidence, 'Manual trace evidence'),
@@ -396,7 +931,7 @@ function readSourceManifest(value, snapshotId) {
       ),
     };
   } else {
-    throw new Error('Source manifest preparation mode must be vector-extraction, manual-trace, or blocked.');
+    throw new Error('Source manifest preparation mode must use one exact vector, manual, or blocked schema.');
   }
 
   if (!Array.isArray(value.regions) || value.regions.length !== REGION_IDS.length) {
@@ -404,6 +939,7 @@ function readSourceManifest(value, snapshotId) {
   }
   const regions = [];
   const seenRegions = new Set();
+  const isCandidatePacket = requiresCandidatePacket;
   let blockedRegionCount = 0;
   for (const region of value.regions) {
     if (!isRecord(region) || !REGION_ID_SET.has(region.regionId) || seenRegions.has(region.regionId)) {
@@ -411,29 +947,73 @@ function readSourceManifest(value, snapshotId) {
     }
     seenRegions.add(region.regionId);
     const evidencePath = normalizeLocalPath(region.evidencePath);
-    const isBlockedRegion =
-      isBlocked && (region.disposition === 'blocked' || region.disposition === 'conditional');
+    const uncertainties = readUncertainties(region.uncertainties, `source ${region.regionId}`);
+    const entityIds = isCandidatePacket
+      ? readStringArray(region.entityIds, `source ${region.regionId} entity IDs`, false)
+      : [];
+    const colorOwnerIds = isCandidatePacket
+      ? readStringArray(
+          region.colorOwnerIds,
+          `source ${region.regionId} color-owner IDs`,
+          false,
+        )
+      : [];
+    const sourceFeatureIds = isCandidatePacket
+      ? readStringArray(
+          region.sourceFeatureIds,
+          `source ${region.regionId} source-feature IDs`,
+        )
+      : [];
     const hasExpectedRights = isBlocked
       ? region.rightsDisposition === 'review-required'
       : region.rightsDisposition === 'approved';
+    const hasExpectedDisposition = isBlocked
+      ? isCandidatePacket
+        ? region.disposition === 'blocked'
+        : region.disposition === 'blocked' || region.disposition === 'conditional'
+      : region.disposition === 'approved';
     if (
+      (isCandidatePacket &&
+        !hasExactKeys(region, [
+          'regionId', 'coverageContainerId', 'coverageContainerCreatesPoliticalEntity',
+          'disposition', 'rightsDisposition', 'license', 'attribution', 'retrievedOn',
+          'evidencePath', 'evidenceSha256', 'entityIds', 'colorOwnerIds',
+          'sourceFeatureIds', 'uncertainties', 'approvals',
+        ])) ||
+      (!isCandidatePacket &&
+        !isSchema2Blocked &&
+        !hasExactKeys(region, [
+          'regionId', 'disposition', 'evidencePath', 'evidenceSha256',
+          'rightsDisposition', 'license', 'attribution', 'retrievedOn',
+          'uncertainties',
+        ])) ||
       evidencePath === null ||
+      (isCandidatePacket && evidencePath !== `reviews/${snapshotId}-${region.regionId}.json`) ||
+      (isCandidatePacket &&
+        (region.coverageContainerId !== `coverage:${snapshotId}:${region.regionId}` ||
+          region.coverageContainerCreatesPoliticalEntity !== false)) ||
       !isSha256(region.evidenceSha256) ||
       !hasExpectedRights ||
+      !hasExpectedDisposition ||
       !isBoundedString(region.license) ||
       !(region.attribution === null || isBoundedString(region.attribution)) ||
-      !isIsoDate(region.retrievedOn)
+      !isIsoDate(region.retrievedOn) ||
+      uncertainties === null ||
+      (isCandidatePacket && !hasOnlyNullRegionalApprovals(region.approvals))
     ) {
       throw new Error(`Source rights record for ${region.regionId} is not complete for its readiness state.`);
-    }
-    if (isBlocked && !isBlockedRegion) {
-      throw new Error(`Blocked source region ${region.regionId} must be conditional or blocked.`);
     }
     if (region.disposition === 'blocked') {
       blockedRegionCount += 1;
     }
-    readUncertainties(region.uncertainties, `source ${region.regionId}`);
-    regions.push({ ...region, evidencePath });
+    regions.push({
+      ...region,
+      evidencePath,
+      uncertainties,
+      entityIds,
+      colorOwnerIds,
+      sourceFeatureIds,
+    });
   }
   if (REGION_IDS.some((regionId) => !seenRegions.has(regionId))) {
     throw new Error('Source manifest is missing one of the six required regions.');
@@ -441,6 +1021,7 @@ function readSourceManifest(value, snapshotId) {
   if (isBlocked && blockedRegionCount === 0) {
     throw new Error('Blocked source manifest must identify at least one blocked region.');
   }
+  const reviewerPacket = readCandidateReviewerPacket(value, snapshotId, isBlocked);
 
   return {
     snapshotId,
@@ -451,6 +1032,7 @@ function readSourceManifest(value, snapshotId) {
     inputGeometry,
     preparation,
     regions,
+    reviewerPacket,
   };
 }
 
@@ -479,6 +1061,7 @@ function parseCanonicalZip(archiveBytes) {
   }
 
   const centralEntries = [];
+  const collisionKeys = new Set();
   let cursor = centralOffset;
   let previousPath = '';
   for (let index = 0; index < totalEntries; index += 1) {
@@ -505,6 +1088,7 @@ function parseCanonicalZip(archiveBytes) {
     }
     const path = archiveBytes.subarray(cursor + 46, cursor + 46 + nameLength).toString('utf8');
     const normalizedPath = normalizeLocalPath(path);
+    const collisionKey = normalizedPath === null ? null : pathCollisionKey(normalizedPath);
     if (
       flags !== UTF8_FLAG ||
       (method !== STORE_METHOD && method !== DEFLATE_METHOD) ||
@@ -517,11 +1101,14 @@ function parseCanonicalZip(archiveBytes) {
       externalAttributes !== 0 ||
       normalizedPath === null ||
       normalizedPath !== path ||
+      collisionKey === null ||
+      collisionKeys.has(collisionKey) ||
       path <= previousPath ||
       uncompressedSize > MAX_MEMBER_BYTES
     ) {
       throw new Error('Evidence archive member metadata, path, encryption, compression, or order is not canonical.');
     }
+    collisionKeys.add(collisionKey);
     previousPath = path;
     centralEntries.push({
       path,
@@ -615,15 +1202,6 @@ function inventoriesMatch(left, right) {
   );
 }
 
-async function validateHashReference(reference, label) {
-  const bytes = await readBoundedFile(resolveManifestPath(reference.path), label);
-  const hash = calculateSha256(bytes);
-  if (hash !== reference.sha256) {
-    throw new Error(`${label} SHA-256 drifted.`);
-  }
-  return bytes;
-}
-
 function parseExtractionSpecification(bytes) {
   const specification = parseJson(bytes, 'Extraction specification');
   if (
@@ -640,6 +1218,537 @@ function parseExtractionSpecification(bytes) {
   return { memberPath };
 }
 
+function validateReviewerSupplementalSemantics(review, snapshotId, regionId) {
+  const commonKeys = [
+    'snapshotId', 'regionId', 'packetStatus', 'rightsDisposition',
+    'factualDisposition', 'topologyDisposition', 'reviewer', 'approvals',
+    'disposition', 'geometryRoute', 'entityIds', 'colorOwnerIds',
+    'sourceFeatureIds', 'blockers',
+  ];
+  const allowedExtras = {
+    '1492:poland': ['unionContext'],
+    '1492:lithuania': ['unionContext', 'reconstructionRule'],
+    '1492:hungary': [],
+    '1492:balkans': [],
+    '1492:iberia': ['excludedEntityIds', 'statusRule', 'comparisonSourceFeatureIds'],
+    '1492:scandinavia': ['excludedEntityIds', 'unionContext', 'rejectedSourceFeatureIds'],
+    '1700:poland': [],
+    '1700:lithuania': [],
+    '1700:hungary': [],
+    '1700:balkans': ['priority', 'statusRules'],
+    '1700:iberia': [],
+    '1700:scandinavia': [],
+  }[`${snapshotId}:${regionId}`];
+  if (
+    allowedExtras === undefined ||
+    !hasExactKeys(review, [...commonKeys, ...allowedExtras])
+  ) {
+    throw new Error(`Reviewer record schema drifted for ${snapshotId} ${regionId}.`);
+  }
+  if (
+    snapshotId === '1492' &&
+    (regionId === 'poland' || regionId === 'lithuania') &&
+    review.unionContext !== 'Jagiellonian personal union only; no merged geometry.'
+  ) {
+    throw new Error(`Reviewer union semantics drifted for ${snapshotId} ${regionId}.`);
+  }
+  if (
+    snapshotId === '1492' &&
+    regionId === 'lithuania' &&
+    review.reconstructionRule !== TRACE_RECONSTRUCTION_RULE
+  ) {
+    throw new Error('1492 Lithuania reconstruction semantics drifted.');
+  }
+  if (
+    snapshotId === '1492' &&
+    regionId === 'iberia' &&
+    (!arraysMatch(review.excludedEntityIds, ['hist:kingdom-of-spain', 'hist:emirate-of-granada']) ||
+      review.statusRule !== 'Granada is incorporated into Castile at the intended snapshot.' ||
+      !arraysMatch(review.comparisonSourceFeatureIds, [
+        'cliopatria:v0.2.0:feature-index:7602',
+        'cliopatria:v0.2.0:feature-index:7513',
+        'cliopatria:v0.2.0:feature-index:7635',
+      ]))
+  ) {
+    throw new Error('1492 Iberia supplemental semantics drifted.');
+  }
+  if (
+    snapshotId === '1492' &&
+    regionId === 'scandinavia' &&
+    (!arraysMatch(review.excludedEntityIds, ['hist:kalmar-union']) ||
+      review.unionContext !== 'Kalmar Union is context only and cannot own or duplicate geometry.' ||
+      !arraysMatch(review.rejectedSourceFeatureIds, [
+        'cliopatria:v0.2.0:feature-index:7546',
+      ]))
+  ) {
+    throw new Error('1492 Scandinavia supplemental semantics drifted.');
+  }
+  if (
+    snapshotId === '1700' &&
+    regionId === 'balkans' &&
+    (!arraysMatch(review.priority, review.entityIds) ||
+      !arraysMatch(review.statusRules, [
+        'Wallachia, Moldavia, and Ragusa remain separate; tributary relationships are metadata.',
+        'Morea remains Venetian in the candidate interpretation.',
+        'Harvard/Oxford CC0 layers are comparison evidence, not the candidate geometry.',
+      ]))
+  ) {
+    throw new Error('1700 Balkans priority or status semantics drifted.');
+  }
+}
+
+function validateReviewerRegionRecord(member, manifestRegion, snapshotId) {
+  const review = parseJson(member.bytes, `Reviewer record ${manifestRegion.regionId}`);
+  if (
+    !isRecord(review) ||
+    review.snapshotId !== snapshotId ||
+    review.regionId !== manifestRegion.regionId ||
+    review.packetStatus !== 'candidate-blocked' ||
+    review.disposition !== manifestRegion.disposition ||
+    review.rightsDisposition !== null ||
+    review.factualDisposition !== null ||
+    review.topologyDisposition !== null ||
+    review.reviewer !== null ||
+    !hasOnlyNullApprovalFields(review.approvals) ||
+    !arraysMatch(review.entityIds, manifestRegion.entityIds) ||
+    !arraysMatch(review.colorOwnerIds, manifestRegion.colorOwnerIds) ||
+    !arraysMatch(review.sourceFeatureIds, manifestRegion.sourceFeatureIds) ||
+    !arraysMatch(review.blockers, manifestRegion.uncertainties)
+  ) {
+    throw new Error(
+      `Reviewer record semantics drifted from manifest region ${manifestRegion.regionId}.`,
+    );
+  }
+  validateReviewerSupplementalSemantics(review, snapshotId, manifestRegion.regionId);
+}
+
+function validateCandidateManualTraceMembers(manifest, membersByPath) {
+  const manualTrace = manifest.reviewerPacket?.manualTrace;
+  if (manualTrace === null || manualTrace === undefined) {
+    return;
+  }
+  const evidenceMember = membersByPath.get(manualTrace.evidencePath);
+  const procedureMember = membersByPath.get(manualTrace.procedurePath);
+  if (
+    evidenceMember === undefined ||
+    evidenceMember.sha256 !== manualTrace.evidenceSha256 ||
+    procedureMember === undefined ||
+    procedureMember.sha256 !== manualTrace.procedureSha256
+  ) {
+    throw new Error('Manual-trace evidence or procedure member drifted.');
+  }
+  const procedure = parseJson(procedureMember.bytes, 'Manual-trace procedure');
+  if (
+    !hasExactKeys(procedure, [
+      'version', 'mode', 'sourceImageSha256', 'reconstructionRule',
+      'sharedArcRule', 'requiredLineClasses', 'operatorRecordSha256',
+      'controlPointsSha256', 'tracedGeoJsonSha256', 'approvalStatus',
+    ]) ||
+    procedure.version !== 1 ||
+    procedure.mode !== 'manual-trace-candidate-only' ||
+    procedure.sourceImageSha256 !== manualTrace.evidenceSha256 ||
+    procedure.reconstructionRule !== TRACE_RECONSTRUCTION_RULE ||
+    procedure.sharedArcRule !== TRACE_SHARED_ARC_RULE ||
+    !arraysMatch(procedure.requiredLineClasses, TRACE_LINE_CLASSES) ||
+    procedure.operatorRecordSha256 !== null ||
+    procedure.controlPointsSha256 !== null ||
+    procedure.tracedGeoJsonSha256 !== null ||
+    procedure.approvalStatus !== 'pending'
+  ) {
+    throw new Error('Manual-trace procedure semantics overclaim readiness or drifted.');
+  }
+}
+
+function expectedCandidateMemberPaths(snapshotId) {
+  const paths = [
+    'README.txt',
+    'licenses/cliopatria-v0.2.0-LICENSE.md',
+    'metadata/cliopatria-v0.2.0-README.md',
+    'research/historical-source-evidence-matrix.md',
+    `source-locks/${snapshotId}-source-locks.json`,
+    ...REGION_IDS.map((regionId) => `reviews/${snapshotId}-${regionId}.json`),
+    ...EXPECTED_CLIOPATRIA_RECORDS[snapshotId].map(([, path]) => path),
+  ];
+  if (snapshotId === '1492') {
+    paths.push(
+      'metadata/cnig-15094-download-response.html',
+      'sources/semkowicz-romer-1929-current-hosted-scan.jpg',
+      'specifications/1492-date-and-identity.json',
+      'specifications/1492-manual-trace-candidate.json',
+    );
+  } else {
+    paths.push(
+      'metadata/harvard-data-gdb-inventory.tsv',
+      'metadata/harvard-dataverse-gaviqv.json',
+      'specifications/1700-six-record-cliopatria-mosaic.json',
+      ...HARVARD_SELECTED_FILES.map((name) => `comparison/harvard-data-gdb/${name}`),
+    );
+  }
+  return paths.sort();
+}
+
+function expectedReviewerArtifactPaths(snapshotId) {
+  return [
+    ...REGION_IDS.map((regionId) => `reviews/${snapshotId}-${regionId}.json`),
+    `source-locks/${snapshotId}-source-locks.json`,
+    ...(snapshotId === '1492'
+      ? [
+          'specifications/1492-date-and-identity.json',
+          'specifications/1492-manual-trace-candidate.json',
+        ]
+      : ['specifications/1700-six-record-cliopatria-mosaic.json']),
+  ].sort();
+}
+
+function requireJsonMember(membersByPath, path) {
+  const member = membersByPath.get(path);
+  if (member === undefined) {
+    throw new Error(`Required candidate JSON member is missing: ${path}.`);
+  }
+  return { member, value: parseJson(member.bytes, path) };
+}
+
+function validateCliopatriaSourceRecord(member, expected) {
+  const [index, path, expectedSha, name, fromYear, toYear, wikidata, seshatId] = expected;
+  if (member.path !== path || member.sha256 !== expectedSha) {
+    throw new Error(`Cliopatria source record lock drifted for C#${index}.`);
+  }
+  const feature = parseJson(member.bytes, path);
+  const canonicalBytes = Buffer.from(JSON.stringify(canonicalizeJson(feature)), 'utf8');
+  if (
+    !canonicalBytes.equals(member.bytes) ||
+    !hasExactKeys(feature, ['type', 'properties', 'geometry']) ||
+    feature.type !== 'Feature' ||
+    !hasExactKeys(feature.properties, [
+      'Name', 'FromYear', 'ToYear', 'Area', 'Type', 'Wikipedia', 'Wikidata',
+      'SeshatID', 'Components', 'MemberOf',
+    ]) ||
+    feature.properties.Name !== name ||
+    feature.properties.FromYear !== fromYear ||
+    feature.properties.ToYear !== toYear ||
+    feature.properties.Wikidata !== wikidata ||
+    feature.properties.SeshatID !== seshatId ||
+    feature.properties.Type !== 'POLITY' ||
+    typeof feature.properties.Area !== 'number' ||
+    !Number.isFinite(feature.properties.Area) ||
+    !isBoundedString(feature.properties.Wikipedia) ||
+    typeof feature.properties.Components !== 'string' ||
+    typeof feature.properties.MemberOf !== 'string' ||
+    !hasExactKeys(feature.geometry, ['type', 'coordinates']) ||
+    !(
+      (feature.geometry.type === 'Polygon' &&
+        isPolygonCoordinates(feature.geometry.coordinates)) ||
+      (feature.geometry.type === 'MultiPolygon' &&
+        isMultiPolygonCoordinates(feature.geometry.coordinates))
+    )
+  ) {
+    throw new Error(`Cliopatria source record semantics drifted for C#${index}.`);
+  }
+}
+
+function validateCliopatriaSourceLock(lock, snapshotId, membersByPath) {
+  if (
+    !hasExactKeys(lock, [
+      'datasetId', 'version', 'revision', 'downloadUrl', 'archiveSha256',
+      'archiveByteLength', 'extractedDataSha256', 'extractedDataByteLength',
+      'fullArchiveCommitted', 'fullArchiveExclusionReason', 'selectedRecords',
+      'licenseDisposition', 'attribution',
+    ]) ||
+    lock.datasetId !== 'cliopatria' ||
+    lock.version !== 'v0.2.0' ||
+    lock.revision !== 'ad28a691b7c07c1fca89d0e0636d324667d2a258' ||
+    lock.downloadUrl !== 'https://raw.githubusercontent.com/Seshat-Global-History-Databank/cliopatria/v0.2.0/cliopatria.geojson.zip' ||
+    lock.archiveSha256 !== 'd01ae3a20d358cc5d54f69d9d725d390767d9c8759ac89ad6f90c58d106f3370' ||
+    lock.archiveByteLength !== 44231317 ||
+    lock.extractedDataSha256 !== '5df3b5868cfab8f76030853fa2346ed3cd71171ad807b6f72d783ee2dce6839e' ||
+    lock.extractedDataByteLength !== 165608072 ||
+    lock.fullArchiveCommitted !== false ||
+    !isBoundedString(lock.fullArchiveExclusionReason) ||
+    lock.licenseDisposition !== null ||
+    lock.attribution !== null ||
+    !Array.isArray(lock.selectedRecords) ||
+    lock.selectedRecords.length !== EXPECTED_CLIOPATRIA_RECORDS[snapshotId].length
+  ) {
+    throw new Error('Cliopatria source-lock schema or immutable dataset identity drifted.');
+  }
+  const licenseMember = membersByPath.get('licenses/cliopatria-v0.2.0-LICENSE.md');
+  const readmeMember = membersByPath.get('metadata/cliopatria-v0.2.0-README.md');
+  if (
+    licenseMember?.sha256 !== CLIOPATRIA_LICENSE_SHA256 ||
+    readmeMember?.sha256 !== CLIOPATRIA_README_SHA256
+  ) {
+    throw new Error('Pinned Cliopatria license or README bytes drifted.');
+  }
+  EXPECTED_CLIOPATRIA_RECORDS[snapshotId].forEach((expected, recordIndex) => {
+    const selected = lock.selectedRecords[recordIndex];
+    const [index, path, expectedSha, name, fromYear, toYear, wikidata, seshatId] = expected;
+    if (
+      !hasExactKeys(selected, [
+        'index', 'path', 'sha256', 'name', 'fromYear', 'toYear', 'wikidata',
+        'seshatId',
+      ]) ||
+      selected.index !== index ||
+      selected.path !== path ||
+      selected.sha256 !== expectedSha ||
+      selected.name !== name ||
+      selected.fromYear !== fromYear ||
+      selected.toYear !== toYear ||
+      selected.wikidata !== wikidata ||
+      selected.seshatId !== seshatId
+    ) {
+      throw new Error(`Cliopatria selected-record lock drifted for C#${index}.`);
+    }
+    const member = membersByPath.get(path);
+    if (member === undefined) {
+      throw new Error(`Cliopatria source record member is missing for C#${index}.`);
+    }
+    validateCliopatriaSourceRecord(member, expected);
+  });
+}
+
+function validate1492Specifications(membersByPath, dateContract) {
+  const identity = requireJsonMember(
+    membersByPath,
+    'specifications/1492-date-and-identity.json',
+  ).value;
+  if (
+    !hasExactKeys(identity, [
+      'snapshotId', 'dateContract', 'polandLithuania', 'iberia', 'scandinavia',
+    ]) ||
+    identity.snapshotId !== '1492' ||
+    JSON.stringify(identity.dateContract) !== JSON.stringify(dateContract) ||
+    !hasExactKeys(identity.polandLithuania, [
+      'entityIds', 'separateColorOwners', 'jagiellonianPersonalUnionContextOnly',
+    ]) ||
+    !arraysMatch(identity.polandLithuania.entityIds, [
+      'hist:kingdom-of-poland', 'hist:grand-duchy-of-lithuania',
+    ]) ||
+    identity.polandLithuania.separateColorOwners !== true ||
+    identity.polandLithuania.jagiellonianPersonalUnionContextOnly !== true ||
+    !hasExactKeys(identity.iberia, [
+      'entityIds', 'granadaDisposition', 'spainSuperEntityAllowed',
+    ]) ||
+    !arraysMatch(identity.iberia.entityIds, [
+      'hist:crown-of-castile', 'hist:crown-of-aragon',
+      'hist:kingdom-of-portugal', 'hist:kingdom-of-navarre',
+    ]) ||
+    identity.iberia.granadaDisposition !== 'incorporated-into-castile' ||
+    identity.iberia.spainSuperEntityAllowed !== false ||
+    !hasExactKeys(identity.scandinavia, ['entityIds', 'kalmarUnionContextOnly']) ||
+    !arraysMatch(identity.scandinavia.entityIds, [
+      'hist:kingdom-of-denmark', 'hist:kingdom-of-norway',
+      'hist:kingdom-of-sweden',
+    ]) ||
+    identity.scandinavia.kalmarUnionContextOnly !== true
+  ) {
+    throw new Error('1492 temporal or identity specification semantics drifted.');
+  }
+}
+
+function validate1700Specification(membersByPath, dateContract) {
+  const specification = requireJsonMember(
+    membersByPath,
+    'specifications/1700-six-record-cliopatria-mosaic.json',
+  ).value;
+  if (
+    !hasExactKeys(specification, [
+      'version', 'snapshotId', 'dateContract', 'mode', 'allowlist', 'priority',
+      'sourceRoles', 'caveats', 'approvals',
+    ]) ||
+    specification.version !== 1 ||
+    specification.snapshotId !== '1700' ||
+    JSON.stringify(specification.dateContract) !== JSON.stringify(dateContract) ||
+    specification.mode !== 'candidate-vector-selection-not-production' ||
+    !arraysMatch(specification.allowlist, MOSAIC_1700_ALLOWLIST) ||
+    !arraysMatch(specification.priority, MOSAIC_1700_ALLOWLIST) ||
+    !hasExactKeys(specification.sourceRoles, ['cliopatria', 'harvardOxford']) ||
+    specification.sourceRoles.cliopatria !== 'candidate geometry' ||
+    specification.sourceRoles.harvardOxford !== 'CC0 comparison evidence only' ||
+    !arraysMatch(specification.caveats, MOSAIC_1700_CAVEATS) ||
+    !hasOnlyNullApprovalFields(specification.approvals)
+  ) {
+    throw new Error('1700 candidate allowlist, priority, caveat, or temporal semantics drifted.');
+  }
+}
+
+function parseHarvardInventory(member) {
+  if (member === undefined) {
+    throw new Error('Harvard FileGDB inventory member is missing.');
+  }
+  const text = member.bytes.toString('utf8');
+  if (!text.endsWith('\n')) {
+    throw new Error('Harvard FileGDB inventory is not canonically newline-terminated.');
+  }
+  const lines = text.slice(0, -1).split('\n');
+  if (
+    lines.shift() !== 'dataFileId\tpath\tbyteLength\tmd5\tsha256' ||
+    lines.length !== 247
+  ) {
+    throw new Error('Harvard FileGDB inventory header or file count drifted.');
+  }
+  const rows = new Map();
+  const dataFileIds = new Set();
+  let previousPath = '';
+  let totalBytes = 0;
+  for (const line of lines) {
+    const fields = line.split('\t');
+    if (fields.length !== 5) {
+      throw new Error('Harvard FileGDB inventory row schema drifted.');
+    }
+    const [dataFileIdText, path, byteLengthText, md5, sha256] = fields;
+    const dataFileId = Number(dataFileIdText);
+    const byteLength = Number(byteLengthText);
+    if (
+      !Number.isSafeInteger(dataFileId) ||
+      dataFileId <= 0 ||
+      dataFileIds.has(dataFileId) ||
+      normalizeLocalPath(path) !== path ||
+      path.includes('/') ||
+      path <= previousPath ||
+      rows.has(path) ||
+      !Number.isSafeInteger(byteLength) ||
+      byteLength < 0 ||
+      !MD5_PATTERN.test(md5) ||
+      !isSha256(sha256)
+    ) {
+      throw new Error(`Harvard FileGDB inventory row is invalid for ${path}.`);
+    }
+    dataFileIds.add(dataFileId);
+    rows.set(path, { dataFileId, byteLength, md5, sha256 });
+    previousPath = path;
+    totalBytes += byteLength;
+  }
+  if (totalBytes !== 27_186_561) {
+    throw new Error('Harvard FileGDB inventory total byte count drifted.');
+  }
+  return { rows, totalBytes };
+}
+
+function validateHarvardSelectedPayloads(membersByPath) {
+  const inventoryMember = membersByPath.get('metadata/harvard-data-gdb-inventory.tsv');
+  const inventory = parseHarvardInventory(inventoryMember);
+  for (const name of HARVARD_SELECTED_FILES) {
+    const record = inventory.rows.get(name);
+    const member = membersByPath.get(`comparison/harvard-data-gdb/${name}`);
+    if (
+      record === undefined ||
+      member === undefined ||
+      member.bytes.length !== record.byteLength ||
+      member.sha256 !== record.sha256 ||
+      calculateMd5(member.bytes) !== record.md5
+    ) {
+      throw new Error(`Harvard selected payload digest drifted for ${name}.`);
+    }
+  }
+  return inventory;
+}
+
+function validateSourceLockMember(membersByPath, snapshotId) {
+  const { value: lock } = requireJsonMember(
+    membersByPath,
+    `source-locks/${snapshotId}-source-locks.json`,
+  );
+  const expectedTopKeys = snapshotId === '1492'
+    ? ['snapshotId', 'cliopatria', 'semkowiczRomer', 'cnig15094']
+    : ['snapshotId', 'cliopatria', 'harvardOxford'];
+  if (!hasExactKeys(lock, expectedTopKeys) || lock.snapshotId !== snapshotId) {
+    throw new Error(`${snapshotId} source-lock top-level schema drifted.`);
+  }
+  validateCliopatriaSourceLock(lock.cliopatria, snapshotId, membersByPath);
+  if (snapshotId === '1492') {
+    if (
+      !hasExactKeys(lock.semkowiczRomer, [
+        'title', 'publicationYear', 'currentHostedScanSha256',
+        'currentHostedScanByteLength', 'currentHostedScanDimensions',
+        'authoritativeCatalogRecord', 'authoritativeArchiveScanSha256',
+        'itemSpecificProductionLicense', 'suitability',
+      ]) ||
+      lock.semkowiczRomer.title !== 'Polska i Litwa za Jagiellonów (w. XV)' ||
+      lock.semkowiczRomer.publicationYear !== 1929 ||
+      lock.semkowiczRomer.currentHostedScanSha256 !== '955293f5b80ee2ca9574574fcb0d3710fc78c3d0bf4f59de5be2e21edb9bdb0b' ||
+      membersByPath.get('sources/semkowicz-romer-1929-current-hosted-scan.jpg')?.sha256 !==
+        '955293f5b80ee2ca9574574fcb0d3710fc78c3d0bf4f59de5be2e21edb9bdb0b' ||
+      lock.semkowiczRomer.currentHostedScanByteLength !== 1689543 ||
+      !arraysMatch(lock.semkowiczRomer.currentHostedScanDimensions, [2560, 2195]) ||
+      lock.semkowiczRomer.authoritativeCatalogRecord !== null ||
+      lock.semkowiczRomer.authoritativeArchiveScanSha256 !== null ||
+      lock.semkowiczRomer.itemSpecificProductionLicense !== null ||
+      lock.semkowiczRomer.suitability !== 'conditional-manual-trace-candidate-only' ||
+      !hasExactKeys(lock.cnig15094, [
+        'productId', 'title', 'advertisedFormat', 'downloadUrl',
+        'capturedResponseSha256', 'capturedResponseByteLength',
+        'capturedResponseMediaType', 'productArchiveSha256',
+        'memberInventorySha256', 'productionSuitability', 'suitability',
+      ]) ||
+      lock.cnig15094.productId !== 15094 ||
+      lock.cnig15094.capturedResponseSha256 !== '19cf7de8b30423769656b9b4d2fd6831eea7c61853a0d670266ec50023d67f03' ||
+      membersByPath.get('metadata/cnig-15094-download-response.html')?.sha256 !==
+        '19cf7de8b30423769656b9b4d2fd6831eea7c61853a0d670266ec50023d67f03' ||
+      lock.cnig15094.capturedResponseByteLength !== 68775 ||
+      lock.cnig15094.capturedResponseMediaType !== 'text/html' ||
+      lock.cnig15094.productArchiveSha256 !== null ||
+      lock.cnig15094.memberInventorySha256 !== null ||
+      lock.cnig15094.productionSuitability !== null
+    ) {
+      throw new Error('1492 source-lock provenance or pending-rights semantics drifted.');
+    }
+  } else {
+    const inventory = validateHarvardSelectedPayloads(membersByPath);
+    if (
+      !hasExactKeys(lock.harvardOxford, [
+        'doi', 'version', 'license', 'metadataSha256', 'comparisonOnly',
+        'payloadAuthenticatedToDataverseMetadata', 'authenticatedFileCount',
+        'authenticatedTotalBytes', 'authenticatedInventorySha256',
+        'generatedBundleSha256', 'generatedBundleByteStable',
+        'selectedPhysicalPayloads', 'rightsApproval', 'factualApproval',
+        'topologyApproval',
+      ]) ||
+      lock.harvardOxford.doi !== '10.7910/DVN/GAVIQV' ||
+      lock.harvardOxford.version !== '1.0' ||
+      lock.harvardOxford.license !== 'CC0-1.0' ||
+      lock.harvardOxford.metadataSha256 !== '4d9d545a93223b5394cfc026aac95d858701858228121d4b3bb266024e527143' ||
+      membersByPath.get('metadata/harvard-dataverse-gaviqv.json')?.sha256 !==
+        '4d9d545a93223b5394cfc026aac95d858701858228121d4b3bb266024e527143' ||
+      membersByPath.get('metadata/harvard-data-gdb-inventory.tsv')?.sha256 !==
+        'b348fbc52a2089dfe9e5f0568754d6a2ee56899f101711cd1cf917aae550fa3a' ||
+      lock.harvardOxford.comparisonOnly !== true ||
+      lock.harvardOxford.payloadAuthenticatedToDataverseMetadata !== true ||
+      lock.harvardOxford.authenticatedFileCount !== inventory.rows.size ||
+      lock.harvardOxford.authenticatedTotalBytes !== inventory.totalBytes ||
+      lock.harvardOxford.authenticatedInventorySha256 !==
+        'b348fbc52a2089dfe9e5f0568754d6a2ee56899f101711cd1cf917aae550fa3a' ||
+      lock.harvardOxford.generatedBundleSha256 !== null ||
+      lock.harvardOxford.generatedBundleByteStable !== false ||
+      !arraysMatch(lock.harvardOxford.selectedPhysicalPayloads, HARVARD_SELECTED_FILES) ||
+      lock.harvardOxford.rightsApproval !== null ||
+      lock.harvardOxford.factualApproval !== null ||
+      lock.harvardOxford.topologyApproval !== null
+    ) {
+      throw new Error('1700 Harvard comparison provenance or approval semantics drifted.');
+    }
+  }
+}
+
+function validateCandidateArchiveSemantics(manifest, archive, membersByPath, snapshotId) {
+  if (!arraysMatch(archive.inventory.map(({ path }) => path), expectedCandidateMemberPaths(snapshotId))) {
+    throw new Error(`${snapshotId} candidate archive artifact set drifted.`);
+  }
+  if (
+    !arraysMatch(
+      manifest.reviewerPacket.artifacts.map(({ path }) => path),
+      expectedReviewerArtifactPaths(snapshotId),
+    )
+  ) {
+    throw new Error(`${snapshotId} reviewer artifact set drifted.`);
+  }
+  validateSourceLockMember(membersByPath, snapshotId);
+  if (snapshotId === '1492') {
+    validate1492Specifications(membersByPath, manifest.reviewerPacket.dateContract);
+  } else {
+    validate1700Specification(membersByPath, manifest.reviewerPacket.dateContract);
+  }
+}
+
 async function validateSourceReadiness(options) {
   const snapshotId = requireSnapshot(options);
   const sourcesPath = requirePathOption(options, 'sources', '--sources');
@@ -649,8 +1758,9 @@ async function validateSourceReadiness(options) {
     snapshotId,
   );
 
+  const archivePath = resolveManifestPath(manifest.evidenceArchive.path);
   const archiveBytes = await readBoundedFile(
-    resolveManifestPath(manifest.evidenceArchive.path),
+    archivePath,
     'Evidence archive',
   );
   if (calculateSha256(archiveBytes) !== manifest.evidenceArchive.sha256) {
@@ -670,6 +1780,31 @@ async function validateSourceReadiness(options) {
       throw new Error(`Source evidence member drifted for region ${region.regionId}.`);
     }
   }
+  if (manifest.reviewerPacket !== null) {
+    const artifactsByPath = new Map(
+      manifest.reviewerPacket.artifacts.map((artifact) => [artifact.path, artifact]),
+    );
+    for (const artifact of manifest.reviewerPacket.artifacts) {
+      const member = membersByPath.get(artifact.path);
+      if (member === undefined || member.sha256 !== artifact.sha256) {
+        throw new Error(`Candidate reviewer artifact drifted for ${artifact.path}.`);
+      }
+    }
+    for (const region of manifest.regions) {
+      const member = membersByPath.get(region.evidencePath);
+      const artifact = artifactsByPath.get(region.evidencePath);
+      if (
+        member === undefined ||
+        artifact === undefined ||
+        artifact.sha256 !== member.sha256
+      ) {
+        throw new Error(`Reviewer record is not fully packet-bound for ${region.regionId}.`);
+      }
+      validateReviewerRegionRecord(member, region, snapshotId);
+    }
+    validateCandidateManualTraceMembers(manifest, membersByPath);
+    validateCandidateArchiveSemantics(manifest, archive, membersByPath, snapshotId);
+  }
 
   const inputPath =
     options.input === null
@@ -679,6 +1814,60 @@ async function validateSourceReadiness(options) {
   if (calculateSha256(inputBytes) !== manifest.inputGeometry.sha256) {
     throw new Error('Input geometry SHA-256 drifted.');
   }
+  if (manifest.preparation.mode === 'blocked') {
+    const blockedInput = parseJson(inputBytes, 'Blocked candidate input');
+    const expectedKeys = manifest.reviewerPacket === null
+      ? [
+          'type', 'snapshotId', 'asOf', 'readinessStatus', 'candidateGeometryStatus',
+          'reason', 'coverageContainersCreatePoliticalEntities', 'longitudeDomain',
+          'sourceBoundaryArcsSeparatedFromGeneratedMaskEdges',
+          'generatedMaskEdgesPresent', 'replacedModernSourceFeatureIds', 'features',
+          'blockers',
+        ]
+      : [
+          'type', 'snapshotId', 'asOf', 'dateContract', 'readinessStatus',
+          'candidateGeometryStatus', 'reason',
+          'coverageContainersCreatePoliticalEntities', 'longitudeDomain',
+          'sourceBoundaryArcsSeparatedFromGeneratedMaskEdges',
+          'generatedMaskEdgesPresent', 'replacedModernSourceFeatureIds', 'features',
+          'blockers',
+        ];
+    const inputBlockers = isRecord(blockedInput)
+      ? readBlockers(blockedInput.blockers)
+      : [];
+    const candidateDateMismatch =
+      manifest.reviewerPacket !== null &&
+      (!isRecord(blockedInput) ||
+        !isRecord(blockedInput.dateContract) ||
+        !hasExactKeys(
+          blockedInput.dateContract,
+          Object.keys(manifest.reviewerPacket.dateContract),
+        ) ||
+        Object.entries(manifest.reviewerPacket.dateContract).some(
+          ([field, expected]) => blockedInput.dateContract[field] !== expected,
+        ));
+    if (
+      !hasExactKeys(blockedInput, expectedKeys) ||
+      blockedInput.type !== 'FeatureCollection' ||
+      blockedInput.snapshotId !== snapshotId ||
+      blockedInput.asOf !== SNAPSHOT_DATES[snapshotId] ||
+      blockedInput.readinessStatus !== 'blocked' ||
+      blockedInput.candidateGeometryStatus !== 'not-generated' ||
+      !isBoundedString(blockedInput.reason) ||
+      blockedInput.coverageContainersCreatePoliticalEntities !== false ||
+      blockedInput.longitudeDomain !== '[-180,180]' ||
+      blockedInput.sourceBoundaryArcsSeparatedFromGeneratedMaskEdges !== true ||
+      blockedInput.generatedMaskEdgesPresent !== false ||
+      !Array.isArray(blockedInput.replacedModernSourceFeatureIds) ||
+      blockedInput.replacedModernSourceFeatureIds.length !== 0 ||
+      !Array.isArray(blockedInput.features) ||
+      blockedInput.features.length !== 0 ||
+      !arraysMatch(inputBlockers, manifest.blockers) ||
+      candidateDateMismatch
+    ) {
+      throw new Error('Blocked input schema, blocker list, or non-promotable state drifted.');
+    }
+  }
 
   let preparation;
   if (manifest.preparation.mode === 'blocked') {
@@ -687,10 +1876,16 @@ async function validateSourceReadiness(options) {
       reason: manifest.preparation.reason,
     };
   } else if (manifest.preparation.mode === 'vector-extraction') {
-    const specificationBytes = await validateHashReference(
-      manifest.preparation.extractionSpecification,
-      'Extraction specification',
+    const specificationMember = membersByPath.get(
+      manifest.preparation.extractionSpecification.path,
     );
+    if (
+      specificationMember === undefined ||
+      specificationMember.sha256 !== manifest.preparation.extractionSpecification.sha256
+    ) {
+      throw new Error('Vector extraction specification is not bound to a canonical archive member.');
+    }
+    const specificationBytes = specificationMember.bytes;
     const specification = parseExtractionSpecification(specificationBytes);
     const extractedMember = membersByPath.get(specification.memberPath);
     if (extractedMember === undefined || !extractedMember.bytes.equals(inputBytes)) {
@@ -702,25 +1897,25 @@ async function validateSourceReadiness(options) {
       extractedInputBytes: extractedMember.bytes,
     };
   } else {
-    const [evidenceBytes, procedureBytes, operatorRecordBytes, controlPointBytes] =
-      await Promise.all([
-        validateHashReference(manifest.preparation.evidence, 'Manual trace evidence'),
-        validateHashReference(manifest.preparation.procedure, 'Manual trace procedure'),
-        validateHashReference(
-          manifest.preparation.operatorRecord,
-          'Manual trace operator record',
-        ),
-        validateHashReference(
-          manifest.preparation.controlPoints,
-          'Manual trace control points',
-        ),
-      ]);
+    const references = [
+      ['Manual trace evidence', manifest.preparation.evidence],
+      ['Manual trace procedure', manifest.preparation.procedure],
+      ['Manual trace operator record', manifest.preparation.operatorRecord],
+      ['Manual trace control points', manifest.preparation.controlPoints],
+    ];
+    const preparationMembers = references.map(([label, reference]) => {
+      const member = membersByPath.get(reference.path);
+      if (member === undefined || member.sha256 !== reference.sha256) {
+        throw new Error(`${label} is not bound to a canonical archive member.`);
+      }
+      return member.bytes;
+    });
     preparation = {
       mode: 'manual-trace',
-      evidenceBytes,
-      procedureBytes,
-      operatorRecordBytes,
-      controlPointBytes,
+      evidenceBytes: preparationMembers[0],
+      procedureBytes: preparationMembers[1],
+      operatorRecordBytes: preparationMembers[2],
+      controlPointBytes: preparationMembers[3],
     };
   }
 
@@ -729,6 +1924,7 @@ async function validateSourceReadiness(options) {
     sourcesPath,
     sourceManifestBytes,
     manifest,
+    archivePath,
     archiveBytes,
     archive,
     inputPath,
@@ -738,8 +1934,15 @@ async function validateSourceReadiness(options) {
 }
 
 function readSourceApproval(value, snapshotId) {
-  if (!isRecord(value) || value.snapshotId !== snapshotId) {
-    throw new Error('Source approval snapshot ID is invalid.');
+  if (
+    !hasExactKeys(value, [
+      'snapshotId', 'reviewer', 'regionalDecisions', 'sourceManifestSha256',
+      'evidenceArchiveSha256', 'memberInventorySha256', 'memberInventory',
+      'inputGeometrySha256', 'preparation',
+    ]) ||
+    value.snapshotId !== snapshotId
+  ) {
+    throw new Error('Source approval snapshot ID or schema is invalid.');
   }
   readReviewer(value.reviewer, 'Source approval');
   readExactRegionalDecisions(value.regionalDecisions, 'source');
@@ -760,6 +1963,7 @@ function readSourceApproval(value, snapshotId) {
   }
   let preparation;
   if (
+    hasExactKeys(value.preparation, ['mode', 'extractionSpecificationSha256']) &&
     value.preparation.mode === 'vector-extraction' &&
     isSha256(value.preparation.extractionSpecificationSha256)
   ) {
@@ -769,6 +1973,10 @@ function readSourceApproval(value, snapshotId) {
         value.preparation.extractionSpecificationSha256,
     };
   } else if (
+    hasExactKeys(value.preparation, [
+      'mode', 'evidenceSha256', 'procedureSha256', 'operatorRecordSha256',
+      'controlPointSha256',
+    ]) &&
     value.preparation.mode === 'manual-trace' &&
     isSha256(value.preparation.evidenceSha256) &&
     isSha256(value.preparation.procedureSha256) &&
@@ -1073,36 +2281,164 @@ function createCandidateArtifacts(bundle) {
   return { outputBytes, reviewJsonBytes, reviewHtmlBytes };
 }
 
-function assertDistinctPaths(paths) {
-  const normalized = paths.map((path) => resolve(path).toLowerCase());
-  if (new Set(normalized).size !== normalized.length) {
-    throw new Error('Input, output, review JSON, review HTML, and approval paths must be distinct.');
+function filesystemPathKey(path) {
+  return resolve(path).normalize('NFKC').toLowerCase();
+}
+
+async function lstatIfPresent(path) {
+  try {
+    return await lstat(path);
+  } catch (error) {
+    if (isRecord(error) && error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
   }
 }
 
-async function readCandidatePaths(options) {
-  const inputPath = requirePathOption(options, 'input', '--input');
-  const outputPath = requirePathOption(options, 'output', '--output');
-  const reviewOutputPath = requirePathOption(options, 'reviewOutput', '--review-output');
-  const reviewHtmlPath = requirePathOption(options, 'reviewHtml', '--review-html');
-  const sourceApprovalPath = requirePathOption(
-    options,
-    'sourceApproval',
-    '--source-approval',
+async function inspectFilesystemPath(path, label, mustExist) {
+  const absolutePath = resolve(path);
+  const lexicalKey = filesystemPathKey(absolutePath);
+  const missingSegments = [];
+  let cursor = absolutePath;
+  let entry = await lstatIfPresent(cursor);
+  while (entry === null) {
+    const parent = dirname(cursor);
+    if (parent === cursor) {
+      throw new Error(`${label} has no existing filesystem ancestor.`);
+    }
+    missingSegments.unshift(basename(cursor));
+    cursor = parent;
+    entry = await lstatIfPresent(cursor);
+  }
+  if (mustExist && missingSegments.length > 0) {
+    throw new Error(`${label} does not exist.`);
+  }
+
+  let component = cursor;
+  while (true) {
+    const componentEntry = await lstat(component);
+    if (componentEntry.isSymbolicLink()) {
+      throw new Error(`${label} uses a symbolic-link or junction alias.`);
+    }
+    const parent = dirname(component);
+    if (parent === component) break;
+    component = parent;
+  }
+
+  if (missingSegments.length === 0 && !entry.isFile()) {
+    throw new Error(`${label} must identify a regular file.`);
+  }
+  if (
+    missingSegments.length > 0 &&
+    (missingSegments.length > 1 || !entry.isDirectory())
+  ) {
+    throw new Error(`${label} parent directory must already exist.`);
+  }
+  const canonicalBase = await realpath(cursor);
+  const canonicalPath = join(canonicalBase, ...missingSegments);
+  const fileIdentity = missingSegments.length === 0
+    ? await stat(absolutePath)
+    : null;
+  return {
+    path: absolutePath,
+    lexicalKey,
+    canonicalKey: filesystemPathKey(canonicalPath),
+    identityKey: fileIdentity === null
+      ? null
+      : `${String(fileIdentity.dev)}:${String(fileIdentity.ino)}`,
+  };
+}
+
+function assertNoPathKeyCollisions(entries, field) {
+  const seen = new Map();
+  for (const entry of entries) {
+    const key = entry[field];
+    if (key === null) continue;
+    const prior = seen.get(key);
+    if (prior !== undefined) {
+      throw new Error(`${entry.label} aliases ${prior} by ${field}.`);
+    }
+    seen.set(key, entry.label);
+  }
+}
+
+async function assertGenerationPathIsolation(bundle, paths, options) {
+  const factualApprovalPath = options.approval === null
+    ? null
+    : resolveArgumentPath(options.approval);
+  const fileEntries = [
+    ['Source manifest', bundle.sourcesPath, true],
+    ['Evidence ZIP', bundle.archivePath, true],
+    ['Input geometry', bundle.inputPath, true],
+    ['Source approval', bundle.sourceApprovalPath, true],
+    ...(factualApprovalPath === null
+      ? []
+      : [['Factual approval', factualApprovalPath, true]]),
+    ['Candidate output', paths.outputPath, options.check],
+    ['Review JSON', paths.reviewOutputPath, options.check],
+    ['Review HTML', paths.reviewHtmlPath, options.check],
+  ];
+  const inspected = [];
+  for (const [label, path, mustExist] of fileEntries) {
+    inspected.push({
+      label,
+      ...(await inspectFilesystemPath(path, label, mustExist)),
+    });
+  }
+  assertNoPathKeyCollisions(inspected, 'lexicalKey');
+  assertNoPathKeyCollisions(inspected, 'canonicalKey');
+  assertNoPathKeyCollisions(inspected, 'identityKey');
+
+  const outputLexicalKeys = new Set(
+    inspected
+      .filter(({ label }) =>
+        label === 'Candidate output' || label === 'Review JSON' || label === 'Review HTML')
+      .map(({ lexicalKey }) => lexicalKey),
   );
-  assertDistinctPaths([
-    inputPath,
-    outputPath,
-    reviewOutputPath,
-    reviewHtmlPath,
-    sourceApprovalPath,
+  for (const member of bundle.archive.inventory) {
+    const packetMemberKey = filesystemPathKey(resolveManifestPath(member.path));
+    if (outputLexicalKeys.has(packetMemberKey)) {
+      throw new Error(`Output path aliases evidence packet member ${member.path}.`);
+    }
+  }
+}
+
+async function pathsIdentifySameFile(leftPath, rightPath) {
+  const [left, right] = await Promise.all([
+    inspectFilesystemPath(leftPath, 'Requested input geometry', true),
+    inspectFilesystemPath(rightPath, 'Manifest-bound input geometry', true),
   ]);
-  return { inputPath, outputPath, reviewOutputPath, reviewHtmlPath };
+  return (
+    left.lexicalKey === right.lexicalKey &&
+    left.canonicalKey === right.canonicalKey
+  );
+}
+
+function readCandidatePaths(options) {
+  return {
+    inputPath: requirePathOption(options, 'input', '--input'),
+    outputPath: requirePathOption(options, 'output', '--output'),
+    reviewOutputPath: requirePathOption(options, 'reviewOutput', '--review-output'),
+    reviewHtmlPath: requirePathOption(options, 'reviewHtml', '--review-html'),
+    sourceApprovalPath: requirePathOption(
+      options,
+      'sourceApproval',
+      '--source-approval',
+    ),
+  };
 }
 
 function readFactualApproval(value, snapshotId) {
-  if (!isRecord(value) || value.snapshotId !== snapshotId) {
-    throw new Error('Factual approval snapshot ID is invalid.');
+  if (
+    !hasExactKeys(value, [
+      'snapshotId', 'reviewer', 'regionalDecisions', 'sourceApprovalSha256',
+      'sourceManifestSha256', 'inputGeometrySha256', 'outputOverlaySha256',
+      'reviewJsonSha256', 'reviewHtmlSha256',
+    ]) ||
+    value.snapshotId !== snapshotId
+  ) {
+    throw new Error('Factual approval snapshot ID or schema is invalid.');
   }
   readReviewer(value.reviewer, 'Factual approval');
   readExactRegionalDecisions(value.regionalDecisions, 'factual');
@@ -1150,16 +2486,118 @@ async function validateFactualApproval(options, bundle, currentBytes) {
   }
 }
 
+async function unlinkIfPresent(path) {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if (!isRecord(error) || error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+async function writeAtomicTransaction(outputs) {
+  const transactionId = randomUUID();
+  let committed = false;
+  const records = outputs.map(({ path, bytes, label }) => ({
+    path,
+    bytes,
+    label,
+    temporaryPath: join(
+      dirname(path),
+      `.${basename(path)}.${transactionId}.temporary`,
+    ),
+    backupPath: join(
+      dirname(path),
+      `.${basename(path)}.${transactionId}.backup`,
+    ),
+    backupCreated: false,
+    installed: false,
+  }));
+
+  try {
+    for (const record of records) {
+      const parent = await stat(dirname(record.path));
+      if (!parent.isDirectory()) {
+        throw new Error(`${record.label} parent is not a directory.`);
+      }
+      const handle = await open(record.temporaryPath, 'wx');
+      try {
+        await handle.writeFile(record.bytes);
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+    }
+
+    for (const record of records) {
+      const current = await lstatIfPresent(record.path);
+      if (current !== null) {
+        if (!current.isFile() || current.isSymbolicLink()) {
+          throw new Error(`${record.label} target is not a regular non-symlink file.`);
+        }
+        await rename(record.path, record.backupPath);
+        record.backupCreated = true;
+      }
+    }
+
+    for (const record of records) {
+      await rename(record.temporaryPath, record.path);
+      record.installed = true;
+    }
+    committed = true;
+
+    for (const record of records) {
+      if (record.backupCreated) {
+        await unlink(record.backupPath);
+        record.backupCreated = false;
+      }
+    }
+  } catch (error) {
+    if (committed) {
+      throw error;
+    }
+    const rollbackErrors = [];
+    for (const record of [...records].reverse()) {
+      try {
+        if (record.installed) {
+          await unlinkIfPresent(record.path);
+          record.installed = false;
+        }
+        if (record.backupCreated) {
+          await rename(record.backupPath, record.path);
+          record.backupCreated = false;
+        }
+        await unlinkIfPresent(record.temporaryPath);
+        await unlinkIfPresent(record.backupPath);
+      } catch (rollbackError) {
+        rollbackErrors.push(
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError),
+        );
+      }
+    }
+    if (rollbackErrors.length > 0) {
+      throw new Error(
+        `Historical output transaction failed and rollback was incomplete: ${rollbackErrors.join('; ')}`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
+
 async function generateOrCheck(options) {
   if (options.approval !== null && !options.check) {
     throw new Error('--approval is only valid with --check for factual promotion verification.');
   }
-  await readCandidatePaths(options);
+  const paths = readCandidatePaths(options);
   const bundle = await validateSourceApprovalBundle(options);
-  const paths = await readCandidatePaths(options);
-  if (resolve(bundle.inputPath).toLowerCase() !== resolve(paths.inputPath).toLowerCase()) {
+  if (!(await pathsIdentifySameFile(bundle.inputPath, paths.inputPath))) {
     throw new Error('--input must identify the exact input geometry bound by the source manifest.');
   }
+  await assertGenerationPathIsolation(bundle, paths, options);
   const expected = createCandidateArtifacts(bundle);
 
   if (options.check) {
@@ -1186,10 +2624,22 @@ async function generateOrCheck(options) {
     return;
   }
 
-  await Promise.all([
-    writeFile(paths.outputPath, expected.outputBytes),
-    writeFile(paths.reviewOutputPath, expected.reviewJsonBytes),
-    writeFile(paths.reviewHtmlPath, expected.reviewHtmlBytes),
+  await writeAtomicTransaction([
+    {
+      path: paths.outputPath,
+      bytes: expected.outputBytes,
+      label: 'Candidate output',
+    },
+    {
+      path: paths.reviewOutputPath,
+      bytes: expected.reviewJsonBytes,
+      label: 'Review JSON',
+    },
+    {
+      path: paths.reviewHtmlPath,
+      bytes: expected.reviewHtmlBytes,
+      label: 'Review HTML',
+    },
   ]);
   globalThis.console.info(`${bundle.snapshotId} candidate generated from approved ${bundle.preparation.mode} evidence.`);
 }
@@ -1213,7 +2663,7 @@ async function run() {
     const bundle = await validateSourceReadiness(options);
     if (bundle.preparation.mode === 'blocked') {
       globalThis.console.info(
-        `${bundle.snapshotId} blocked source packet hashes passed offline.`,
+        `${bundle.snapshotId} BLOCKED packet integrity verified offline; readiness and approval remain absent.`,
       );
       throw new Error(
         `${bundle.snapshotId} source readiness remains blocked: ${bundle.manifest.blockers.join(', ')}.`,
