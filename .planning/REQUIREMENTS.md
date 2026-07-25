@@ -18,11 +18,29 @@
 
 ### F2: Historical Borders
 
+> **Partially satisfied — data deferred (2026-07-25).** The engine ships and is tested;
+> the historical *geometry* does not. Rights-cleared archival source material for
+> 1492/1700/1815/1914 does not exist, and obtaining it is archival research rather than
+> engineering. Original requirement text is preserved verbatim below with per-item
+> annotations. See
+> [`phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md).
+>
+> **Not** marked complete. These carry forward to a data-acquisition phase, where the
+> existing `02-33` → `02-13`–`02-16` → `02-34` → `02-35` → `02-17` chain runs unchanged.
+
 - **F2.1** Dropdown/selector to choose time period (1200s, 1400s, 1500s, 1700s, 1800s, 1900s, modern)
+  — *Mechanism complete:* the selector is catalog-driven and renders every approved entry.
+  *Data deferred:* the catalog currently holds exactly `Modern`.
 - **F2.2** Map redraw when period changes to show historical boundaries
+  — *Complete.* Scene composition, accessible crossfade, selection reconciliation, and
+  history continuity ship and are proven end-to-end by the historical Playwright fixture.
 - **F2.3** Support historical periods for: Poland, Lithuania, Hungary, Balkans (Serbia/Croatia/Bosnia/etc), Iberia (Spain/Portugal), Scandinavia
+  — *Deferred.* All six region IDs are modeled, validated, and kept distinct throughout
+  the packet and approval chain, but no region has rights-approved geometry.
 - **F2.4** Gracefully handle regions without data for selected period (show as "no data" or hide)
+  — *Complete.* Modern-fallback and declared-fallback handling ship and are tested.
 - **F2.5** Tooltip/label showing country name and period context
+  — *Complete.* Tooltip renders period context from the active catalog entry.
 
 ### F3: Map Centering & Regional Views
 
