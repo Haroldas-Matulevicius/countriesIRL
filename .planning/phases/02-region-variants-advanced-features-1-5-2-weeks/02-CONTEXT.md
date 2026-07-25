@@ -81,7 +81,7 @@ Advanced visual animation, timeline/video production, animated border/fill effec
 - `.planning/REQUIREMENTS.md` — F2 historical borders, F3 view controls, F4 legend, F5 export, F7 region-expansion intent, and browser-only/offline constraints.
 - `.planning/PROJECT.md` — Product vision, non-technical creator audience, speed, historical-map, flexible-view, legend, and Instagram-output goals.
 - `.planning/STATE.md` — Accumulated Phase 1 decisions, local-only release boundary, and Phase 2 starting position.
-- `.planning/phases/01-foundation-modern-map-1-1-5-weeks/01-CONTEXT.md` — Locked Phase 1 stack, state, SVG/D3 ownership, data, accessibility, persistence, export, and release decisions that Phase 2 must preserve.
+- `.planning/milestones/v1.0/phases/01-foundation-modern-map-1-1-5-weeks/01-CONTEXT.md` — Locked Phase 1 stack, state, SVG/D3 ownership, data, accessibility, persistence, export, and release decisions that Phase 2 must preserve. *(Archived 2026-07-25 — see [`ARCHIVES.md`](../../ARCHIVES.md).)*
 
 ### Repository Instructions and Durable Rules
 - `CLAUDE.md` — Repository routing, architecture, workflow, data validation, export contract, delegation, and documentation-update requirements.
