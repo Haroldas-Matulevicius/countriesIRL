@@ -497,26 +497,82 @@ test.describe('NFR3 warm switch diagnostics', (): void => {
 
     const samples: number[] = [];
     for (let sample = 0; sample < NFR3_WARM_SAMPLES; sample += 1) {
-      const start = Date.now();
-      await select.selectOption('1700');
+      // Measured in-page across the real transition — committed activation to
+      // incoming painted plus outgoing removed — rather than with harness
+      // wall-clock, which would fold in Playwright's polling interval and
+      // measure the test runner instead of the product.
+      const duration = await page.evaluate(
+        async ({ entityId }): Promise<number> => {
+          const selectElement =
+            document.querySelector<HTMLSelectElement>('#composition-bar-period');
+          if (selectElement === null) {
+            throw new Error('Period select not found.');
+          }
+
+          const isSettled = (): boolean =>
+            document.querySelector(
+              `path.country-path[data-country-id="${entityId}"]`,
+            ) !== null &&
+            document.querySelector('[data-layer="outgoing-scene"]') === null;
+
+          const settled = new Promise<number>((resolve): void => {
+            const observer = new MutationObserver((): void => {
+              if (!isSettled()) {
+                return;
+              }
+              observer.disconnect();
+              // Resolve on the frame that paints the settled scene.
+              requestAnimationFrame((): void => {
+                resolve(performance.now());
+              });
+            });
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+            });
+          });
+
+          const start = performance.now();
+          selectElement.value = '1700';
+          selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+          const end = await settled;
+          return end - start;
+        },
+        { entityId: HISTORICAL_ENTITY_ID },
+      );
+
       await expect(historicalPath).toHaveCount(1);
       await expect(page.locator('[data-layer="outgoing-scene"]')).toHaveCount(0);
-      samples.push(Date.now() - start);
+      samples.push(duration);
 
       await select.selectOption('modern');
       await expect(francePath).toHaveCount(1);
       await expect(page.locator('[data-layer="outgoing-scene"]')).toHaveCount(0);
     }
 
-    // D-63: timing is recorded as advisory diagnostics; no threshold gates the
-    // release. The gate here is that every warm switch completes and settles.
+    // Every warm switch must complete, settle, and yield a real positive
+    // measurement of the product's own transition.
     expect(samples).toHaveLength(NFR3_WARM_SAMPLES);
     samples.forEach((duration): void => {
-      expect(duration).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(duration)).toBe(true);
+      expect(duration).toBeGreaterThan(0);
     });
+
+    // NO THRESHOLD IS ASSERTED, and this is deliberately NOT justified by D-63.
+    // D-63 is scoped to Phase 1 ("the user explicitly directs that Phase 1 stop
+    // gating on millisecond timing") and does not carry into Phase 2 on its own.
+    // The samples are recorded as advisory evidence so the owner can set an
+    // NFR3 threshold from real numbers. Until they do, no timing value gates
+    // this phase — that is an open decision, not a settled one.
+    const sorted = [...samples].sort((left, right): number => left - right);
     test.info().annotations.push({
       type: 'nfr3-warm-switch-samples-ms',
-      description: samples.join(', '),
+      description: samples.map((value): string => value.toFixed(1)).join(', '),
+    });
+    test.info().annotations.push({
+      type: 'nfr3-warm-switch-median-ms',
+      description: sorted[Math.floor(sorted.length / 2)].toFixed(1),
     });
   });
 });
