@@ -1,0 +1,56 @@
+{
+  "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-rerun-20260722-011622\\CountriesIRL-rerun-export.png",
+  "format": null,
+  "mode": "RGBA",
+  "width": 1080,
+  "height": 1080,
+  "alphaMin": 255,
+  "alphaMax": 255,
+  "transparentPixels": 0,
+  "nonWhiteBounds": {
+    "left": 63,
+    "top": 253,
+    "right": 1016,
+    "bottom": 826
+  },
+  "margins": {
+    "left": 63,
+    "top": 253,
+    "right": 63,
+    "bottom": 253
+  },
+  "center": {
+    "x": 539.5,
+    "y": 539.5
+  },
+  "centerDelta": {
+    "x": 0.0,
+    "y": 0.0
+  },
+  "cornerPixels": {
+    "topLeft": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "topRight": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "bottomLeft": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "bottomRight": [
+      255,
+      255,
+      255,
+      255
+    ]
+  }
+}

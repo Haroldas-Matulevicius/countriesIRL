@@ -1,0 +1,861 @@
+{
+  "browser": {
+    "id": "chrome-150",
+    "name": "Google Chrome",
+    "route": "local-direct",
+    "executable": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+    "debuggerReportedProduct": "Chrome/150.0.7871.125",
+    "protocolVersion": "1.3",
+    "revision": "@0e1f2fbe541be34886118f3d54cf53f7e12bf905",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "expectedVersionPrefix": "150."
+  },
+  "head": "9c871fdb1f3a3a0087a091ee91848b4fd5ed2f57",
+  "baseUrl": "http://127.0.0.1:5173",
+  "preflight": {
+    "url": "http://127.0.0.1:5173/",
+    "title": "CountriesIRL Map Generator",
+    "renderedMap": true,
+    "pathCount": 57,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "faviconHref": "http://127.0.0.1:5173/favicon.svg"
+  },
+  "zeroSelection": {
+    "presetCount": 10,
+    "disabledCount": 10,
+    "activeCount": 0,
+    "selectedPathCount": 0
+  },
+  "tooltips": {
+    "pointer": {
+      "point": {
+        "x": 481.4403991699219,
+        "y": 395.20159912109375,
+        "country": "Åland Islands, current color #FFFFFF"
+      },
+      "rect": {
+        "x": 489.4375,
+        "y": 403.1875,
+        "width": 232,
+        "height": 70,
+        "right": 721.4375,
+        "bottom": 473.1875
+      },
+      "horizontalSpacing": 7.997100830078125,
+      "verticalSpacing": 7.98590087890625,
+      "insideViewport": true,
+      "text": "Åland IslandsCurrent color: #FFFFFF"
+    },
+    "keyboard": {
+      "before": {
+        "focusedLabel": "Åland Islands, current color #FFFFFF",
+        "path": {
+          "x": 479.4403991699219,
+          "y": 393.20159912109375,
+          "width": 3.159637451171875,
+          "height": 2.313720703125
+        },
+        "tooltip": {
+          "x": 365.015625,
+          "y": 316.34375,
+          "width": 232,
+          "height": 70
+        },
+        "relativeCenterX": -0.0045928955078125,
+        "relativeY": -78.01470947265625
+      },
+      "after": {
+        "focusedLabel": "Åland Islands, current color #FFFFFF",
+        "path": {
+          "x": 479.4403991699219,
+          "y": 453.20159912109375,
+          "width": 3.159637451171875,
+          "height": 2.313720703125
+        },
+        "tooltip": {
+          "x": 365.015625,
+          "y": 376.34375,
+          "width": 232,
+          "height": 70
+        },
+        "relativeCenterX": -0.0045928955078125,
+        "relativeY": -78.01470947265625
+      },
+      "pathDeltaY": 60,
+      "tooltipDeltaY": 60,
+      "anchoredAfterScroll": true
+    }
+  },
+  "activeColor": {
+    "whiteActive": {
+      "active": true,
+      "disabled": true,
+      "enabledOtherCount": 9,
+      "selectedFill": "#FFFFFF",
+      "undoDisabled": true
+    },
+    "whiteNoOp": {
+      "pointerKeyboardNativeAttempts": true,
+      "keyboard": {
+        "programmaticFocusAccepted": false,
+        "activeBeforeShiftTab": "Apply Gray",
+        "activeAfterShiftTab": "Apply Violet"
+      },
+      "before": {
+        "toastCount": 0,
+        "clickCount": 0
+      },
+      "after": {
+        "toastCount": 0,
+        "clickCount": 0,
+        "colorStartMarks": 0,
+        "selectedFill": "#FFFFFF",
+        "undoDisabled": true
+      },
+      "noClickDispatched": true,
+      "noToast": true,
+      "noTimingMark": true,
+      "noHistory": true,
+      "colorUnchanged": true
+    },
+    "redApplied": {
+      "redActive": true,
+      "redDisabled": true,
+      "whiteEnabled": true,
+      "selectedFill": "#DC2626",
+      "undoDisabled": false,
+      "colorMeasureMs": 46.30000001192093,
+      "colorStartMarks": 0,
+      "latestToast": {
+        "at": 1784725312720,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      }
+    },
+    "redNoOp": {
+      "pointerKeyboardNativeAttempts": true,
+      "keyboard": {
+        "programmaticFocusAccepted": false,
+        "activeBeforeShiftTab": "Apply Green",
+        "activeAfterShiftTab": "Clear Selection"
+      },
+      "before": {
+        "toastCount": 1,
+        "clickCount": 1
+      },
+      "after": {
+        "toastCount": 1,
+        "clickCount": 1,
+        "colorStartMarks": 0,
+        "selectedFill": "#DC2626",
+        "undoDisabled": false
+      },
+      "noClickDispatched": true,
+      "noToast": true,
+      "noTimingMark": true,
+      "historyStillAvailableOnce": true,
+      "colorUnchanged": true
+    },
+    "history": {
+      "afterSingleUndo": {
+        "fill": "#FFFFFF",
+        "undoDisabled": true,
+        "redoDisabled": false
+      },
+      "afterSingleRedo": {
+        "fill": "#DC2626",
+        "undoDisabled": false,
+        "redoDisabled": true
+      },
+      "exactlyOneSnapshot": true
+    }
+  },
+  "timings": {
+    "color": [
+      46.20000001788139,
+      34.5,
+      34.900000005960464,
+      28.19999998807907,
+      25.5,
+      16.200000017881393,
+      17.899999976158142,
+      15.899999976158142,
+      21.69999998807907,
+      18.799999982118607
+    ],
+    "undo": [
+      14.699999988079071,
+      18.69999998807907,
+      26.19999998807907,
+      19.30000001192093,
+      17.69999998807907,
+      20.5,
+      25,
+      20.30000001192093,
+      25.400000005960464,
+      17.19999998807907
+    ],
+    "redo": [
+      12.299999982118607,
+      14.5,
+      35,
+      28.19999998807907,
+      30.69999998807907,
+      29.899999976158142,
+      34.5,
+      29.599999994039536,
+      28.400000005960464,
+      36.29999998211861
+    ],
+    "maximums": {
+      "color": 46.20000001788139,
+      "undo": 26.19999998807907,
+      "redo": 36.29999998211861
+    },
+    "allUnder100ms": true,
+    "residualMarks": {
+      "color": 0,
+      "undo": 0,
+      "redo": 0
+    }
+  },
+  "exports": [
+    {
+      "index": 1,
+      "clickStartedAt": 1784725315288,
+      "downloadAnchorClick": {
+        "at": 1784725316373,
+        "connected": true,
+        "filename": "CountriesIRL_2026-07-22.png",
+        "hrefProtocol": "blob:"
+      },
+      "downloadWillBegin": {
+        "frameId": "228A5CA92F1CA38C567DE000815CE565",
+        "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+        "url": "blob:http://127.0.0.1:5173/40004d46-c02e-4dc9-bd84-235b8ef578c6",
+        "suggestedFilename": "CountriesIRL_2026-07-22.png",
+        "receivedAt": 1784725316921
+      },
+      "completed": {
+        "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+        "totalBytes": 105863,
+        "receivedBytes": 105863,
+        "state": "completed",
+        "filePath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-1\\CountriesIRL_2026-07-22.png",
+        "receivedAt": 1784725316929
+      },
+      "elapsedToCompletionMs": 1641,
+      "suggestedFilename": "CountriesIRL_2026-07-22.png",
+      "savedPath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-1\\CountriesIRL_2026-07-22.png",
+      "successToast": {
+        "at": 1784725316478,
+        "text": "Success: PNG downloaded at 1080 × 1080.Dismiss Message"
+      },
+      "successAfterDownloadInitiation": true,
+      "successDelayAfterConnectedClickMs": 105,
+      "busyEvents": [
+        {
+          "at": 1784725316011,
+          "busy": true
+        },
+        {
+          "at": 1784725316479,
+          "busy": false
+        }
+      ],
+      "busyRecovered": true,
+      "progressEvents": [
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 0,
+          "state": "inProgress",
+          "receivedAt": 1784725316922
+        },
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725316923
+        },
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725316927
+        },
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725316928
+        },
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725316929
+        },
+        {
+          "guid": "a5a45a72-bb51-4a56-95d3-abaa88dd081a",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "completed",
+          "filePath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-1\\CountriesIRL_2026-07-22.png",
+          "receivedAt": 1784725316929
+        }
+      ],
+      "png": {
+        "file": "CountriesIRL_2026-07-22.png",
+        "bytes": 105863,
+        "sha256": "ec68ac69201eaf043f752145ade85f962e3d11bab15c0a9332862ebf712f3061",
+        "width": 1080,
+        "height": 1080,
+        "bitDepth": 8,
+        "colorType": 6,
+        "alphaMinimum": 255,
+        "alphaMaximum": 255,
+        "opaque": true,
+        "nonWhiteCount": 14899,
+        "bounds": {
+          "minX": 63,
+          "minY": 253,
+          "maxX": 1016,
+          "maxY": 826
+        },
+        "center": {
+          "x": 539.5,
+          "y": 539.5
+        },
+        "margins": {
+          "left": 63,
+          "right": 63,
+          "top": 253,
+          "bottom": 253
+        },
+        "centered": true
+      }
+    },
+    {
+      "index": 2,
+      "clickStartedAt": 1784725317084,
+      "downloadAnchorClick": {
+        "at": 1784725317867,
+        "connected": true,
+        "filename": "CountriesIRL_2026-07-22.png",
+        "hrefProtocol": "blob:"
+      },
+      "downloadWillBegin": {
+        "frameId": "228A5CA92F1CA38C567DE000815CE565",
+        "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+        "url": "blob:http://127.0.0.1:5173/19fb1064-35e2-41aa-8fb8-31ed9e8daeb1",
+        "suggestedFilename": "CountriesIRL_2026-07-22.png",
+        "receivedAt": 1784725317872
+      },
+      "completed": {
+        "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+        "totalBytes": 105863,
+        "receivedBytes": 105863,
+        "state": "completed",
+        "filePath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-2\\CountriesIRL_2026-07-22.png",
+        "receivedAt": 1784725318074
+      },
+      "elapsedToCompletionMs": 990,
+      "suggestedFilename": "CountriesIRL_2026-07-22.png",
+      "savedPath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-2\\CountriesIRL_2026-07-22.png",
+      "successToast": {
+        "at": 1784725317976,
+        "text": "Success: PNG downloaded at 1080 × 1080.Dismiss Message"
+      },
+      "successAfterDownloadInitiation": true,
+      "successDelayAfterConnectedClickMs": 109,
+      "busyEvents": [
+        {
+          "at": 1784725317698,
+          "busy": true
+        },
+        {
+          "at": 1784725317976,
+          "busy": false
+        }
+      ],
+      "busyRecovered": true,
+      "progressEvents": [
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 0,
+          "state": "inProgress",
+          "receivedAt": 1784725317880
+        },
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725317881
+        },
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725317881
+        },
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725317882
+        },
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "inProgress",
+          "receivedAt": 1784725317958
+        },
+        {
+          "guid": "d0148201-7b52-41b4-99d5-1480be241fe4",
+          "totalBytes": 105863,
+          "receivedBytes": 105863,
+          "state": "completed",
+          "filePath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-15-current-head-20260722\\focused\\chrome-150\\download-2\\CountriesIRL_2026-07-22.png",
+          "receivedAt": 1784725318074
+        }
+      ],
+      "png": {
+        "file": "CountriesIRL_2026-07-22.png",
+        "bytes": 105863,
+        "sha256": "ec68ac69201eaf043f752145ade85f962e3d11bab15c0a9332862ebf712f3061",
+        "width": 1080,
+        "height": 1080,
+        "bitDepth": 8,
+        "colorType": 6,
+        "alphaMinimum": 255,
+        "alphaMaximum": 255,
+        "opaque": true,
+        "nonWhiteCount": 14899,
+        "bounds": {
+          "minX": 63,
+          "minY": 253,
+          "maxX": 1016,
+          "maxY": 826
+        },
+        "center": {
+          "x": 539.5,
+          "y": 539.5
+        },
+        "margins": {
+          "left": 63,
+          "right": 63,
+          "top": 253,
+          "bottom": 253
+        },
+        "centered": true
+      }
+    }
+  ],
+  "consoleCleanliness": {
+    "consoleMessages": [],
+    "runtimeExceptions": [],
+    "networkFailures": [],
+    "httpFailures": [],
+    "faviconResponses": [
+      {
+        "url": "http://127.0.0.1:5173/favicon.svg",
+        "status": 200,
+        "mimeType": "image/svg+xml"
+      },
+      {
+        "url": "http://127.0.0.1:5173/favicon.svg",
+        "status": 200,
+        "mimeType": "image/svg+xml"
+      }
+    ],
+    "explicitFaviconStatus": 200,
+    "clean": true
+  },
+  "finalState": {
+    "pathCount": 57,
+    "selectedPathCount": 1,
+    "activePreset": "Apply Red",
+    "exportButton": "Export PNG",
+    "toastEvents": [
+      {
+        "at": 1784725312720,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313146,
+        "text": "Information: Color change undone.Dismiss Message"
+      },
+      {
+        "at": 1784725313240,
+        "text": "Information: Color change redone.Dismiss Message"
+      },
+      {
+        "at": 1784725313269,
+        "text": "Success: Applied Blue to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313328,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313382,
+        "text": "Success: Applied Blue to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313443,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313518,
+        "text": "Success: Applied Blue to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313586,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313653,
+        "text": "Success: Applied Blue to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313709,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313771,
+        "text": "Success: Applied Blue to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313835,
+        "text": "Success: Applied Red to 1 country.Dismiss Message"
+      },
+      {
+        "at": 1784725313895,
+        "text": "Information: Color change undone.Dismiss Message"
+      },
+      {
+        "at": 1784725314668,
+        "text": "Information: Color change redone.Dismiss Message"
+      },
+      {
+        "at": 1784725316478,
+        "text": "Success: PNG downloaded at 1080 × 1080.Dismiss Message"
+      },
+      {
+        "at": 1784725317976,
+        "text": "Success: PNG downloaded at 1080 × 1080.Dismiss Message"
+      }
+    ],
+    "clickEvents": [
+      {
+        "at": 1784725311638,
+        "ariaLabel": null,
+        "text": "Start Coloring",
+        "disabled": false
+      },
+      {
+        "at": 1784725312700,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725312792,
+        "ariaLabel": null,
+        "text": "Dismiss Message",
+        "disabled": false
+      },
+      {
+        "at": 1784725313132,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725313226,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725313242,
+        "ariaLabel": null,
+        "text": "Dismiss Message",
+        "disabled": false
+      },
+      {
+        "at": 1784725313262,
+        "ariaLabel": "Apply Blue",
+        "text": "Blue",
+        "disabled": false
+      },
+      {
+        "at": 1784725313317,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725313375,
+        "ariaLabel": "Apply Blue",
+        "text": "Blue",
+        "disabled": false
+      },
+      {
+        "at": 1784725313437,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725313511,
+        "ariaLabel": "Apply Blue",
+        "text": "Blue",
+        "disabled": false
+      },
+      {
+        "at": 1784725313577,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725313642,
+        "ariaLabel": "Apply Blue",
+        "text": "Blue",
+        "disabled": false
+      },
+      {
+        "at": 1784725313701,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725313764,
+        "ariaLabel": "Apply Blue",
+        "text": "Blue",
+        "disabled": false
+      },
+      {
+        "at": 1784725313825,
+        "ariaLabel": "Apply Red",
+        "text": "Red",
+        "disabled": false
+      },
+      {
+        "at": 1784725313886,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725313956,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314034,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314104,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314177,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314248,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314304,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314421,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314477,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314583,
+        "ariaLabel": null,
+        "text": "Undo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314660,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314685,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314755,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314819,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314886,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725314943,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725315012,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725315087,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725315144,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725315207,
+        "ariaLabel": null,
+        "text": "Redo Color Change",
+        "disabled": false
+      },
+      {
+        "at": 1784725315270,
+        "ariaLabel": null,
+        "text": "Dismiss Message",
+        "disabled": false
+      },
+      {
+        "at": 1784725315353,
+        "ariaLabel": null,
+        "text": "Export PNG",
+        "disabled": false
+      },
+      {
+        "at": 1784725317074,
+        "ariaLabel": null,
+        "text": "Dismiss Message",
+        "disabled": false
+      },
+      {
+        "at": 1784725317132,
+        "ariaLabel": null,
+        "text": "Export PNG",
+        "disabled": false
+      },
+      {
+        "at": 1784725318227,
+        "ariaLabel": null,
+        "text": "Dismiss Message",
+        "disabled": false
+      }
+    ],
+    "downloadAnchorClicks": [
+      {
+        "at": 1784725316373,
+        "connected": true,
+        "filename": "CountriesIRL_2026-07-22.png",
+        "hrefProtocol": "blob:"
+      },
+      {
+        "at": 1784725317867,
+        "connected": true,
+        "filename": "CountriesIRL_2026-07-22.png",
+        "hrefProtocol": "blob:"
+      }
+    ],
+    "busyEvents": [
+      {
+        "at": 1784725311399,
+        "busy": false
+      },
+      {
+        "at": 1784725316011,
+        "busy": true
+      },
+      {
+        "at": 1784725316479,
+        "busy": false
+      },
+      {
+        "at": 1784725317698,
+        "busy": true
+      },
+      {
+        "at": 1784725317976,
+        "busy": false
+      }
+    ]
+  },
+  "checks": {
+    "exactVersion": true,
+    "localDirectPreflight": true,
+    "zeroSelectionDisabled": true,
+    "whiteActive": true,
+    "whiteNoOp": true,
+    "redActive": true,
+    "redNoOp": true,
+    "history": true,
+    "timings": true,
+    "pointerTooltip": true,
+    "keyboardTooltip": true,
+    "downloads": true,
+    "consoleClean": true,
+    "pathCountStable": true
+  },
+  "passed": true,
+  "completedAt": "2026-07-22T13:01:58.305Z"
+}

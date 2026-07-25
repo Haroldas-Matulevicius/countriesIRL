@@ -1,0 +1,55 @@
+{
+  "objective": "Phase 1 Plan 01-15 complete current-code local browser acceptance",
+  "head": "9c871fdb1f3a3a0087a091ee91848b4fd5ed2f57",
+  "baseUrl": "http://127.0.0.1:5173",
+  "browsers": [
+    {
+      "id": "chrome-150",
+      "product": "Chrome/150.0.7871.125",
+      "route": "local-direct",
+      "passed": false,
+      "failedChecks": [
+        "mapReady",
+        "interactionTimings",
+        "tooltipEdges",
+        "modalFocus",
+        "exports"
+      ]
+    },
+    {
+      "id": "edge-150",
+      "product": "Edg/150.0.4078.83",
+      "route": "local-direct",
+      "passed": false,
+      "failedChecks": [
+        "mapReady",
+        "interactionTimings",
+        "tooltipEdges",
+        "modalFocus",
+        "exports"
+      ]
+    }
+  ],
+  "deferredBrowsers": {
+    "firefoxCurrent": "unverified — deferred by user choice per D-61",
+    "safariCurrent": "unverified — deferred by user choice per D-61",
+    "chromePrevious": "unverified — deferred by user choice per D-61",
+    "edgePrevious": "unverified — deferred by user choice per D-61",
+    "firefoxPrevious": "unverified — deferred by user choice per D-61",
+    "safariPrevious": "unverified — deferred by user choice per D-61"
+  },
+  "dataDecision": {
+    "presentation": "Natural Earth 5.1.1 Europe presentation user-approved per D-62",
+    "featureCount": 57,
+    "worldVariantInPhase1": false,
+    "northAmericaVariantInPhase1": false
+  },
+  "passed": false,
+  "checkpointSemantics": {
+    "summaryCreated": false,
+    "stateApproved": false,
+    "awaitingFinalHumanUatApproval": true,
+    "resumeSignal": "approved"
+  },
+  "completedAt": "2026-07-22T13:29:20.885Z"
+}

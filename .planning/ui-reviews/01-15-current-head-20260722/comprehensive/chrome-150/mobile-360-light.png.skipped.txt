@@ -1,0 +1,1 @@
+Viewport geometry is recorded in JSON; focused browser screenshots are stored in the sibling focused evidence directory.

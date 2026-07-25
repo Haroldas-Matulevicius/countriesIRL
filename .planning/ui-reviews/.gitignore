@@ -1,0 +1,30 @@
+# Screenshot files — never commit binary assets
+*.png
+*.webp
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+
+# Browser profiles, caches, and harness scratch — not product evidence.
+# Phase 1 decision: "Executable evidence harnesses, profiles, cache files, and
+# nested checkouts remain outside authoritative product evidence."
+*.db
+*.db-journal
+*.pb
+*.tflite
+*.pma
+*.ldb
+*.sst
+*.bin
+*.dat
+LOG
+LOG.old
+LOCK
+CURRENT
+MANIFEST-*
+**/verification-root/
+**/*profile*/
+**/Default/
+**/node_modules/

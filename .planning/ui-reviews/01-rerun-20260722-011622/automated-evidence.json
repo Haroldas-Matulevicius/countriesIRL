@@ -1,0 +1,1031 @@
+{
+  "startedAt": "2026-07-22T06:20:08.076Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "browser": {
+    "version": "149.0.7827.55",
+    "engine": "Chromium"
+  },
+  "consoleErrors": [
+    {
+      "label": "fatal-error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    }
+  ],
+  "conditions": {
+    "desktop-light": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "clientHeight": 900,
+        "scrollHeight": 1161,
+        "horizontalOverflow": false
+      },
+      "domOrder": [
+        ".workspace__map",
+        ".workspace__actions",
+        ".workspace__selection-color",
+        ".workspace__country-list"
+      ],
+      "appRect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1161.1875,
+        "right": 1440,
+        "bottom": 1161.1875
+      },
+      "mapSquareRect": {
+        "x": 32,
+        "y": 137.1875,
+        "width": 992,
+        "height": 992,
+        "right": 1024,
+        "bottom": 1129.1875
+      },
+      "mapSourceRect": {
+        "x": 33,
+        "y": 138.1875,
+        "width": 990,
+        "height": 990,
+        "right": 1023,
+        "bottom": 1128.1875
+      },
+      "actionCardRect": {
+        "x": 1050,
+        "y": 111.59375,
+        "width": 356,
+        "height": 270.375,
+        "right": 1406,
+        "bottom": 381.96875
+      },
+      "firstCardBackground": "rgb(255, 255, 255)",
+      "pageBackground": "rgba(0, 0, 0, 0)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57,
+      "fontSizes": [
+        "14px",
+        "16px",
+        "20px",
+        "28px"
+      ],
+      "fontWeights": [
+        "400",
+        "600"
+      ],
+      "accent": "#4338ca",
+      "accentBackgroundElements": [
+        {
+          "tag": "BUTTON",
+          "text": "Export PNG",
+          "className": ""
+        }
+      ]
+    },
+    "desktop-dark": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 1440,
+        "scrollWidth": 1440,
+        "clientHeight": 900,
+        "scrollHeight": 1161,
+        "horizontalOverflow": false
+      },
+      "domOrder": [
+        ".workspace__map",
+        ".workspace__actions",
+        ".workspace__selection-color",
+        ".workspace__country-list"
+      ],
+      "appRect": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 1161.1875,
+        "right": 1440,
+        "bottom": 1161.1875
+      },
+      "mapSquareRect": {
+        "x": 32,
+        "y": 137.1875,
+        "width": 992,
+        "height": 992,
+        "right": 1024,
+        "bottom": 1129.1875
+      },
+      "mapSourceRect": {
+        "x": 33,
+        "y": 138.1875,
+        "width": 990,
+        "height": 990,
+        "right": 1023,
+        "bottom": 1128.1875
+      },
+      "actionCardRect": {
+        "x": 1050,
+        "y": 111.59375,
+        "width": 356,
+        "height": 270.375,
+        "right": 1406,
+        "bottom": 381.96875
+      },
+      "firstCardBackground": "rgb(31, 41, 55)",
+      "pageBackground": "rgba(0, 0, 0, 0)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57,
+      "fontSizes": [
+        "14px",
+        "16px",
+        "20px",
+        "28px"
+      ],
+      "fontWeights": [
+        "400",
+        "600"
+      ],
+      "accent": "#818cf8",
+      "accentBackgroundElements": [
+        {
+          "tag": "BUTTON",
+          "text": "Export PNG",
+          "className": ""
+        }
+      ]
+    },
+    "tablet-light": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "document": {
+        "clientWidth": 768,
+        "scrollWidth": 768,
+        "clientHeight": 1024,
+        "scrollHeight": 2381,
+        "horizontalOverflow": false
+      },
+      "domOrder": [
+        ".workspace__actions",
+        ".workspace__map",
+        ".workspace__selection-color",
+        ".workspace__country-list"
+      ],
+      "appRect": {
+        "x": 0,
+        "y": 0,
+        "width": 768,
+        "height": 2381.078125,
+        "right": 768,
+        "bottom": 2381.078125
+      },
+      "mapSquareRect": {
+        "x": 24,
+        "y": 413.1875,
+        "width": 720,
+        "height": 720,
+        "right": 744,
+        "bottom": 1133.1875
+      },
+      "mapSourceRect": {
+        "x": 25,
+        "y": 414.1875,
+        "width": 718,
+        "height": 718,
+        "right": 743,
+        "bottom": 1132.1875
+      },
+      "actionCardRect": {
+        "x": 24,
+        "y": 109.59375,
+        "width": 720,
+        "height": 252,
+        "right": 744,
+        "bottom": 361.59375
+      },
+      "firstCardBackground": "rgb(255, 255, 255)",
+      "pageBackground": "rgba(0, 0, 0, 0)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57,
+      "fontSizes": [
+        "14px",
+        "16px",
+        "20px",
+        "28px"
+      ],
+      "fontWeights": [
+        "400",
+        "600"
+      ],
+      "accent": "#4338ca",
+      "accentBackgroundElements": [
+        {
+          "tag": "BUTTON",
+          "text": "Export PNG",
+          "className": ""
+        }
+      ]
+    },
+    "mobile-360-light": {
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "document": {
+        "clientWidth": 360,
+        "scrollWidth": 360,
+        "clientHeight": 800,
+        "scrollHeight": 2079,
+        "horizontalOverflow": false
+      },
+      "domOrder": [
+        ".workspace__actions",
+        ".workspace__map",
+        ".workspace__selection-color",
+        ".workspace__country-list"
+      ],
+      "appRect": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 2078.71875,
+        "right": 360,
+        "bottom": 2078.71875
+      },
+      "mapSquareRect": {
+        "x": 16,
+        "y": 521.15625,
+        "width": 328,
+        "height": 328,
+        "right": 344,
+        "bottom": 849.15625
+      },
+      "mapSourceRect": {
+        "x": 17,
+        "y": 522.15625,
+        "width": 326,
+        "height": 326,
+        "right": 343,
+        "bottom": 848.15625
+      },
+      "actionCardRect": {
+        "x": 16,
+        "y": 223.1875,
+        "width": 328,
+        "height": 254.375,
+        "right": 344,
+        "bottom": 477.5625
+      },
+      "firstCardBackground": "rgb(255, 255, 255)",
+      "pageBackground": "rgba(0, 0, 0, 0)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57,
+      "fontSizes": [
+        "14px",
+        "16px",
+        "20px",
+        "28px"
+      ],
+      "fontWeights": [
+        "400",
+        "600"
+      ],
+      "accent": "#4338ca",
+      "accentBackgroundElements": [
+        {
+          "tag": "BUTTON",
+          "text": "Export PNG",
+          "className": ""
+        }
+      ]
+    },
+    "zoom-equivalent-200": {
+      "viewport": {
+        "width": 720,
+        "height": 900
+      },
+      "document": {
+        "clientWidth": 720,
+        "scrollWidth": 720,
+        "clientHeight": 900,
+        "scrollHeight": 2348,
+        "horizontalOverflow": false
+      },
+      "domOrder": [
+        ".workspace__actions",
+        ".workspace__map",
+        ".workspace__selection-color",
+        ".workspace__country-list"
+      ],
+      "appRect": {
+        "x": 0,
+        "y": 0,
+        "width": 720,
+        "height": 2347.5625,
+        "right": 720,
+        "bottom": 2347.5625
+      },
+      "mapSquareRect": {
+        "x": 16,
+        "y": 445.1875,
+        "width": 688,
+        "height": 688,
+        "right": 704,
+        "bottom": 1133.1875
+      },
+      "mapSourceRect": {
+        "x": 17,
+        "y": 446.1875,
+        "width": 686,
+        "height": 686,
+        "right": 703,
+        "bottom": 1132.1875
+      },
+      "actionCardRect": {
+        "x": 16,
+        "y": 165.59375,
+        "width": 688,
+        "height": 236,
+        "right": 704,
+        "bottom": 401.59375
+      },
+      "firstCardBackground": "rgb(255, 255, 255)",
+      "pageBackground": "rgba(0, 0, 0, 0)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57,
+      "fontSizes": [
+        "14px",
+        "16px",
+        "20px",
+        "28px"
+      ],
+      "fontWeights": [
+        "400",
+        "600"
+      ],
+      "accent": "#4338ca",
+      "accentBackgroundElements": [
+        {
+          "tag": "BUTTON",
+          "text": "Export PNG",
+          "className": ""
+        }
+      ]
+    },
+    "reducedMotion": {
+      "mediaMatches": true,
+      "countryTransitionDuration": "0s",
+      "dialogAnimationName": "none",
+      "buttonTransitionDuration": "0s"
+    },
+    "fatalError": {
+      "text": "We couldn't load the Europe mapRefresh the page to try the bundled map data again. Your saved maps will stay in this browser.Reload Map",
+      "reloadVisible": true,
+      "helpDisabled": true,
+      "actionDisabledStates": [
+        {
+          "text": "Undo Color Change",
+          "disabled": true
+        },
+        {
+          "text": "Redo Color Change",
+          "disabled": true
+        },
+        {
+          "text": "Reset All Colors",
+          "disabled": true
+        },
+        {
+          "text": "Save or Load Maps",
+          "disabled": true
+        },
+        {
+          "text": "Export PNG",
+          "disabled": true
+        }
+      ]
+    },
+    "partialWarning": {
+      "warning": "Some country shapes could not be loaded. You can continue with the available map.",
+      "pathCount": 57,
+      "exportDisabled": false
+    },
+    "storageUnavailable": {
+      "alertText": "Error: This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.Dismiss Message",
+      "saveDisabled": true,
+      "exportDisabled": false
+    },
+    "exportError": {
+      "alertText": "Error: The PNG could not be created. Refresh the page and try Export PNG again.Try Export AgainDismiss Message",
+      "exportText": "Export PNG",
+      "exportDisabled": false,
+      "retryVisible": true
+    }
+  },
+  "priorFindings": {
+    "UIR01_mapCenter": {
+      "pathCount": 57,
+      "viewBox": "0 0 1080 1080",
+      "preserveAspectRatio": "xMidYMid meet",
+      "bounds": {
+        "left": 64,
+        "top": 253.58099365234375,
+        "right": 1016,
+        "bottom": 826.4190063476562
+      },
+      "margins": {
+        "left": 64,
+        "top": 253.58099365234375,
+        "right": 64,
+        "bottom": 253.58099365234375
+      },
+      "center": {
+        "x": 540,
+        "y": 540
+      },
+      "centerDelta": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "UIR03_desktopPresetLabels": [
+      {
+        "text": "Red",
+        "ariaLabel": "Apply Red",
+        "clientWidth": 24,
+        "scrollWidth": 24,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 24,
+        "textWidth": 24,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Green",
+        "ariaLabel": "Apply Green",
+        "clientWidth": 37,
+        "scrollWidth": 37,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 37,
+        "textWidth": 37,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Blue",
+        "ariaLabel": "Apply Blue",
+        "clientWidth": 27,
+        "scrollWidth": 27,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 27,
+        "textWidth": 27,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Yellow",
+        "ariaLabel": "Apply Yellow",
+        "clientWidth": 41,
+        "scrollWidth": 41,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 41,
+        "textWidth": 41,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Magenta",
+        "ariaLabel": "Apply Magenta",
+        "clientWidth": 45,
+        "scrollWidth": 45,
+        "clientHeight": 39,
+        "scrollHeight": 39,
+        "visibleWidth": 44.796875,
+        "textWidth": 43,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Cyan",
+        "ariaLabel": "Apply Cyan",
+        "clientWidth": 31,
+        "scrollWidth": 31,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 31,
+        "textWidth": 31,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Orange",
+        "ariaLabel": "Apply Orange",
+        "clientWidth": 45,
+        "scrollWidth": 45,
+        "clientHeight": 39,
+        "scrollHeight": 39,
+        "visibleWidth": 44.796875,
+        "textWidth": 39,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Violet",
+        "ariaLabel": "Apply Violet",
+        "clientWidth": 37,
+        "scrollWidth": 37,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 37,
+        "textWidth": 37,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "White",
+        "ariaLabel": "Apply White",
+        "clientWidth": 38,
+        "scrollWidth": 38,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 38,
+        "textWidth": 38,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Gray",
+        "ariaLabel": "Apply Gray",
+        "clientWidth": 29,
+        "scrollWidth": 29,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 29,
+        "textWidth": 29,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      }
+    ],
+    "UIR04_liveSelection": {
+      "liveCountBefore": 1,
+      "liveCountAfter": 1,
+      "firstCountry": "Åland Islands, current color #FFFFFF",
+      "singleSelectionAnnouncement": "Åland Islands. 1 country selected.",
+      "multipleSelectionAnnouncement": "2 countries selected.",
+      "clearedAnnouncement": "No countries selected.",
+      "stable": true
+    },
+    "UIR05_singularFeedback": "Success: Applied Red to 1 country.Dismiss Message",
+    "UIR03_mobilePresetLabels": [
+      {
+        "text": "Red",
+        "ariaLabel": "Apply Red",
+        "clientWidth": 24,
+        "scrollWidth": 24,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 24,
+        "textWidth": 24,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Green",
+        "ariaLabel": "Apply Green",
+        "clientWidth": 37,
+        "scrollWidth": 37,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 37,
+        "textWidth": 37,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Blue",
+        "ariaLabel": "Apply Blue",
+        "clientWidth": 27,
+        "scrollWidth": 27,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 27,
+        "textWidth": 27,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Yellow",
+        "ariaLabel": "Apply Yellow",
+        "clientWidth": 41,
+        "scrollWidth": 41,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 41,
+        "textWidth": 41,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Magenta",
+        "ariaLabel": "Apply Magenta",
+        "clientWidth": 42,
+        "scrollWidth": 42,
+        "clientHeight": 39,
+        "scrollHeight": 39,
+        "visibleWidth": 42.40625,
+        "textWidth": 35,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Cyan",
+        "ariaLabel": "Apply Cyan",
+        "clientWidth": 31,
+        "scrollWidth": 31,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 31,
+        "textWidth": 31,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Orange",
+        "ariaLabel": "Apply Orange",
+        "clientWidth": 42,
+        "scrollWidth": 42,
+        "clientHeight": 39,
+        "scrollHeight": 39,
+        "visibleWidth": 42.40625,
+        "textWidth": 39,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Violet",
+        "ariaLabel": "Apply Violet",
+        "clientWidth": 37,
+        "scrollWidth": 37,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 37,
+        "textWidth": 37,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "White",
+        "ariaLabel": "Apply White",
+        "clientWidth": 38,
+        "scrollWidth": 38,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 38,
+        "textWidth": 38,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      },
+      {
+        "text": "Gray",
+        "ariaLabel": "Apply Gray",
+        "clientWidth": 29,
+        "scrollWidth": 29,
+        "clientHeight": 20,
+        "scrollHeight": 20,
+        "visibleWidth": 29,
+        "textWidth": 29,
+        "overflow": "visible",
+        "whiteSpace": "normal",
+        "textOverflow": "clip",
+        "fullyVisible": true
+      }
+    ],
+    "UIR02_pointerTooltip": {
+      "point": {
+        "x": 324,
+        "y": 590,
+        "country": "Russian Federation, current color #FFFFFF"
+      },
+      "tooltip": {
+        "x": 84,
+        "y": 598,
+        "width": 232,
+        "height": 70
+      },
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "pass": true
+    },
+    "UIR06_loadingSkeleton": {
+      "loadingText": "Loading Europe map…",
+      "skeletonTag": "svg",
+      "skeletonPaths": 7,
+      "skeletonCircles": 2,
+      "disabledMapActions": [
+        {
+          "text": "Undo Color Change",
+          "disabled": true
+        },
+        {
+          "text": "Redo Color Change",
+          "disabled": true
+        },
+        {
+          "text": "Reset All Colors",
+          "disabled": true
+        },
+        {
+          "text": "Save or Load Maps",
+          "disabled": true
+        },
+        {
+          "text": "Export PNG",
+          "disabled": true
+        }
+      ]
+    },
+    "UIR07_themeTokens": {
+      "runtimeLight": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "clientWidth": 1440,
+          "scrollWidth": 1440,
+          "clientHeight": 900,
+          "scrollHeight": 1161,
+          "horizontalOverflow": false
+        },
+        "domOrder": [
+          ".workspace__map",
+          ".workspace__actions",
+          ".workspace__selection-color",
+          ".workspace__country-list"
+        ],
+        "appRect": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 1161.1875,
+          "right": 1440,
+          "bottom": 1161.1875
+        },
+        "mapSquareRect": {
+          "x": 32,
+          "y": 137.1875,
+          "width": 992,
+          "height": 992,
+          "right": 1024,
+          "bottom": 1129.1875
+        },
+        "mapSourceRect": {
+          "x": 33,
+          "y": 138.1875,
+          "width": 990,
+          "height": 990,
+          "right": 1023,
+          "bottom": 1128.1875
+        },
+        "actionCardRect": {
+          "x": 1050,
+          "y": 111.59375,
+          "width": 356,
+          "height": 270.375,
+          "right": 1406,
+          "bottom": 381.96875
+        },
+        "firstCardBackground": "rgb(255, 255, 255)",
+        "pageBackground": "rgba(0, 0, 0, 0)",
+        "mapBackground": "rgb(255, 255, 255)",
+        "mapPathCount": 57,
+        "fontSizes": [
+          "14px",
+          "16px",
+          "20px",
+          "28px"
+        ],
+        "fontWeights": [
+          "400",
+          "600"
+        ],
+        "accent": "#4338ca",
+        "accentBackgroundElements": [
+          {
+            "tag": "BUTTON",
+            "text": "Export PNG",
+            "className": ""
+          }
+        ]
+      },
+      "runtimeDark": {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "document": {
+          "clientWidth": 1440,
+          "scrollWidth": 1440,
+          "clientHeight": 900,
+          "scrollHeight": 1161,
+          "horizontalOverflow": false
+        },
+        "domOrder": [
+          ".workspace__map",
+          ".workspace__actions",
+          ".workspace__selection-color",
+          ".workspace__country-list"
+        ],
+        "appRect": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 1161.1875,
+          "right": 1440,
+          "bottom": 1161.1875
+        },
+        "mapSquareRect": {
+          "x": 32,
+          "y": 137.1875,
+          "width": 992,
+          "height": 992,
+          "right": 1024,
+          "bottom": 1129.1875
+        },
+        "mapSourceRect": {
+          "x": 33,
+          "y": 138.1875,
+          "width": 990,
+          "height": 990,
+          "right": 1023,
+          "bottom": 1128.1875
+        },
+        "actionCardRect": {
+          "x": 1050,
+          "y": 111.59375,
+          "width": 356,
+          "height": 270.375,
+          "right": 1406,
+          "bottom": 381.96875
+        },
+        "firstCardBackground": "rgb(31, 41, 55)",
+        "pageBackground": "rgba(0, 0, 0, 0)",
+        "mapBackground": "rgb(255, 255, 255)",
+        "mapPathCount": 57,
+        "fontSizes": [
+          "14px",
+          "16px",
+          "20px",
+          "28px"
+        ],
+        "fontWeights": [
+          "400",
+          "600"
+        ],
+        "accent": "#818cf8",
+        "accentBackgroundElements": [
+          {
+            "tag": "BUTTON",
+            "text": "Export PNG",
+            "className": ""
+          }
+        ]
+      }
+    },
+    "UIR08_tooltipSpacing": {
+      "pointer": {
+        "point": {
+          "x": 324,
+          "y": 590,
+          "country": "Russian Federation, current color #FFFFFF"
+        },
+        "tooltip": {
+          "x": 84,
+          "y": 598,
+          "width": 232,
+          "height": 70
+        },
+        "viewport": {
+          "width": 360,
+          "height": 800
+        },
+        "pass": true
+      },
+      "expectedSpacingPx": 8
+    }
+  },
+  "interactions": {
+    "announcements": {
+      "undo": "Information: Color change undone.Dismiss Message",
+      "redo": "Information: Color change redone.Dismiss Message",
+      "reset": "Success: All colors reset. Use Undo Color Change to restore them.Dismiss Message"
+    },
+    "desktopModal": {
+      "rect": {
+        "x": 440,
+        "y": 145.7,
+        "width": 560,
+        "height": 640.59
+      },
+      "initialFocus": {
+        "tag": "INPUT",
+        "name": "map-name"
+      },
+      "focusContained": true,
+      "openerRestored": true
+    },
+    "export": {
+      "suggestedFilename": "CountriesIRL_2026-07-22.png",
+      "savedPath": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-rerun-20260722-011622\\CountriesIRL-rerun-export.png",
+      "successText": "Success: PNG downloaded at 1080 × 1080.Dismiss Message"
+    },
+    "keyboardTooltip": {
+      "before": {
+        "x": 80.2,
+        "y": 533.02,
+        "width": 232,
+        "height": 70
+      },
+      "end": {
+        "x": 73.94,
+        "y": 556.66,
+        "width": 232,
+        "height": 70
+      },
+      "afterScroll": {
+        "x": 73.94,
+        "y": 476.66,
+        "width": 232,
+        "height": 70
+      },
+      "focusedEnd": "Vatican, current color #FFFFFF",
+      "pass": true
+    },
+    "mobileModal": {
+      "rect": {
+        "x": 0,
+        "y": 16,
+        "width": 360,
+        "height": 800
+      },
+      "initialFocus": {
+        "tag": "INPUT",
+        "name": "map-name"
+      }
+    },
+    "onboarding": {
+      "text": "Start your map\n\nSelect countries, choose a color, then export a square PNG for Instagram.\n\nSelect one country on the map or several from the list.\nChoose a preset or enter a custom color.\nExport PNG when the map is ready.\nStart Coloring\nDismiss Help",
+      "focusedMapOption": "Åland Islands, current color #FFFFFF"
+    }
+  },
+  "finishedAt": "2026-07-22T06:20:21.586Z"
+}

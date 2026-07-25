@@ -1,0 +1,110 @@
+{
+  "plan": "01-15",
+  "head": "9c871fdb1f3a3a0087a091ee91848b4fd5ed2f57",
+  "localUrl": "http://127.0.0.1:5173/",
+  "overall": "FAIL",
+  "blockingDefect": {
+    "step": "3 - five countriesirl-map-ready samples under 500ms",
+    "chrome150": {
+      "version": "150.0.7871.125",
+      "samplesMs": [1215.1, 1687.8, 1113.0, 1583.2, 1169.7],
+      "maximumMs": 1687.8,
+      "thresholdMs": 500,
+      "status": "FAIL"
+    },
+    "edge150": {
+      "version": "150.0.4078.83",
+      "samplesMs": [1572.7, 1460.5, 1389.4, 1046.5, 1509.0],
+      "maximumMs": 1572.7,
+      "thresholdMs": 500,
+      "status": "FAIL"
+    },
+    "disposition": "No product code changed. Route to /gsd:plan-phase 1 --gaps, fix or explicitly revise the locked performance criterion, then rerun Plan 01-15."
+  },
+  "automated": {
+    "sourceScopeVerbose": {
+      "status": "PASS",
+      "files": 16,
+      "tests": 136,
+      "allDiscoveredUnder": "src/",
+      "agentWorktreesCollected": false,
+      "watchMode": false,
+      "artifact": "source-scope-verbose.log"
+    },
+    "cleanCurrentHeadGate": {
+      "status": "PASS",
+      "command": "npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build",
+      "lint": "PASS",
+      "tests": "16 files / 136 tests PASS",
+      "geojson": "PASS",
+      "build": "PASS",
+      "artifact": "automated-gate-clean-head.log"
+    },
+    "mainCheckoutGate": {
+      "status": "ENVIRONMENT-CONTAMINATED",
+      "reason": "Repository-wide ESLint collected a pre-existing untracked browser-evidence harness under .planning/ui-reviews. No tracked product/test/config file failed."
+    }
+  },
+  "browserMatrix": {
+    "chromeCurrent": {
+      "version": "150.0.7871.125",
+      "route": "local-direct",
+      "url": "http://127.0.0.1:5173/",
+      "titleAnd57PathPreflight": "PASS",
+      "overall": "FAIL - map-ready threshold only"
+    },
+    "edgeCurrent": {
+      "version": "150.0.4078.83",
+      "route": "local-direct",
+      "url": "http://127.0.0.1:5173/",
+      "titleAnd57PathPreflight": "PASS",
+      "overall": "FAIL - map-ready threshold only"
+    },
+    "firefoxCurrent": "unverified — deferred by user choice per D-61",
+    "safariCurrent": "unverified — deferred by user choice per D-61",
+    "chromePrevious": "unverified — deferred by user choice per D-61",
+    "edgePrevious": "unverified — deferred by user choice per D-61",
+    "firefoxPrevious": "unverified — deferred by user choice per D-61",
+    "safariPrevious": "unverified — deferred by user choice per D-61"
+  },
+  "acceptance": {
+    "onboardingAndFiveCountryFlow": "PASS in both browsers; 5 colored in 1.096s Chrome and 1.162s Edge; dismissal persisted; Show Help reopened without clearing persistence",
+    "selectionActiveColorCustomInvalidHistory": "PASS in both browsers",
+    "activeWhiteAndRedNoOps": "PASS in both browsers; no click, toast, timing mark, history, or color change",
+    "effectiveInteractionTimings": {
+      "status": "PASS",
+      "chromeMaximumsMs": { "color": 46.2, "undo": 26.2, "redo": 36.3 },
+      "edgeMaximumsMs": { "color": 28.5, "undo": 23.0, "redo": 20.2 },
+      "samplesPerOperationPerBrowser": 10,
+      "thresholdMs": 100
+    },
+    "historyAndStress": "PASS in both browsers; 55 edits, exactly 50 undoable transitions, branch truncation, reset/undo reset, 132 rapid interactions, stable 57 unique paths",
+    "persistenceSuccess": "PASS in both browsers; save two, exact trimmed-name replace, reload/list/load, load resets undo/redo, delete without confirmation",
+    "persistenceFailures": "PASS in both browsers; partial-valid warning, malformed JSON recovery, assertive startup SecurityError, blocked writes/onboarding, QuotaExceededError, current map/name/list preserved as required",
+    "exports": {
+      "status": "PASS",
+      "colored": "Two completed native downloads per browser from focused current-HEAD run; exact 1080x1080 RGBA, opaque, centered, under 3s, identical SHA-256 ec68ac69201eaf043f752145ade85f962e3d11bab15c0a9332862ebf712f3061",
+      "allWhite": "One completed native download per browser; exact 1080x1080 RGBA, opaque, centered, under 1s, identical SHA-256 9bf1bd1d7da436c87c881ba9451232f12011c72c67b7d7f110c5139b255cc2af",
+      "filename": "CountriesIRL_2026-07-22.png",
+      "mapOnlyNeutralBordersNoBlackEditorState": "PASS by pixel analysis"
+    },
+    "responsiveThemeZoomMotion": "PASS in both browsers; desktop/tablet/360 DOM order, one workspace/map, state preservation, square map, no horizontal overflow, dark chrome/white map, reduced motion, 200% page scale",
+    "tooltipEdges": "PASS in both browsers; top keyboard tooltip flipped below and contained; right pointer tooltip flipped left and contained; bottom pointer tooltip remained below but clamped fully inside the viewport, which satisfies flip-or-clamp acceptance",
+    "modalFocus": "PASS in both directions in both browsers; focus restored to currently mounted Save or Load Maps control; focus trap/Escape/initial focus passed; mobile sheet filled viewport height",
+    "keyboardAccessibilityLiveRegions": "PASS in both browsers; listbox/options/titles, one roving tab stop, arrows/Home/End/Enter/Space/Escape, focus tooltip, bulk checkbox alternative, polite/assertive regions",
+    "offlineAlreadyLoaded": "PASS in both browsers; zero third-party runtime requests; color/save/export continued while offline; no fresh disconnected reload tested",
+    "consoleNetworkFavicon": "PASS in both browsers during normal operation; no console warnings/errors, runtime exceptions, network failures, HTTP failures; same-origin SVG favicon 200",
+    "naturalEarthPresentation": "PASS/RECORD ONLY - unchanged Natural Earth 5.1.1 asset with 57 features and documented transcontinental inclusion; presentation remains user-approved per D-62",
+    "regionVariants": "PASS - no World or North America product implementation added in Phase 1"
+  },
+  "checkpoint": {
+    "summaryCreated": false,
+    "stateAdvanced": false,
+    "taskCommitted": false,
+    "deploymentExecuted": false,
+    "plan0116Executed": false,
+    "awaiting": "Gap planning and performance correction, followed by complete Plan 01-15 rerun and explicit final human UAT approval",
+    "resumeSignal": "approved",
+    "resumeSignalCondition": "Use exactly 'approved' only after both browsers produce five map-ready samples each below 500ms and the full rerun has no unresolved failures."
+  }
+}

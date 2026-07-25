@@ -5,6 +5,9 @@ coverage/
 .vercel/
 .artifacts/playwright/
 
+# Agent worktrees and session scratch — never part of product evidence
+.claude/
+
 *.log
 npm-debug.log*
 yarn-debug.log*

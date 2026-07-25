@@ -1,0 +1,49 @@
+{
+  "samples": [
+    {
+      "delay": 0,
+      "active": {
+        "tag": "BODY",
+        "role": null,
+        "ariaLabel": null,
+        "className": null
+      }
+    },
+    {
+      "delay": 16,
+      "active": {
+        "tag": "path",
+        "role": "option",
+        "ariaLabel": "Åland Islands, current color #FFFFFF",
+        "className": "country-path focused"
+      }
+    },
+    {
+      "delay": 50,
+      "active": {
+        "tag": "path",
+        "role": "option",
+        "ariaLabel": "Åland Islands, current color #FFFFFF",
+        "className": "country-path focused"
+      }
+    },
+    {
+      "delay": 100,
+      "active": {
+        "tag": "path",
+        "role": "option",
+        "ariaLabel": "Åland Islands, current color #FFFFFF",
+        "className": "country-path focused"
+      }
+    },
+    {
+      "delay": 250,
+      "active": {
+        "tag": "path",
+        "role": "option",
+        "ariaLabel": "Åland Islands, current color #FFFFFF",
+        "className": "country-path focused"
+      }
+    }
+  ]
+}

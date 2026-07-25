@@ -1,0 +1,96 @@
+{
+  "themes": {
+    "tablet-dark": {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "horizontalOverflow": false,
+      "appBackground": "rgba(0, 0, 0, 0)",
+      "cardBackground": "rgb(31, 41, 55)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57
+    },
+    "mobile-360-dark": {
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "horizontalOverflow": false,
+      "appBackground": "rgba(0, 0, 0, 0)",
+      "cardBackground": "rgb(31, 41, 55)",
+      "mapBackground": "rgb(255, 255, 255)",
+      "mapPathCount": 57
+    }
+  },
+  "modals": {
+    "desktop-modal-settled": {
+      "rect": {
+        "x": 440,
+        "y": 129.703125,
+        "width": 560,
+        "height": 640.59375,
+        "right": 1000,
+        "bottom": 770.296875
+      },
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "background": "rgb(255, 255, 255)",
+      "opacity": "1",
+      "transform": "none",
+      "overflowY": "auto",
+      "initialFocus": "map-name",
+      "openerRestored": true
+    },
+    "mobile-modal-settled": {
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "width": 360,
+        "height": 800,
+        "right": 360,
+        "bottom": 800
+      },
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "background": "rgb(255, 255, 255)",
+      "opacity": "1",
+      "transform": "none",
+      "overflowY": "auto",
+      "initialFocus": "map-name",
+      "openerRestored": true
+    }
+  },
+  "announcements": {
+    "save": "Success: Map saved to this browser.Dismiss Message",
+    "replace": "Success: Saved map replaced.Dismiss Message",
+    "load": "Success: Saved map loaded.Dismiss Message",
+    "loadFocus": {
+      "tag": "BODY",
+      "role": null,
+      "ariaLabel": null
+    },
+    "delete": "Success: Saved map deleted.Dismiss Message",
+    "deleteFocus": {
+      "tag": "INPUT",
+      "name": "map-name"
+    }
+  },
+  "exportLoading": {
+    "during": {
+      "text": "Exporting PNG…",
+      "disabled": true,
+      "ariaBusy": "true"
+    },
+    "after": {
+      "text": "Export PNG",
+      "disabled": false,
+      "ariaBusy": "false"
+    }
+  },
+  "consoleErrors": []
+}

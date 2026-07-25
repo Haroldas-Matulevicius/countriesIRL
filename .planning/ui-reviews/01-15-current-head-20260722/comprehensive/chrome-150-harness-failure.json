@@ -1,0 +1,5 @@
+{
+  "browser": "chrome-150",
+  "error": "Error: Input not found: input[name=\"map-name\"]\n    at assert (file:///C:/Users/matul/ClaudeProjects/CountriesIRL/.planning/ui-reviews/01-15-current-head-20260722/run-comprehensive-browser-evidence.mjs:43:11)\n    at setInputValue (file:///C:/Users/matul/ClaudeProjects/CountriesIRL/.planning/ui-reviews/01-15-current-head-20260722/run-comprehensive-browser-evidence.mjs:291:3)\n    at async runBrowser (file:///C:/Users/matul/ClaudeProjects/CountriesIRL/.planning/ui-reviews/01-15-current-head-20260722/run-comprehensive-browser-evidence.mjs:1279:5)\n    at async file:///C:/Users/matul/ClaudeProjects/CountriesIRL/.planning/ui-reviews/01-15-current-head-20260722/run-comprehensive-browser-evidence.mjs:2107:18",
+  "completedAt": "2026-07-22T13:13:46.680Z"
+}

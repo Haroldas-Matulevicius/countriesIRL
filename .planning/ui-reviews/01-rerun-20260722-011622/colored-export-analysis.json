@@ -1,0 +1,24 @@
+{
+  "width": 1080,
+  "height": 1080,
+  "exactColorPixelCounts": {
+    "red": 515,
+    "green": 387
+  },
+  "nonWhiteBounds": {
+    "left": 63,
+    "top": 253,
+    "right": 1016,
+    "bottom": 826
+  },
+  "margins": {
+    "left": 63,
+    "top": 253,
+    "right": 63,
+    "bottom": 253
+  },
+  "alphaExtrema": [
+    255,
+    255
+  ]
+}

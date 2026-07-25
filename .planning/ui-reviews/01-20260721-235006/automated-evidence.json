@@ -1,0 +1,322 @@
+{
+  "automated": true,
+  "browser": "149.0.7827.55",
+  "viewports": {
+    "desktopLight": {
+      "innerWidth": 1440,
+      "innerHeight": 900,
+      "documentScrollWidth": 1440,
+      "bodyScrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "workspaceClass": "workspace workspace--desktop",
+      "workspaceChildren": [
+        "workspace__map",
+        "workspace__control-column"
+      ],
+      "mapSquare": {
+        "width": 992,
+        "height": 992,
+        "ratio": 1
+      },
+      "mapBackground": "rgb(255, 255, 255)",
+      "exportTarget": {
+        "width": 306,
+        "height": 48
+      },
+      "pathCount": 57,
+      "workspaceCount": 1,
+      "mapCount": 1,
+      "computedFont": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif"
+    },
+    "desktopDark": {
+      "innerWidth": 1440,
+      "innerHeight": 900,
+      "documentScrollWidth": 1440,
+      "bodyScrollWidth": 1440,
+      "hasHorizontalOverflow": false,
+      "workspaceClass": "workspace workspace--desktop",
+      "workspaceChildren": [
+        "workspace__map",
+        "workspace__control-column"
+      ],
+      "mapSquare": {
+        "width": 992,
+        "height": 992,
+        "ratio": 1
+      },
+      "mapBackground": "rgb(255, 255, 255)",
+      "exportTarget": {
+        "width": 306,
+        "height": 48
+      },
+      "pathCount": 57,
+      "workspaceCount": 1,
+      "mapCount": 1,
+      "computedFont": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+      "theme": {
+        "pageBackground": "rgb(17, 24, 39)",
+        "cardBackground": "rgb(31, 41, 55)",
+        "mapSquareBackground": "rgb(255, 255, 255)",
+        "mapCanvasBackground": "rgb(255, 255, 255)"
+      }
+    },
+    "tablet": {
+      "innerWidth": 768,
+      "innerHeight": 1024,
+      "documentScrollWidth": 768,
+      "bodyScrollWidth": 768,
+      "hasHorizontalOverflow": false,
+      "workspaceClass": "workspace workspace--compact",
+      "workspaceChildren": [
+        "workspace__actions",
+        "workspace__map",
+        "workspace__selection-color",
+        "workspace__country-list"
+      ],
+      "mapSquare": {
+        "width": 720,
+        "height": 720,
+        "ratio": 1
+      },
+      "mapBackground": "rgb(255, 255, 255)",
+      "exportTarget": {
+        "width": 670,
+        "height": 48
+      },
+      "pathCount": 57,
+      "workspaceCount": 1,
+      "mapCount": 1,
+      "computedFont": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif"
+    },
+    "mobile360": {
+      "innerWidth": 360,
+      "innerHeight": 800,
+      "documentScrollWidth": 360,
+      "bodyScrollWidth": 360,
+      "hasHorizontalOverflow": false,
+      "workspaceClass": "workspace workspace--compact",
+      "workspaceChildren": [
+        "workspace__actions",
+        "workspace__map",
+        "workspace__selection-color",
+        "workspace__country-list"
+      ],
+      "mapSquare": {
+        "width": 328,
+        "height": 328,
+        "ratio": 1
+      },
+      "mapBackground": "rgb(255, 255, 255)",
+      "exportTarget": {
+        "width": 294,
+        "height": 48
+      },
+      "pathCount": 57,
+      "workspaceCount": 1,
+      "mapCount": 1,
+      "computedFont": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif"
+    },
+    "zoom200Equivalent": {
+      "innerWidth": 720,
+      "innerHeight": 900,
+      "documentScrollWidth": 720,
+      "bodyScrollWidth": 720,
+      "hasHorizontalOverflow": false,
+      "workspaceClass": "workspace workspace--compact",
+      "workspaceChildren": [
+        "workspace__actions",
+        "workspace__map",
+        "workspace__selection-color",
+        "workspace__country-list"
+      ],
+      "mapSquare": {
+        "width": 688,
+        "height": 688,
+        "ratio": 1
+      },
+      "mapBackground": "rgb(255, 255, 255)",
+      "exportTarget": {
+        "width": 654,
+        "height": 48
+      },
+      "pathCount": 57,
+      "workspaceCount": 1,
+      "mapCount": 1,
+      "computedFont": "Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif"
+    }
+  },
+  "interaction": {
+    "initial": {
+      "onboardingVisible": true,
+      "presetCount": 10,
+      "disabledPresetCount": 10,
+      "disabledActions": [
+        "Undo Color Change",
+        "Redo Color Change",
+        "Reset All Colors"
+      ],
+      "saveEnabled": true
+    },
+    "afterSingleSelection": {
+      "selectionHeading": "Åland Islands",
+      "selectionText": "Åland Islands1 country selectedCurrent color#FFFFFFClear Selection",
+      "activePresets": [
+        {
+          "label": "Apply White",
+          "disabled": true
+        }
+      ],
+      "enabledPresetCount": 9
+    },
+    "afterRed": {
+      "activePresets": [
+        {
+          "label": "Apply Red",
+          "disabled": true
+        }
+      ],
+      "undoDisabled": false,
+      "toast": "Success: Applied Red to 1 countries.Dismiss Message",
+      "colorStartMarks": 0
+    },
+    "invalidColor": {
+      "ariaInvalid": "true",
+      "errorText": "Enter #RGB, #RRGGBB, or rgb values from 0 to 255.",
+      "applyDisabled": true
+    }
+  },
+  "states": {
+    "modal": {
+      "dialogRole": "dialog",
+      "ariaModal": "true",
+      "activeLabel": "Map name",
+      "width": 560,
+      "height": 640.59375
+    },
+    "mobileModal": {
+      "rect": {
+        "x": 0,
+        "y": 16,
+        "width": 360,
+        "height": 800
+      },
+      "position": "sticky"
+    },
+    "loading": {
+      "text": "Loading Europe map…",
+      "skeletonBars": 3,
+      "disabledActionCount": 5,
+      "mapSquareRatio": 1
+    },
+    "fatalError": {
+      "text": "We couldn't load the Europe mapRefresh the page to try the bundled map data again. Your saved maps will stay in this browser.Reload Map",
+      "alertRole": "alert",
+      "helpDisabled": true,
+      "actionsDisabled": true
+    },
+    "partialWarning": {
+      "text": "Some country shapes could not be loaded. You can continue with the available map.",
+      "role": "status",
+      "pathCount": 56,
+      "exportDisabled": false
+    },
+    "storageUnavailable": {
+      "alertText": "Error: This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.Dismiss Message",
+      "saveDisabled": true,
+      "exportDisabled": false
+    }
+  },
+  "accessibility": {
+    "startColoringFocus": {
+      "activeTag": "path",
+      "activeClass": "country-path focused",
+      "activeRole": "option"
+    },
+    "keyboardMap": {
+      "focusedRole": "option",
+      "focusedAriaLabel": "Åland Islands, current color #DC2626",
+      "focusedAriaSelected": "true",
+      "focusedTabIndex": "0",
+      "tooltipText": "Åland IslandsCurrent color: #DC2626",
+      "tooltipInsideViewport": true,
+      "outlineStyle": "none",
+      "strokeWidth": "2px",
+      "strokeDasharray": "8px, 4px"
+    },
+    "keyboardSelection": {
+      "activeRole": "option",
+      "activeSelected": "true",
+      "selectedPathCount": 1
+    },
+    "modalRestore": {
+      "activeText": "Save or Load Maps",
+      "dataControl": "true"
+    },
+    "mobileTooltipChecks": [
+      {
+        "index": 0,
+        "result": {
+          "left": 80.203125,
+          "top": 494.609375,
+          "right": 312.203125,
+          "bottom": 564.609375,
+          "inside": true
+        }
+      },
+      {
+        "index": 19,
+        "result": {
+          "left": 72.328125,
+          "top": 507.25,
+          "right": 304.328125,
+          "bottom": 577.25,
+          "inside": true
+        }
+      },
+      {
+        "index": 38,
+        "result": {
+          "left": 79.46875,
+          "top": 517.375,
+          "right": 311.46875,
+          "bottom": 587.375,
+          "inside": true
+        }
+      },
+      {
+        "index": 56,
+        "result": {
+          "left": 73.9375,
+          "top": 518.25,
+          "right": 305.9375,
+          "bottom": 588.25,
+          "inside": true
+        }
+      }
+    ],
+    "reducedMotion": {
+      "pathTransitionDuration": "0s",
+      "spinnerAnimationName": "none",
+      "spinnerTransform": "none"
+    }
+  },
+  "export": {
+    "suggestedFilename": "CountriesIRL_2026-07-22.png",
+    "failure": null,
+    "validPng": true,
+    "width": 1080,
+    "height": 1080,
+    "bitDepth": 8,
+    "colorType": 6,
+    "successToast": "Success: PNG downloaded at 1080 × 1080.Dismiss Message",
+    "exportButtonText": "Export PNG",
+    "sourceSeparation": {
+      "previewLabelOutsideSquare": true,
+      "exportSourceChildTags": [
+        "svg"
+      ],
+      "exportSourceContainsUi": false
+    }
+  },
+  "notes": []
+}

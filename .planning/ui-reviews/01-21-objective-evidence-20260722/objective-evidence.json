@@ -1,0 +1,59 @@
+{
+  "objective": "Phase 1 Plan 01-21 current-HEAD objective evidence regeneration",
+  "head": "805ab14",
+  "baseUrl": "http://localhost:5173",
+  "serverPreflight": [
+    {
+      "status": 200,
+      "titlePresent": true
+    },
+    {
+      "status": 200,
+      "contentType": "image/svg+xml"
+    }
+  ],
+  "automatedGate": {
+    "command": "npm run lint && npm run test:run && node scripts/prepareGeoData.mjs --check && npm run build",
+    "sourceFiles": 16,
+    "tests": 136,
+    "log": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-21-objective-evidence-20260722\\automated-gate.log"
+  },
+  "browsers": [
+    {
+      "id": "chrome-150",
+      "product": "Chrome/150.0.7871.125",
+      "route": "local-direct",
+      "passed": true,
+      "evidence": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-21-objective-evidence-20260722\\chrome-150\\objective-evidence.json"
+    },
+    {
+      "id": "edge-150",
+      "product": "Edg/150.0.4078.83",
+      "route": "local-direct",
+      "passed": true,
+      "evidence": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL\\.planning\\ui-reviews\\01-21-objective-evidence-20260722\\edge-150\\objective-evidence.json"
+    }
+  ],
+  "checks": {
+    "automatedGate": {
+      "sourceFiles": 16,
+      "tests": 136,
+      "passed": true
+    },
+    "browsersPassed": true,
+    "exactChrome150": true,
+    "exactEdge150": true,
+    "fourCompletedPngs": true,
+    "allPngsExactCenteredOpaque": true,
+    "allConsolesClean": true,
+    "allPathCounts57": true
+  },
+  "passed": true,
+  "checkpointSemantics": {
+    "summaryCreated": false,
+    "stateApproved": false,
+    "awaitingHumanApproval": true,
+    "resumeSignal": "approved"
+  },
+  "completedAt": "2026-07-22T07:10:24.714Z"
+}
