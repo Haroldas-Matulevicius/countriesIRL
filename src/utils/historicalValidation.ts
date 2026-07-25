@@ -141,6 +141,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function hasExactKeys(
+  value: unknown,
+  expectedKeys: ReadonlyArray<string>,
+): value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const actualKeys = Object.keys(value).sort();
+  const sortedExpectedKeys = [...expectedKeys].sort();
+  return (
+    actualKeys.length === sortedExpectedKeys.length &&
+    actualKeys.every((key, index) => key === sortedExpectedKeys[index])
+  );
+}
+
 function isBoundedString(value: unknown, maxLength = MAX_STRING_LENGTH): value is string {
   return (
     typeof value === 'string' &&
@@ -162,6 +177,10 @@ function isIsoDate(value: unknown): value is string {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
+function evidencePathCollisionKey(value: string): string {
+  return value.normalize('NFKC').toLowerCase();
+}
+
 function normalizeEvidencePath(value: unknown): string | null {
   if (
     typeof value !== 'string' ||
@@ -169,6 +188,7 @@ function normalizeEvidencePath(value: unknown): string | null {
     value.length > MAX_PATH_LENGTH ||
     value.includes('\\') ||
     value.includes('\0') ||
+    value !== value.normalize('NFC') ||
     value.startsWith('/') ||
     /^[A-Za-z]:/.test(value)
   ) {
@@ -203,7 +223,7 @@ function readUncertainties(value: unknown): ReadonlyArray<string> | null {
 }
 
 function readFileReference(value: unknown): HistoricalFileReference | null {
-  if (!isRecord(value)) {
+  if (!hasExactKeys(value, ['path', 'sha256'])) {
     return null;
   }
 
@@ -233,19 +253,24 @@ function readArchiveMembers(value: unknown): ReadonlyArray<EvidenceArchiveMember
   }
 
   const members: EvidenceArchiveMember[] = [];
+  const collisionKeys = new Set<string>();
   let previousPath = '';
   for (const candidate of value) {
     if (!isRecord(candidate)) {
       return null;
     }
     const path = normalizeEvidencePath(candidate.path);
+    const collisionKey = path === null ? null : evidencePathCollisionKey(path);
     if (
       path === null ||
+      collisionKey === null ||
+      collisionKeys.has(collisionKey) ||
       !isSha256(candidate.sha256) ||
       path <= previousPath
     ) {
       return null;
     }
+    collisionKeys.add(collisionKey);
     previousPath = path;
     members.push({ path, sha256: candidate.sha256 });
   }
@@ -253,7 +278,15 @@ function readArchiveMembers(value: unknown): ReadonlyArray<EvidenceArchiveMember
 }
 
 function readReviewer(value: unknown): ApprovalReviewer | null {
-  if (!isRecord(value)) {
+  if (
+    !hasExactKeys(value, [
+      'name',
+      'role',
+      'reviewedOn',
+      'isExecutor',
+      'isImplementer',
+    ])
+  ) {
     return null;
   }
 
@@ -296,7 +329,15 @@ function readSourceRegionalDecisions(
   const entries: Array<[HistoricalRegionId, SnapshotSourceApproval['regionalDecisions'][HistoricalRegionId]]> = [];
   for (const regionId of HISTORICAL_REGION_IDS) {
     const candidate = value[regionId];
-    if (!isRecord(candidate)) {
+    if (
+      !hasExactKeys(candidate, [
+        'regionId',
+        'disposition',
+        'rightsDisposition',
+        'attribution',
+        'uncertainties',
+      ])
+    ) {
       return null;
     }
     const uncertainties = readUncertainties(candidate.uncertainties);
@@ -338,7 +379,13 @@ function readFactualRegionalDecisions(
   const entries: Array<[HistoricalRegionId, SnapshotFactualApproval['regionalDecisions'][HistoricalRegionId]]> = [];
   for (const regionId of HISTORICAL_REGION_IDS) {
     const candidate = value[regionId];
-    if (!isRecord(candidate)) {
+    if (
+      !hasExactKeys(candidate, [
+        'regionId',
+        'disposition',
+        'uncertainties',
+      ])
+    ) {
       return null;
     }
     const uncertainties = readUncertainties(candidate.uncertainties);
@@ -394,15 +441,18 @@ export async function createCanonicalMemberInventory(
   }
 
   const members: EvidenceArchiveMember[] = [];
+  const collisionKeys = new Set<string>();
   let previousPath = '';
   for (const member of input) {
     const path = normalizeEvidencePath(member.path);
     if (path === null || !(member.bytes instanceof Uint8Array)) {
       return fail('invalid-archive-member');
     }
-    if (path <= previousPath) {
-      return fail('noncanonical-archive-member-order');
+    const collisionKey = evidencePathCollisionKey(path);
+    if (path <= previousPath || collisionKeys.has(collisionKey)) {
+      return fail('noncanonical-or-colliding-archive-member');
     }
+    collisionKeys.add(collisionKey);
     previousPath = path;
     members.push({ path, sha256: await calculateSha256(member.bytes) });
   }
@@ -420,7 +470,18 @@ export async function createCanonicalMemberInventory(
 export function validateSourceReadinessManifest(
   input: unknown,
 ): HistoricalValidationResult<HistoricalSourceReadinessManifest> {
-  if (!isRecord(input)) {
+  if (
+    !hasExactKeys(input, [
+      'snapshotId',
+      'asOf',
+      'readinessStatus',
+      'deliveryCounted',
+      'evidenceArchive',
+      'inputGeometry',
+      'preparation',
+      'regions',
+    ])
+  ) {
     return fail('invalid-source-manifest');
   }
 
@@ -440,6 +501,12 @@ export function validateSourceReadinessManifest(
   const archivePath = normalizeEvidencePath(input.evidenceArchive.path);
   const members = readArchiveMembers(input.evidenceArchive.members);
   if (
+    !hasExactKeys(input.evidenceArchive, [
+      'path',
+      'sha256',
+      'memberInventorySha256',
+      'members',
+    ]) ||
     archivePath === null ||
     !isSha256(input.evidenceArchive.sha256) ||
     !isSha256(input.evidenceArchive.memberInventorySha256) ||
@@ -453,7 +520,10 @@ export function validateSourceReadinessManifest(
   }
 
   let preparation: HistoricalSourcePreparation;
-  if (input.preparation.mode === 'vector-extraction') {
+  if (
+    hasExactKeys(input.preparation, ['mode', 'extractionSpecification']) &&
+    input.preparation.mode === 'vector-extraction'
+  ) {
     const extractionSpecification = readFileReference(
       input.preparation.extractionSpecification,
     );
@@ -461,7 +531,16 @@ export function validateSourceReadinessManifest(
       return fail('invalid-vector-extraction');
     }
     preparation = { mode: 'vector-extraction', extractionSpecification };
-  } else if (input.preparation.mode === 'manual-trace') {
+  } else if (
+    hasExactKeys(input.preparation, [
+      'mode',
+      'evidence',
+      'procedure',
+      'operatorRecord',
+      'controlPoints',
+    ]) &&
+    input.preparation.mode === 'manual-trace'
+  ) {
     const evidence = readFileReference(input.preparation.evidence);
     const procedure = readFileReference(input.preparation.procedure);
     const operatorRecord = readFileReference(input.preparation.operatorRecord);
@@ -495,7 +574,19 @@ export function validateSourceReadinessManifest(
   const regions: HistoricalRegionalSourceRecord[] = [];
   const seenRegions = new Set<HistoricalRegionId>();
   for (const candidate of input.regions) {
-    if (!isRecord(candidate)) {
+    if (
+      !hasExactKeys(candidate, [
+        'regionId',
+        'disposition',
+        'evidencePath',
+        'evidenceSha256',
+        'rightsDisposition',
+        'license',
+        'attribution',
+        'retrievedOn',
+        'uncertainties',
+      ])
+    ) {
       return fail('invalid-regional-source-record');
     }
     const regionId = readRegionId(candidate.regionId);
@@ -554,7 +645,19 @@ export function validateSourceReadinessManifest(
 }
 
 function readSourceApproval(input: unknown): HistoricalValidationResult<SnapshotSourceApproval> {
-  if (!isRecord(input)) {
+  if (
+    !hasExactKeys(input, [
+      'snapshotId',
+      'reviewer',
+      'regionalDecisions',
+      'sourceManifestSha256',
+      'evidenceArchiveSha256',
+      'memberInventorySha256',
+      'memberInventory',
+      'inputGeometrySha256',
+      'preparation',
+    ])
+  ) {
     return fail('invalid-source-approval');
   }
 
@@ -578,6 +681,10 @@ function readSourceApproval(input: unknown): HistoricalValidationResult<Snapshot
 
   let preparation: SnapshotSourceApproval['preparation'];
   if (
+    hasExactKeys(input.preparation, [
+      'mode',
+      'extractionSpecificationSha256',
+    ]) &&
     input.preparation.mode === 'vector-extraction' &&
     isSha256(input.preparation.extractionSpecificationSha256)
   ) {
@@ -587,6 +694,13 @@ function readSourceApproval(input: unknown): HistoricalValidationResult<Snapshot
         input.preparation.extractionSpecificationSha256,
     };
   } else if (
+    hasExactKeys(input.preparation, [
+      'mode',
+      'evidenceSha256',
+      'procedureSha256',
+      'operatorRecordSha256',
+      'controlPointSha256',
+    ]) &&
     input.preparation.mode === 'manual-trace' &&
     isSha256(input.preparation.evidenceSha256) &&
     isSha256(input.preparation.procedureSha256) &&
@@ -726,7 +840,19 @@ export async function validateSourceApproval(
 }
 
 function readFactualApproval(input: unknown): HistoricalValidationResult<SnapshotFactualApproval> {
-  if (!isRecord(input)) {
+  if (
+    !hasExactKeys(input, [
+      'snapshotId',
+      'reviewer',
+      'regionalDecisions',
+      'sourceApprovalSha256',
+      'sourceManifestSha256',
+      'inputGeometrySha256',
+      'outputOverlaySha256',
+      'reviewJsonSha256',
+      'reviewHtmlSha256',
+    ])
+  ) {
     return fail('invalid-factual-approval');
   }
 

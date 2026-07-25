@@ -272,6 +272,35 @@ describe('historical source readiness', (): void => {
     expect(validateSourceReadinessManifest(conditionalRegion).ok).toBe(false);
   });
 
+  it('rejects contradictory extra fields at every readiness boundary', async (): Promise<void> => {
+    const fixture = await createFixture();
+    const manifestExtra = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    manifestExtra.blockers = [];
+    const archiveExtra = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    (archiveExtra.evidenceArchive as Record<string, unknown>).candidateGenerated = false;
+    const preparationExtra = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    (preparationExtra.preparation as Record<string, unknown>).approvalStatus = 'pending';
+    const regionExtra = structuredClone(fixture.manifest) as unknown as Record<
+      string,
+      unknown
+    >;
+    (regionExtra.regions as Array<Record<string, unknown>>)[0].mergedWith = 'lithuania';
+
+    expect(validateSourceReadinessManifest(manifestExtra).ok).toBe(false);
+    expect(validateSourceReadinessManifest(archiveExtra).ok).toBe(false);
+    expect(validateSourceReadinessManifest(preparationExtra).ok).toBe(false);
+    expect(validateSourceReadinessManifest(regionExtra).ok).toBe(false);
+  });
+
   it('rejects missing rights, a missing region, and merged Poland/Lithuania coverage', async (): Promise<void> => {
     const fixture = await createFixture();
     const missingRights = structuredClone(fixture.manifest) as unknown as Record<
@@ -385,6 +414,23 @@ describe('durable source approval', (): void => {
     ).toBe(true);
   });
 
+  it('rejects contradictory extra source-approval fields', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    const approval = cloneRecord(fixture.sourceApproval);
+    approval.candidateGenerated = true;
+    const reviewerExtra = cloneRecord(fixture.sourceApproval);
+    reviewerExtra.reviewer = {
+      ...(reviewerExtra.reviewer as Record<string, unknown>),
+      approvalStatus: 'approved',
+    };
+    const decisionExtra = cloneRecord(fixture.sourceApproval);
+    getRegionalRecords(decisionExtra).poland.mergedWith = 'lithuania';
+
+    expect((await validateSourceApproval(approval, fixture.sourceContext)).ok).toBe(false);
+    expect((await validateSourceApproval(reviewerExtra, fixture.sourceContext)).ok).toBe(false);
+    expect((await validateSourceApproval(decisionExtra, fixture.sourceContext)).ok).toBe(false);
+  });
+
   it('accepts a valid vector source bundle with canonical current bytes', async (): Promise<void> => {
     const fixture = await createFixture('vector-extraction');
 
@@ -458,6 +504,31 @@ describe('durable factual approval', (): void => {
 
     expect((await validateFactualApproval(blocked, context)).ok).toBe(false);
     expect((await validateFactualApproval(selfApproved, context)).ok).toBe(false);
+  });
+
+  it('rejects contradictory extra factual-approval fields', async (): Promise<void> => {
+    const fixture = await createFixture();
+    const approval = cloneRecord(fixture.factualApproval);
+    approval.sourceRightsDecision = 'approved';
+    const reviewerExtra = cloneRecord(fixture.factualApproval);
+    reviewerExtra.reviewer = {
+      ...(reviewerExtra.reviewer as Record<string, unknown>),
+      approvalStatus: 'approved',
+    };
+    const decisionExtra = cloneRecord(fixture.factualApproval);
+    getRegionalRecords(decisionExtra).scandinavia.rightsDisposition = 'approved';
+    const context = {
+      sourceApprovalBytes: fixture.sourceApprovalBytes,
+      sourceManifestBytes: fixture.manifestBytes,
+      inputGeometryBytes: fixture.inputBytes,
+      outputOverlayBytes: fixture.outputBytes,
+      reviewJsonBytes: fixture.reviewJsonBytes,
+      reviewHtmlBytes: fixture.reviewHtmlBytes,
+    };
+
+    expect((await validateFactualApproval(approval, context)).ok).toBe(false);
+    expect((await validateFactualApproval(reviewerExtra, context)).ok).toBe(false);
+    expect((await validateFactualApproval(decisionExtra, context)).ok).toBe(false);
   });
 
   it('accepts a fully current source and factual approval bundle', async (): Promise<void> => {

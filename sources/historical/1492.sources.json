@@ -34,8 +34,8 @@
   },
   "evidenceArchive": {
     "path": "sources/historical/1492.evidence.zip",
-    "sha256": "c350c85b9473974aa2d76fc34f5770798e3adbb29a7860af1615513171b10bca",
-    "memberInventorySha256": "12a4994e5ffeff2d59b871c3597969dc12c049c75b61b87ce88f52f859fcdb69",
+    "sha256": "b4bfc5d8709fde58d7635a79cb80bd42574da04707b54de1887b84aac0f15911",
+    "memberInventorySha256": "b63b2cef3609d3108ebefc7f0d70b41c3b79fd809cbd3f2ec5c88c239fe618b1",
     "members": [
       {
         "path": "README.txt",
@@ -71,7 +71,7 @@
       },
       {
         "path": "reviews/1492-lithuania.json",
-        "sha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a"
+        "sha256": "94aba40e934b332216e4e3b9c4b3122ba544ad227371112472c55e8682fa61e3"
       },
       {
         "path": "reviews/1492-poland.json",
@@ -187,7 +187,7 @@
       },
       {
         "path": "reviews/1492-lithuania.json",
-        "sha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a"
+        "sha256": "94aba40e934b332216e4e3b9c4b3122ba544ad227371112472c55e8682fa61e3"
       },
       {
         "path": "reviews/1492-poland.json",
@@ -260,7 +260,7 @@
       "attribution": null,
       "retrievedOn": "2026-07-24",
       "evidencePath": "reviews/1492-lithuania.json",
-      "evidenceSha256": "248229e67ee976a3b083c836ee0dd93bc5031c6346201f3d64671f3b7b35d42a",
+      "evidenceSha256": "94aba40e934b332216e4e3b9c4b3122ba544ad227371112472c55e8682fa61e3",
       "entityIds": [
         "hist:grand-duchy-of-lithuania"
       ],

@@ -96,7 +96,7 @@ function createCentralHeader(member: ZipMember, localOffset: number): Buffer {
 
 export function createCanonicalZip(membersInput: ReadonlyArray<ZipMember>): Buffer {
   const members = [...membersInput].sort((left, right) =>
-    left.path.localeCompare(right.path),
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
   );
   const localParts: Buffer[] = [];
   const centralParts: Buffer[] = [];
@@ -176,9 +176,15 @@ export async function createHistoricalCliFixture(
     path: `evidence/${regionId}.txt`,
     bytes: Buffer.from(`${regionId} licensed source evidence\n`, 'utf8'),
   }));
+  const preparationBundle =
+    mode === 'vector-extraction'
+      ? createVectorPreparation()
+      : createManualPreparation();
+  const preparation = preparationBundle.preparation;
   const zipMembers = [
     ...regionMembers,
     { path: 'geometry/1700.input.geojson', bytes: inputBytes },
+    ...preparationBundle.members,
   ].sort((left, right) => left.path.localeCompare(right.path));
   const archiveBytes = createCanonicalZip(zipMembers);
   const memberInventory = zipMembers.map((member) => ({
@@ -200,10 +206,6 @@ export async function createHistoricalCliFixture(
   await writeFile(inputPath, inputBytes);
   await writeFile(archivePath, archiveBytes);
 
-  const preparation =
-    mode === 'vector-extraction'
-      ? await createVectorPreparation(sourceDir)
-      : await createManualPreparation(sourceDir);
   const manifest = {
     snapshotId: SNAPSHOT_ID,
     asOf: SNAPSHOT_AS_OF,
@@ -299,62 +301,57 @@ export async function createHistoricalCliFixture(
   };
 }
 
-async function createVectorPreparation(sourceDir: string): Promise<{
-  readonly mode: 'vector-extraction';
-  readonly extractionSpecification: { readonly path: string; readonly sha256: string };
-}> {
-  const path = join(sourceDir, '1700.extraction.json');
+function createVectorPreparation(): {
+  readonly preparation: {
+    readonly mode: 'vector-extraction';
+    readonly extractionSpecification: { readonly path: string; readonly sha256: string };
+  };
+  readonly members: ReadonlyArray<ZipMember>;
+} {
+  const path = 'preparation/1700.extraction.json';
   const bytes = Buffer.from(
     `${JSON.stringify({ version: 1, operation: 'copy-archive-member', memberPath: 'geometry/1700.input.geojson' })}\n`,
     'utf8',
   );
-  await writeFile(path, bytes);
   return {
-    mode: 'vector-extraction',
-    extractionSpecification: {
-      path: 'sources/historical/1700.extraction.json',
-      sha256: sha256(bytes),
+    preparation: {
+      mode: 'vector-extraction',
+      extractionSpecification: { path, sha256: sha256(bytes) },
     },
+    members: [{ path, bytes }],
   };
 }
 
-async function createManualPreparation(sourceDir: string): Promise<{
-  readonly mode: 'manual-trace';
-  readonly evidence: { readonly path: string; readonly sha256: string };
-  readonly procedure: { readonly path: string; readonly sha256: string };
-  readonly operatorRecord: { readonly path: string; readonly sha256: string };
-  readonly controlPoints: { readonly path: string; readonly sha256: string };
-}> {
-  async function writeReference(
-    fileName: string,
-    content: string,
-  ): Promise<{ readonly path: string; readonly sha256: string }> {
-    const bytes = Buffer.from(content, 'utf8');
-    await writeFile(join(sourceDir, fileName), bytes);
-    return {
-      path: `sources/historical/${fileName}`,
-      sha256: sha256(bytes),
-    };
-  }
-
-  const [evidence, procedure, operatorRecord, controlPoints] = await Promise.all([
-    writeReference('1700.trace-evidence.txt', 'licensed atlas trace evidence\n'),
-    writeReference('1700.trace-procedure.txt', 'manual trace procedure version 1\n'),
-    writeReference(
-      '1700.trace-operator.json',
-      '{"operator":"Independent Tracer"}\n',
-    ),
-    writeReference(
-      '1700.control-points.json',
-      '{"points":[[18,49],[25,55]]}\n',
-    ),
-  ]);
+function createManualPreparation(): {
+  readonly preparation: {
+    readonly mode: 'manual-trace';
+    readonly evidence: { readonly path: string; readonly sha256: string };
+    readonly procedure: { readonly path: string; readonly sha256: string };
+    readonly operatorRecord: { readonly path: string; readonly sha256: string };
+    readonly controlPoints: { readonly path: string; readonly sha256: string };
+  };
+  readonly members: ReadonlyArray<ZipMember>;
+} {
+  const members = [
+    { path: 'preparation/1700.trace-evidence.txt', bytes: Buffer.from('licensed atlas trace evidence\n', 'utf8') },
+    { path: 'preparation/1700.trace-procedure.txt', bytes: Buffer.from('manual trace procedure version 1\n', 'utf8') },
+    { path: 'preparation/1700.trace-operator.json', bytes: Buffer.from('{"operator":"Independent Tracer"}\n', 'utf8') },
+    { path: 'preparation/1700.control-points.json', bytes: Buffer.from('{"points":[[18,49],[25,55]]}\n', 'utf8') },
+  ] as const;
+  const reference = (path: string): { readonly path: string; readonly sha256: string } => {
+    const member = members.find((candidate) => candidate.path === path);
+    if (member === undefined) throw new Error(`Missing preparation member ${path}.`);
+    return { path, sha256: sha256(member.bytes) };
+  };
   return {
-    mode: 'manual-trace',
-    evidence,
-    procedure,
-    operatorRecord,
-    controlPoints,
+    preparation: {
+      mode: 'manual-trace',
+      evidence: reference('preparation/1700.trace-evidence.txt'),
+      procedure: reference('preparation/1700.trace-procedure.txt'),
+      operatorRecord: reference('preparation/1700.trace-operator.json'),
+      controlPoints: reference('preparation/1700.control-points.json'),
+    },
+    members,
   };
 }
 

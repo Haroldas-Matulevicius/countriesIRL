@@ -23,6 +23,10 @@ const CLIOPATRIA_ARCHIVE_SHA256 =
   'd01ae3a20d358cc5d54f69d9d725d390767d9c8759ac89ad6f90c58d106f3370';
 const CLIOPATRIA_DATA_SHA256 =
   '5df3b5868cfab8f76030853fa2346ed3cd71171ad807b6f72d783ee2dce6839e';
+const CLIOPATRIA_LICENSE_SHA256 =
+  '62ca7e92dee4ebe402372d5e64f87845de445a6c0e5d76fddb68b3e33739d1a6';
+const CLIOPATRIA_README_SHA256 =
+  '25a2723e607dd03b01cfa0c9e0ecc83ea3e4c227198bd77faee04c3646be46b8';
 const HARVARD_METADATA_SHA256 =
   '4d9d545a93223b5394cfc026aac95d858701858228121d4b3bb266024e527143';
 const REGION_IDS = Object.freeze([
@@ -86,6 +90,27 @@ function parseArguments(args) {
   return options;
 }
 
+function pathCollisionKey(value) {
+  return value.normalize('NFKC').toLowerCase();
+}
+
+function assertCanonicalMemberPaths(members) {
+  const collisionKeys = new Set();
+  let previousPath = '';
+  for (const member of members) {
+    if (
+      typeof member.path !== 'string' ||
+      member.path !== member.path.normalize('NFC') ||
+      member.path <= previousPath ||
+      collisionKeys.has(pathCollisionKey(member.path))
+    ) {
+      throw new Error(`Evidence member path is noncanonical or colliding: ${String(member.path)}`);
+    }
+    collisionKeys.add(pathCollisionKey(member.path));
+    previousPath = member.path;
+  }
+}
+
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
@@ -147,6 +172,7 @@ function createCentralHeader(member, localOffset) {
 
 function createCanonicalZip(membersInput) {
   const members = [...membersInput].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0);
+  assertCanonicalMemberPaths(members);
   const localParts = [];
   const centralParts = [];
   let localOffset = 0;
@@ -188,8 +214,11 @@ function canonicalJsonBytes(value) {
 }
 
 function addMember(members, path, bytes) {
-  if (members.some((member) => member.path === path)) {
-    throw new Error(`Duplicate evidence member: ${path}`);
+  if (
+    path !== path.normalize('NFC') ||
+    members.some((member) => pathCollisionKey(member.path) === pathCollisionKey(path))
+  ) {
+    throw new Error(`Duplicate or colliding evidence member: ${path}`);
   }
   members.push({ path, bytes: Buffer.from(bytes) });
 }
@@ -223,8 +252,16 @@ async function loadCliopatria(evidenceRoot) {
     archiveByteLength: archiveBytes.length,
     dataByteLength: dataBytes.length,
     features: data.features,
-    licenseBytes: await readFile(licensePath),
-    readmeBytes: await readFile(readmePath),
+    licenseBytes: await readVerified(
+      licensePath,
+      CLIOPATRIA_LICENSE_SHA256,
+      'Cliopatria license',
+    ),
+    readmeBytes: await readVerified(
+      readmePath,
+      CLIOPATRIA_README_SHA256,
+      'Cliopatria README',
+    ),
   };
 }
 
@@ -331,7 +368,7 @@ function reviewRecord(snapshotId, regionId) {
         unionContext: 'Jagiellonian personal union only; no merged geometry.',
         sourceFeatureIds: [],
         reconstructionRule:
-          '1494 Lithuanian geometry plus only territory explicitly marked lost in 1494; exclude 1503 and 1522 loss regions.',
+          '1494 Lithuanian geometry plus only territory explicitly marked lost in 1494; exclude territories marked only as losses in 1503 or 1522.',
         blockers: [
           'AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING',
           'ITEM_SPECIFIC_PRODUCTION_RIGHTS_REVIEW_REQUIRED',

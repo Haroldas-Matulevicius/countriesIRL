@@ -1,6 +1,15 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
 import process from 'node:process';
@@ -172,6 +181,20 @@ function candidateSourceArguments(
   ];
 }
 
+function replaceArgumentValue(
+  argumentsInput: ReadonlyArray<string>,
+  flag: string,
+  value: string,
+): ReadonlyArray<string> {
+  const result = [...argumentsInput];
+  const index = result.indexOf(flag);
+  if (index < 0 || index + 1 >= result.length) {
+    throw new Error(`Missing CLI fixture flag ${flag}.`);
+  }
+  result[index + 1] = value;
+  return result;
+}
+
 function generationArguments(fixture: HistoricalCliFixture): ReadonlyArray<string> {
   return [
     ...sourceArguments(fixture),
@@ -209,31 +232,34 @@ function jsonBuffer(value: unknown): Buffer {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function reviewerRecordFromRegion(
-  snapshotId: '1492' | '1700',
-  region: Record<string, unknown>,
-): Record<string, unknown> {
-  return {
-    snapshotId,
-    regionId: region.regionId,
-    packetStatus: 'candidate-blocked',
-    rightsDisposition: null,
-    factualDisposition: null,
-    topologyDisposition: null,
-    reviewer: null,
-    approvals: {
-      sourceRights: null,
-      factual: null,
-      topology: null,
-      reviewerSignature: null,
-      productionReadiness: null,
-    },
-    disposition: region.disposition,
-    entityIds: region.entityIds,
-    colorOwnerIds: region.colorOwnerIds,
-    sourceFeatureIds: region.sourceFeatureIds,
-    blockers: region.uncertainties,
-  };
+function readUint16Le(bytes: Uint8Array, offset: number): number {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function readStoredZipMembers(archiveBytes: Buffer): Array<{ path: string; bytes: Buffer }> {
+  const members: Array<{ path: string; bytes: Buffer }> = [];
+  let cursor = 0;
+  while (archiveBytes.readUInt32LE(cursor) === 0x04034b50) {
+    const method = readUint16Le(archiveBytes, cursor + 8);
+    const compressedSize = archiveBytes.readUInt32LE(cursor + 18);
+    const nameLength = readUint16Le(archiveBytes, cursor + 26);
+    const extraLength = readUint16Le(archiveBytes, cursor + 28);
+    const nameStart = cursor + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    if (method !== 0 || dataEnd > archiveBytes.length) {
+      throw new Error('Candidate packet fixture requires a valid stored canonical ZIP.');
+    }
+    members.push({
+      path: archiveBytes.subarray(nameStart, nameStart + nameLength).toString('utf8'),
+      bytes: Buffer.from(archiveBytes.subarray(dataStart, dataEnd)),
+    });
+    cursor = dataEnd;
+  }
+  if (archiveBytes.readUInt32LE(cursor) !== 0x02014b50) {
+    throw new Error('Candidate packet fixture ZIP central directory is missing.');
+  }
+  return members;
 }
 
 async function refreshCandidatePacket(
@@ -254,7 +280,10 @@ async function refreshCandidatePacket(
   evidenceArchive.members = inventory;
   const reviewerPacket = manifest.reviewerPacket as Record<string, unknown>;
   reviewerPacket.artifacts = inventory.filter(
-    ({ path }) => path.startsWith('reviews/') || path.startsWith('specifications/'),
+    ({ path }) =>
+      path.startsWith('reviews/') ||
+      path.startsWith('source-locks/') ||
+      path.startsWith('specifications/'),
   );
   const regions = manifest.regions as Array<Record<string, unknown>>;
   for (const region of regions) {
@@ -298,9 +327,10 @@ async function createCandidatePacketFixture(
   const manifest = await readJsonRecord(
     resolve(repositoryRoot, `sources/historical/${snapshotId}.sources.json`),
   );
-  const inputBytes = await readFile(
-    resolve(repositoryRoot, `sources/historical/${snapshotId}.input.geojson`),
-  );
+  const [inputBytes, archiveBytes] = await Promise.all([
+    readFile(resolve(repositoryRoot, `sources/historical/${snapshotId}.input.geojson`)),
+    readFile(resolve(repositoryRoot, `sources/historical/${snapshotId}.evidence.zip`)),
+  ]);
   const fixture: CandidatePacketFixture = {
     rootDir,
     snapshotId,
@@ -309,30 +339,7 @@ async function createCandidatePacketFixture(
     inputPath: resolve(sourceDir, `${snapshotId}.input.geojson`),
     members: [],
   };
-  const regions = manifest.regions as Array<Record<string, unknown>>;
-  fixture.members = regions.map((region) => ({
-    path: `reviews/${snapshotId}-${String(region.regionId)}.json`,
-    bytes: jsonBuffer(reviewerRecordFromRegion(snapshotId, region)),
-  }));
-  if (snapshotId === '1492') {
-    const evidenceBytes = Buffer.from('fixture Semkowicz-Romer image bytes', 'utf8');
-    fixture.members.push({
-      path: 'sources/semkowicz-romer-1929-current-hosted-scan.jpg',
-      bytes: evidenceBytes,
-    });
-    fixture.members.push({
-      path: 'specifications/1492-manual-trace-candidate.json',
-      bytes: jsonBuffer({
-        version: 1,
-        mode: 'manual-trace-candidate-only',
-        sourceImageSha256: sha256(evidenceBytes),
-        operatorRecordSha256: null,
-        controlPointsSha256: null,
-        tracedGeoJsonSha256: null,
-        approvalStatus: 'pending',
-      }),
-    });
-  }
+  fixture.members = readStoredZipMembers(archiveBytes);
   const inputGeometry = manifest.inputGeometry as Record<string, unknown>;
   inputGeometry.path = `sources/historical/${snapshotId}.input.geojson`;
   inputGeometry.sha256 = sha256(inputBytes);
@@ -393,42 +400,23 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
   );
 
   it('validates blocked packet hashes without treating the snapshot as delivered', async (): Promise<void> => {
-    const fixture = await createFixture('vector-extraction');
-    const manifest = await readJsonRecord(fixture.sourcesPath);
-    manifest.readinessStatus = 'blocked';
-    manifest.deliveryCounted = false;
-    manifest.blockers = [
-      'RIGHTS_REVIEW_REQUIRED',
-      'SOURCE_GEOMETRY_MISSING',
-    ];
-    manifest.preparation = {
-      mode: 'blocked',
-      reason: 'Independent rights and factual review remain incomplete.',
-    };
-    const regions = manifest.regions as Array<Record<string, unknown>>;
-    regions.forEach((region, index): void => {
-      region.disposition = index === 0 ? 'blocked' : 'conditional';
-      region.rightsDisposition = 'review-required';
-      region.attribution = null;
-    });
-    await writeJsonRecord(fixture.sourcesPath, manifest);
+    const fixture = await createCandidatePacketFixture('1700');
 
-    const blocked = await runCli(fixture, [
-      ...sourceArguments(fixture),
-      '--validate-sources',
-    ]);
+    const blocked = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
 
     expect(blocked.status).not.toBe(0);
-    expect(blocked.stdout).toContain('blocked source packet hashes passed offline');
+    expect(blocked.stdout).toContain('BLOCKED packet integrity verified offline');
     expect(blocked.stderr).toContain('source readiness remains blocked');
     expect(blocked.stderr).toContain('RIGHTS_REVIEW_REQUIRED');
-    expect(await fileExists(fixture.outputPath)).toBe(false);
 
     await writeFile(fixture.inputPath, 'changed blocked input\n', 'utf8');
-    const drifted = await runCli(fixture, [
-      ...sourceArguments(fixture),
-      '--validate-sources',
-    ]);
+    const drifted = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
     expect(drifted.status).not.toBe(0);
     expect(drifted.stderr).toContain('Input geometry SHA-256 drifted');
   });
@@ -493,7 +481,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     const byRegion = new Map(regions.map((region) => [region.regionId, region]));
 
     expect(result.status).not.toBe(0);
-    expect(result.stdout).toContain('1492 blocked source packet hashes passed offline');
+    expect(result.stdout).toContain('1492 BLOCKED packet integrity verified offline');
     expect(result.stderr).toContain('AUTHORITATIVE_SEMKOWICZ_ROMER_SCAN_AND_CATALOG_MISSING');
     expect(result.stderr).toContain('CNIG_15094_PRODUCT_ARCHIVE_AND_MEMBER_HASHES_MISSING');
     expect(manifest.snapshotPass).toBe(false);
@@ -557,7 +545,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     const memberPaths = members.map(({ path }) => path);
 
     expect(result.status).not.toBe(0);
-    expect(result.stdout).toContain('1700 blocked source packet hashes passed offline');
+    expect(result.stdout).toContain('1700 BLOCKED packet integrity verified offline');
     expect(result.stderr).toContain('KARLOWITZ_FRONTIER_DEMARCATION_INCOMPLETE');
     expect(manifest.snapshotPass).toBe(false);
     expect(manifest.productionReady).toBe(false);
@@ -821,6 +809,227 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
     expect(await fileExists(fixture.outputPath)).toBe(false);
   });
 
+  it('rejects every generation alias before source, evidence, approval, or output mutation', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    await mkdir(resolve(fixture.rootDir, 'evidence'), { recursive: true });
+    const protectedPaths = [
+      fixture.sourcesPath,
+      fixture.archivePath,
+      fixture.inputPath,
+      fixture.sourceApprovalPath,
+    ];
+    const protectedHashes = await Promise.all(
+      protectedPaths.map((path) => readFile(path).then(sha256)),
+    );
+    const cases: ReadonlyArray<{
+      readonly flag: string;
+      readonly value: string;
+      readonly label: string;
+    }> = [
+      { flag: '--output', value: fixturePath(fixture, fixture.sourcesPath), label: 'source manifest' },
+      { flag: '--output', value: fixturePath(fixture, fixture.archivePath), label: 'evidence ZIP' },
+      { flag: '--output', value: fixturePath(fixture, fixture.inputPath), label: 'input' },
+      { flag: '--output', value: fixturePath(fixture, fixture.sourceApprovalPath), label: 'approval' },
+      { flag: '--output', value: fixturePath(fixture, fixture.reviewOutputPath), label: 'review' },
+      { flag: '--review-output', value: fixturePath(fixture, fixture.reviewHtmlPath), label: 'output' },
+      { flag: '--output', value: 'evidence/poland.txt', label: 'packet member' },
+    ];
+
+    for (const aliasCase of cases) {
+      const result = await runCli(
+        fixture,
+        replaceArgumentValue(
+          generationArguments(fixture),
+          aliasCase.flag,
+          aliasCase.value,
+        ),
+      );
+      expect(result.status, aliasCase.label).not.toBe(0);
+      expect(result.stdout, aliasCase.label).not.toContain('candidate generated');
+      expect(result.stderr, aliasCase.label).toMatch(/alias/i);
+      expect(
+        await Promise.all(protectedPaths.map((path) => readFile(path).then(sha256))),
+        aliasCase.label,
+      ).toEqual(protectedHashes);
+    }
+    expect(await fileExists(fixture.outputPath)).toBe(false);
+    expect(await fileExists(fixture.reviewOutputPath)).toBe(false);
+    expect(await fileExists(fixture.reviewHtmlPath)).toBe(false);
+  });
+
+  it('rejects hard-link and junction aliases before generation', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    const hardLinkPath = resolve(dirname(fixture.outputPath), 'source-hard-link.json');
+    await link(fixture.sourcesPath, hardLinkPath);
+    const hardLinkResult = await runCli(
+      fixture,
+      replaceArgumentValue(
+        generationArguments(fixture),
+        '--output',
+        fixturePath(fixture, hardLinkPath),
+      ),
+    );
+    expect(hardLinkResult.status).not.toBe(0);
+    expect(hardLinkResult.stderr).toContain('identityKey');
+
+    const junctionPath = resolve(fixture.rootDir, 'review-junction');
+    await symlink(dirname(fixture.outputPath), junctionPath, 'junction');
+    const junctionOutputPath = resolve(junctionPath, 'junction-output.geojson');
+    const junctionResult = await runCli(
+      fixture,
+      replaceArgumentValue(
+        generationArguments(fixture),
+        '--output',
+        fixturePath(fixture, junctionOutputPath),
+      ),
+    );
+    expect(junctionResult.status).not.toBe(0);
+    expect(junctionResult.stderr).toMatch(/symbolic-link|junction/i);
+    expect(await fileExists(fixture.outputPath)).toBe(false);
+  });
+
+  it('leaves all existing outputs unchanged when generation preflight fails', async (): Promise<void> => {
+    const fixture = await createFixture('vector-extraction');
+    const sentinelBytes = [
+      Buffer.from('existing candidate\n', 'utf8'),
+      Buffer.from('existing review JSON\n', 'utf8'),
+      Buffer.from('existing review HTML\n', 'utf8'),
+    ];
+    await Promise.all([
+      writeFile(fixture.outputPath, sentinelBytes[0]),
+      writeFile(fixture.reviewOutputPath, sentinelBytes[1]),
+      writeFile(fixture.reviewHtmlPath, sentinelBytes[2]),
+    ]);
+    const invalidReviewPath = resolve(
+      fixture.rootDir,
+      'missing-parent',
+      'review.html',
+    );
+
+    const result = await runCli(
+      fixture,
+      replaceArgumentValue(
+        generationArguments(fixture),
+        '--review-html',
+        fixturePath(fixture, invalidReviewPath),
+      ),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(await Promise.all([
+      readFile(fixture.outputPath),
+      readFile(fixture.reviewOutputPath),
+      readFile(fixture.reviewHtmlPath),
+    ])).toEqual(sentinelBytes);
+  });
+
+  it('enforces exact candidate packet fields and blocked-input blocker binding', async (): Promise<void> => {
+    const candidateGeneratedFixture = await createCandidatePacketFixture('1700');
+    const candidateGeneratedManifest = await readJsonRecord(
+      candidateGeneratedFixture.sourcesPath,
+    );
+    const inputGeometry = candidateGeneratedManifest.inputGeometry as Record<string, unknown>;
+    inputGeometry.candidateGenerated = true;
+    await writeJsonRecord(
+      candidateGeneratedFixture.sourcesPath,
+      candidateGeneratedManifest,
+    );
+    const candidateGenerated = await runCliInDirectory(
+      candidateGeneratedFixture.rootDir,
+      candidateSourceArguments(candidateGeneratedFixture),
+    );
+    expect(candidateGenerated.status).not.toBe(0);
+    expect(candidateGenerated.stderr).toContain('candidateGenerated exactly false');
+
+    const hashRuleFixture = await createCandidatePacketFixture('1700');
+    const hashRuleManifest = await readJsonRecord(hashRuleFixture.sourcesPath);
+    const reviewerPacket = hashRuleManifest.reviewerPacket as Record<string, unknown>;
+    reviewerPacket.hashInvalidationRule = 'Approvals probably remain valid.';
+    await writeJsonRecord(hashRuleFixture.sourcesPath, hashRuleManifest);
+    const hashRule = await runCliInDirectory(
+      hashRuleFixture.rootDir,
+      candidateSourceArguments(hashRuleFixture),
+    );
+    expect(hashRule.status).not.toBe(0);
+    expect(hashRule.stderr).toContain('hash-bound, blocked, and unapproved');
+
+    const blockerFixture = await createCandidatePacketFixture('1700');
+    const blockerManifest = await readJsonRecord(blockerFixture.sourcesPath);
+    const blockedInput = await readJsonRecord(blockerFixture.inputPath);
+    const inputBlockers = blockedInput.blockers as string[];
+    blockedInput.blockers = [...inputBlockers].reverse();
+    await writeJsonRecord(blockerFixture.inputPath, blockedInput);
+    const blockerInputGeometry = blockerManifest.inputGeometry as Record<string, unknown>;
+    blockerInputGeometry.sha256 = sha256(await readFile(blockerFixture.inputPath));
+    await writeJsonRecord(blockerFixture.sourcesPath, blockerManifest);
+    const blockerResult = await runCliInDirectory(
+      blockerFixture.rootDir,
+      candidateSourceArguments(blockerFixture),
+    );
+    expect(blockerResult.status).not.toBe(0);
+    expect(blockerResult.stderr).toContain('blocker list');
+
+    const extraFieldFixture = await createCandidatePacketFixture('1700');
+    const extraFieldManifest = await readJsonRecord(extraFieldFixture.sourcesPath);
+    extraFieldManifest.contradictoryApproval = true;
+    await writeJsonRecord(extraFieldFixture.sourcesPath, extraFieldManifest);
+    const extraField = await runCliInDirectory(
+      extraFieldFixture.rootDir,
+      candidateSourceArguments(extraFieldFixture),
+    );
+    expect(extraField.status).not.toBe(0);
+    expect(extraField.stderr).toContain('hash-bound, blocked, and unapproved');
+  });
+
+  it('authenticates each selected Harvard payload against the fixed inventory digest', async (): Promise<void> => {
+    const fixture = await createCandidatePacketFixture('1700');
+    const selected = fixture.members.find(
+      ({ path }) => path === 'comparison/harvard-data-gdb/a00000021.gdbtable',
+    );
+    if (selected === undefined) throw new Error('Missing selected Harvard payload fixture.');
+    selected.bytes = Buffer.from('hash-updated but inventory-unauthenticated payload', 'utf8');
+    const manifest = await readJsonRecord(fixture.sourcesPath);
+    await refreshCandidatePacket(fixture, manifest);
+
+    const result = await runCliInDirectory(
+      fixture.rootDir,
+      candidateSourceArguments(fixture),
+    );
+
+    expect(result.status).not.toBe(0);
+    expect(result.stdout).not.toContain('integrity verified offline');
+    expect(result.stderr).toContain('Harvard selected payload digest drifted');
+  });
+
+  it('rejects contradictory extra fields in source and factual approvals', async (): Promise<void> => {
+    const fixture = await createFixture('manual-trace');
+    const sourceApproval = await readJsonRecord(fixture.sourceApprovalPath);
+    sourceApproval.candidateGenerated = true;
+    await writeJsonRecord(fixture.sourceApprovalPath, sourceApproval);
+    const sourceResult = await runCli(fixture, generationArguments(fixture));
+    expect(sourceResult.status).not.toBe(0);
+    expect(sourceResult.stderr).toContain('Source approval snapshot ID or schema is invalid');
+    expect(await fileExists(fixture.outputPath)).toBe(false);
+
+    const restored = await createHistoricalCliFixture(
+      fixture.rootDir,
+      'manual-trace',
+    );
+    expect((await runCli(restored, generationArguments(restored))).status).toBe(0);
+    await writeFixtureFactualApproval(restored);
+    const factualApproval = await readJsonRecord(restored.factualApprovalPath);
+    factualApproval.sourceRightsDecision = 'approved';
+    await writeJsonRecord(restored.factualApprovalPath, factualApproval);
+    const factualResult = await runCli(restored, [
+      ...generationArguments(restored),
+      '--approval',
+      fixturePath(restored, restored.factualApprovalPath),
+      '--check',
+    ]);
+    expect(factualResult.status).not.toBe(0);
+    expect(factualResult.stderr).toContain('Factual approval snapshot ID or schema is invalid');
+  });
+
   it.each(['vector-extraction', 'manual-trace'] as const)(
     'generates deterministic candidate and review bytes for %s',
     async (mode): Promise<void> => {
@@ -872,7 +1081,7 @@ describe('prepareHistoricalSnapshot CLI', (): void => {
 
     const valid = await runCli(fixture, checkArguments);
     const after = await Promise.all(trackedPaths.map((path) => readFile(path).then(sha256)));
-    expect(valid.status).toBe(0);
+    expect(valid.status, valid.stderr).toBe(0);
     expect(valid.stdout).toContain('exact offline check passed');
     expect(after).toEqual(before);
 
