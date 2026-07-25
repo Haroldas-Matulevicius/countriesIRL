@@ -717,15 +717,25 @@ export default function App(): JSX.Element {
       />
     </div>
   );
+  // UI-SPEC 7.1: on desktop the inspector is one scrolling shell (a
+  // `complementary` landmark), not a stack of cards. It is a keyed sibling of
+  // the keyed map, so switching layouts moves both nodes instead of remounting
+  // the map - the camera keeps exactly one owner across the 1200px transition.
+  const inspectorShell = (
+    <aside
+      key="inspector"
+      className="workspace__control-column"
+      aria-label="Map inspector"
+    >
+      {actionControls}
+      {selectionAndColorControls}
+      {legendControls}
+      {countryList}
+    </aside>
+  );
   const workspaceSections =
     layout === 'desktop'
-      ? [
-          mapWorkspace,
-          actionControls,
-          selectionAndColorControls,
-          legendControls,
-          countryList,
-        ]
+      ? [mapWorkspace, inspectorShell]
       : [
           actionControls,
           mapWorkspace,

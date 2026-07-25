@@ -145,6 +145,60 @@ async function readWorldPointAtClient(
   );
 }
 
+/**
+ * Desktop keeps the map first and wraps the four inspector sections in the
+ * single scrolling `complementary` shell (UI-SPEC 7.1); compact flattens the
+ * shell and puts the actions first.
+ */
+async function readWorkspaceOrder(page: Page): Promise<string[]> {
+  return page
+    .locator('main.workspace > *')
+    .evaluateAll((elements): string[] =>
+      elements.map((element): string => element.className),
+    );
+}
+
+async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
+  expect(await readWorkspaceOrder(page)).toEqual([
+    'workspace__map',
+    'workspace__control-column',
+  ]);
+  const inspector = page.getByRole('complementary', { name: 'Map inspector' });
+  await expect(inspector).toHaveCount(1);
+  expect(
+    await inspector
+      .locator('> *')
+      .evaluateAll((elements): string[] =>
+        elements.map((element): string => element.className),
+      ),
+  ).toEqual([
+    'workspace__actions',
+    'workspace__selection-color',
+    'workspace__legend',
+    'workspace__country-list',
+  ]);
+  expect(
+    await inspector.evaluate((element): string =>
+      globalThis.getComputedStyle(element).overscrollBehaviorY,
+    ),
+  ).toBe('contain');
+  await expect(page.locator('svg.map-canvas')).toHaveCount(1);
+}
+
+async function expectCompactWorkspaceOrder(page: Page): Promise<void> {
+  expect(await readWorkspaceOrder(page)).toEqual([
+    'workspace__actions',
+    'workspace__map',
+    'workspace__selection-color',
+    'workspace__country-list',
+    'workspace__legend',
+  ]);
+  await expect(
+    page.getByRole('complementary', { name: 'Map inspector' }),
+  ).toHaveCount(0);
+  await expect(page.locator('svg.map-canvas')).toHaveCount(1);
+}
+
 function createHistoricalBrowserFixture(): {
   readonly assetBody: string;
   readonly manifest: Record<string, unknown>;
@@ -516,18 +570,7 @@ test('real app saves and loads the complete composition after responsive rebindi
   await page.locator('svg.map-canvas').evaluate((svg): void => {
     svg.setAttribute('data-camera-owner-sentinel', 'stable-owner');
   });
-  await expect(
-    page.locator('main > .workspace__map, main > .workspace__actions'),
-  ).toHaveCount(2);
-  expect(
-    await page
-      .locator('main > .workspace__map, main > .workspace__actions')
-      .evaluateAll((elements): string[] =>
-        elements.map((element): string =>
-          element.classList.contains('workspace__map') ? 'map' : 'actions',
-        ),
-      ),
-  ).toEqual(['map', 'actions']);
+  await expectDesktopWorkspaceShell(page);
 
   const francePath = page.locator(
     'path.country-path[data-country-id="FRA"]',
@@ -624,15 +667,7 @@ test('real app saves and loads the complete composition after responsive rebindi
     'stable-owner',
   );
   await expect(francePath).toBeFocused();
-  expect(
-    await page
-      .locator('main > .workspace__map, main > .workspace__actions')
-      .evaluateAll((elements): string[] =>
-        elements.map((element): string =>
-          element.classList.contains('workspace__map') ? 'map' : 'actions',
-        ),
-      ),
-  ).toEqual(['actions', 'map']);
+  await expectCompactWorkspaceOrder(page);
   await page.setViewportSize({ width: 1300, height: 900 });
   await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
     /workspace--desktop/,
@@ -642,15 +677,7 @@ test('real app saves and loads the complete composition after responsive rebindi
     'stable-owner',
   );
   await expect(francePath).toBeFocused();
-  expect(
-    await page
-      .locator('main > .workspace__map, main > .workspace__actions')
-      .evaluateAll((elements): string[] =>
-        elements.map((element): string =>
-          element.classList.contains('workspace__map') ? 'map' : 'actions',
-        ),
-      ),
-  ).toEqual(['map', 'actions']);
+  await expectDesktopWorkspaceShell(page);
 
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Integrated view' }).click();
