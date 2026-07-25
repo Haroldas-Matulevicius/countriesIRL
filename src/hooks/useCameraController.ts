@@ -52,7 +52,7 @@ export interface CameraController {
   zoomBy(factor: number): void;
   pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
-  locate(countryId: CountryId): void;
+  locate(countryId: CountryId): boolean;
   restore(camera: CameraState): boolean;
   onGestureFrame(transform: ZoomTransform): void;
   onGestureEnd(transform: ZoomTransform): void;
@@ -66,7 +66,7 @@ export type CameraControllerFactory = (
 interface UseCameraControllerOptions {
   readonly svgRef: React.RefObject<SVGSVGElement | null>;
   readonly cameraLayerRef: React.RefObject<SVGGElement | null>;
-  readonly features: ReadonlyArray<GeoFeature>;
+  readonly locateFeatures: ReadonlyArray<GeoFeature>;
   readonly onCameraCommit?: (camera: CameraState) => void;
   readonly controllerFactory?: CameraControllerFactory;
 }
@@ -188,13 +188,13 @@ export function createCameraController(
         (): void => controller.onGestureEnd(driver.readPaintedTransform()),
       );
     },
-    locate: (countryId): void => {
+    locate: (countryId): boolean => {
       if (isLocked()) {
-        return;
+        return false;
       }
       const feature = driver.getFeature(countryId);
       if (feature === undefined) {
-        return;
+        return false;
       }
       driver.interrupt();
       driver.transitionTo(
@@ -202,6 +202,7 @@ export function createCameraController(
         controller.onGestureFrame,
         (): void => controller.onGestureEnd(driver.readPaintedTransform()),
       );
+      return true;
     },
     restore: (camera): boolean => {
       if (isLocked()) {
@@ -248,7 +249,7 @@ function createInactiveController(): CameraController {
     zoomBy: (): void => undefined,
     pan: (): void => undefined,
     resetView: (): void => undefined,
-    locate: (): void => undefined,
+    locate: (): boolean => false,
     restore: (): boolean => false,
     onGestureFrame: (): void => undefined,
     onGestureEnd: (): void => undefined,
@@ -259,18 +260,18 @@ function createInactiveController(): CameraController {
 export function useCameraController({
   svgRef,
   cameraLayerRef,
-  features,
+  locateFeatures,
   onCameraCommit,
   controllerFactory = createCameraController,
 }: UseCameraControllerOptions): CameraController {
   const controllerRef = useRef<CameraController | null>(null);
-  const featuresRef = useRef(features);
+  const locateFeaturesRef = useRef(locateFeatures);
   const commitRef = useRef(onCameraCommit);
 
   useLayoutEffect((): void => {
-    featuresRef.current = features;
+    locateFeaturesRef.current = locateFeatures;
     commitRef.current = onCameraCommit;
-  }, [features, onCameraCommit]);
+  }, [locateFeatures, onCameraCommit]);
 
   useLayoutEffect((): (() => void) | undefined => {
     const svgElement = svgRef.current;
@@ -335,6 +336,7 @@ export function useCameraController({
       paintTransform: (transform): void => {
         paintedTransform = constrainCameraTransform(transform);
         cameraLayer.attr('transform', paintedTransform.toString());
+        svgSelection.property('__zoom', paintedTransform);
       },
       setInputEnabled: (isEnabled): void => {
         isInputEnabled = isEnabled;
@@ -363,7 +365,7 @@ export function useCameraController({
           .call(zoomBehavior.transform, constrainCameraTransform(target));
       },
       getFeature: (countryId): GeoFeature | undefined =>
-        featuresRef.current.find(
+        locateFeaturesRef.current.find(
           (feature): boolean =>
             feature.id === countryId ||
             ('entityId' in feature && feature.entityId === countryId),
@@ -403,7 +405,8 @@ export function useCameraController({
       pan: (direction, viewportFraction): void =>
         controllerRef.current?.pan(direction, viewportFraction),
       resetView: (): void => controllerRef.current?.resetView(),
-      locate: (countryId): void => controllerRef.current?.locate(countryId),
+      locate: (countryId): boolean =>
+        controllerRef.current?.locate(countryId) ?? false,
       restore: (camera): boolean =>
         controllerRef.current?.restore(camera) ?? false,
       onGestureFrame: (transform): void =>

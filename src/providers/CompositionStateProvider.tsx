@@ -95,7 +95,8 @@ export type CompositionAction =
       payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
     }
   | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
-  | { type: 'MARK_SAVED'; payload?: { composition: Composition } };
+  | { type: 'MARK_SAVED'; payload?: { composition: Composition } }
+  | { type: 'RESTORE_STATE'; payload: { state: CompositionState } };
 
 export interface CompositionStateContextValue {
   state: CompositionState;
@@ -112,6 +113,7 @@ export interface CompositionStateContextValue {
   ) => void;
   loadComposition: (composition: Composition) => void;
   markSaved: (composition?: Composition) => void;
+  restoreState: (state: CompositionState) => void;
 }
 
 export const CompositionStateContext = createContext<
@@ -506,6 +508,9 @@ export function compositionStateReducer(
             savedBaseline: composition,
           };
     }
+
+    case 'RESTORE_STATE':
+      return action.payload.state;
   }
 }
 
@@ -570,6 +575,10 @@ export function CompositionStateProvider({
     );
   }, []);
 
+  const restoreState = useCallback((state: CompositionState): void => {
+    dispatch({ type: 'RESTORE_STATE', payload: { state } });
+  }, []);
+
   const isDirty = isCompositionStateDirty(state);
 
   const value = useMemo<CompositionStateContextValue>(
@@ -586,6 +595,7 @@ export function CompositionStateProvider({
       setBackgroundColor,
       loadComposition,
       markSaved,
+      restoreState,
     }),
     [
       state,
@@ -600,6 +610,7 @@ export function CompositionStateProvider({
       setBackgroundColor,
       loadComposition,
       markSaved,
+      restoreState,
     ],
   );
 

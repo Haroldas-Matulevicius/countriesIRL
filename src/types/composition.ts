@@ -34,7 +34,7 @@ export interface MapCanvasHandle {
   zoomBy(factor: number): void;
   pan(direction: CameraPanDirection, viewportFraction: number): void;
   resetView(): void;
-  locate(countryId: CountryId): void;
+  locate(countryId: CountryId): boolean;
   restore(camera: CameraState): boolean;
   focusCountry(countryId: CountryId): void;
   getExportSource(): HTMLDivElement | null;

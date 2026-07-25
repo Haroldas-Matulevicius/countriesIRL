@@ -120,23 +120,41 @@
 }
 
 .workspace__map,
-.workspace__control-column,
 .workspace__actions,
 .workspace__selection-color,
+.workspace__legend,
 .workspace__country-list {
   min-width: 0;
   max-width: 100%;
 }
 
-.workspace__control-column {
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - var(--space-3xl));
-  max-height: calc(100dvh - var(--space-3xl));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  gap: var(--space-lg);
+.workspace--desktop .workspace__map {
+  grid-column: 1;
+  grid-row: 1 / span 4;
+}
+
+.workspace--desktop .workspace__actions,
+.workspace--desktop .workspace__selection-color,
+.workspace--desktop .workspace__legend,
+.workspace--desktop .workspace__country-list {
+  grid-column: 2;
   padding: var(--focus-offset);
+}
+
+.workspace--desktop .workspace__actions {
+  grid-row: 1;
+}
+
+.workspace--desktop .workspace__selection-color {
+  grid-row: 2;
+}
+
+.workspace--desktop .workspace__legend {
+  grid-row: 3;
+}
+
+.workspace--desktop .workspace__country-list {
+  grid-row: 4;
 }
 
 .workspace--compact {

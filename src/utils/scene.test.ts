@@ -199,6 +199,91 @@ describe('composeEffectiveScene', (): void => {
     ]);
   });
 
+  it('fails when historical selection collides with undeclared modern fallback', (): void => {
+    const modernFrance = createSelectableFeature({
+      sourceFeatureId: 'modern-FRA',
+      entityId: 'FRA',
+      name: 'France',
+      boundaryMode: 'modern',
+    });
+    const historicalFrance = createSelectableFeature({
+      sourceFeatureId: 'historical-france-1700',
+      entityId: 'FRA',
+      name: 'Kingdom of France',
+      boundaryMode: 'historical',
+    });
+
+    expect((): EffectiveScene =>
+      composeHistoricalScene(
+        '1700',
+        [modernFrance],
+        [historicalFrance],
+        new Set(),
+      ),
+    ).toThrow('historical-selectable-entity-collision');
+    expect((): EffectiveScene =>
+      composeHistoricalScene(
+        '1700',
+        [modernFrance],
+        [historicalFrance],
+        new Set(['modern-FRA']),
+      ),
+    ).not.toThrow();
+  });
+
+  it('rejects duplicate feature, fallback source, and selectable identities', (): void => {
+    const france = createSelectableFeature({
+      sourceFeatureId: 'modern-FRA',
+      entityId: 'FRA',
+      name: 'France',
+      boundaryMode: 'modern',
+    });
+    const duplicateFeatureId: SceneFeature = {
+      ...createSelectableFeature({
+        sourceFeatureId: 'modern-DEU',
+        entityId: 'DEU',
+        name: 'Germany',
+        boundaryMode: 'modern',
+      }),
+      id: france.id,
+    };
+    const duplicateSourceId: SceneFeature = {
+      ...createSelectableFeature({
+        sourceFeatureId: 'modern-ESP',
+        entityId: 'ESP',
+        name: 'Spain',
+        boundaryMode: 'modern',
+      }),
+      id: 'modern-ESP-copy',
+      sourceFeatureId: france.sourceFeatureId,
+    };
+    const duplicateSelectableId = createSelectableFeature({
+      sourceFeatureId: 'modern-FRA-copy',
+      entityId: 'FRA',
+      name: 'France copy',
+      boundaryMode: 'modern',
+    });
+
+    expect((): EffectiveScene =>
+      composeEffectiveScene({
+        snapshotId: 'modern',
+        modernFeatures: [france, duplicateFeatureId],
+      }),
+    ).toThrow('duplicate-scene-feature-id');
+    expect((): EffectiveScene =>
+      composeEffectiveScene({
+        snapshotId: 'modern',
+        modernFeatures: [france, duplicateSourceId],
+      }),
+    ).toThrow('duplicate-scene-source-feature-id');
+    expect((): EffectiveScene =>
+      composeEffectiveScene({
+        snapshotId: 'modern',
+        modernFeatures: [france, duplicateSelectableId],
+      }),
+    ).toThrow('duplicate-scene-selectable-entity-id');
+  });
+
   it('keeps continuing colors while distinct historical identities start white without heuristics', (): void => {
     const historicalFeatures = [
       createSelectableFeature({

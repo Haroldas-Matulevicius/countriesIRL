@@ -11,16 +11,26 @@ import type {
   CameraPanDirection,
   Composition,
   CompositionSnapshot,
+  CompositionState,
   EffectiveScene,
+  LegendPosition,
   MapCanvasHandle,
   SnapshotId,
 } from './types/composition';
 import type { CountryId, GeoFeature } from './types/map';
 import type { ToastMessage } from './types/ui';
+import { DEFAULT_COLOR } from './constants/colors';
 import { AppHeader } from './components/AppHeader';
 import { ColorPicker } from './components/ColorPicker';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
+import { LegendDisclosure } from './components/LegendDisclosure';
+import { LegendEditor } from './components/LegendEditor';
+import type { LegendEditorCommands } from './components/LegendEditor';
+import {
+  LegendOverlay,
+  getLegendOverlayBounds,
+} from './components/LegendOverlay';
 import { LocateCountry } from './components/LocateCountry';
 import { MapNavigation } from './components/MapNavigation';
 import { MapWorkspace } from './components/MapWorkspace';
@@ -29,6 +39,7 @@ import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
 import { useCompositionLoadTransaction } from './hooks/useCompositionLoadTransaction';
+import type { CompositionLoadRollbackState } from './hooks/useCompositionLoadTransaction';
 import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
 import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
@@ -38,9 +49,32 @@ import { useMapState } from './hooks/useMapState';
 import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { exportMapPng } from './utils/export';
+import {
+  getActiveLegendEntries,
+  type LegendValidationResult,
+} from './utils/legend';
+import {
+  composeEffectiveScene,
+  getEffectiveSceneColors,
+} from './utils/scene';
 
 const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
+
+function getLegendPositionLabel(position: LegendPosition): string {
+  switch (position.preset) {
+    case 'top-left':
+      return 'Top left';
+    case 'top-right':
+      return 'Top right';
+    case 'bottom-left':
+      return 'Bottom left';
+    case 'bottom-right':
+      return 'Bottom right';
+    case null:
+      return 'Custom position';
+  }
+}
 
 function snapshotToComposition(snapshot: CompositionSnapshot): Composition {
   return {
@@ -75,7 +109,7 @@ export function createSelectionAnnouncement(
 
 export default function App(): JSX.Element {
   const {
-    state: { colors, selectedIds },
+    state: mapState,
     canUndo,
     canRedo,
     canReset,
@@ -86,12 +120,19 @@ export default function App(): JSX.Element {
     undo,
     redo,
     loadState,
+    restoreState: restoreMapState,
   } = useMapState();
+  const { colors, selectedIds } = mapState;
   const {
     state: compositionState,
     setCamera,
+    setLegendEntry,
+    setLegendStyle,
+    setLegendOrder,
+    setLegendPosition,
     loadComposition,
     markSaved,
+    restoreState: restoreCompositionState,
   } = useCompositionState();
   const geoData = useGeoData();
   const {
@@ -106,7 +147,9 @@ export default function App(): JSX.Element {
   const mapCanvasHandleRef = useRef<MapCanvasHandle | null>(null);
   const colorsRef = useRef(colors);
   const selectedIdsRef = useRef(selectedIds);
-  const compositionRef = useRef<Composition>(compositionState);
+  const mapStateRef = useRef(mapState);
+  const compositionRef = useRef<CompositionState>(compositionState);
+  const activeSceneRef = useRef<EffectiveScene | null>(null);
   const exportHandlerRef = useRef<() => void>(() => undefined);
   const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
@@ -119,6 +162,10 @@ export default function App(): JSX.Element {
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
   const [isMoveMapOpen, setIsMoveMapOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
+  const [pendingLoadedFocusId, setPendingLoadedFocusId] =
+    useState<CountryId | null>(null);
+  const [legendValidation, setLegendValidation] =
+    useState<LegendValidationResult | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
@@ -134,35 +181,96 @@ export default function App(): JSX.Element {
   const isMapReady = geoData.status === 'ready';
   const isHelpAvailable = geoData.status !== 'error';
   const isHelpRendered = isHelpAvailable && isHelpVisible;
+  const modernScene = useMemo<EffectiveScene | null>(
+    () =>
+      geoData.status === 'ready'
+        ? composeEffectiveScene({
+            snapshotId: 'modern',
+            modernFeatures: geoData.features,
+          })
+        : null,
+    [geoData],
+  );
+  const effectiveScene =
+    activeScene?.snapshotId === compositionState.snapshotId
+      ? activeScene
+      : compositionState.snapshotId === 'modern'
+        ? modernScene
+        : null;
+  const visibleFeatures = effectiveScene?.features;
   const countries =
     geoData.status === 'ready' ? geoData.countryMetadata : EMPTY_COUNTRIES;
-  const countryLookup =
+  const modernCountryLookup =
     geoData.status === 'ready' ? geoData.coreLookup : EMPTY_COUNTRY_LOOKUP;
-  const visibleFeatures =
-    activeScene?.snapshotId === compositionState.snapshotId
-      ? activeScene.features
-      : undefined;
   const effectiveCountryLookup = useMemo<ReadonlyMap<CountryId, GeoFeature>>(
     () => {
-      if (visibleFeatures === undefined) {
-        return countryLookup;
+      if (effectiveScene === null) {
+        return EMPTY_COUNTRY_LOOKUP;
       }
       const lookup = new Map<CountryId, GeoFeature>();
-      visibleFeatures.forEach((feature): void => {
+      effectiveScene.features.forEach((feature): void => {
         if (feature.isSelectable && !lookup.has(feature.entityId)) {
           lookup.set(feature.entityId, feature);
         }
       });
       return lookup;
     },
-    [countryLookup, visibleFeatures],
+    [effectiveScene],
+  );
+  const effectiveColors = useMemo<ReadonlyArray<string>>(
+    () =>
+      effectiveScene === null
+        ? []
+        : getEffectiveSceneColors(effectiveScene, colors),
+    [colors, effectiveScene],
+  );
+  const activeLegendEntries = useMemo(
+    () => getActiveLegendEntries(effectiveColors, compositionState.legend),
+    [compositionState.legend, effectiveColors],
+  );
+  const legendBounds = useMemo(
+    () => getLegendOverlayBounds(compositionState.legend, effectiveColors),
+    [compositionState.legend, effectiveColors],
+  );
+  const legendCommands = useMemo<LegendEditorCommands>(
+    () => ({
+      setLegendEntry,
+      setLegendStyle,
+      setLegendOrder,
+      setLegendPosition,
+    }),
+    [setLegendEntry, setLegendOrder, setLegendPosition, setLegendStyle],
   );
 
   useLayoutEffect((): void => {
     colorsRef.current = colors;
     selectedIdsRef.current = selectedIds;
+    mapStateRef.current = mapState;
     compositionRef.current = compositionState;
-  }, [colors, compositionState, selectedIds]);
+    activeSceneRef.current = activeScene;
+  }, [activeScene, colors, compositionState, mapState, selectedIds]);
+
+  useEffect((): void => {
+    const existingColors = new Set(
+      compositionState.legend.entries.map((entry): string => entry.color),
+    );
+    let nextOrder = compositionState.legend.entries.reduce(
+      (maximum, entry): number => Math.max(maximum, entry.order),
+      -1,
+    );
+    effectiveColors.forEach((color): void => {
+      const normalizedColor = color.toUpperCase();
+      if (normalizedColor !== DEFAULT_COLOR && !existingColors.has(normalizedColor)) {
+        nextOrder += 1;
+        existingColors.add(normalizedColor);
+        setLegendEntry({
+          color: normalizedColor,
+          label: normalizedColor,
+          order: nextOrder,
+        });
+      }
+    });
+  }, [compositionState.legend.entries, effectiveColors, setLegendEntry]);
 
   const bindMapCanvasHandle = useCallback(
     (handle: MapCanvasHandle | null): void => {
@@ -180,6 +288,37 @@ export default function App(): JSX.Element {
     (): Composition => compositionRef.current,
     [],
   );
+  const captureRollbackState = useCallback(
+    (): CompositionLoadRollbackState => ({
+      camera:
+        mapCanvasHandleRef.current?.readCurrentCamera() ??
+        compositionRef.current.camera,
+      scene: activeSceneRef.current,
+      mapState: mapStateRef.current,
+      compositionState: compositionRef.current,
+    }),
+    [],
+  );
+  const rollbackLoad = useCallback(
+    (
+      rollbackState: CompositionLoadRollbackState,
+      mapCanvasHandle: MapCanvasHandle,
+    ): void => {
+      if (!mapCanvasHandle.restore(rollbackState.camera)) {
+        throw new Error('Camera rollback was blocked.');
+      }
+      setActiveScene(rollbackState.scene);
+      restoreMapState(rollbackState.mapState);
+      restoreCompositionState({
+        ...rollbackState.compositionState,
+        camera: rollbackState.camera,
+      });
+    },
+    [restoreCompositionState, restoreMapState],
+  );
+  const requestLoadedFocus = useCallback((countryId: CountryId | null): void => {
+    setPendingLoadedFocusId(countryId);
+  }, []);
   const resolveScene = useCallback(
     (snapshotId: SnapshotId, signal: AbortSignal): Promise<EffectiveScene> => {
       if (geoData.status !== 'ready') {
@@ -211,11 +350,14 @@ export default function App(): JSX.Element {
     resolveScene,
     getMapCanvasHandle,
     getSelectedIds,
+    captureRollbackState,
+    rollback: rollbackLoad,
     loadScene: loadResolvedScene,
     loadColors: loadState,
     loadComposition,
     replaceSelection,
     markBaseline: markSavedSnapshot,
+    requestFocus: requestLoadedFocus,
   });
 
   const createToastId = useCallback((): string => {
@@ -269,6 +411,21 @@ export default function App(): JSX.Element {
     focusTarget.focus();
     return true;
   }, []);
+
+  useLayoutEffect((): (() => void) | undefined => {
+    if (
+      pendingLoadedFocusId === null ||
+      !effectiveCountryLookup.has(pendingLoadedFocusId)
+    ) {
+      return undefined;
+    }
+
+    const frame = requestAnimationFrame((): void => {
+      mapCanvasHandleRef.current?.focusCountry(pendingLoadedFocusId);
+      setPendingLoadedFocusId(null);
+    });
+    return (): void => cancelAnimationFrame(frame);
+  }, [effectiveCountryLookup, pendingLoadedFocusId, visibleFeatures]);
 
   useEffect((): (() => void) | undefined => {
     if (!isMapReady || !pendingMapFocusRef.current) {
@@ -339,15 +496,16 @@ export default function App(): JSX.Element {
 
   const handleLocateCountry = useCallback(
     (countryId: CountryId): void => {
-      const country = countryLookup.get(countryId);
+      const country = modernCountryLookup.get(countryId);
       if (country === undefined) {
         return;
       }
 
-      mapCanvasHandleRef.current?.locate(countryId);
-      showStatus(`Centered on ${country.properties.name}.`, 'info');
+      if (mapCanvasHandleRef.current?.locate(countryId) === true) {
+        showStatus(`Centered on ${country.properties.name}.`, 'info');
+      }
     },
-    [countryLookup, showStatus],
+    [modernCountryLookup, showStatus],
   );
 
   const handleZoomIn = useCallback((factor: number): void => {
@@ -397,6 +555,10 @@ export default function App(): JSX.Element {
     if (exportInProgressRef.current) {
       return;
     }
+    if (legendValidation?.ok === false) {
+      showExportFailure();
+      return;
+    }
 
     const mapCanvasHandle = mapCanvasHandleRef.current;
     if (mapCanvasHandle === null) {
@@ -430,7 +592,7 @@ export default function App(): JSX.Element {
     } else {
       showExportFailure();
     }
-  }, [setCamera, showExportFailure, showStatus]);
+  }, [legendValidation, setCamera, showExportFailure, showStatus]);
 
   useEffect((): void => {
     exportHandlerRef.current = (): void => {
@@ -439,7 +601,7 @@ export default function App(): JSX.Element {
   }, [handleExport]);
 
   const actionControls = (
-    <div className="workspace__actions">
+    <div key="actions" className="workspace__actions">
       <Controls
         canUndo={canUndo}
         canRedo={canRedo}
@@ -467,14 +629,24 @@ export default function App(): JSX.Element {
     </div>
   );
 
+  const legendSlot = (
+    <LegendOverlay
+      legend={compositionState.legend}
+      effectiveColors={effectiveColors}
+      onPositionChange={setLegendPosition}
+      onStatusMessage={showStatus}
+    />
+  );
+
   const mapWorkspace = (
-    <div className="workspace__map">
+    <div key="map" className="workspace__map">
       <MapWorkspace
         geoData={geoData}
         features={visibleFeatures}
         colors={colors}
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
+        legendSlot={legendSlot}
         onCameraCommit={setCamera}
         onSelectCountry={handleSelectCountry}
         onClearSelection={clearSelection}
@@ -484,14 +656,33 @@ export default function App(): JSX.Element {
   );
 
   const selectionAndColorControls = (
-    <div className="workspace__selection-color">
+    <div key="selection-color" className="workspace__selection-color">
       <SelectionPanel countryLookup={effectiveCountryLookup} />
       <ColorPicker isDisabled={!isMapReady} onStatus={showStatus} />
     </div>
   );
 
+  const legendControls = (
+    <div key="legend" className="workspace__legend">
+      <LegendDisclosure
+        entryCount={activeLegendEntries.length}
+        positionLabel={getLegendPositionLabel(compositionState.legend.position)}
+        onStatusMessage={showStatus}
+      >
+        <LegendEditor
+          legend={compositionState.legend}
+          effectiveColors={effectiveColors}
+          bounds={legendBounds}
+          commands={legendCommands}
+          onStatusMessage={showStatus}
+          onValidationChange={setLegendValidation}
+        />
+      </LegendDisclosure>
+    </div>
+  );
+
   const countryList = (
-    <div className="workspace__country-list">
+    <div key="countries" className="workspace__country-list">
       <CountryList countries={countries} isDisabled={!isMapReady} />
       <LocateCountry
         countries={countries}
@@ -500,6 +691,22 @@ export default function App(): JSX.Element {
       />
     </div>
   );
+  const workspaceSections =
+    layout === 'desktop'
+      ? [
+          mapWorkspace,
+          actionControls,
+          selectionAndColorControls,
+          legendControls,
+          countryList,
+        ]
+      : [
+          actionControls,
+          mapWorkspace,
+          selectionAndColorControls,
+          countryList,
+          legendControls,
+        ];
 
   return (
     <div className="app">
@@ -519,23 +726,7 @@ export default function App(): JSX.Element {
         className={`workspace workspace--${layout}`}
         aria-label="Map creator workspace"
       >
-        {layout === 'desktop' ? (
-          <>
-            {mapWorkspace}
-            <aside className="workspace__control-column">
-              {actionControls}
-              {selectionAndColorControls}
-              {countryList}
-            </aside>
-          </>
-        ) : (
-          <>
-            {actionControls}
-            {mapWorkspace}
-            {selectionAndColorControls}
-            {countryList}
-          </>
-        )}
+        {workspaceSections}
       </main>
 
       {isSaveLoadOpen && isMapReady ? (

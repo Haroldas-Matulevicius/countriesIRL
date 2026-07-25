@@ -7,7 +7,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import type { MouseEvent as ReactMouseEvent } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { geoPath, select } from 'd3';
 
 import type { CameraState, MapCanvasHandle } from '../types/composition';
@@ -74,11 +74,13 @@ export type MapTooltipData =
 
 export interface MapCanvasProps {
   features: ReadonlyArray<SceneFeature>;
+  locateFeatures?: ReadonlyArray<GeoFeature>;
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
   onTooltipChange: (data: MapTooltipData | null) => void;
+  legendSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
   controllerFactory?: CameraControllerFactory;
 }
@@ -149,29 +151,45 @@ function getInteractionId(feature: SceneFeature): CountryId {
   return feature.entityId;
 }
 
+function assertUniqueMapSceneIdentities(
+  features: ReadonlyArray<SceneFeature>,
+): void {
+  const featureIds = new Set<CountryId>();
+  const sourceFeatureIds = new Set<string>();
+  const selectableEntityIds = new Set<CountryId>();
+
+  for (const feature of features) {
+    if (featureIds.has(feature.id)) {
+      throw new Error('duplicate-scene-feature-id');
+    }
+    if (sourceFeatureIds.has(feature.sourceFeatureId)) {
+      throw new Error('duplicate-scene-source-feature-id');
+    }
+    if (feature.isSelectable && selectableEntityIds.has(feature.entityId)) {
+      throw new Error('duplicate-scene-selectable-entity-id');
+    }
+
+    featureIds.add(feature.id);
+    sourceFeatureIds.add(feature.sourceFeatureId);
+    if (feature.isSelectable) {
+      selectableEntityIds.add(feature.entityId);
+    }
+  }
+}
+
 export function getSelectableSceneFeatures(
   features: ReadonlyArray<SceneFeature>,
 ): SceneFeature[] {
-  const entityIds = new Set<CountryId>();
-  return features.filter((feature): boolean => {
-    if (!feature.isSelectable || entityIds.has(feature.entityId)) {
-      return false;
-    }
-    entityIds.add(feature.entityId);
-    return true;
-  });
+  assertUniqueMapSceneIdentities(features);
+  return features.filter((feature): boolean => feature.isSelectable);
 }
 
 export function createWrappedSceneModel(
   features: ReadonlyArray<SceneFeature>,
 ): ReadonlyArray<WrappedScenePath> {
-  const logicalEntityIds = new Set<CountryId>();
+  assertUniqueMapSceneIdentities(features);
   return features.flatMap((feature): ReadonlyArray<WrappedScenePath> => {
-    const hasLogicalPath =
-      feature.isSelectable && !logicalEntityIds.has(feature.entityId);
-    if (hasLogicalPath) {
-      logicalEntityIds.add(feature.entityId);
-    }
+    const hasLogicalPath = feature.isSelectable;
 
     return WRAP_OFFSETS.map((offsetX): WrappedScenePath => {
       const isPrimaryVisual = offsetX === 0;
@@ -255,11 +273,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
       features,
+      locateFeatures = features,
       colors,
       selectedIds,
       onSelectCountry,
       onClearSelection,
       onTooltipChange,
+      legendSlot,
       onCameraCommit,
       controllerFactory,
     }: MapCanvasProps,
@@ -279,7 +299,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const cameraController = useCameraController({
       svgRef,
       cameraLayerRef,
-      features,
+      locateFeatures,
       onCameraCommit,
       controllerFactory,
     });
@@ -634,6 +654,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           <g ref={cameraLayerRef} data-layer="camera">
             <g data-layer="countries" />
           </g>
+          {legendSlot}
         </svg>
       </div>
     );

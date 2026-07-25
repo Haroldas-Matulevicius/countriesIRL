@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import type {
+  CameraState,
   Composition,
   CompositionLoadOutcome,
   CompositionLoadWarning,
   CompositionSnapshot,
+  CompositionState,
   EffectiveScene,
   MapCanvasHandle,
   SnapshotId,
 } from '../types/composition';
-import type { ColorMap, CountryId, SelectedCountryIds } from '../types/map';
+import type {
+  ColorMap,
+  CountryId,
+  MapState,
+  SelectedCountryIds,
+} from '../types/map';
 import type {
   StorageErrorReason,
   StorageResult,
@@ -23,6 +30,7 @@ export type CompositionLoadFailureReason =
   | 'snapshot-resolution-failed'
   | 'map-canvas-unavailable'
   | 'camera-restore-blocked'
+  | 'commit-failed'
   | 'cancelled';
 
 export type CompositionLoadTransactionOutcome =
@@ -46,6 +54,13 @@ export type CompositionLoadTransactionState =
       readonly outcome: CompositionLoadTransactionOutcome;
     };
 
+export interface CompositionLoadRollbackState {
+  readonly camera: CameraState;
+  readonly scene: EffectiveScene | null;
+  readonly mapState: MapState;
+  readonly compositionState: CompositionState;
+}
+
 export interface CompositionLoadTransactionDependencies {
   readonly loadStoredComposition: (
     name: string,
@@ -56,11 +71,17 @@ export interface CompositionLoadTransactionDependencies {
   ) => Promise<EffectiveScene>;
   readonly getMapCanvasHandle: () => MapCanvasHandle | null;
   readonly getSelectedIds: () => SelectedCountryIds;
+  readonly captureRollbackState: () => CompositionLoadRollbackState;
+  readonly rollback: (
+    state: CompositionLoadRollbackState,
+    mapCanvasHandle: MapCanvasHandle,
+  ) => void;
   readonly loadScene: (scene: EffectiveScene) => void;
   readonly loadColors: (colors: ColorMap) => void;
   readonly loadComposition: (composition: Composition) => void;
   readonly replaceSelection: (selectedIds: ReadonlyArray<CountryId>) => void;
   readonly markBaseline: (snapshot: CompositionSnapshot) => void;
+  readonly requestFocus: (countryId: CountryId | null) => void;
   readonly onOutcome?: (outcome: CompositionLoadTransactionOutcome) => void;
 }
 
@@ -249,7 +270,24 @@ export function createCompositionLoadTransaction(
       );
       const selectedIds = [...reconciledSelection];
       const focusCountryId =
-        selectedIds[0] ?? scene.selectableEntityIds.values().next().value;
+        selectedIds[0] ??
+        scene.features.find(
+          (feature): boolean =>
+            feature.isSelectable && feature.boundaryMode === 'historical',
+        )?.entityId ??
+        scene.selectableEntityIds.values().next().value;
+
+      let rollbackState: CompositionLoadRollbackState;
+      try {
+        rollbackState = dependencies.captureRollbackState();
+      } catch {
+        activeController = null;
+        return finish({
+          ok: false,
+          reason: 'commit-failed',
+          storageWarnings: storedResult.warnings,
+        });
+      }
 
       let didRestoreCamera: boolean;
       try {
@@ -266,14 +304,31 @@ export function createCompositionLoadTransaction(
         });
       }
 
-      dependencies.loadScene(scene);
-      dependencies.loadColors(snapshot.colors);
-      dependencies.loadComposition(toComposition(snapshot));
-      dependencies.replaceSelection(selectedIds);
-      if (focusCountryId !== undefined) {
-        mapCanvasHandle.focusCountry(focusCountryId);
+      try {
+        dependencies.loadScene(scene);
+        dependencies.loadColors(snapshot.colors);
+        dependencies.loadComposition(toComposition(snapshot));
+        dependencies.replaceSelection(selectedIds);
+        dependencies.markBaseline(snapshot);
+        dependencies.requestFocus(focusCountryId ?? null);
+      } catch {
+        try {
+          dependencies.rollback(rollbackState, mapCanvasHandle);
+        } catch {
+          activeController = null;
+          return finish({
+            ok: false,
+            reason: 'commit-failed',
+            storageWarnings: storedResult.warnings,
+          });
+        }
+        activeController = null;
+        return finish({
+          ok: false,
+          reason: 'commit-failed',
+          storageWarnings: storedResult.warnings,
+        });
       }
-      dependencies.markBaseline(snapshot);
 
       activeController = null;
       return finish({
@@ -311,11 +366,14 @@ export function useCompositionLoadTransaction(
   const {
     getMapCanvasHandle,
     getSelectedIds,
+    captureRollbackState,
+    rollback,
     loadScene,
     loadColors,
     loadComposition,
     loadStoredComposition,
     markBaseline,
+    requestFocus,
     onOutcome,
     replaceSelection,
     resolveScene,
@@ -325,11 +383,14 @@ export function useCompositionLoadTransaction(
       createCompositionLoadTransaction({
         getMapCanvasHandle,
         getSelectedIds,
+        captureRollbackState,
+        rollback,
         loadScene,
         loadColors,
         loadComposition,
         loadStoredComposition,
         markBaseline,
+        requestFocus,
         onOutcome,
         replaceSelection,
         resolveScene,
@@ -337,11 +398,14 @@ export function useCompositionLoadTransaction(
     [
       getMapCanvasHandle,
       getSelectedIds,
+      captureRollbackState,
+      rollback,
       loadScene,
       loadColors,
       loadComposition,
       loadStoredComposition,
       markBaseline,
+      requestFocus,
       onOutcome,
       replaceSelection,
       resolveScene,

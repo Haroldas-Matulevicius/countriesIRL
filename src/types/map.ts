@@ -78,6 +78,10 @@ export type MapAction =
   | {
       type: 'LOAD_STATE';
       payload: { colors: ColorMap };
+    }
+  | {
+      type: 'RESTORE_STATE';
+      payload: { state: MapState };
     };
 
 export type GeoJsonWarningCode =

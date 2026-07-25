@@ -10,6 +10,7 @@ import type { CountryId } from '../types/map';
 import type { StorageResult } from '../types/ui';
 import {
   createCompositionLoadTransaction,
+  type CompositionLoadRollbackState,
   type CompositionLoadTransactionDependencies,
 } from './useCompositionLoadTransaction';
 
@@ -119,6 +120,30 @@ function createHandle(label: string, calls: string[]): MapCanvasHandle {
   };
 }
 
+function createRollbackState(): CompositionLoadRollbackState {
+  const snapshot = createSnapshot('modern');
+  const composition = {
+    camera: snapshot.camera,
+    snapshotId: snapshot.snapshotId,
+    legend: snapshot.legend,
+    settings: snapshot.settings,
+  };
+  return {
+    camera: snapshot.camera,
+    scene: null,
+    mapState: {
+      colors: {},
+      history: [{}],
+      historyIndex: 0,
+      selectedIds: new Set(),
+    },
+    compositionState: {
+      ...composition,
+      savedBaseline: composition,
+    },
+  };
+}
+
 function createDependencies(
   overrides: Partial<CompositionLoadTransactionDependencies> = {},
 ): CompositionLoadTransactionDependencies {
@@ -138,11 +163,14 @@ function createDependencies(
         'hist:polish-lithuanian-commonwealth',
       ]),
     ),
+    captureRollbackState: vi.fn(createRollbackState),
+    rollback: vi.fn(),
     loadScene: vi.fn(),
     loadColors: vi.fn(),
     loadComposition: vi.fn(),
     replaceSelection: vi.fn(),
     markBaseline: vi.fn(),
+    requestFocus: vi.fn(),
     onOutcome: vi.fn(),
     ...overrides,
   };
@@ -181,6 +209,9 @@ describe('createCompositionLoadTransaction', (): void => {
       markBaseline: vi.fn((baseline): void => {
         calls.push(`baseline:${baseline.camera.centerLongitude}`);
       }),
+      requestFocus: vi.fn((countryId): void => {
+        calls.push(`focus-request:${countryId ?? 'map'}`);
+      }),
       onOutcome: vi.fn((): void => {
         calls.push('status:one-outcome');
       }),
@@ -217,8 +248,8 @@ describe('createCompositionLoadTransaction', (): void => {
       'colors:load-and-reset-history',
       'composition:load',
       'selection:hist:polish-lithuanian-commonwealth',
-      'visible:focus:hist:polish-lithuanian-commonwealth',
       'baseline:19',
+      'focus-request:hist:polish-lithuanian-commonwealth',
       'status:one-outcome',
     ]);
     expect(staleHandle.restore).not.toHaveBeenCalled();
@@ -307,6 +338,58 @@ describe('createCompositionLoadTransaction', (): void => {
     expect(dependencies.replaceSelection).not.toHaveBeenCalled();
     expect(dependencies.markBaseline).not.toHaveBeenCalled();
   });
+
+  it.each([
+    'loadScene',
+    'loadColors',
+    'loadComposition',
+    'replaceSelection',
+    'markBaseline',
+    'requestFocus',
+  ] as const)(
+    'rolls back camera and all prior commit stages when %s throws',
+    async (failureStage): Promise<void> => {
+      const calls: string[] = [];
+      const handle = createHandle('visible', calls);
+      const rollbackState = createRollbackState();
+      const appliedStages: string[] = [];
+      const commit = (stage: string): void => {
+        appliedStages.push(stage);
+        if (stage === failureStage) {
+          throw new Error(`${stage} failed`);
+        }
+      };
+      const dependencies = createDependencies({
+        getMapCanvasHandle: vi.fn(() => handle),
+        captureRollbackState: vi.fn(() => rollbackState),
+        rollback: vi.fn((state, currentHandle): void => {
+          expect(state).toBe(rollbackState);
+          appliedStages.splice(0);
+          expect(currentHandle.restore(state.camera)).toBe(true);
+        }),
+        loadScene: vi.fn((): void => commit('loadScene')),
+        loadColors: vi.fn((): void => commit('loadColors')),
+        loadComposition: vi.fn((): void => commit('loadComposition')),
+        replaceSelection: vi.fn((): void => commit('replaceSelection')),
+        markBaseline: vi.fn((): void => commit('markBaseline')),
+        requestFocus: vi.fn((): void => commit('requestFocus')),
+      });
+
+      await expect(
+        createCompositionLoadTransaction(dependencies).load('Rollback'),
+      ).resolves.toEqual({
+        ok: false,
+        reason: 'commit-failed',
+        storageWarnings: [],
+      });
+
+      expect(appliedStages).toEqual([]);
+      expect(dependencies.rollback).toHaveBeenCalledOnce();
+      expect(handle.restore).toHaveBeenCalledTimes(2);
+      expect(handle.restore).toHaveBeenLastCalledWith(rollbackState.camera);
+      expect(dependencies.onOutcome).toHaveBeenCalledOnce();
+    },
+  );
 
   it('cancels superseded and disposed intents without stale mutations or status', async (): Promise<void> => {
     const firstScene = createDeferred<EffectiveScene>();
@@ -398,6 +481,7 @@ describe('createCompositionLoadTransaction', (): void => {
     ).resolves.toMatchObject({ ok: true });
 
     expect(dependencies.replaceSelection).toHaveBeenCalledWith([]);
-    expect(handle.focusCountry).toHaveBeenCalledWith('FRA');
+    expect(dependencies.requestFocus).toHaveBeenCalledWith('FRA');
+    expect(handle.focusCountry).not.toHaveBeenCalled();
   });
 });

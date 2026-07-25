@@ -886,12 +886,14 @@ export function validateHistoricalAsset(
 
   const features: SceneFeature[] = [];
   const warnings: string[] = [];
+  const featureIds = new Set<string>();
   const sourceFeatureIds = new Set<string>();
   const selectableEntityIds = new Set<string>();
   input.features.forEach((candidate, featureIndex): void => {
     const feature = readSceneFeature(candidate);
     if (
       feature === null ||
+      featureIds.has(feature.id) ||
       sourceFeatureIds.has(feature.sourceFeatureId) ||
       (feature.isSelectable && selectableEntityIds.has(feature.entityId))
     ) {
@@ -900,6 +902,7 @@ export function validateHistoricalAsset(
       globalThis.console.warn(warning);
       return;
     }
+    featureIds.add(feature.id);
     sourceFeatureIds.add(feature.sourceFeatureId);
     if (feature.isSelectable) {
       selectableEntityIds.add(feature.entityId);

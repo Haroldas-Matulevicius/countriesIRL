@@ -41,6 +41,7 @@ function renderCountryList(countries: ReadonlyArray<WorldCountryMetadata>): stri
     undo: vi.fn(),
     redo: vi.fn(),
     loadState: vi.fn(),
+    restoreState: vi.fn(),
   };
 
   return renderToStaticMarkup(

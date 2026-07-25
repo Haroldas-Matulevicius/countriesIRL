@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 
 import type { CameraState, MapCanvasHandle } from '../types/composition';
 import type {
@@ -19,6 +19,7 @@ interface MapWorkspaceProps {
   colors: ColorMap;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
+  legendSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -31,6 +32,7 @@ export function MapWorkspace({
   colors,
   selectedIds,
   exportSourceRef,
+  legendSlot,
   onCameraCommit,
   onSelectCountry,
   onClearSelection,
@@ -86,11 +88,13 @@ export function MapWorkspace({
             <MapCanvas
               ref={exportSourceRef}
               features={features ?? geoData.features}
+              locateFeatures={geoData.features}
               colors={colors}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}
               onTooltipChange={setTooltipData}
+              legendSlot={legendSlot}
               onCameraCommit={onCameraCommit}
             />
             <Tooltip data={tooltipData} />

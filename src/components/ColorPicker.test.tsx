@@ -28,6 +28,7 @@ function renderColorPickerWithState(state: MapState): string {
     undo: vi.fn(),
     redo: vi.fn(),
     loadState: vi.fn(),
+    restoreState: vi.fn(),
   };
 
   return renderToStaticMarkup(

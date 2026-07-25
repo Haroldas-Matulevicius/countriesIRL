@@ -298,18 +298,20 @@ describe('wrapped effective scene model', (): void => {
     ).toBe(true);
   });
 
-  it('exposes only one logical keyboard option for a duplicate selectable entity', (): void => {
+  it('rejects duplicate selectable identities before rendering', (): void => {
     const primary = createSceneFeature('HIST-PLC', 'historical-entity');
     const duplicate: SceneFeature = {
       ...primary,
       id: 'unit-HIST-PLC-duplicate',
       sourceFeatureId: 'source-HIST-PLC-duplicate',
     };
-    const model = createWrappedSceneModel([primary, duplicate]);
 
-    expect(model.filter((path) => path.kind === 'logical')).toHaveLength(1);
-    expect(model.filter((path) => path.isAccessible)).toHaveLength(1);
-    expect(getSelectableSceneFeatures([primary, duplicate])).toEqual([primary]);
+    expect((): ReadonlyArray<unknown> =>
+      createWrappedSceneModel([primary, duplicate]),
+    ).toThrow('duplicate-scene-selectable-entity-id');
+    expect((): ReadonlyArray<SceneFeature> =>
+      getSelectableSceneFeatures([primary, duplicate]),
+    ).toThrow('duplicate-scene-selectable-entity-id');
   });
 
   it('keeps inherited, disputed, and neutral geometry unfocusable', (): void => {

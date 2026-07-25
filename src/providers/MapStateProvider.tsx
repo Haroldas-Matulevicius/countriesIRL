@@ -42,6 +42,7 @@ export interface MapStateContextValue {
   undo: () => void;
   redo: () => void;
   loadState: (colors: ColorMap) => void;
+  restoreState: (state: MapState) => void;
 }
 
 export const MapStateContext = createContext<MapStateContextValue | undefined>(
@@ -234,6 +235,9 @@ export function mapStateReducer(state: MapState, action: MapAction): MapState {
         historyIndex: 0,
       };
     }
+
+    case 'RESTORE_STATE':
+      return action.payload.state;
   }
 }
 
@@ -321,6 +325,10 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
     dispatch({ type: 'LOAD_STATE', payload: { colors } });
   }, []);
 
+  const restoreState = useCallback((state: MapState): void => {
+    dispatch({ type: 'RESTORE_STATE', payload: { state } });
+  }, []);
+
   const value = useMemo<MapStateContextValue>(
     () => ({
       state,
@@ -337,6 +345,7 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
       undo,
       redo,
       loadState,
+      restoreState,
     }),
     [
       state,
@@ -350,6 +359,7 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
       undo,
       redo,
       loadState,
+      restoreState,
     ],
   );
 
