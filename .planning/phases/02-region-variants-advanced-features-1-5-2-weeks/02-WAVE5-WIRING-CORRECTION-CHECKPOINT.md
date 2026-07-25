@@ -184,3 +184,36 @@ Two pre-existing tests encoded behavior these fixes reverse and were corrected:
 | `npm run build` | PASS |
 | `npm run test:e2e -- --project=chrome` | PASS — 19/19 (18 baseline + 1 new H-1 regression) |
 | `git diff --name-status b910875..HEAD -- public/data data` | PASS — empty |
+
+---
+
+# Re-review remediation (02-WAVE5-REREVIEW.md)
+
+Applied on top of `fcd79df` after the independent re-review returned REJECT.
+
+## Disposition
+
+| Finding | Status | Commit | Notes |
+|---|---|---|---|
+| **HI-1** overflowing legend silently exportable | FIXED | `e74f11f` | Preferred fix taken: the rendered/exported/displayed/validated position is now derived from live bounds at one chokepoint (`resolveLegendPosition` / `resolveLegendRender` in `utils/legend.ts`). `preset !== null` is authoritative; custom positions are re-clamped. `invalid-position` is now **unreachable** through `validateActiveLegend` for any legend whose bounds fit the canvas, not merely non-blocking — a test pins that, and a second test pins that the raw `validateLegend` still reports it for a stale stored value. The gate was **not** re-armed, so the H-1 "always clearable" property is untouched. Regression coverage: 8→9 with a right-edge drag, 16→17, and a preset tracking its corner — as unit tests over the rendered transform, as resolver unit tests, and end to end including an assertion that the export clone carries the full legend frame. |
+| **§4 / ME-4** two divergent legend defaults | FIXED | `6bb4e45` | One exported `DEFAULT_LEGEND_POSITION = {x:32, y:32, preset:'top-left'}` + `DEFAULT_LEGEND_BACKGROUND_OPACITY = 90` in `utils/legend.ts`; the provider derives `DEFAULT_LEGEND` from `createDefaultLegendState()`. `backgroundOpacity` is a single 0-100 scale end to end — `validateLegend` moved off 0-1, `validateActiveLegend` no longer divides, and `LegendOverlay.getBackgroundOpacity` was tightened to the single scale. Test: fresh map, provider initial state, and the legacy-migration snapshot all produce the same legend. |
+| **ME-1** misleading export-failure toast | FIXED | `14a40cb` | A legend-blocked export now reports `getLegendBlockingMessage`'s own sentence with no `Try Export Again`; genuine failures keep the existing message and retry. Both strings added to `APPROVED_STATIC_MESSAGES` as exact literals, allowlist still fail-closed (a near-miss variant degrades to the generic error — tested). `getLegendBlockingMessage` moved to `utils/legend.ts` (also closes LO-7). |
+| **ME-2** 1200px transition remounts the inspector | FIXED | `aeb9cbb` | Search query, custom colour draft, Legend disclosure expansion and Locate combobox state lifted into `useInspectorUiState`, held above the responsive branch. The four components take them as required props (a caller that forgets to lift fails to compile). Map fiber untouched — camera-owner sentinel, single `svg.map-canvas`, and desktop/compact DOM order all still asserted, plus a new E2E for the preserved state in both directions. |
+| **ME-3** ErrorBoundary tests | FIXED | `4251cff` | Hand-mutation test removed. New E2E serves a duplicate-`sourceFeatureId` world asset so `composeEffectiveScene` throws in App's own `useMemo` — React's real catch path, in a real browser, for the boundary only `main.tsx` can provide. Unit tests mock the boundary module and assert both wirings (App inside the workspace landmark; `main.tsx` at the root). `react-dom/server` does not run error boundaries and this suite has no DOM, so the genuine catch is asserted at E2E level rather than by faking state. |
+| **LO-1** CRLF-rewritten `LegendEditor.test.tsx` | FIXED | `2525e4f` | Renormalized to LF (`git add --renormalize`), stray lone CRs stripped; `git diff --ignore-cr-at-eol` for that commit is the 2-line real change. |
+| **LO-7** classifier in a component module | FIXED | `14a40cb` | Moved to `utils/legend.ts` next to `validateActiveLegend`; behaviour unchanged. |
+| LO-2, LO-3, LO-4, LO-5, LO-6 | NOT ADDRESSED | Out of scope for this pass, per instruction. LO-2 in particular remains a live prerequisite for plan 02-18: a `setSnapshotId` caller must reconcile the selection in the same commit. |
+
+## Gate results (re-review remediation)
+
+| Gate | Result |
+|---|---|
+| `npm test` | PASS — 33 files, 364 tests (was 32 / 349) |
+| `npm run lint` | PASS — no findings |
+| `npm exec tsc -- -b --pretty false` | PASS — no output |
+| `npm run data:world:check` | PASS — 248 units, 195 selectable core states |
+| `npm run build` | PASS |
+| `npm run test:e2e -- --project=chrome` | PASS — 23/23 (was 19/19) |
+| `npm run test:e2e -- --project=msedge` | PASS — 23/23 (was 14) |
+| `git diff --name-status b910875..HEAD -- public/data data` | PASS — empty |
+| `git diff --name-status b910875..HEAD -- package.json package-lock.json vite.config.ts vitest.config.ts tsconfig*.json` | PASS — empty |
