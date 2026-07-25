@@ -24,6 +24,8 @@ import { AppHeader } from './components/AppHeader';
 import { ColorPicker } from './components/ColorPicker';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { FatalErrorState } from './components/FatalErrorState';
 import { LegendDisclosure } from './components/LegendDisclosure';
 import {
   LegendEditor,
@@ -762,7 +764,11 @@ export default function App(): JSX.Element {
         className={`workspace workspace--${layout}`}
         aria-label="Map creator workspace"
       >
-        {workspaceSections}
+        <ErrorBoundary
+          fallback={<FatalErrorState onReload={handleReload} />}
+        >
+          {workspaceSections}
+        </ErrorBoundary>
       </main>
 
       {isSaveLoadOpen && isMapReady ? (
