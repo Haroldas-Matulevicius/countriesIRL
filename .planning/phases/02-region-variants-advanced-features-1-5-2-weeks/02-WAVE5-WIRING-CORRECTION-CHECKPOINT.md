@@ -6,11 +6,11 @@
 - **Branch:** `worktree-agent-a7d36e7ddf6a00457`
 - **Required baseline:** `b910875e65d91cc3113137f6f57610ca1e26874a`
 - **Known starting HEAD:** `51eabd4223564a573ec17059517772970b45622e`
-- **Exact corrected product/test HEAD before this checkpoint-only commit:** `3c2109d00c7db51a1978446361cd1dfa05cee625`
+- **Exact corrected product/test HEAD before this checkpoint-only commit:** `7ab0601e64feb415a9478bb975b212259a898982`
 - **Checkpoint containing commit:** Resolve with `git log -1 --format=%H -- .planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-WAVE5-WIRING-CORRECTION-CHECKPOINT.md`. A Git commit cannot embed its own hash without changing that hash.
 - **Branch continuity:** Preserved; no branch change, reset, stash, clean, rewrite, merge, or cherry-pick occurred.
 - **Primary checkout:** Read-only for the explicitly required current instructions and handoff artifacts; no primary-checkout file was changed.
-- **State before checkpoint creation:** Clean at product/test HEAD `3c2109d00c7db51a1978446361cd1dfa05cee625`.
+- **State before checkpoint creation:** Clean at product/test HEAD `7ab0601e64feb415a9478bb975b212259a898982`.
 - **Required post-checkpoint state:** Clean after the checkpoint commit.
 
 ## Commits made during corrective execution
@@ -21,6 +21,8 @@
 | `48f8c1643fa92b378150d0704512723f968671db` | `fix(2-feedback): surface composition load warnings` | Routed legacy migration and repaired-composition warnings through SaveLoad and the safe ToastRegion allowlist. |
 | `6033d9f33dbdc025e13689331a0fa98a00a185f6` | `fix(2-export): preserve the canonical legend clone` | Required one canonical SVG, retained legend content, and removed editor-only legend controls from the PNG clone. |
 | `3c2109d00c7db51a1978446361cd1dfa05cee625` | `test(2-wiring): prove corrected composition behavior` | Added real-App coverage for modern-only browser/Locate, historical map interaction, settled live-camera save, responsive owner identity/focus/order, D3 `__zoom`, legend/export, and failure recovery. |
+| `1e8cda22fe6f98492e2b5300b3baf4ce7273168b` | `fix(2-feedback): preserve material creator warnings` | Preserved simultaneous composition/storage warning details and safely allowed exact bounded legend announcements. |
+| `7ab0601e64feb415a9478bb975b212259a898982` | `fix(2-legend): separate editing from the map listbox` | Scoped listbox semantics to the country subtree while keeping one editable/exported in-SVG legend as a sibling. |
 
 The inherited unintegrated stack immediately before these commits remained:
 
@@ -30,7 +32,7 @@ The inherited unintegrated stack immediately before these commits remained:
 - `fbd53d1` — composition transaction wiring
 - `51eabd4` — live composition product-flow tests
 
-Those inherited commits and the four corrective commits above remain unintegrated and require fresh independent review as one aggregate diff from `b910875e65d91cc3113137f6f57610ca1e26874a`.
+Those inherited commits and the six corrective commits above remain unintegrated and require fresh independent review as one aggregate diff from `b910875e65d91cc3113137f6f57610ca1e26874a`.
 
 ## Ten recovered blocker dispositions
 
@@ -72,7 +74,7 @@ Those inherited commits and the four corrective commits above remain unintegrate
 | `npm run test:e2e -- --project=chrome tests/e2e/phase2-composition.spec.ts --grep "historical scene"` | Final focused historical rerun PASS: 1/1. |
 | `npm run test:e2e -- --project=chrome tests/e2e/phase2-composition.spec.ts` | Final focused composition PASS: 7/7. |
 
-### Authoritative final gates at product/test HEAD `3c2109d00c7db51a1978446361cd1dfa05cee625`
+### Initial authoritative gates at product/test HEAD `3c2109d00c7db51a1978446361cd1dfa05cee625`
 
 | Command | Exact result |
 |---|---|
@@ -88,6 +90,30 @@ Those inherited commits and the four corrective commits above remain unintegrate
 | `git diff --name-status b910875e65d91cc3113137f6f57610ca1e26874a..HEAD -- public/data data` | PASS: empty output; no historical/public data change. |
 
 No dependency install, package manifest change, environment secret, authentication, deployment, backend, or network service was introduced.
+
+## Follow-up independent-review blocker dispositions
+
+| # | Verified blocker | Final disposition |
+|---|---|---|
+| 1 | A composition warning could hide a simultaneous `corrupt-data` warning about omitted colors. | **Resolved.** `getLoadFeedback` now emits every applicable approved warning sentence in deterministic legacy → repair → omitted-color order. The Toast sanitizer accepts only the finite generated combinations. Focused tests cover both legacy+corrupt and repaired+corrupt outcomes. |
+| 2 | Legend move/reorder announcements were reduced to generic `Map updated.` feedback. | **Resolved.** Exact first-entry, corner move, custom position, order, and bounded dynamic reorder announcements survive the safe-message guard. Dynamic labels are limited to 32 safe text characters and positions are constrained to `1..count`, with `count <= 30`; invalid variants still fail closed. |
+| 3 | The focusable `Move legend` SVG control was nested under the map `role=listbox`. | **Resolved structurally.** The canonical SVG remains singular. `role=listbox`, its label, and multiselect semantics now belong only to the D3 countries group inside the camera layer. The one live/editable/exported legend remains a sibling after the camera group, so its focusable move target is outside the listbox while keyboard movement and clone sanitization remain unchanged. |
+
+The modern 195-core CountryList/Locate boundary, historical interaction policy, camera owner, export freeze, historical catalog, and downstream plan statuses were not changed by this follow-up.
+
+### Authoritative follow-up gates at product/test HEAD `7ab0601e64feb415a9478bb975b212259a898982`
+
+| Command | Exact result |
+|---|---|
+| `npm test -- src/components/SaveLoad.test.tsx src/components/ToastRegion.test.tsx src/components/MapCanvas.test.tsx src/components/LegendEditor.test.tsx src/utils/export.test.ts` | PASS: 5 files, 42 tests. |
+| `npm test` | PASS: 31 files, 337 tests. |
+| `npm run lint` | PASS: ESLint completed with no errors or warnings. |
+| `npm exec tsc -- -b --pretty false` | PASS: strict project TypeScript completed with no diagnostics. |
+| `npm run data:world:check` | PASS: 248 units and 195 selectable core states. |
+| `npm run build` | PASS: 627 modules transformed; production bundle generated. Vite emitted the existing non-blocking >500 kB chunk advisory. |
+| `npm run test:e2e -- --project=chrome tests/e2e/phase2-composition.spec.ts` | PASS: 7/7. Includes real-App proof that the one editable legend is outside the country listbox. |
+| `npm run test:e2e -- --project=chrome` | PASS: 18/18 across legend, Locate/country search, navigation, camera, responsive composition, save/load, and export. |
+| `git diff --name-status b910875e65d91cc3113137f6f57610ca1e26874a..HEAD -- public/data data` | PASS: empty output; no historical/public data change. |
 
 ## Downstream ownership caveats
 
@@ -109,6 +135,6 @@ No dependency install, package manifest change, environment secret, authenticati
 
 **Ready for another independent integration review: YES, with caveats.**
 
-The exact corrected code/test bytes are at `3c2109d00c7db51a1978446361cd1dfa05cee625`; this checkpoint is the only subsequent documentation artifact. The stack is not integration-approved, does not complete downstream plans, and must still be independently reviewed as an aggregate diff from `b910875e65d91cc3113137f6f57610ca1e26874a` before any merge or cherry-pick into the primary checkout.
+The exact corrected code/test bytes are at `7ab0601e64feb415a9478bb975b212259a898982`; this checkpoint is the only subsequent documentation artifact. The stack is not integration-approved, does not complete downstream plans, and must still be independently reviewed as an aggregate diff from `b910875e65d91cc3113137f6f57610ca1e26874a` before any merge or cherry-pick into the primary checkout.
 
 The reviewing agent must bind its decision to the exact checkpoint-containing commit reported by Git and confirm the worktree is clean.
