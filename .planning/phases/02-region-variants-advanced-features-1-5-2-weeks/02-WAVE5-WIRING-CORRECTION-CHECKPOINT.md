@@ -138,3 +138,49 @@ The modern 195-core CountryList/Locate boundary, historical interaction policy, 
 The exact corrected code/test bytes are at `7ab0601e64feb415a9478bb975b212259a898982`; this checkpoint is the only subsequent documentation artifact. The stack is not integration-approved, does not complete downstream plans, and must still be independently reviewed as an aggregate diff from `b910875e65d91cc3113137f6f57610ca1e26874a` before any merge or cherry-pick into the primary checkout.
 
 The reviewing agent must bind its decision to the exact checkpoint-containing commit reported by Git and confirm the worktree is clean.
+
+---
+
+# Appendix — Integration review remediation (02-WAVE5-INTEGRATION-REVIEW.md)
+
+Applied in the same worktree/branch as above, on top of `8f1968b`. Each finding
+is one atomic commit. No `public/data` or `data` file, dependency, manifest,
+lockfile, `vite.config`/`tsconfig`, planning-state file, or downstream plan
+summary was touched; the only `.planning` edit is this appended appendix.
+
+## Disposition
+
+| Finding | Disposition | What changed |
+|---|---|---|
+| H-1 stale legend validation permanently disables export | FIXED | Gate derived in `App` from `compositionState.legend` + `effectiveColors` + `legendBounds` through the new shared `validateActiveLegend`; `LegendEditor.onValidationChange` removed. The gate blocks only on issues the editor reports to the user (`getLegendBlockingMessage`), because the default legend position sentinel `{x:0,y:0}` is `invalid-position` and gating on the raw `ok` flag blocked export on a fresh app (verified in Chrome). |
+| H-2 browser selects entities absent from the scene | FIXED | `App` derives `effectiveSelectableIds` from `effectiveCountryLookup`; `CountryList` keeps the modern 195-core catalog visible/searchable but disables rows outside the scene, limits `Select Visible` to in-scene ids, and rejects out-of-scene toggles. |
+| H-3 desktop inspector shell deleted | FIXED | `<aside class="workspace__control-column">` restored as a keyed sibling (`key="inspector"`) of the keyed map, with the `max-height`/`overflow-y`/`overscroll-behavior: contain` rule and the `complementary` landmark. |
+| M-1 unguarded render-time throws, no error boundary | FIXED | New `ErrorBoundary` (renders children with no wrapper) around the workspace in `App` and around the provider tree in `main.tsx`; both fall back to `FatalErrorState`. |
+| M-3 fail-open feature fallback | FIXED | `MapWorkspace.features` is required and explicitly nullable; a null scene renders `FatalErrorState` instead of the modern world. |
+| M-2 stale `pendingLoadedFocusId` | FIXED | The focus request is consumed whether or not the target is in the scene. |
+| M-5 dropped historical entries discarded | FIXED | `EffectiveScene.assetWarnings` carries the validator warnings; the load transaction maps them to the existing `composition-repaired` warning. |
+| M-6 legend reorder allowlist | FIXED | Label bounded by length (32) and escaped by React; guard stays fail-closed for control/format characters. |
+| L-1 dead `frameId`/`cancelFrame` | FIXED | Removed from the driver contract, implementation, call sites, and test harness. |
+| L-3 freeze count incremented before side effects | FIXED | Lease counted only after the driver side effects succeed; a failed freeze best-effort renews input. |
+| L-5 `activeController` left set on cancel/abort | FIXED | All release points go through `releaseController`, which only clears when the reference still points at that request. |
+| M-4 load atomicity relies on dispatchers throwing | NOT ADDRESSED | Out of the requested scope; the review itself records the rollback machinery as correct and only the claim as overstated. |
+| L-2, L-4, L-6, L-7, L-8, L-9 | NOT ADDRESSED | Explicitly out of scope for this remediation. |
+
+## Corrected tests
+
+Two pre-existing tests encoded behavior these fixes reverse and were corrected:
+
+- The desktop DOM-order assertions in `real app saves and loads the complete composition after responsive rebinding` asserted the flattened `main > .workspace__actions` layout that H-3 restores. They now assert `main` children are exactly `[workspace__map, workspace__control-column]`, the inspector holds the four sections in order, its computed `overscroll-behavior-y` is `contain`, compact stays actions-first, and both layouts keep exactly one `svg.map-canvas`.
+- The Playwright fixtures `tests/e2e/fixtures/locate.html` and `tests/e2e/fixtures/legend.html` constructed `CountryList` / `LegendEditor` directly and were updated to the corrected props (the legend fixture now derives its export gate with `validateActiveLegend`, exactly as `App` does).
+
+## Gate results
+
+| Gate | Result |
+|---|---|
+| `npm test` | PASS — 32 files, 349 tests |
+| `npm run lint` | PASS — no findings |
+| `npm exec tsc -- -b --pretty false` | PASS — no output |
+| `npm run data:world:check` | PASS — 248 units, 195 selectable core states |
+| `npm run build` | PASS |
+| `npm run test:e2e -- --project=chrome` | PASS — 19/19 (18 baseline + 1 new H-1 regression) |
+| `git diff --name-status b910875..HEAD -- public/data data` | PASS — empty |
