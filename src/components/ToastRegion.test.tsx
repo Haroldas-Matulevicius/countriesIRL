@@ -20,6 +20,8 @@ describe('color application messages', (): void => {
     const messages = [
       'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
       'Saved map loaded, but some unavailable settings were restored to safe defaults.',
+      'Older saved map loaded with a modern world view. Save it again to keep the full composition. Saved map loaded, but some invalid saved colors were omitted.',
+      'Saved map loaded, but some unavailable settings were restored to safe defaults. Saved map loaded, but some invalid saved colors were omitted.',
     ];
 
     messages.forEach((message, index): void => {
@@ -36,6 +38,51 @@ describe('color application messages', (): void => {
 
       expect(markup).toContain(message);
       expect(markup).not.toContain('The operation completed with a warning.');
+    });
+  });
+
+  it('preserves every bounded legend announcement category', (): void => {
+    const messages = [
+      'Legend added. Open Legend to edit labels.',
+      'Legend position updated.',
+      'Legend order updated.',
+      'Legend moved to Top left.',
+      'Legend moved to Top right.',
+      'Legend moved to Bottom left.',
+      'Legend moved to Bottom right.',
+      'Moved Allies to position 2 of 3.',
+    ];
+
+    messages.forEach((message, index): void => {
+      const markup = renderToStaticMarkup(
+        <ToastRegion
+          message={{ id: `legend-${index}`, severity: 'info', message }}
+          onDismiss={vi.fn()}
+        />,
+      );
+
+      expect(markup).toContain(message);
+      expect(markup).not.toContain('Map updated.');
+    });
+  });
+
+  it('rejects unbounded or invalid legend reorder announcements', (): void => {
+    const messages = [
+      `Moved ${'x'.repeat(33)} to position 1 of 2.`,
+      'Moved Allies to position 3 of 2.',
+      'Moved Allies to position 1 of 31.',
+    ];
+
+    messages.forEach((message, index): void => {
+      const markup = renderToStaticMarkup(
+        <ToastRegion
+          message={{ id: `invalid-legend-${index}`, severity: 'info', message }}
+          onDismiss={vi.fn()}
+        />,
+      );
+
+      expect(markup).toContain('Map updated.');
+      expect(markup).not.toContain(message);
     });
   });
 

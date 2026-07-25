@@ -6,6 +6,21 @@ const FALLBACK_ERROR_MESSAGE =
   'The operation could not be completed. Please try again.';
 const FALLBACK_STATUS_MESSAGE = 'Map updated.';
 const FALLBACK_WARNING_MESSAGE = 'The operation completed with a warning.';
+const LEGACY_LOAD_WARNING =
+  'Older saved map loaded with a modern world view. Save it again to keep the full composition.';
+const REPAIRED_COMPOSITION_WARNING =
+  'Saved map loaded, but some unavailable settings were restored to safe defaults.';
+const PARTIAL_LOAD_WARNING =
+  'Saved map loaded, but some invalid saved colors were omitted.';
+const APPROVED_LOAD_WARNING_MESSAGES = [
+  LEGACY_LOAD_WARNING,
+  REPAIRED_COMPOSITION_WARNING,
+  PARTIAL_LOAD_WARNING,
+  `${LEGACY_LOAD_WARNING} ${REPAIRED_COMPOSITION_WARNING}`,
+  `${LEGACY_LOAD_WARNING} ${PARTIAL_LOAD_WARNING}`,
+  `${REPAIRED_COMPOSITION_WARNING} ${PARTIAL_LOAD_WARNING}`,
+  `${LEGACY_LOAD_WARNING} ${REPAIRED_COMPOSITION_WARNING} ${PARTIAL_LOAD_WARNING}`,
+] as const;
 
 const APPROVED_STATIC_MESSAGES = new Set<string>([
   'No countries selected.',
@@ -20,9 +35,14 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   'This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.',
   'Browser storage is full. Delete an older saved map, then save this map again.',
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.',
-  'Saved map loaded, but some invalid saved colors were omitted.',
-  'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
-  'Saved map loaded, but some unavailable settings were restored to safe defaults.',
+  ...APPROVED_LOAD_WARNING_MESSAGES,
+  'Legend added. Open Legend to edit labels.',
+  'Legend position updated.',
+  'Legend order updated.',
+  'Legend moved to Top left.',
+  'Legend moved to Top right.',
+  'Legend moved to Bottom left.',
+  'Legend moved to Bottom right.',
   EXPORT_FAILURE_MESSAGE,
 ]);
 
@@ -31,6 +51,18 @@ const COLOR_MESSAGE_PATTERN =
   /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ (?:country|countries)\.$/;
 const CENTERED_MESSAGE_PATTERN =
   /^Centered on [\p{L}\p{N} .,'’()&-]{1,100}\.$/u;
+const LEGEND_REORDER_MESSAGE_PATTERN =
+  /^Moved ([\p{L}\p{N} #.,'’()&:_/!?-]{1,32}) to position (\d{1,2}) of (\d{1,2})\.$/u;
+
+function isApprovedLegendReorderMessage(message: string): boolean {
+  const match = LEGEND_REORDER_MESSAGE_PATTERN.exec(message);
+  if (match === null) {
+    return false;
+  }
+  const position = Number(match[2]);
+  const count = Number(match[3]);
+  return position >= 1 && count >= 1 && position <= count && count <= 30;
+}
 
 function countryCountLabel(count: number): string {
   return `${count} ${count === 1 ? 'country' : 'countries'}`;
@@ -84,7 +116,8 @@ function getSafeMessage(message: ToastMessage): string {
     APPROVED_STATIC_MESSAGES.has(message.message) ||
     SELECTION_MESSAGE_PATTERN.test(message.message) ||
     COLOR_MESSAGE_PATTERN.test(message.message) ||
-    CENTERED_MESSAGE_PATTERN.test(message.message)
+    CENTERED_MESSAGE_PATTERN.test(message.message) ||
+    isApprovedLegendReorderMessage(message.message)
   ) {
     return message.message;
   }

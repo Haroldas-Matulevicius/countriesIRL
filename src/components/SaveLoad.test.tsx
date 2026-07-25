@@ -130,6 +130,25 @@ describe('SaveLoad load feedback', () => {
     });
   });
 
+  it('preserves composition and omitted-color warnings together', () => {
+    const corruptWarnings = [{ code: 'corrupt-data', recordIndex: 0 }] as const;
+
+    expect(
+      getLoadFeedback([{ code: 'legacy-migrated' }], corruptWarnings),
+    ).toEqual({
+      message:
+        'Older saved map loaded with a modern world view. Save it again to keep the full composition. Saved map loaded, but some invalid saved colors were omitted.',
+      severity: 'warning',
+    });
+    expect(
+      getLoadFeedback([{ code: 'composition-repaired' }], corruptWarnings),
+    ).toEqual({
+      message:
+        'Saved map loaded, but some unavailable settings were restored to safe defaults. Saved map loaded, but some invalid saved colors were omitted.',
+      severity: 'warning',
+    });
+  });
+
   it('uses success feedback only when the load has no warnings', () => {
     expect(getLoadFeedback([], [])).toEqual({
       message: 'Saved map loaded.',

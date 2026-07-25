@@ -130,16 +130,21 @@ export function getLoadFeedback(
   compositionWarnings: ReadonlyArray<CompositionLoadWarning>,
   storageWarnings: ReadonlyArray<StorageWarning>,
 ): LoadFeedback {
+  const warningMessages: string[] = [];
   if (compositionWarnings.some((warning) => warning.code === 'legacy-migrated')) {
-    return { message: LEGACY_LOAD_WARNING, severity: 'warning' };
+    warningMessages.push(LEGACY_LOAD_WARNING);
   }
   if (
     compositionWarnings.some((warning) => warning.code === 'composition-repaired')
   ) {
-    return { message: REPAIRED_COMPOSITION_WARNING, severity: 'warning' };
+    warningMessages.push(REPAIRED_COMPOSITION_WARNING);
   }
-  return storageWarnings.some((warning) => warning.code === 'corrupt-data')
-    ? { message: PARTIAL_LOAD_WARNING, severity: 'warning' }
+  if (storageWarnings.some((warning) => warning.code === 'corrupt-data')) {
+    warningMessages.push(PARTIAL_LOAD_WARNING);
+  }
+
+  return warningMessages.length > 0
+    ? { message: warningMessages.join(' '), severity: 'warning' }
     : { message: 'Saved map loaded.', severity: 'success' };
 }
 
