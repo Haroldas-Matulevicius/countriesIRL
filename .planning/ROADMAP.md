@@ -127,7 +127,7 @@ them. The list here is the **execution order**; per-plan detail lives in each pl
 - [x] `02-27` `tests/e2e/final-integration.spec.ts` — the cross-domain creator journey measured on downloaded PNG bytes, with four RED probes. Exact-commit gate re-run **PASS at `fe5f946`**.
 
 **Wave 18** — owner gate
-- [ ] `02-28` **OPEN** — the human acceptance matrix. Prepared and bound to `fe5f946`; 60 automatable cells are pre-filled with cited evidence and **every physical cell is `PENDING`**. It cannot be delegated, automated, or blanket-approved → [`02-28-ACCEPTANCE-MATRIX.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-28-ACCEPTANCE-MATRIX.md)
+- [ ] `02-28` **OPEN** — the human acceptance matrix. Prepared and bound to `fe5f946`; the automatable cells are pre-filled with cited evidence and **every physical cell is `PENDING`**. It cannot be delegated, automated, or blanket-approved → [`02-28-ACCEPTANCE-MATRIX.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-28-ACCEPTANCE-MATRIX.md)
 
 Cross-cutting constraints:
 - One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector.

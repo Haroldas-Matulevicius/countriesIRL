@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 2 engineering is COMPLETE and gate-verified at fe5f946060707c48c3d9591d368b5f3f8f90dd4d. Two owner gates remain OPEN: 02-25 (documentation approval -- patches applied, but the approval on file is blanket, sight-unseen and NOT hash-bound, and its Task 2 was never executed) and 02-28 (the human acceptance matrix -- prepared and bound to fe5f946, 60 automatable cells pre-filled with cited evidence, every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 are DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: hand 02-28 to the owner."
+stopped_at: "Phase 2 engineering is COMPLETE and gate-verified at fe5f946060707c48c3d9591d368b5f3f8f90dd4d. Two owner gates remain OPEN: 02-25 (documentation approval -- patches applied, but the approval on file is blanket, sight-unseen and NOT hash-bound, and its Task 2 was never executed) and 02-28 (the human acceptance matrix -- prepared and bound to fe5f946, the automatable cells pre-filled with cited evidence and every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 are DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: hand 02-28 to the owner."
 last_updated: "2026-07-26T12:00:00.000Z"
 last_activity: "Per-plan execution narrative moved verbatim to phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md on 2026-07-26 so this field holds the current position rather than an accreting ledger. Latest: 02-27 completed and the exact-commit gate re-ran PASS at fe5f946 from a fresh detached worktree -- lint clean, 516/516 unit across 38 files, tsc -b clean, world 248 units / 195 selectable core states, both blocked historical packets failing closed at exit 1 (correct), build clean, Chrome 71/71, Edge 71/71; worktree removed and pruned. Catalog Modern-only, hash-verified, zero historical promotions. Then 02-28 was PREPARED, not completed."
 progress:
@@ -96,7 +96,7 @@ and the `02-NN-SUMMARY.md` files. One line per event here.
   `.continue-here.md`. `HANDOFF.json` deleted (a one-shot artifact, already consumed). Both
   `CLAUDE.md` rows pointing at files that never existed were removed.
 - 2026-07-26 — **`02-28` prepared, not completed.** The acceptance matrix was rebound to
-  `fe5f946` and 60 automatable cells pre-filled with cited evidence. It remains an OPEN gate.
+  `fe5f946` and the automatable cells pre-filled with cited evidence. It remains an OPEN gate.
 - 2026-07-26 — **`02-27` complete + exact-commit gate PASS at `fe5f946`.**
   `tests/e2e/final-integration.spec.ts` measures a full creator journey on downloaded PNG bytes,
   with region-disjoint colour counting and an in-test blank-export discrimination control so
