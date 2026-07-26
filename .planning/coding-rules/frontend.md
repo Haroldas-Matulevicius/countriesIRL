@@ -330,6 +330,26 @@ keyed by a stable row key — index keys break as soon as a row is deleted.
 **Scrim dismissal must compare `event.target === event.currentTarget`.** A nested overlay
 rendered inside the dialog then cannot be mistaken for the outer scrim.
 
+**`aria-modal` does not hide the dialog behind the confirmation — `inert` does.** `aria-modal`
+on the *parent* restricts assistive technology to the parent subtree, which still contains Save,
+Delete, Close, and the name input. A CSS scrim blocks the mouse and a `Tab` trap blocks the
+keyboard, but a browse/virtual-cursor user reads straight past the confirmation and activates
+the destructive control a sighted user cannot reach. So, while a nested confirmation is open:
+
+- render it as a **sibling** of the dialog, under the same overlay — an inert ancestor would
+  take the confirmation itself out of the tree;
+- set `inert` **and** `aria-hidden="true"` on the dialog element (imperatively; React 18 does
+  not serialize the `inert` prop);
+- bind the key handler to the **overlay**, not the dialog: an inert dialog can hold no focus, so
+  a handler bound there never fires;
+- restore focus from an **effect**, not from the click handler — the target is still inert when
+  the handler runs.
+
+**Escape dismisses the innermost open confirmation, never a layer above it.** Branch over every
+open layer in order (`pendingLoad` → `pendingDeleteKey` → close), and add the new branch in the
+same change that adds a new confirmation. A handler that knows about only one of two sibling
+confirmations discards the other one's prompt and dumps the user back at the opener.
+
 ---
 
 ---
@@ -388,7 +408,7 @@ another transaction also reads.
 
 ---
 
+*Last updated: 2026-07-25 — inert-behind-confirmation and Escape-layering rules (wave 6 review MEDIUM-4/MEDIUM-5).*
 *Last updated: 2026-07-25 — transaction-hook rules from the export transaction extraction (plan 02-30).*
-*Last updated: 2026-07-25 — nested confirmation dialog rules from Save/Load (plan 02-20).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

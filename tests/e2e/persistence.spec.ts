@@ -579,7 +579,27 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   );
   const keepEditing = page.getByRole('button', { name: 'Keep Editing' });
   await expect(page.getByRole('button', { name: 'Load Saved Map' })).toBeFocused();
+
+  // The dialog behind the confirmation is inert, so a browse-mode screen-reader
+  // user cannot read past the confirmation and activate Delete or Close - the
+  // controls a sighted user is blocked from by the overlay.
+  await expect(page.locator('.save-load-dialog')).toHaveAttribute('inert', '');
+  await expect(
+    page.getByRole('button', { name: 'Delete Saved Map: Custom view map' }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Close Saved Maps' }),
+  ).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveCount(0);
+  await expect(
+    page.getByRole('dialog', { name: 'Replace the current map?' }),
+  ).toBeVisible();
+
   await keepEditing.click();
+  await expect(page.locator('.save-load-dialog')).not.toHaveAttribute(
+    'inert',
+    '',
+  );
   await expect(confirmDialog).toHaveCount(0);
   await expect(loadButton).toBeFocused();
   await expect(francePath).toHaveAttribute('fill', '#DC2626');
@@ -603,6 +623,18 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   const confirmDelete = page.getByRole('button', {
     name: 'Delete Map: Custom view map',
   });
+  await expect(confirmDelete).toBeFocused();
+
+  // Escape cancels the innermost confirmation only: closing the whole modal
+  // would silently discard the delete prompt and force a reopen.
+  await page.keyboard.press('Escape');
+  await expect(confirmDelete).toHaveCount(0);
+  await expect(
+    page.getByRole('dialog', { name: 'Save or load maps' }),
+  ).toBeVisible();
+  await expect(deleteButton).toBeFocused();
+
+  await deleteButton.click();
   await expect(confirmDelete).toBeFocused();
   await page.getByRole('button', { name: 'Keep Map: Custom view map' }).click();
   await expect(confirmDelete).toHaveCount(0);

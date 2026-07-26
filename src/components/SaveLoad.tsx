@@ -240,6 +240,7 @@ export function SaveLoad({
   const confirmLoadButtonRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
   const restoreDeleteFocusRef = useRef<string | null>(null);
+  const restoreLoadFocusRef = useRef<string | null>(null);
   const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const nameInputRef = useRef<HTMLInputElement>(null);
   const savedMapsSectionRef = useRef<HTMLElement>(null);
@@ -315,19 +316,46 @@ export function SaveLoad({
   }, [savedMaps]);
 
   const cancelPendingLoad = useCallback((): void => {
-    const cancelled = pendingLoad;
+    if (pendingLoad !== null) {
+      // The dialog behind the confirmation is inert, so focus cannot be
+      // restored until React has removed that attribute - the effect below owns
+      // the restore, not this handler.
+      restoreLoadFocusRef.current = getSavedMapFocusKey(pendingLoad);
+    }
     setPendingLoad(null);
-    if (cancelled === null) {
+  }, [pendingLoad]);
+
+  // A nested `aria-modal` dialog does not hide its parent: `aria-modal` on the
+  // outer dialog restricts assistive technology to the outer subtree, which
+  // still contains Save, Delete, and Close. Without `inert`, a browse-mode user
+  // reads past the confirmation and activates the very controls the sighted
+  // user cannot reach.
+  useEffect((): void => {
+    const dialog = dialogRef.current;
+    if (dialog === null) {
       return;
     }
-    loadButtonRefs.current.get(getSavedMapFocusKey(cancelled))?.focus();
+    if (pendingLoad === null) {
+      dialog.removeAttribute('inert');
+      dialog.removeAttribute('aria-hidden');
+      return;
+    }
+    dialog.setAttribute('inert', '');
+    dialog.setAttribute('aria-hidden', 'true');
   }, [pendingLoad]);
 
   useEffect((): void => {
-    if (pendingLoad === null) {
+    if (pendingLoad !== null) {
+      confirmLoadButtonRef.current?.focus();
       return;
     }
-    confirmLoadButtonRef.current?.focus();
+
+    const restoreKey = restoreLoadFocusRef.current;
+    if (restoreKey === null) {
+      return;
+    }
+    restoreLoadFocusRef.current = null;
+    loadButtonRefs.current.get(restoreKey)?.focus();
   }, [pendingLoad]);
 
   // The row swaps its buttons, so the control to focus does not exist until
@@ -353,13 +381,19 @@ export function SaveLoad({
       const trapRoot =
         pendingLoad === null ? dialogRef.current : confirmDialogRef.current;
 
+      // Escape dismisses the innermost open confirmation only. Closing the
+      // whole modal from a per-row delete prompt would discard the prompt and
+      // force the user to reopen and re-navigate.
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        if (pendingLoad === null) {
-          requestClose();
-        } else {
+        if (pendingLoad !== null) {
           cancelPendingLoad();
+        } else if (pendingDeleteKey !== null) {
+          restoreDeleteFocusRef.current = pendingDeleteKey;
+          setPendingDeleteKey(null);
+        } else {
+          requestClose();
         }
         return;
       }
@@ -392,7 +426,7 @@ export function SaveLoad({
         firstElement.focus();
       }
     },
-    [cancelPendingLoad, pendingLoad, requestClose],
+    [cancelPendingLoad, pendingDeleteKey, pendingLoad, requestClose],
   );
 
   const handleSave = useCallback(
@@ -528,6 +562,10 @@ export function SaveLoad({
   return (
     <div
       className="save-load-overlay"
+      // The key handler lives on the overlay, not on the dialog: while the
+      // load confirmation is open the dialog is inert, so nothing inside it can
+      // be focused and no key event could reach a handler bound there.
+      onKeyDown={handleDialogKeyDown}
       onMouseDown={(event): void => {
         if (
           event.target === event.currentTarget &&
@@ -545,7 +583,6 @@ export function SaveLoad({
         aria-labelledby={headingId}
         aria-busy={isSaving || isLoading}
         tabIndex={-1}
-        onKeyDown={handleDialogKeyDown}
       >
         <header className="save-load-header">
           <h2 id={headingId}>Save or load maps</h2>
@@ -724,38 +761,45 @@ export function SaveLoad({
           </button>
         </footer>
 
-        {pendingLoad !== null && (
-          <div className="save-load-confirm-overlay">
-            <div
-              ref={confirmDialogRef}
-              className="save-load-confirm"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={confirmHeadingId}
-              aria-describedby={confirmBodyId}
-            >
-              <h3 id={confirmHeadingId}>{DIRTY_LOAD_HEADING}</h3>
-              <p id={confirmBodyId}>
-                {`Loading “${pendingLoad.name}” will replace unsaved colors, view, period, and legend changes.`}
-              </p>
-              <div className="save-load-confirm-actions">
-                <button
-                  ref={confirmLoadButtonRef}
-                  type="button"
-                  onClick={(): void => {
-                    void performLoad(pendingLoad);
-                  }}
-                >
-                  Load Saved Map
-                </button>
-                <button type="button" onClick={cancelPendingLoad}>
-                  Keep Editing
-                </button>
-              </div>
+      </div>
+
+      {/*
+        Rendered as a sibling of the dialog, never inside it: the dialog is
+        marked inert while this confirmation is open, and an inert ancestor
+        would take the confirmation itself out of the accessibility tree and
+        the tab order.
+      */}
+      {pendingLoad !== null && (
+        <div className="save-load-confirm-overlay">
+          <div
+            ref={confirmDialogRef}
+            className="save-load-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={confirmHeadingId}
+            aria-describedby={confirmBodyId}
+          >
+            <h3 id={confirmHeadingId}>{DIRTY_LOAD_HEADING}</h3>
+            <p id={confirmBodyId}>
+              {`Loading “${pendingLoad.name}” will replace unsaved colors, view, period, and legend changes.`}
+            </p>
+            <div className="save-load-confirm-actions">
+              <button
+                ref={confirmLoadButtonRef}
+                type="button"
+                onClick={(): void => {
+                  void performLoad(pendingLoad);
+                }}
+              >
+                Load Saved Map
+              </button>
+              <button type="button" onClick={cancelPendingLoad}>
+                Keep Editing
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
