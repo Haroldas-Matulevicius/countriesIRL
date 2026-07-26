@@ -531,6 +531,91 @@ describe('exportMapPng', (): void => {
     expect(sourcePath.getAttribute('stroke')).toBe(SELECTED_BORDER_COLOR);
   });
 
+  it('keeps the ids that paint references and strips the rest', async (): Promise<void> => {
+    const { source, sourceSvg, legend } = createSource();
+
+    const defs = new FakeElement('DEFS');
+    const gradient = new FakeElement('LINEARGRADIENT');
+    gradient.setAttribute('id', 'legend-gradient');
+    const clip = new FakeElement('CLIPPATH');
+    clip.setAttribute('id', 'legend-clip');
+    const symbol = new FakeElement('G');
+    symbol.setAttribute('id', 'legend-symbol');
+    const unusedGradient = new FakeElement('LINEARGRADIENT');
+    unusedGradient.setAttribute('id', 'unused-gradient');
+    defs.appendChild(gradient);
+    defs.appendChild(clip);
+    defs.appendChild(symbol);
+    defs.appendChild(unusedGradient);
+    sourceSvg.appendChild(defs);
+
+    const swatch = new FakeElement('RECT');
+    // Referenced by paint, so the id it points at is geometry, not semantics.
+    swatch.setAttribute('id', 'legend-swatch');
+    swatch.setAttribute('fill', 'url(#legend-gradient)');
+    swatch.setAttribute('clip-path', 'url(#legend-clip)');
+    const swatchUse = new FakeElement('USE');
+    swatchUse.setAttribute('href', '#legend-symbol');
+    legend.appendChild(swatch);
+    legend.appendChild(swatchUse);
+
+    html2canvasMock.mockResolvedValue(createCanvas());
+
+    await expect(
+      exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
+    ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
+
+    const [capturedFrame] = html2canvasMock.mock.calls[0] as [FakeElement];
+    const clonedSvg = capturedFrame.children[0];
+    if (clonedSvg === undefined) {
+      throw new Error('The clone is missing.');
+    }
+
+    expect(
+      clonedSvg.querySelector('[id="legend-gradient"]')?.getAttribute('id'),
+    ).toBe('legend-gradient');
+    expect(
+      clonedSvg.querySelector('[id="legend-clip"]')?.getAttribute('id'),
+    ).toBe('legend-clip');
+    expect(
+      clonedSvg.querySelector('[id="legend-symbol"]')?.getAttribute('id'),
+    ).toBe('legend-symbol');
+    // Nothing points at these two, so they stay pure editor semantics.
+    expect(clonedSvg.querySelector('[id="unused-gradient"]')).toBeNull();
+    expect(clonedSvg.querySelector('[id="legend-swatch"]')).toBeNull();
+    expect(clonedSvg.querySelector('path.country-path')?.getAttribute('id')).toBeNull();
+
+    const clonedSwatch = clonedSvg.querySelector('RECT');
+    expect(clonedSwatch?.getAttribute('fill')).toBe('url(#legend-gradient)');
+    expect(clonedSwatch?.getAttribute('clip-path')).toBe('url(#legend-clip)');
+    expect(clonedSvg.querySelector('USE')?.getAttribute('href')).toBe(
+      '#legend-symbol',
+    );
+
+    // No surviving reference may dangle: a `url(#…)` whose target lost its id
+    // renders on screen and disappears from the PNG.
+    const clonedElements = [clonedSvg, ...clonedSvg.querySelectorAll('*')];
+    const survivingIds = new Set(
+      clonedElements
+        .map((element: FakeElement): string | null => element.getAttribute('id'))
+        .filter((id: string | null): id is string => id !== null),
+    );
+    const references = clonedElements.flatMap((element: FakeElement): string[] =>
+      element.getAttributeNames().flatMap((name: string): string[] => {
+        const value = element.getAttribute(name) ?? '';
+        const urlReferences = [...value.matchAll(/url\(\s*['"]?#([^'")\s]+)/gu)]
+          .map((match): string => match[1] ?? '');
+        return name === 'href' && value.startsWith('#')
+          ? [...urlReferences, value.slice(1)]
+          : urlReferences;
+      }),
+    );
+    expect(references.length).toBeGreaterThan(0);
+    expect(
+      references.filter((id: string): boolean => !survivingIds.has(id)),
+    ).toEqual([]);
+  });
+
   it('keeps every visible wrapped path and strips only its duplicate semantics', async (): Promise<void> => {
     const { source } = createSource();
     html2canvasMock.mockResolvedValue(createCanvas());
@@ -614,6 +699,20 @@ describe('exportMapPng', (): void => {
     });
 
     expect(html2canvasMock).not.toHaveBeenCalled();
+  });
+
+  it('still exports a composition that never had a legend', async (): Promise<void> => {
+    // An uncolored map has no legend entries, so a legend-less composition is
+    // a legitimate white square - never a refusal.
+    const { source, legend } = createSource();
+    legend.remove();
+    html2canvasMock.mockResolvedValue(createCanvas());
+
+    await expect(
+      exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
+    ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
+
+    expect(html2canvasMock).toHaveBeenCalledOnce();
   });
 
   it('refuses a composition carrying more than one legend group', async (): Promise<void> => {

@@ -122,7 +122,8 @@ div.map-export-source
 - a `[data-layer="legend"]` group exists in the export source but **outside** the canonical
   SVG (a sibling overlay is silently dropped by `cloneNode`, so the PNG would ship with no
   legend — this is exactly the defect class that produced the clipped-legend regression);
-- more than one legend group exists;
+- more than one legend group exists (a composition with **no** legend at all is allowed — see
+  the zero-legend rule below);
 - the sanitized clone has lost the camera or legend group, reordered them, or changed either
   group's `transform`.
 
@@ -171,9 +172,20 @@ Normalizing only `country-path` leaves the selection border (`#111827`, 2px) bak
 wrapped copy of a selected country while the primary copy renders the default 1px `#9CA3AF` —
 a visible seam in the PNG.
 
-**Do not blanket-strip `id` if the SVG ever gains `url(#…)` references.** Today the canonical
-SVG has no `<defs>`, gradients, clip paths, or `<use>`, so ids are pure editor semantics. If a
-gradient or clip path is ever added, id-stripping must become reference-aware first.
+**`id` stripping is reference-aware, and must stay that way.** An id nothing points at is
+editor semantics; an id something points at is **paint**. Before removing any `id`, collect
+every reference in the clone — `url(#…)` in any attribute or inline style, and `href` /
+`xlink:href` beginning with `#` — and keep the ids they resolve. A blanket strip renders
+correctly on screen and ships a PNG with the gradient, clip path, mask, marker, or filter
+silently gone, because the reference is resolved by `html2canvas` *after* sanitization.
+
+A test that asserts `clone.ids === 0` **confirms** that break instead of catching it. Assert
+instead that no surviving `url(#…)` or `href="#…"` reference dangles.
+
+**Zero legends is not a missing legend.** `isSingleCanonicalComposition` refuses a duplicated
+legend and a legend that exists in the source but not in the canonical SVG. It deliberately
+allows zero-on-both-sides: an uncolored map has no legend entries and must still export a white
+square. Do not "tighten" this to `=== 1`.
 
 ---
 
@@ -429,6 +441,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-25 — added the per-reason export refusal messaging contract (wave 6 review HIGH-1). Prior: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30).*
+*Last updated: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7). Prior: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

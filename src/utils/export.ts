@@ -51,6 +51,43 @@ const SEMANTIC_ONLY_ATTRIBUTES = [
 
 const ARIA_ATTRIBUTE_PREFIX = 'aria-';
 
+// `url(#gradient)` in a paint attribute or inline style, and `href="#clip"` on
+// `<use>`, are the two ways an SVG resolves an element by id.
+const URL_REFERENCE_PATTERN = /url\(\s*['"]?#([^'")\s]+)/gu;
+const HASH_REFERENCE_ATTRIBUTES = ['href', 'xlink:href'] as const;
+
+/**
+ * Ids are editor semantics only until something points at one. A referenced id
+ * is paint: strip it and the gradient, clip path, mask, marker, or filter it
+ * resolves silently disappears from the PNG while the screen still looks right.
+ */
+function collectReferencedIds(elements: ReadonlyArray<Element>): Set<string> {
+  const referenced = new Set<string>();
+
+  elements.forEach((element: Element): void => {
+    element.getAttributeNames().forEach((name: string): void => {
+      const value = element.getAttribute(name);
+      if (value === null) {
+        return;
+      }
+      if (
+        (HASH_REFERENCE_ATTRIBUTES as ReadonlyArray<string>).includes(name) &&
+        value.startsWith('#')
+      ) {
+        referenced.add(value.slice(1));
+      }
+      [...value.matchAll(URL_REFERENCE_PATTERN)].forEach((match): void => {
+        const id = match[1];
+        if (id !== undefined) {
+          referenced.add(id);
+        }
+      });
+    });
+  });
+
+  return referenced;
+}
+
 interface CompositionShape {
   cameraTransform: string | null;
   hasCameraLayer: boolean;
@@ -77,10 +114,21 @@ function isSingleCanonicalComposition(
   const sourceLegends = source.querySelectorAll(LEGEND_LAYER_SELECTOR).length;
   const svgLegends = svg.querySelectorAll(LEGEND_LAYER_SELECTOR).length;
 
+  // Two legend groups mean the clone would bake a duplicate panel into the PNG.
+  if (svgLegends > 1) {
+    return false;
+  }
   // A legend rendered as a sibling overlay instead of inside the canonical SVG
   // is silently dropped by the clone, so refuse rather than export a map with a
   // missing legend.
-  return sourceLegends === svgLegends && svgLegends <= 1;
+  if (sourceLegends !== svgLegends) {
+    return false;
+  }
+  // Zero on both sides is not a missing legend, it is a composition that never
+  // had one: an uncolored map has no entries, and it must still export a white
+  // square. This guard catches misplaced and duplicated legends only - it makes
+  // no claim about a legend that was never composed.
+  return true;
 }
 
 function sanitizeExportClone(svg: SVGSVGElement): void {
@@ -97,10 +145,19 @@ function sanitizeExportClone(svg: SVGSVGElement): void {
     });
 
   const elements: Element[] = [svg, ...svg.querySelectorAll('*')];
+  const referencedIds = collectReferencedIds(elements);
 
   elements.forEach((element: Element): void => {
     element.classList.remove(...EDITOR_STATE_CLASSES);
+    const elementId = element.getAttribute('id');
     SEMANTIC_ONLY_ATTRIBUTES.forEach((attribute: string): void => {
+      if (
+        attribute === 'id' &&
+        elementId !== null &&
+        referencedIds.has(elementId)
+      ) {
+        return;
+      }
       element.removeAttribute(attribute);
     });
     element
