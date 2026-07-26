@@ -69,6 +69,7 @@ export type ToastMessage =
 
 export type ExportFailureReason =
   | 'source-not-found'
+  | 'invalid-composition'
   | 'capture-failed'
   | 'invalid-dimensions'
   | 'encoding-failed';

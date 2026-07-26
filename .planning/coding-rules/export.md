@@ -100,16 +100,82 @@ try {
 
 ---
 
-## Filename Format
+## Prepared-Composition Clone Contract (Phase 2)
 
-**Format:** `CountriesIRL_<YYYY-MM-DD>.png`
+The export utility is **pure**: it clones an already-prepared, already-frozen DOM. It never
+freezes the camera, never acquires or releases a `CameraFreezeLease`, and never mutates the
+live composition. Lease orchestration lives in the export transaction, not here.
 
-```typescript
-const filename = `CountriesIRL_${new Date().toISOString().split('T')[0]}`;
-// Results in: "CountriesIRL_2026-07-21.png"
+**Canonical shape it requires** (`MapCanvas` renders exactly this):
+
+```
+div.map-export-source
+└── svg.map-canvas                 ← exactly one; more or fewer is `source-not-found`
+    ├── g[data-layer="camera"]     ← must come FIRST
+    │   ├── g[data-layer="outgoing-scenes"]
+    │   └── g[data-layer="countries"]
+    └── g[data-layer="legend"]     ← at most one, and it must be INSIDE the svg
 ```
 
-**Don't include the user's map name in the filename.** The export utility doesn't know the map name (that's in localStorage, not the export function). Phase 2 can add optional custom naming.
+**Refuse rather than export a wrong picture.** `invalid-composition` is returned when:
+
+- a `[data-layer="legend"]` group exists in the export source but **outside** the canonical
+  SVG (a sibling overlay is silently dropped by `cloneNode`, so the PNG would ship with no
+  legend — this is exactly the defect class that produced the clipped-legend regression);
+- more than one legend group exists;
+- the sanitized clone has lost the camera or legend group, reordered them, or changed either
+  group's `transform`.
+
+The post-sanitize check is not a tautology: it is the tripwire that catches a **future**
+sanitize rule that deletes or reorders a required layer.
+
+### Strip semantics, never geometry
+
+Every visible wrapped copy is load-bearing. The Pacific / date-line composition is built from
+`±360°`-offset repeats of the same geography; deleting them because they are "duplicates"
+tears a seam through the exported map.
+
+| Removed from the clone | Kept in the clone |
+|---|---|
+| `[data-layer="outgoing-scene(s)"]` (mid-crossfade predecessor) | `g[data-layer="camera"]` and its `transform` |
+| `[data-editor-only]` (legend hit area, nudge handles) | every `path.scene-path`, including `country-path--decorative` wrapped repeats |
+| `<title>`, `<desc>`, `<metadata>` | `d`, `fill`, `transform`, and all `data-*` geometry markers |
+| **all** `aria-*` attributes | the live legend `<g>` with its exact `transform`, text, and fills |
+| `role`, `tabindex`, `focusable`, `id` | |
+| `selected` / `hovered` / `focused` classes and `data-selected` / `data-hovered` / `data-focused` | |
+
+**Normalize borders across `path.scene-path`, not `path.country-path`.** Wrapped repeats carry
+`scene-path country-path--decorative`; the `.country-path` selector does **not** match them.
+Normalizing only `country-path` leaves the selection border (`#111827`, 2px) baked onto every
+wrapped copy of a selected country while the primary copy renders the default 1px `#9CA3AF` —
+a visible seam in the PNG.
+
+**Do not blanket-strip `id` if the SVG ever gains `url(#…)` references.** Today the canonical
+SVG has no `<defs>`, gradients, clip paths, or `<use>`, so ids are pure editor semantics. If a
+gradient or clip path is ever added, id-stripping must become reference-aware first.
+
+---
+
+## Filename Format
+
+**Unnamed composition:** `CountriesIRL_<YYYY-MM-DD>.png`
+**Named composition:** `<sanitized-name>_<YYYY-MM-DD>.png`
+
+```typescript
+createExportFilename(date);                    // "CountriesIRL_2026-07-21.png"
+createExportFilename(date, 'My Europe Trip');  // "My_Europe_Trip_2026-07-21.png"
+```
+
+**Sanitize the name token in this exact order** — the order is the mitigation, not decoration:
+
+1. whitespace runs → `_`
+2. drop everything outside `[A-Za-z0-9_-]` (kills `/`, `\`, `..`, `:`, `*`, `?`, `"`, `<`, `>`, `|`)
+3. collapse repeated `_`
+4. trim leading/trailing `_` and `-`
+5. cap at **60** characters, then re-trim a trailing separator
+6. if nothing survives, fall back to the unnamed `CountriesIRL_` form
+
+**The date and `.png` suffix are fixed and never derived from user input.**
 
 **No spaces or special characters.** Keep it clean for non-technical users' file systems.
 
@@ -254,6 +320,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup. Prior: 2026-07-21 — initial Phase 1 export rules.*
+*Last updated: 2026-07-25 — added the Phase 2 prepared-composition clone contract (strip semantics, never wrapped geometry) and the named-filename sanitizer order. Prior: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*
