@@ -156,6 +156,38 @@ gradient or clip path is ever added, id-stripping must become reference-aware fi
 
 ---
 
+## Export Transaction Ownership (Phase 2)
+
+`useCompositionExportTransaction` owns everything the pure utility must not: the
+`CameraFreezeLease`, the busy/activation locks, selected-scene finalization, the legend gate,
+and the creator-facing outcome. Splitting it any other way is what produced the permanently
+stuck export gate.
+
+**Order is the contract:**
+
+1. refuse a concurrent activation synchronously, before any `await`, and report nothing;
+2. read the legend blocker **before** taking a lease — a blocked legend must never freeze the
+   camera, and its message is reported as itself with no retry;
+3. resolve the bound `MapCanvasHandle` once, then hold it for the whole activation;
+4. `freezeAndSnapshot()` → commit `lease.camera` to the composition **synchronously, before**
+   `finalizeSelectedScene()` and the clone, so the capture, an immediate save, and a responsive
+   remount all read the same frozen semantic camera;
+5. `getExportSource()` → hand the element to `exportMapPng` unchanged;
+6. release the lease in the outermost `finally` on **every** path, then clear the busy lock,
+   then report.
+
+**Do not re-validate the source shape in the transaction.** `exportMapPng` already refuses a
+disconnected source, a source without exactly one canonical SVG, and a sibling/duplicate legend
+— all *before* it creates a frame or calls html2canvas. A second copy of those rules in the
+transaction is a drift hazard, not a safety net. The transaction only refuses a `null` source
+(`export-source-unavailable`), which the utility cannot see.
+
+**Failure reasons stay truthful:** a throw before the capture begins is `preparation-failed`, a
+throw once html2canvas is running is `export-failed`, and the five `ExportFailureReason` values
+are passed through unchanged.
+
+---
+
 ## Filename Format
 
 **Unnamed composition:** `CountriesIRL_<YYYY-MM-DD>.png`
@@ -176,6 +208,11 @@ createExportFilename(date, 'My Europe Trip');  // "My_Europe_Trip_2026-07-21.png
 6. if nothing survives, fall back to the unnamed `CountriesIRL_` form
 
 **The date and `.png` suffix are fixed and never derived from user input.**
+
+**The name comes from the composition root, not from the exporter.** It is the name of the
+last committed save or load — set only when that transaction succeeds — and it is passed into
+the export transaction as a `getCompositionName()` accessor. The exporter never owns it: save
+and load read the same identity.
 
 **No spaces or special characters.** Keep it clean for non-technical users' file systems.
 
@@ -354,6 +391,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-25 — added the Phase 2 prepared-composition clone contract, the named-filename sanitizer order, and the browser export-evidence rules. Prior: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup.*
+*Last updated: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30). Prior: 2026-07-25 — added the Phase 2 prepared-composition clone contract, the named-filename sanitizer order, and the browser export-evidence rules.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

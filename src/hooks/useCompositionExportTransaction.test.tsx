@@ -218,15 +218,16 @@ describe('createCompositionExportTransaction', (): void => {
   it('refuses a concurrent activation without touching the camera or reporting twice', async (): Promise<void> => {
     const calls: string[] = [];
     const probe = createHandleProbe('visible', calls);
-    let releaseCapture: (() => void) | null = null;
+    const pendingCaptures: Array<(filename: string) => void> = [];
     const harness = createHarness(
       {
         getMapCanvasHandle: vi.fn(() => probe.handle),
         exportMap: vi.fn(
           (): Promise<ExportResult> =>
             new Promise<ExportResult>((resolve): void => {
-              releaseCapture = (): void =>
-                resolve({ ok: true, filename: 'first.png' });
+              pendingCaptures.push((filename): void =>
+                resolve({ ok: true, filename }),
+              );
             }),
         ),
       },
@@ -243,17 +244,18 @@ describe('createCompositionExportTransaction', (): void => {
     expect(probe.handle.freezeAndSnapshot).toHaveBeenCalledOnce();
     expect(harness.dependencies.onOutcome).not.toHaveBeenCalled();
 
-    releaseCapture?.();
+    expect(pendingCaptures).toHaveLength(1);
+    pendingCaptures.shift()?.('first.png');
     await expect(first).resolves.toEqual({ ok: true, filename: 'first.png' });
     expect(harness.outcomes).toEqual([{ ok: true, filename: 'first.png' }]);
     expect(probe.leases[0]?.effectiveReleaseCount).toBe(1);
 
     // The activation lock is clear again, so a later export still runs.
-    releaseCapture = null;
     const third = transaction.run();
     expect(probe.handle.freezeAndSnapshot).toHaveBeenCalledTimes(2);
-    releaseCapture?.();
-    await third;
+    pendingCaptures.shift()?.('third.png');
+    await expect(third).resolves.toEqual({ ok: true, filename: 'third.png' });
+    expect(probe.leases[1]?.effectiveReleaseCount).toBe(1);
   });
 
   it('reports the legend blocker before acquiring a lease or a busy lock', async (): Promise<void> => {

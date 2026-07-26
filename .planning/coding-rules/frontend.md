@@ -332,5 +332,63 @@ rendered inside the dialog then cannot be mistaken for the outer scrim.
 
 ---
 
+---
+
+## Transaction Hooks (Phase 2)
+
+A *transaction hook* (`useComposition{Save,Load,Export}Transaction`) is a pure factory plus a
+thin React wrapper. The factory holds the rules and is what the unit tests drive; the wrapper
+holds React state only. Vitest runs on the `node` environment — a factory that needs a DOM or
+a renderer to be tested is the wrong shape.
+
+**A hook that owns a lock must create its transaction exactly once.** `useMemo`/`useState` with
+a dependency array rebuilds the object when any dependency identity changes, and a rebuilt
+transaction carries a **fresh, unlocked** activation flag — a second export can then start while
+the first still holds the camera lease. Keep the options in a ref, update the ref in a
+`useLayoutEffect`, and create the transaction lazily inside the returned callback:
+
+```typescript
+const optionsRef = useRef(options);
+const transactionRef = useRef<Transaction | null>(null);
+useLayoutEffect((): void => { optionsRef.current = options; });
+
+const run = useCallback((): Promise<Outcome> => {
+  // Created here, not during render: passing ref-reading closures to a factory
+  // in the render body trips react-hooks/refs.
+  transactionRef.current ??= createTransaction({
+    getThing: () => optionsRef.current.getThing(),
+    ...
+  });
+  return transactionRef.current.run();
+}, []);
+```
+
+This also makes the returned callback **stable**, so a toast `retry` can call it directly
+instead of bouncing through a handler ref.
+
+**Resolve the live handle once per activation, then hold it.** Re-reading
+`getMapCanvasHandle()` after an `await` can return a canvas that was rebound by the 1200px
+transition, and releasing a lease on a handle that never issued it leaves the original frozen.
+
+**Every lock is cleared in one outermost `finally`, in this order:** activation flag → lease
+release → busy flag, each side effect after the first wrapped so a throw cannot skip the rest.
+A stuck flag is not a cosmetic bug: it disables the feature for the remainder of the session.
+
+**Owner callbacks (`onOutcome`, status, focus) must never be able to strand a lock.** Either
+call them after the `finally`, or wrap them so a throw is logged (`console.error`) rather than
+propagated. Report the outcome *after* the lease is released so input is live before the user
+sees the toast.
+
+**Re-entrancy is refused synchronously, before the first `await`**, and the refusal is silent —
+it emits no outcome. Reporting it would show a second toast for a click that changed nothing.
+
+**Owner state stays in the composition root.** A transaction hook takes accessors
+(`getCompositionName`, `getLegendBlocker`) and never becomes the source of truth for state that
+another transaction also reads.
+
+---
+
+*Last updated: 2026-07-25 — transaction-hook rules from the export transaction extraction (plan 02-30).*
 *Last updated: 2026-07-25 — nested confirmation dialog rules from Save/Load (plan 02-20).*
-*Last updated: 2026-07-21 — initial Phase 1 frontend rules. Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
+
+*Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

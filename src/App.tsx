@@ -41,9 +41,15 @@ import { OnboardingBanner } from './components/OnboardingBanner';
 import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
+import { useCompositionExportTransaction } from './hooks/useCompositionExportTransaction';
+import type { CompositionExportTransactionOutcome } from './hooks/useCompositionExportTransaction';
 import { useCompositionLoadTransaction } from './hooks/useCompositionLoadTransaction';
-import type { CompositionLoadRollbackState } from './hooks/useCompositionLoadTransaction';
+import type {
+  CompositionLoadRollbackState,
+  CompositionLoadTransactionOutcome,
+} from './hooks/useCompositionLoadTransaction';
 import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
+import type { CompositionSaveTransactionOutcome } from './hooks/useCompositionSaveTransaction';
 import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
 import { useInspectorUiState } from './hooks/useInspectorUiState';
@@ -54,7 +60,6 @@ import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
 import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { areColorMapsEqual } from './utils/colors';
-import { exportMapPng } from './utils/export';
 import {
   getActiveLegendEntries,
   getLegendBlockingMessage,
@@ -178,7 +183,6 @@ export default function App(): JSX.Element {
   const compositionRef = useRef<CompositionState>(compositionState);
   const activeSceneRef = useRef<EffectiveScene | null>(null);
   const exportHandlerRef = useRef<() => void>(() => undefined);
-  const exportInProgressRef = useRef(false);
   const pendingMapFocusRef = useRef(false);
   const hasInitializedSelectionAnnouncementRef = useRef(false);
   const hasInitialStorageError = persistenceError === 'storage-unavailable';
@@ -190,6 +194,13 @@ export default function App(): JSX.Element {
   const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
     () => colors,
   );
+  /**
+   * Composition identity, not export state: it is set by an explicit save or
+   * load and read by the export filename. It deliberately does not live in the
+   * export transaction, which would make the exporter the source of truth for a
+   * value save and load also own, and it is never written by undo/redo.
+   */
+  const [compositionName, setCompositionName] = useState<string | null>(null);
   const [isMoveMapOpen, setIsMoveMapOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
   const [pendingLoadedFocusId, setPendingLoadedFocusId] =
@@ -197,7 +208,6 @@ export default function App(): JSX.Element {
   const [periodLoad, setPeriodLoad] = useState<PeriodLoadState>({
     status: 'idle',
   });
-  const [isExporting, setIsExporting] = useState(false);
   const [selectionAnnouncement, setSelectionAnnouncement] = useState('');
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(() =>
     hasInitialStorageError
@@ -712,67 +722,72 @@ export default function App(): JSX.Element {
     });
   }, [showError]);
 
-  const handleExport = useCallback(async (): Promise<void> => {
-    if (exportInProgressRef.current) {
-      return;
-    }
-    if (legendExportBlocker !== null) {
-      // Not the generic export failure: refreshing cannot shorten a label, and
-      // the composition is in-memory only, so "Refresh the page" would destroy
-      // the user's unsaved map. Report the blocking condition itself, and offer
-      // no retry - retrying re-enters this same early return.
-      showError(legendExportBlocker);
-      return;
-    }
-
-    const mapCanvasHandle = mapCanvasHandleRef.current;
-    if (mapCanvasHandle === null) {
-      showExportFailure();
-      return;
-    }
-
-    exportInProgressRef.current = true;
-    setIsExporting(true);
-    let didExportSucceed = false;
-    let lease: ReturnType<MapCanvasHandle['freezeAndSnapshot']> | null = null;
-
-    try {
-      lease = mapCanvasHandle.freezeAndSnapshot();
-      setCamera(lease.camera);
-      // Export captures the selected scene only: a crossfade still in flight
-      // would otherwise bake a half-faded predecessor into the PNG.
-      mapCanvasHandle.finalizeSelectedScene();
-      const exportSource = mapCanvasHandle.getExportSource();
-      if (exportSource !== null) {
-        const result = await exportMapPng(exportSource);
-        didExportSucceed = result.ok;
+  const getLegendBlocker = useCallback(
+    (): string | null => legendExportBlocker,
+    [legendExportBlocker],
+  );
+  const getCompositionName = useCallback(
+    (): string | undefined => compositionName ?? undefined,
+    [compositionName],
+  );
+  const handleExportOutcome = useCallback(
+    (outcome: CompositionExportTransactionOutcome): void => {
+      if (outcome.ok) {
+        showStatus(TOAST_MESSAGES.exportSucceeded);
+        return;
       }
-    } catch {
-      didExportSucceed = false;
-    } finally {
-      lease?.release();
-      exportInProgressRef.current = false;
-      setIsExporting(false);
-    }
-
-    if (didExportSucceed) {
-      showStatus(TOAST_MESSAGES.exportSucceeded);
-    } else {
+      if (outcome.reason === 'legend-blocked') {
+        // Not the generic export failure: refreshing cannot shorten a label,
+        // and the composition is in-memory only, so "Refresh the page" would
+        // destroy the user's unsaved map. Report the blocking condition itself,
+        // and offer no retry - retrying re-enters this same refusal.
+        showError(outcome.message);
+        return;
+      }
       showExportFailure();
-    }
-  }, [
-    legendExportBlocker,
-    setCamera,
-    showError,
-    showExportFailure,
-    showStatus,
-  ]);
+    },
+    [showError, showExportFailure, showStatus],
+  );
+  const { isExporting, exportPng } = useCompositionExportTransaction({
+    getMapCanvasHandle,
+    getLegendBlocker,
+    getCompositionName,
+    commitCamera: setCamera,
+    onOutcome: handleExportOutcome,
+  });
+  const handleExport = useCallback((): void => {
+    void exportPng();
+  }, [exportPng]);
 
   useEffect((): void => {
-    exportHandlerRef.current = (): void => {
-      void handleExport();
-    };
+    exportHandlerRef.current = handleExport;
   }, [handleExport]);
+
+  const { save: runSaveTransaction } = saveTransaction;
+  const { load: runLoadTransaction } = loadTransaction;
+  // The saved/loaded name is the composition's identity, so it is recorded only
+  // on a committed save or load - never on a refused one, which would name the
+  // export after a map that was never written.
+  const handleSaveComposition = useCallback(
+    (name: string): CompositionSaveTransactionOutcome => {
+      const outcome = runSaveTransaction(name);
+      if (outcome.ok) {
+        setCompositionName(name);
+      }
+      return outcome;
+    },
+    [runSaveTransaction],
+  );
+  const handleLoadComposition = useCallback(
+    async (name: string): Promise<CompositionLoadTransactionOutcome> => {
+      const outcome = await runLoadTransaction(name);
+      if (outcome.ok) {
+        setCompositionName(name);
+      }
+      return outcome;
+    },
+    [runLoadTransaction],
+  );
 
   const actionControls = (
     <div key="actions" className="workspace__actions">
@@ -974,8 +989,8 @@ export default function App(): JSX.Element {
       {isSaveLoadOpen && isMapReady ? (
         <SaveLoad
           isDirty={isDirty}
-          onSave={saveTransaction.save}
-          onLoad={loadTransaction.load}
+          onSave={handleSaveComposition}
+          onLoad={handleLoadComposition}
           onCancelLoad={loadTransaction.cancel}
           onClose={handleCloseSaveLoad}
           onFocusMap={focusMap}
