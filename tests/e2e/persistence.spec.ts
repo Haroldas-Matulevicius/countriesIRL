@@ -613,6 +613,33 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
     page.getByRole('dialog', { name: 'Save or load maps' }),
   ).toBeVisible();
 
+  /*
+   * Clicking the confirmation's body text is the ordinary act of reading it.
+   * The confirmation carries `tabIndex={-1}` so mouse-down focus targeting stops
+   * there; without it focus falls to `document.body`, the overlay's `onKeyDown`
+   * never fires, and both Escape and the Tab trap go dead while only
+   * `.save-load-dialog` is inert - so Tab reaches the app bar behind the modal.
+   */
+  await loadButton.click();
+  await expect(confirmDialog).toBeVisible();
+  await confirmDialog.getByText('will replace unsaved colors').click();
+  await expect(
+    page.locator('.save-load-confirm:focus, .save-load-confirm :focus'),
+  ).toHaveCount(1);
+
+  await page.keyboard.press('Tab');
+  await expect(
+    page.locator('.save-load-confirm :focus'),
+    'Tab escaped the confirmation into the non-inert page behind the modal.',
+  ).toHaveCount(1);
+
+  await page.keyboard.press('Escape');
+  await expect(confirmDialog).toHaveCount(0);
+  await expect(
+    page.getByRole('dialog', { name: 'Save or load maps' }),
+  ).toBeVisible();
+  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+
   const deleteButton = page.getByRole('button', {
     name: 'Delete Saved Map: Custom view map',
   });

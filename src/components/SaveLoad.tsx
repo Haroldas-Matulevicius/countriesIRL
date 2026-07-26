@@ -807,6 +807,12 @@ export function SaveLoad({
             className="save-load-confirm"
             role="dialog"
             aria-modal="true"
+            // The confirmation is a *sibling* of the dialog, not a descendant,
+            // so without a focus host of its own a mouse-down on the body text
+            // finds no focusable ancestor and focus falls to `document.body`.
+            // From there the overlay's `onKeyDown` never fires: Escape dies and
+            // Tab walks out of the modal into the non-inert page behind it.
+            tabIndex={-1}
             aria-labelledby={confirmHeadingId}
             aria-describedby={confirmBodyId}
           >

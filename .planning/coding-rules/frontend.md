@@ -490,7 +490,17 @@ the destructive control a sighted user cannot reach. So, while a nested confirma
 - bind the key handler to the **overlay**, not the dialog: an inert dialog can hold no focus, so
   a handler bound there never fires;
 - restore focus from an **effect**, not from the click handler — the target is still inert when
-  the handler runs.
+  the handler runs;
+- give the confirmation **`tabIndex={-1}`**. As a sibling it has no focusable ancestor, so a
+  mouse-down on its body text — the ordinary act of reading it — walks up, finds nothing, and
+  drops focus to `document.body`. Every guarantee above is then void at once: the overlay's
+  `onKeyDown` relies on bubbling and never fires, so Escape is dead and the Tab trap is
+  unreachable, and since only the dialog is `inert`, the next Tab lands in the app bar behind a
+  surface still claiming `aria-modal="true"`. The `!trapRoot.contains(activeElement)` recovery
+  branch cannot help — it lives inside the handler that no longer runs.
+
+Every focus host in a layered modal needs its own `tabIndex={-1}`; "the parent has one" stops
+being true the moment a layer becomes a sibling instead of a descendant.
 
 **Escape dismisses the innermost open confirmation, never a layer above it.** Branch over every
 open layer in order (`pendingLoad` → `pendingDeleteKey` → close), and add the new branch in the
@@ -683,6 +693,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-26 — every focus host in a layered modal owns its own tabIndex={-1} (wave789 MEDIUM-1).*
 *Last updated: 2026-07-26 — a preference media query must define both schemes; a token contract asserts a resolved relationship, not a shape (wave789 HIGH-1/HIGH-2).*
 *Last updated: 2026-07-25 — composition-root placement rules: overlay-outside-the-export-source, one Controls with a declared variant, two homes for Reset All Colors, SPEC'd focus order with a RED probe (02-24 UI-SPEC gap closure).*
 *Last updated: 2026-07-25 — visual token rules: fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, positional-selector ban on all controls (plan 02-24).*
