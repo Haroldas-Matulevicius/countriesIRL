@@ -1,0 +1,477 @@
+diff --git a/.planning/REQUIREMENTS.md b/.planning/REQUIREMENTS.md
+index d4dab80..be7c2ae 100644
+--- a/.planning/REQUIREMENTS.md
++++ b/.planning/REQUIREMENTS.md
+@@ -1,7 +1,16 @@
+ # CountriesIRL Map Generator — Requirements
+ 
+ **Scope:** MVP (European focus)  
+-**Last updated:** 2026-07-22
++**Last updated:** 2026-07-26 — non-destructive supersession annotations for F3 and F7 (D-01) and
++an open-decision note on NFR3. Prior: 2026-07-22.
++
++> **Scope correction (D-01, 2026-07-24).** "European focus" describes Phase 1. From Phase 2 the
++> app is **one full-world canvas** with a free camera and no region modes; Europe is a framing,
++> not a build target.
++>
++> **How to read this file.** Original requirement text is never rewritten or deleted. Where a
++> decision changed the mechanism, an annotation is added beneath the preserved text naming the
++> decision. Phase 1 Release Acceptance is immutable evidence and is not edited.
+ 
+ ---
+ 
+@@ -44,14 +53,35 @@
+ 
+ ### F3: Map Centering & Regional Views
+ 
++> **Mechanism superseded by D-01 (2026-07-24), intent satisfied.** F3 was written assuming a
++> re-projecting map with three fixed regional presets. D-01 chose **one full-world interactive
++> canvas** with a free camera instead: the Mercator projection is built once and never rebuilt,
++> and centering/framing/zoom are a transform on the camera layer. Original requirement text is
++> preserved verbatim below with per-item annotations.
++>
++> Why the mechanism changed rather than the goal: re-projecting per centre country would change
++> every path's `d` on each pan (breaking the id-keyed D3 join), make the exported geometry depend
++> on camera state, and leave `isWholeWorldCamera` with no stable reference to compare against.
++> Fixed presets would additionally have re-introduced the region modes D-01 removed.
++
+ - **F3.1** Dropdown to select center country (any European country in dataset)
++  — *Satisfied by a different control.* Locate is a searchable country picker over the modern
++  195-core catalog, not a dropdown, and it is not limited to Europe.
+ - **F3.2** Map reorients/re-projects to put center country in middle
++  — *Satisfied without re-projection.* The camera pans/zooms to frame the country; the projection
++  is fixed. "Re-projects" is superseded wording, not an unmet requirement.
+ - **F3.3** Three predefined regional zoom levels:
+   - **EU-only**: France to Poland, Mediterranean to North Sea
+   - **EU + Middle East**: Extends east to Caucasus, south to Egypt
+   - **Europe + Russia**: Full view including European Russia to Urals
++  — *Superseded by D-01 and deliberately not built.* A free camera reaches all three framings and
++  every framing between them; three named presets would be a region-mode selector under another
++  name. `Reset View` returns to the whole-world fit.
+ - **F3.4** Smooth transition between zoom levels
++  — *Complete.* Camera motion is animated and honours `prefers-reduced-motion`.
+ - **F3.5** Centered country remains readable at all zoom levels
++  — *Physical claim; owner-verified only.* This is a visual judgement, so it belongs to the
++  acceptance matrix (`02-28`) and no automated result may be substituted for it.
+ 
+ ### F4: Legend Generation
+ 
+@@ -77,9 +107,28 @@
+ 
+ ### F7: Region Canvas Variants (Highest Priority After Phase 1)
+ 
++> **Mechanism superseded by D-01 (2026-07-24); the creator-facing outcome is delivered.** F7 asked
++> for three *canvas variants* and a way to choose between them. D-01 replaced variants with **one
++> full-world canvas** carrying the complete supported dataset, framed by a free camera. There is
++> deliberately **no region selector and no Europe/World/North America mode**. Original requirement
++> text is preserved verbatim below with per-item annotations.
++>
++> Read the intent as satisfied and the implementation as superseded: a creator can make a World
++> map and a North America map, and every workflow F7 enumerates — select, colour, history,
++> persistence, accessibility, exact 1080×1080 PNG — operates on that one canvas. Three variants
++> would have meant three datasets, three camera baselines, and three export paths to keep in
++> agreement, which is the drift hazard D-01 exists to avoid.
++
+ - **F7.1** Provide a World canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a world dataset/view.
++  — *Delivered as the single canvas.* One bundled, hash-verified world asset with 195 selectable
++  core states; all named workflows operate on it.
+ - **F7.2** Provide a North America canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a North America dataset/view.
++  — *Delivered by framing, not by a variant.* North America is reached with the camera; there is
++  no separate North America dataset or view.
+ - **F7.3** Let the creator choose Europe, World, or North America without changing the approved Europe-first Phase 1 release behavior.
++  — *Superseded and deliberately not built.* No mode selector exists. Phase 1's approved
++  Europe-first release behavior is untouched: `public/data/europe-modern.geojson` and the Phase 1
++  acceptance evidence below remain exactly as certified.
+ 
+ ---
+ 
+@@ -92,6 +141,11 @@ The following performance values remain useful diagnostic targets, but Phase 1 r
+ - [x] **NFR1** Map render timing is instrumented against the original <1 second target; release acceptance requires functional readiness, stable 57-path integrity, no crash, and clean product behavior rather than a timing threshold.
+ - [x] **NFR2** Color changes are instrumented for perceived responsiveness; color/undo/redo timing values are advisory diagnostics and functional state/history correctness is blocking.
+ - **NFR3** Historical period switch completes in <500ms
++  — *Open owner decision; no threshold is asserted today.* D-63 retired timing gates for **Phase 1
++  only** and does not carry into Phase 2. `tests/e2e/history.spec.ts` records real warm
++  period-switch samples and their median as advisory annotations. The owner must either set a
++  threshold from those measured numbers or explicitly extend D-63 to Phase 2. Until then this is
++  neither passing nor failing, and must not be recorded as either.
+ - [x] **NFR4** Export timing is recorded diagnostically; release acceptance requires successful exact 1080×1080 opaque centered map-only output, correct colors, and no crash rather than a duration threshold.
+ 
+ ### Usability
+diff --git a/.planning/coding-rules/general.md b/.planning/coding-rules/general.md
+index 66a39bb..b86df24 100644
+--- a/.planning/coding-rules/general.md
++++ b/.planning/coding-rules/general.md
+@@ -1,6 +1,11 @@
+ # Coding Rules: General
+ 
+-**Read this first.** Applies everywhere in Phase 1.
++**Read this first.** Applies everywhere.
++
++**Phase 1 text is retained; Phase 2 corrections are marked inline and win where they conflict.**
++Several Phase 1 statements below turned out to be false once the code existed — most importantly
++"LocalStorage is guaranteed" and "E2E via manual user flows". They are struck through or annotated
++rather than deleted, because Phase 1 release evidence cites this file.
+ 
+ ---
+ 
+@@ -123,15 +128,38 @@ features.forEach((f) => {
+ - Edge cases (empty input, invalid input, boundary values)
+ - Error conditions
+ 
+-**Component tests via Storybook or manual.** For Phase 1, manual testing is acceptable:
+-- Click countries, verify selection
+-- Color changes apply instantly
+-- Undo/redo work after N actions
+-- PNG export is 1080×1080
+-
+ **No snapshot tests** for visual components (SVG diffs are too noisy).
+ 
+-**E2E via manual user flows** for Phase 1 (Playwright can be added in Phase 3 if needed).
++### Phase 2: automated testing ships (supersedes the manual-only guidance above)
++
++Storybook was never added, and Playwright did not wait for Phase 3. Both tiers exist now:
++
++| Tier | Runner | Command | Notes |
++|---|---|---|---|
++| Unit / component | Vitest on the **`node`** environment | `npm test` | No DOM. Component-shaped code is tested through `renderToStaticMarkup` plus pure factories. |
++| Browser E2E | Playwright | `npm run test:e2e` | `tests/e2e/`; shared fixtures in `tests/e2e/support/`. |
++
++**Vitest runs on `node`, and that shapes the code.** A hook that needs a DOM or a renderer to be
++tested is the wrong shape — split the rules into a pure factory and keep React state in a thin
++wrapper. If a behavior genuinely needs effects, refs, or real input, it belongs in the Playwright
++suite, not in a heavier unit environment.
++
++**A gate must be able to fail on the bug it covers.** Before landing an assertion, break the
++thing it protects and watch it go red. This phase shipped three tests that could not fail:
++
++- a performance gate that compared a value to itself;
++- a legend-placement assertion inside a fixture that re-implemented the wiring under test;
++- a pixel probe that asserted only cross-context *equality*, which three identical blank
++  canvases satisfy perfectly.
++
++All three read as proof. A test that cannot fail on its own subject is worse than no test,
++because it stops anyone from looking. The corollary: **a fixture that re-implements the
++composition root's wiring can only make claims about the fixture** — keep one real-app
++counterpart for every structural contract `App` owns.
++
++**Manual verification still has a job, but a narrow one:** physical claims automation cannot
++make — touch targets, screen-reader output, and visual judgement. Do not substitute an automated
++result for one of those, and do not accept a manual checklist where a gate would do.
+ 
+ ---
+ 
+@@ -151,7 +179,15 @@ features.forEach((f) => {
+ 
+ ## Forbidden Patterns
+ 
+-❌ **No raw SDK imports.** All Supabase/external-service calls go through utility wrappers (not Phase 1 concern yet, but rule for when Phase 2 adds backend).
++❌ **No backend, and therefore no external-service SDK.** Phase 2 is browser-only and
++localhost-only: no deployment target, no server, no auth, no cloud, no environment secrets. The
++Phase 1 note anticipated "when Phase 2 adds backend" — Phase 2 did not, and adding one is an
++architectural decision, not an implementation detail. If a future phase does add a service, its
++calls go through utility wrappers rather than raw SDK imports.
++
++❌ **No runtime third-party network request.** Map data is bundled same-origin under
++`public/data/` and integrity-checked. A request to another origin at runtime is a defect, not an
++optimization.
+ 
+ ❌ **No magic numbers.** Use named constants (e.g., `MAX_MAPS`, `EXPORT_WIDTH`).
+ 
+@@ -204,7 +240,7 @@ function loadMapConfig(name: string): Record<string, string> | null {
+ }
+ ```
+ 
+-**User-facing errors → toast/alert.** Never silently fail.
++**User-facing errors → toast.** Never silently fail.
+ 
+ ```typescript
+ try {
+@@ -216,6 +252,25 @@ try {
+ }
+ ```
+ 
++**Superseded in Phase 2 — the shape above is wrong twice over.**
++
++1. **`alert()` is not the reporting channel.** Everything creator-facing goes through
++   `ToastRegion`, which is a *boundary*: a message is rendered only if it matches an exact
++   approved string or a bounded dynamic pattern, and anything else degrades to a severity
++   fallback. That is what keeps hashes, file paths, schema versions, and DOM exception names off
++   a creator's screen even if a future call site passes one straight through. "See console for
++   details" is not an instruction a creator can act on.
++2. **Never tell the user to refresh the page.** The composition lives only in browser memory, so
++   a refresh destroys every unsaved colour, camera, period, and legend. It is destructive advice
++   even when the underlying failure really is transient. This applies to *every* message in the
++   app, not just export copy.
++
++**Branch on the reason, and only offer a retry that can succeed.** A refusal decided
++synchronously before any work begins — a blocked legend, an invalid composition — will refuse
++identically on retry, forever. Offering "try again" there is how a permanently stuck gate gets
++shipped. Map each reason exhaustively with a `switch` over the union so a new reason is a
++compile error rather than a wrong sentence.
++
+ ---
+ 
+ ## Code Style
+@@ -270,6 +325,27 @@ docs(1): add coding-rules/frontend.md
+ 
+ **No merge commits to main** (use squash or rebase). Phase 1 is single developer, so prefer squash for clean history.
+ 
++### Git safety
++
++**Never run `git checkout -- <file>` on a file with uncommitted work.** It is a silent,
++unrecoverable discard — there is no reflog for a working-tree change that was never staged. Two
++separate agents lost edits this way in a single session.
++
++This bites hardest during a **RED probe**, where the whole point is to temporarily break
++something, watch a test fail, and put it back. "Put it back" is where the loss happens. Instead:
++
++1. copy the file to a scratchpad directory *outside* the repository;
++2. make the breaking edit in place;
++3. run the test and record that it failed;
++4. restore by copying the scratchpad copy back — never by asking git to do it.
++
++Then confirm with `git status` that the tree is exactly as it was. The same rule covers
++`git restore`, `git stash`, `git clean`, and `git reset --hard`: any command whose effect is
++"discard whatever is in the working tree" needs a copy first.
++
++**Also: do not junction or symlink `node_modules` between git worktrees.** `git worktree remove
++--force` follows the junction and empties the shared target. Run `npm ci` in each worktree.
++
+ ---
+ 
+ ## Accessibility (Phase 1 MVP)
+@@ -293,8 +369,25 @@ docs(1): add coding-rules/frontend.md
+ 
+ **Use `fetch` (not Axios).** Modern browsers have it built-in.
+ 
+-**LocalStorage is guaranteed.** Don't feature-detect; it's available in all target browsers.
++~~**LocalStorage is guaranteed.** Don't feature-detect; it's available in all target browsers.~~
++
++**Corrected 2026-07-26 — `localStorage` is fallible, and the code already treats it that way.**
++The API being *present* is not the same as it being *usable*: Safari private mode, blocked site
++data, and a full origin all make `setItem` throw. `StorageAdapter` returns typed
++`storage-unavailable` / `quota-exceeded` reasons on every entry point rather than throwing, and
++callers map each reason to its own message. Never write code that assumes a read or a write
++succeeds. See `storage.md` for the bounded-V2 limits that are checked *before* `JSON.parse`.
++
++**Certification status is recorded honestly.** Chrome and Edge are exercised by the Playwright
++suite. Firefox and Safari are **unverified/deferred by owner choice** — never described as
++passing, and never implicitly certified by a claim about "all target browsers".
++
++**Browser support is proven by the suite, not asserted in prose.** Playwright owns that claim;
++if a browser is not in the project's Playwright configuration, no document may say it works.
+ 
+ ---
+ 
+-*Last updated: 2026-07-21 — initial Phase 1 general rules. Full edit history: `git log -p -- .planning/coding-rules/general.md`.*
++*Last updated: 2026-07-26 — Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
++*Last updated: 2026-07-21 — initial Phase 1 general rules.*
++
++*Full edit history: `git log -p -- .planning/coding-rules/general.md`.*
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 3f67d45..21c2417 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -6,8 +6,11 @@ Guidance for Claude Code when working in this repository.
+ 
+ ## Orientation
+ 
+-- **CountriesIRL** = Web-based choropleth map generator for Instagram creators. Auto-colors maps with historical borders, flexible centering, legend generation, instant exports. **Current phase:** Phase 1 MVP (modern European borders, interactive coloring, PNG export, save/load).
+-- **Workflow engine:** GSD (`/gsd-*` commands) — see §GSD Integration. Live status: `.planning/STATE.md`.
++- **CountriesIRL** = Web-based choropleth map generator for Instagram creators. Auto-colors maps with flexible framing, legend generation, and instant exports. **Current phase:** Phase 2 — one full-world canvas, free camera, legend, bounded persistence, and the historical *engine*.
++- **Phase 2 is browser-only and localhost-only.** No deployment, backend, auth, cloud, or environment secrets.
++- **Historical geometry does not ship.** The snapshot engine is built and tested, but the 1492/1700/1815/1914 packets are **deferred for missing rights-cleared archival source material** — not pending a signature. The approved catalog holds exactly `Modern`. Never describe a historical snapshot as available, and never promote geometry into `public/data/` without the full approval chain (see `.planning/coding-rules/data.md`).
++- **Phase 1 is complete and its release evidence is immutable.** Do not rewrite it; annotate instead.
++- **Workflow engine:** GSD (`/gsd:*` commands) — see §GSD Integration. Live status: `.planning/STATE.md`; current phase handoff: `.planning/phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md`.
+ - **Before touching code**, load the matching `.planning/coding-rules/*.md` (via **`themely-coding-rules` skill adapted for CountriesIRL** or the index at `.planning/CODING_RULES.md`).
+ - This file is a **routing table** — find the right doc below instead of expecting answers inline.
+ 
+@@ -15,25 +18,34 @@ Guidance for Claude Code when working in this repository.
+ 
+ ## Stack & Architecture (one screen)
+ 
+-**Stack** — React 18 + TypeScript + Vite; D3.js v7+ (projections + SVG rendering); html2canvas (PNG export); localStorage (save/load); Vercel deployment.
++**Stack** — React 18 + TypeScript (strict) + Vite; D3 v7 (one fixed Mercator projection + SVG rendering); html2canvas (PNG export); localStorage (save/load); Vitest (unit, **`node` environment — no DOM**) + Playwright (Chrome/Edge E2E). **No deployment target.**
+ 
+ **Core wiring:**
+-- `useMapState` hook: reducer-based color history (undo/redo, up to 50 snapshots)
+-- `useGeoData` hook: load & process GeoJSON, build country lookup
+-- `MapCanvas` component: D3 SVG map render, interactive country selection
+-- `ColorPicker`: palette presets + custom hex validation
+-- `Controls`: undo/redo/reset/export/save buttons
+-- `SaveLoad`: localStorage persistence of map configurations
+-- `exportMapPng`: html2canvas → 1080×1080 PNG
++- `App` — composition root: owns durable state, hands accessors down, re-implements nothing
++- `useMapState` — reducer-based **colors-only** history (undo/redo); selection is never in a snapshot
++- `useGeoData` — loads and validates the same-origin world asset, builds O(1) entity/core lookups
++- `MapCanvas` — D3 SVG render + the camera controller; owns the one `MapCanvasHandle`
++- `MapWorkspace` — typed `legendSlot` / `navigationSlot`; placement decides export membership
++- `useComposition{Save,Load,Export}Transaction` — locks, camera lease, outcomes
++- `Controls` — one component with a declared `variant` (`app-bar` | `strip`), never two copies
++- `ToastRegion` — allowlist boundary for every creator-facing message
++- `exportMapPng` — pure: clones an already-frozen composition → exactly 1080×1080 PNG
+ 
+ **Non-obvious paths:**
+-- `public/data/europe-modern.geojson` — Modern European country boundaries (Natural Earth 10m)
+-- `src/types/map.ts` — GeoFeature, MapState, MapAction types
+-- `src/utils/export.ts` — PNG export chokepoint (html2canvas + 2x DPI scaling)
+-- `src/utils/storage.ts` — localStorage wrapper (max 10 saved maps, 5MB quota)
++- `public/data/world-modern.geojson` — the Phase 2 world geometry (same-origin, hash-verified)
++- `public/data/world-manifest.json` — provenance and integrity record
++- `public/data/snapshots/index.json` — the **approved** snapshot catalog (currently `Modern` only)
++- `public/data/europe-modern.geojson` — Phase 1 European boundaries, retained
++- `src/constants/snapshots.ts` — `SNAPSHOT_CATALOG`; reachability is decided here, not by a manifest
++- `src/utils/mapProjection.ts` — the single world projection; centering is a camera transform
++- `src/utils/export.ts` — PNG export chokepoint (clone contract, sanitization, refusal reasons)
++- `src/utils/legend.ts` — `resolveLegendPosition` / `resolveLegendRender`; nothing reads `legend.position` raw
++- `src/utils/storage.ts` — bounded V2 records; limits checked **before** `JSON.parse`
++- `src/styles/phase2CssContract.test.ts` — machine-enforced CSS token and selector rules
++- `tests/e2e/support/` — shared browser fixtures; import these, never re-declare helpers
+ - `.planning/coding-rules/` — Domain-specific rules indexed below
+ 
+-**Environment** — `.env.local` not required for Phase 1 (browser-only, no backend). Vercel deploy adds `VERCEL_URL` automatically.
++**Environment** — no `.env.local`, no secrets, no `VERCEL_URL`. The app runs from `npm run dev` against bundled data.
+ 
+ ---
+ 
+@@ -52,12 +64,21 @@ Claude models only. Single role per session:
+ 
+ ```bash
+ npm run dev              # Start Vite dev server (port 5173)
+-npm run build            # Build for production
++npm run build            # tsc -b && vite build
+ npm run preview          # Preview built bundle locally
+-vercel deploy            # Deploy to Vercel (manual)
+-npm run lint             # Lint (ESLint via Vite)
++npm run lint             # eslint .
++npm test                 # vitest run (unit; node environment, no DOM)
++npm run test:e2e         # playwright test (Chrome + Edge)
++npm run data:world:check # Verify the bundled world asset against its manifest hash
+ ```
+ 
++**There is no deploy command.** `vercel deploy` was listed here through Phase 1 and never used —
++plans 01-16/01-17 were closed as deferred and no production URL is claimed. Do not add one back
++without an explicit owner decision.
++
++**Full gate before claiming a phase-level result:** `npm run lint && npm test && npm run build`,
++plus `npm run test:e2e` for anything touching render, camera, export, persistence, or layout.
++
+ ---
+ 
+ ## Guardrails
+@@ -70,6 +91,22 @@ npm run lint             # Lint (ESLint via Vite)
+ 
+ **PNG export size contract** — always export exactly 1080×1080. Test before shipping.
+ 
++**Approval is evidence, never inference.** Never infer, fabricate, or self-approve a rights,
++factual, or topology approval. A BLOCKED packet is not a delivered snapshot and is never counted
++as one. The six historical region IDs are never silently merged.
++
++**A gate must be able to fail on the bug it covers.** Before landing an assertion, break its
++subject and watch it go red. This phase shipped three tests that could not fail — a self-comparing
++performance gate, a fixture asserting wiring it re-implemented, and a pixel probe that only checked
++cross-context equality (which three blank canvases satisfy). Each read as proof.
++
++**Never `git checkout --` a file with uncommitted work.** Copy it to a scratchpad first and restore
++by copying back. Two agents lost edits this way in one session. See `coding-rules/general.md`.
++
++**Independent review is not optional.** Executor self-reported checkpoints proved unreliable:
++non-author review of an aggregate diff caught five real defects that the executor had already
++marked resolved.
++
+ ---
+ 
+ ## Documentation Routing
+@@ -81,7 +118,8 @@ npm run lint             # Lint (ESLint via Vite)
+ | `.planning/CODING_RULES.md` | Index → `coding-rules/*.md` (general, frontend, data, export, storage) | Before writing/reviewing any code. **Always read `coding-rules/general.md` first**, then the section matching the code you're touching. |
+ | `.planning/STATE.md` | Live phase status, progress, last activity | Before starting a session; auto-loaded by GSD. |
+ | `.planning/ROADMAP.md` | Phase timeline, success criteria, risk mitigations | Context for Phase 2+ planning. |
+-| `.planning/REQUIREMENTS.md` | Functional / non-functional / data / acceptance criteria | Shipped with Phase 1 code. Reference for feature scope. |
++| `.planning/REQUIREMENTS.md` | Functional / non-functional / data / acceptance criteria | Reference for feature scope. **Original requirement text is never rewritten** — F2/F3/F7 carry supersession annotations, and Phase 1 Release Acceptance is immutable evidence. |
++| `.planning/phases/02-.../.continue-here.md` | Canonical Phase 2 handoff: plan ledger, live invariants, immutable safety constraints | Start of any Phase 2 session, before acting on an individual plan. |
+ | `.planning/PROJECT.md` | Vision, problem, solution, target users, constraints | Shipped; reference only. |
+ 
+ ### Codebase map (optional, read selectively)
+@@ -96,24 +134,30 @@ npm run lint             # Lint (ESLint via Vite)
+ 
+ | Doc | Load ONLY when |
+ |---|---|
+-| `.planning/PHASE2_PLANNING.md` | Starting Phase 2 (historical borders + batch export). Not relevant to Phase 1. |
+-| `Design.md` (future) | Actively building Phase 3+ visual polish. Skipped for Phase 1 MVP. |
++| `.planning/PHASE2_PLANNING.md` | Superseded by the `.planning/phases/02-…/` documents. Historical interest only. |
++| `Design.md` (future) | Actively building Phase 3+ visual polish. |
+ 
+ ---
+ 
+ ## GSD Integration
+ 
+-All workflow orchestration, planning, execution, and verification uses GSD `/gsd-*` commands. For Phase 1, key commands:
++All workflow orchestration, planning, execution, and verification uses GSD `/gsd:*` commands:
++
++- `/gsd:execute-phase <N>` — Execute the phase's plans
++- `/gsd:verify-work <N>` — Post-execution verification (goal-backward check)
++- `/gsd:debug` — If a bug surfaces during UAT
+ 
+-- `/gsd-execute-phase 1` — Runs the Codex implementation (from CODEX_PROMPT.md)
+-- `/gsd-verify-work 1` — Post-execution verification (goal-backward check)
+-- `/gsd-debug` — If a bug surfaces during UAT
++**Owner gates cannot be delegated or auto-approved.** A `checkpoint:decision` or
++`checkpoint:human-verify` marked `autonomous: false` needs the owner. In particular the phase
++acceptance matrix requires a human to perform the touch, screen-reader, and visual checks — an
++automated result may never be substituted for a physical claim, and a blanket pre-approval
++authorizes proceeding without evidencing that anything was reviewed. Record which one you have.
+ 
+ ---
+ 
+ ## Project Skills (`.claude/skills/`) — Future
+ 
+-None yet. Phase 1 is direct CLI work.
++None yet. Direct CLI work.
+ 
+ ---
+ 
+@@ -126,24 +170,33 @@ After a session that changes rules, patterns, or architecture:
+ 2. Bump the "Last updated" date in the changed file
+ 3. Keep only the **two most recent** "Last updated" entries in each file (git holds the rest)
+ 
++**Rule 3 is real and was being violated.** `frontend.md` had accumulated seven entries and
++`export.md` four before plan 02-25 consolidated them. When you would add a third, merge the two
++oldest into one line in the same edit.
++
++**Update the matching `coding-rules/*.md` in the same commit that lands the behavior.** Batching
++rule updates to the end of a phase means the rules describe what was planned rather than what
++shipped, and a later "documentation catch-up" plan then has to reverse-engineer the delta.
++
+ ---
+ 
+-## Codex: Phase 1 Execution
++## Documentation-as-you-build
+ 
+-When building Phase 1:
++Every subsystem owns a rules file, and the rule lands with the code:
+ 
+-1. **Generate this doc** — Use `.planning/CODEX_PROMPT.md` as the implementation spec
+-2. **Auto-generate coding rules** — As you build each subsystem (state, map, export, storage), Codex should generate the corresponding `coding-rules/*.md` file **in the same commit** that lands the feature
+-   - After `useMapState` lands: commit `coding-rules/general.md` + state patterns
+-   - After `MapCanvas` lands: commit `coding-rules/frontend.md` + React/D3 patterns
+-   - After `exportMapPng` lands: commit `coding-rules/export.md` + PNG export contract
+-   - After `useLocalStorage` lands: commit `coding-rules/storage.md` + persistence contract
+-3. **Index as you go** — After all coding-rules files exist, commit `.planning/CODING_RULES.md` as the final cleanup commit of Phase 1
++| Subsystem | File |
++|---|---|
++| Cross-cutting (types, naming, testing, git) | `coding-rules/general.md` |
++| React / D3 / CSS / composition root | `coding-rules/frontend.md` |
++| World asset, catalog, validation | `coding-rules/data.md` |
++| PNG export and its clone contract | `coding-rules/export.md` |
++| Persistence | `coding-rules/storage.md` |
+ 
+-This means Phase 1 ships with complete documentation baked in, preventing future regressions.
++*(Phase 1 ran this through `.planning/CODEX_PROMPT.md`; the prompt is spent, the practice stands.)*
+ 
+ ---
+ 
+-*Last updated: 2026-07-21 — initial CLAUDE.md for Phase 1 MVP. Routing table format adapted from Themely structure. Prior: none (new project).*
++*Last updated: 2026-07-26 — Phase 2 routing: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, and documentation-as-you-build (plan 02-25).*
++*Last updated: 2026-07-21 — initial CLAUDE.md for Phase 1 MVP. Routing table format adapted from Themely structure.*
+ 
+ *Full edit history: `git log -p -- CLAUDE.md`.*
