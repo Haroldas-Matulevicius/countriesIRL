@@ -63,7 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 20/36 complete. 8 deferred with the historical chain, 6 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
+**Plans:** 21/36 complete. 8 deferred with the historical chain, 5 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -117,7 +117,7 @@ Plans:
 - [x] 02-21-PLAN.md — **complete**: export strips duplicate accessibility/editor semantics and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders normalized across `path.scene-path`; `invalid-composition` refuses a mis-placed legend; named-filename sanitizer; Chrome/Edge slice `tests/e2e/export.spec.ts` downloads and decodes the real 1080×1080 PNG
 
 **Wave 12**
-- [ ] 02-22-PLAN.md — Update the small global UI surfaces to the exact Phase 2 workflow, copy, disabled/busy states, and safe status messages
+- [x] 02-22-PLAN.md — **complete**: exact app-bar copy and action order, Export as the only filled action with native disabled/busy state, content reset separated from camera reset, Phase 2 onboarding copy, and a bounded creator-safe status allowlist with per-category positive and technical-text negative tests
 - [x] 02-30-PLAN.md — **complete**: the export transaction lives in `useCompositionExportTransaction`, releasing the camera lease, activation lock, and busy lock from one outermost `finally` on every path (refusal, thrown preparation, thrown capture, thrown status callback); F5.5 wired end to end — the last committed save/load name reaches the PNG filename, proven by a real Chrome download
 
 **Wave 13**
@@ -322,12 +322,13 @@ elsewhere.
 | Historical source readiness | `02-31`, `02-32` | ⏸ **DEFERRED** — hash-bound BLOCKED evidence, `deliveryCounted=false`, zero production snapshots |
 | Historical approval + curation chain | `02-33`, `02-13`–`02-16`, `02-34`, `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
 | Wrapped-composition export + export transaction | `02-21`, `02-30` | ✅ complete (F5.5 wired end to end) |
-| Remaining engineering | `02-22`, `02-23`, `02-24`, `02-26`, `02-36` | ⬜ not started |
+| Global UI surfaces + safe status copy | `02-22` | ✅ complete |
+| Remaining engineering | `02-23`, `02-24`, `02-26`, `02-36` | ⬜ not started |
 | Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
 | Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
 
-> The six remaining engineering plans are smaller than they look. Their *behavior* already
-> ships and is covered by 442 unit tests and 49 Chrome E2E cases; what remains is mostly
+> The five remaining engineering plans are smaller than they look. Their *behavior* already
+> ships and is covered by 463 unit tests and 50 Chrome E2E cases; what remains is mostly
 > refactoring into the plans' named file shapes (the `App` composition root, split
 > per-domain E2E specs, a CSS contract test). See
 > [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
@@ -337,12 +338,12 @@ elsewhere.
 
 | Gate | Result |
 |---|---|
-| `npm test` | 35 files, **442 tests** (see the tracked `historicalPreparationCli` flake) |
+| `npm test` | 36 files, **463 tests** (see the tracked `historicalPreparationCli` flake) |
 | `npm run lint` | clean |
 | `tsc -b` | clean |
 | `npm run data:world:check` | 248 units, 195 selectable core states |
 | `npm run build` | clean |
-| Chrome E2E | **49/49** |
+| Chrome E2E | **50/50** |
 | Edge E2E | **48/48** (last run at `02-21`) |
 | Historical promotion | **zero** — catalog Modern-only, hash-verified |
 
