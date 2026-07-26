@@ -83,6 +83,15 @@ Use a real touch device. Emulation does not count.
 | B1.4 | Poles clamp without the map detaching | ⬜ | |
 | B1.5 | Panning does **not** accidentally select a country | ⬜ | |
 | B1.6 | Accessible alternatives (Move Map / Zoom) reach the same views | ⬜ | |
+| B1.7 | Pinching over the square zooms the **map camera**, not the page — and the creator can still magnify the page by pinching outside it | ⬜ | |
+
+**B1.7 is a deliberate tradeoff, recorded rather than assumed benign.**
+`.map-canvas` carries `touch-action: none` (`MapCanvas.css`), which is required for d3-zoom to
+own the gesture but also removes the user agent's own pinch-to-zoom **inside** the square. A
+low-vision creator who pinches over the map gets camera zoom instead of page magnification. It is
+not a scroll trap — the square is `aspect-ratio: 1`, so it occupies roughly 375px of a ~667px
+mobile viewport and the inspector remains a scroll and pinch origin — but whether that is
+acceptable in the hand is a human judgement, not a Playwright one. Confirm both halves.
 
 **Device / OS:** ____________________
 

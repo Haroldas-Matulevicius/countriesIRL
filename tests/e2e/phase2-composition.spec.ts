@@ -928,6 +928,28 @@ test('a saved composition exports under its sanitized name in the real app', asy
   });
   await expect.poll((): number => downloadNames.length).toBe(2);
   expect(downloadNames[1]).toMatch(/^Baltic_Tour_2026_\d{4}-\d{2}-\d{2}\.png$/u);
+
+  /*
+   * Identity outlives edits, but not the disappearance of what it names.
+   * Deleting the saved map used to leave the name set, so this export shipped
+   * `Baltic_Tour_2026_<date>.png` for a composition with no stored counterpart.
+   */
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page
+    .getByRole('button', { name: 'Delete Saved Map: Baltic Tour /2026!' })
+    .click();
+  await page
+    .getByRole('button', { name: 'Delete Map: Baltic Tour /2026!' })
+    .click();
+  await expect(page.getByText('Saved map deleted.')).toBeVisible();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect.poll((): number => downloadNames.length).toBe(3);
+  expect(downloadNames[2]).toMatch(/^CountriesIRL_\d{4}-\d{2}-\d{2}\.png$/u);
 });
 
 test('a legend detached from the canonical SVG refuses the export without a refresh instruction', async ({

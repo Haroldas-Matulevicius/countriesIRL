@@ -53,6 +53,11 @@ export function Controls({
   // Synchronous activation lock: `isExporting` only becomes true after the
   // owner re-renders, so a second activation in the same tick would otherwise
   // start a second export while the first still holds the camera lease.
+  //
+  // This only means what it says while `onExport` returns the export's promise.
+  // An owner that discards it (`(): void => { void exportPng(); }`) makes the
+  // await below resolve one microtask after the click, releasing the lock long
+  // before the export finishes. `App.handleExport` returns it deliberately.
   const handleExport = async (): Promise<void> => {
     if (isExporting || exportActivationLocked.current) {
       return;

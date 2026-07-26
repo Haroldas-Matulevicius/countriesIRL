@@ -378,6 +378,22 @@ element.closest('[role="listbox"]') === null
 Rule of thumb: **when a fixture re-implements the wiring under test, its assertion is about the
 fixture.** Keep one real-app counterpart for every structural contract the composition root owns.
 
+**"No legend in the source" is only innocent when the page has none either.** The structural gate
+compares legend counts in the export source against the canonical SVG, and a legend hoisted
+*above* the source — a refactor that lifts `<LegendOverlay/>` to App's `workspace__map` div —
+gives `0 === 0`, which used to be accepted as "a composition that never had a legend" and shipped
+a legend-less PNG under a success toast. Widen the zero case to `source.ownerDocument`: zero in
+the source is accepted only when the document has zero too. This is safe to read because
+`exportMapPng` requires a connected source and runs the check before any clone is appended.
+
+**Id references live in `<style>` text as well as attributes.** `collectReferencedIds` walks
+attribute values, which covers `fill`/`clip-path`/`filter`/`marker-*`/inline `style` and
+`href`/`xlink:href`. A `<style>` element inside the SVG holds `.swatch { fill: url(#grad) }` as
+*text content*, so its target id would be stripped and the gradient would vanish from the PNG
+while the on-screen map stayed correct. Scan `textContent` for `<style>` too — and if you ever
+narrow the walk, narrow the JSDoc in the same edit. A comment claiming coverage the code lacks is
+how this stayed latent.
+
 **The export-unsafe-CSS guard must list every class the clone can carry, and prove the list.**
 `EXPORT_CONTENT_PATTERN` is hand-maintained, so it rots the moment `MapCanvas` gains a path
 class. It omitted `.map-unit-path` for a whole phase and nothing noticed, because
@@ -470,6 +486,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
+*Last updated: 2026-07-26 — a zero-legend source is innocent only when the document has none either; <style> text carries id references too (wave789 LOW-1/LOW-2).*
 *Last updated: 2026-07-26 — the export-unsafe-CSS guard lists every path class MapCanvas renders, bound back to the component (wave789 MEDIUM-4).*
 *Last updated: 2026-07-26 — a pixel probe that only asserts cross-context equality passes on a blank canvas; assert content first (wave789 MEDIUM-2).*
 *Last updated: 2026-07-25 — the generic export failure copy no longer says "Refresh the page" (plan 02-22). Prior: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7).*

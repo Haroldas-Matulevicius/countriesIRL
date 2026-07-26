@@ -65,6 +65,22 @@ function collectReferencedIds(elements: ReadonlyArray<Element>): Set<string> {
   const referenced = new Set<string>();
 
   elements.forEach((element: Element): void => {
+    // A `<style>` inside the SVG holds its references in text, not attributes:
+    // `.swatch { fill: url(#legend-gradient) }` would otherwise have its target
+    // id stripped and the gradient would vanish from the PNG while the on-screen
+    // map stayed correct. No such element exists in `MapCanvas` today; this
+    // keeps the JSDoc above honest rather than aspirational.
+    if (element.tagName.toLowerCase() === 'style') {
+      [
+        ...(element.textContent ?? '').matchAll(URL_REFERENCE_PATTERN),
+      ].forEach((match): void => {
+        const id = match[1];
+        if (id !== undefined) {
+          referenced.add(id);
+        }
+      });
+    }
+
     element.getAttributeNames().forEach((name: string): void => {
       const value = element.getAttribute(name);
       if (value === null) {
@@ -124,10 +140,24 @@ function isSingleCanonicalComposition(
   if (sourceLegends !== svgLegends) {
     return false;
   }
-  // Zero on both sides is not a missing legend, it is a composition that never
-  // had one: an uncolored map has no entries, and it must still export a white
-  // square. This guard catches misplaced and duplicated legends only - it makes
-  // no claim about a legend that was never composed.
+  // Zero on both sides used to end the check, which left one hole: a legend
+  // hoisted *above* the export source - say a refactor that moves
+  // `<LegendOverlay/>` up to App's `workspace__map` div - yields 0 === 0, and
+  // the PNG shipped legend-less under a success toast. Widen the comparison to
+  // the document so "the source has no legend" is only accepted when the page
+  // has none either.
+  //
+  // Safe to read the document here: `exportMapPng` requires a connected source
+  // and runs this before the clone is ever appended, so no export frame of our
+  // own can be counted.
+  if (sourceLegends === 0) {
+    const documentLegends =
+      source.ownerDocument.querySelectorAll(LEGEND_LAYER_SELECTOR).length;
+    // An uncolored map has no legend anywhere, and must still export a white
+    // square. A legend that exists but is not in the source is the defect.
+    return documentLegends === 0;
+  }
+
   return true;
 }
 

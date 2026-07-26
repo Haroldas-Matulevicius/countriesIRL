@@ -84,6 +84,8 @@ export interface SaveLoadProps {
   onSave: (name: string) => CompositionSaveTransactionOutcome;
   onLoad: (name: string) => Promise<CompositionLoadTransactionOutcome>;
   onCancelLoad: () => void;
+  /** A committed delete, so the owner can drop identity that named it. */
+  onDeleted: (name: string) => void;
   onClose: () => void;
   onFocusMap: () => void;
   onStatus: (message: string, severity?: SaveLoadStatusSeverity) => void;
@@ -247,6 +249,7 @@ export function SaveLoad({
   onSave,
   onLoad,
   onCancelLoad,
+  onDeleted,
   onClose,
   onFocusMap,
   onStatus,
@@ -582,12 +585,16 @@ export function SaveLoad({
         return;
       }
 
+      // The owner may be holding this name as the composition's identity; the
+      // record it pointed at no longer exists.
+      onDeleted(savedMap.name);
+
       const nextMap = savedMaps[index + 1] ?? savedMaps[index - 1];
       pendingDeleteFocusRef.current =
         nextMap === undefined ? 'map-name' : getSavedMapFocusKey(nextMap);
       onStatus('Saved map deleted.');
     },
-    [deleteMap, onStatus, refreshSavedMaps, savedMaps],
+    [deleteMap, onDeleted, onStatus, refreshSavedMaps, savedMaps],
   );
 
   return (

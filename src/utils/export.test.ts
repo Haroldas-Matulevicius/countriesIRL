@@ -64,6 +64,17 @@ class FakeElement {
     this.isConnected = isConnected;
   }
 
+  /**
+   * The real DOM always gives a connected element an owner document, and the
+   * legend guard reads it to catch a legend hoisted *above* the export source
+   * (0 legends in the source and 0 in the SVG is otherwise indistinguishable
+   * from an uncolored map that legitimately has none). The stub has to offer it
+   * or the guard cannot be exercised here at all.
+   */
+  public get ownerDocument(): unknown {
+    return Reflect.get(globalThis, 'document');
+  }
+
   public get classList(): { remove: (...tokens: string[]) => void } {
     return {
       remove: (...tokens: string[]): void => {
@@ -226,6 +237,10 @@ class FakeDocument {
   public readonly body = new FakeElement('BODY', true);
   public readonly createdElements: FakeElement[] = [];
   public nextAnchorClickError: Error | null = null;
+
+  public querySelectorAll(selector: string): FakeElement[] {
+    return this.body.querySelectorAll(selector);
+  }
 
   public createElement(tagName: string): FakeElement {
     const element = new FakeElement(tagName.toUpperCase());
@@ -692,6 +707,25 @@ describe('exportMapPng', (): void => {
     const { source, sourceElement, legend } = createSource();
     legend.remove();
     sourceElement.appendChild(legend);
+
+    await expect(exportMapPng(source)).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-composition',
+    });
+
+    expect(html2canvasMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a legend hoisted above the export source entirely', async (): Promise<void> => {
+    /*
+     * The residual hole in the structural gate: a refactor that lifts
+     * `<LegendOverlay/>` up to App's `workspace__map` div leaves 0 legends in
+     * the export source and 0 in the SVG, so the "never had a legend" branch
+     * used to accept it and ship a legend-less PNG under a success toast.
+     */
+    const { source, legend } = createSource();
+    legend.remove();
+    documentMock.body.appendChild(legend);
 
     await expect(exportMapPng(source)).resolves.toEqual({
       ok: false,

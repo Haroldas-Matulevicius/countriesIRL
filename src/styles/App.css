@@ -274,6 +274,15 @@
    * UI-SPEC 7.4: the mobile header stacks and stops sticking. A stacked bar is
    * tall enough that pinning it would eat the map square it exists to frame.
    */
+  /*
+   * One block per (selector, conditions) pair. Split across two, `findRule` in
+   * `phase2CssContract.test.ts` returns only the first and any assertion on the
+   * mobile header silently reads half its declarations.
+   *
+   * UI-SPEC 7.4: the mobile header also uses opaque surfaces. Glass here is
+   * paint cost and visual noise on the breakpoint with the least room for
+   * either.
+   */
   .app > header {
     position: static;
     align-items: flex-start;
@@ -282,20 +291,13 @@
     padding-inline: calc(var(--space-md) + env(safe-area-inset-left))
       calc(var(--space-md) + env(safe-area-inset-right));
     gap: var(--space-md);
+    backdrop-filter: none;
+    background: var(--surface-card);
   }
 
   .app > header button,
   .app-bar__actions {
     width: 100%;
-  }
-
-  /*
-   * UI-SPEC 7.4: mobile uses opaque surfaces. Glass here is paint cost and
-   * visual noise on the breakpoint with the least room for either.
-   */
-  .app > header {
-    backdrop-filter: none;
-    background: var(--surface-card);
   }
 
   .onboarding {

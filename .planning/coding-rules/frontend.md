@@ -363,6 +363,14 @@ combination, follows `var()` aliases, and asserts a WCAG ratio between the resol
 resolved surface. Before landing a contract assertion, break the thing it covers and watch it go
 red; a test that cannot fail on its own subject is worse than no test, because it reads as proof.
 
+**One CSS rule per `(selector, conditions)` pair, and `findRule` throws on a second.** The mobile
+block declared `.app > header` twice with an unrelated rule between them; `findRule` returned the
+first, so any assertion on the mobile header would have read half its declarations. The same
+shape defeats the `.app { overflow-x }` guard outright — append a second top-level `.app` rule and
+the guard reads the first and passes, which is exactly the regression it exists to prevent. A
+lookup helper that silently picks one of several matches is a false negative generator; make it
+throw.
+
 **A declared token needs a consumer, or its contract assertion is theatre.** `--motion-scene`,
 `--motion-camera`, and `--easing-camera` were declared, asserted to fall to `0ms` under
 `prefers-reduced-motion`, and referenced by nothing. The real durations were the TS literals
@@ -374,9 +382,27 @@ motion, while the test read as proof that it did not.
   in `utils/motion.ts`, parsed to ms; a `cubic-bezier()` token is solved into an easing function
   for `.ease()`. The TS constant survives only as the unstyled-environment fallback, and that
   fallback still checks `prefers-reduced-motion` itself.
-- **`phase2CssContract.test.ts` asserts every `--motion-*` / `--easing-*` token has a consumer**
-  (a CSS `var()` or a named read in `motion.ts`). Deleting an unused token is the other valid
-  answer — but not when UI-SPEC names it, which is why these three were wired instead.
+- **`phase2CssContract.test.ts` asserts every `--motion-*` / `--easing-*` / `--map-*` token has a
+  consumer** (a CSS `var()` or a named read in `motion.ts`). Deleting an unused token is the other
+  valid answer, and the right one when UI-SPEC does *not* name it: `--map-fill-non-selectable` and
+  `--map-border-historical` were listed in `FIXED_EXPORT_TOKENS` and covered by the "declared
+  exactly once" and "never redefined" tests, which read as proof that the non-selectable fill and
+  the historical border were locked to the export. Nothing referenced either, neither appears in
+  UI-SPEC, and the historical chain is deferred — so both were dropped rather than invented into
+  the render path.
+
+**A local lock is only as good as the promise it awaits.** `Controls` holds a synchronous
+export-activation ref released in a `finally` after `await onExport()`. An owner that discards the
+promise (`(): void => { void exportPng(); }`) makes that await resolve on the next microtask, so
+the lock releases one tick after the click rather than when the export finishes — while its
+comment still claims it covers the camera lease. Return the promise from the owner, or delete the
+comment; do not leave a lock whose documentation is false.
+
+**Composition identity must be cleared when the thing it names stops existing.** `compositionName`
+is set only by a committed save or load and read by the export filename. It also has to be cleared
+by `Reset All Colors` and by deleting the saved map it points at, or `Baltic_Tour_<date>.png`
+downloads for a blank composition with no stored counterpart. Deleting is the child's event, so
+`SaveLoad` reports it upward (`onDeleted`) rather than reaching for App state.
 
 **`filter` is banned on anything that can reach the export clone, and avoided on chrome.**
 `filter: brightness()` for a hover tint is one copy-paste from a filter on a `.country-path`,
@@ -708,6 +734,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-26 — one CSS rule per (selector, conditions) pair; a lock is only as good as the promise it awaits; composition identity is cleared when what it names stops existing (wave789 LOW-3/4/5/6).*
 *Last updated: 2026-07-26 — a declared token needs a consumer; d3 transitions read motion/easing tokens (wave789 MEDIUM-3).*
 *Last updated: 2026-07-26 — every focus host in a layered modal owns its own tabIndex={-1} (wave789 MEDIUM-1).*
 *Last updated: 2026-07-26 — a preference media query must define both schemes; a token contract asserts a resolved relationship, not a shape (wave789 HIGH-1/HIGH-2).*

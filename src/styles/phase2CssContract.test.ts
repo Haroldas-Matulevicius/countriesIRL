@@ -46,6 +46,14 @@ function stripComments(css: string): string {
  * A brace-matching walk rather than a regular expression: nested at-rules
  * (`@supports` wrapping `@media`) are exactly where an accidental `--map-*`
  * override would hide, and a flat regex cannot see the nesting it lives in.
+ *
+ * **Known limitation, enforced rather than assumed.** This walk is not aware of
+ * strings or `url()`, so a `background: url("data:image/svg+xml;base64,…")` or a
+ * `content: "}"` would desynchronise brace depth and silently corrupt every
+ * assertion in this file rather than failing. `assertParsableStyleSheet` below
+ * rejects those constructs up front, so the parser's assumptions are checked
+ * instead of hoped for. If one is ever genuinely needed, replace this walk with
+ * a real tokenizer - do not relax the check.
  */
 function parseRules(css: string): CssRule[] {
   const source = stripComments(css);
@@ -99,6 +107,37 @@ function parseRules(css: string): CssRule[] {
   return rules;
 }
 
+/**
+ * The parser above splits on `;` and counts braces with no string awareness.
+ * Rather than trust that no stylesheet ever contains a quoted `;`, `{`, or `}`,
+ * assert it - and assert the parse produced something, so a walk that silently
+ * consumed the whole file cannot pass as "no violations found".
+ */
+function assertParsableStyleSheet(file: string, css: string): void {
+  const source = stripComments(css);
+
+  [...source.matchAll(/(?<quote>["'])(?<value>.*?)\k<quote>/gsu)].forEach(
+    (match): void => {
+      const value = match.groups?.value ?? '';
+      expect(
+        /[;{}]/u.test(value),
+        `${file}: the quoted value ${match[0]} contains a ; { or }, which this ` +
+          'file\'s brace-counting parser cannot see. Every assertion here would ' +
+          'silently read the wrong rules.',
+      ).toBe(false);
+    },
+  );
+
+  expect(
+    (source.match(/\{/gu) ?? []).length,
+    `${file}: unbalanced braces after parsing.`,
+  ).toBe((source.match(/\}/gu) ?? []).length);
+
+  expect(parseRules(css).length, `${file}: parsed to zero rules.`).toBeGreaterThan(
+    0,
+  );
+}
+
 function declarationsOf(body: string): Array<[string, string]> {
   return body
     .split(';')
@@ -119,7 +158,7 @@ function findRule(
   selector: string,
   conditions: readonly string[] = [],
 ): CssRule {
-  const match = rules.find(
+  const matches = rules.filter(
     (rule): boolean =>
       rule.selector === selector &&
       rule.conditions.length === conditions.length &&
@@ -128,13 +167,28 @@ function findRule(
       ),
   );
 
-  if (match === undefined) {
+  if (matches.length === 0) {
     throw new Error(
       `Missing rule "${selector}" under [${conditions.join(' > ')}].`,
     );
   }
 
-  return match;
+  /*
+   * Returning the first match made duplicates invisible: `@media
+   * (max-width: 767px)` declared `.app > header` twice and any assertion on the
+   * mobile header would have read only half its declarations. Worse, the
+   * `.app { overflow-x }` guard could be defeated simply by appending a second
+   * `.app` rule later in the file - the exact regression it exists to prevent.
+   */
+  if (matches.length > 1) {
+    throw new Error(
+      `"${selector}" is declared ${matches.length} times under ` +
+        `[${conditions.join(' > ')}]. Merge them: findRule reads one block, so ` +
+        'a split rule hides half its declarations from every assertion here.',
+    );
+  }
+
+  return matches[0];
 }
 
 function tokensOf(rule: CssRule): Map<string, string> {
@@ -408,9 +462,7 @@ const EXACT_DARK_CHROME_TOKENS: ReadonlyArray<readonly [string, string]> = [
 const FIXED_EXPORT_TOKENS = [
   '--map-surface',
   '--map-fill-default',
-  '--map-fill-non-selectable',
   '--map-border-default',
-  '--map-border-historical',
   '--map-border-hover',
   '--map-border-selected',
   '--map-border-focus',
@@ -434,6 +486,21 @@ const POSITIONAL_PSEUDO_PATTERN =
 /** Anything a creator can activate. Order among these is copy, never identity. */
 const INTERACTIVE_SELECTOR_PATTERN =
   /\b(?:button|input|select|textarea|a|summary)\b|__action|\[role="button"\]/u;
+
+describe('Phase 2 CSS contract parser', (): void => {
+  it('parses every stylesheet under the assumptions it actually makes', (): void => {
+    (
+      [
+        ['theme.css', THEME_CSS],
+        ['App.css', APP_CSS],
+        ['Controls.css', CONTROLS_CSS],
+        ['MapCanvas.css', MAP_CANVAS_CSS],
+      ] as ReadonlyArray<readonly [string, string]>
+    ).forEach(([file, css]): void => {
+      assertParsableStyleSheet(file, css);
+    });
+  });
+});
 
 describe('Phase 2 token contract', (): void => {
   it('declares the exact spacing, type, radius, and motion scale', (): void => {
@@ -474,6 +541,35 @@ describe('Phase 2 token contract', (): void => {
           ).toBe(false);
         });
       });
+    });
+  });
+
+  /**
+   * `--map-fill-non-selectable` and `--map-border-historical` were declared,
+   * listed in FIXED_EXPORT_TOKENS, and covered by the "declared exactly once"
+   * and "never redefined" tests above - which read as proof that the
+   * non-selectable fill and the historical border treatment were locked to the
+   * export. No rule and no module referenced either. Non-selectable units carry
+   * whatever the JS attribute writes (`DEFAULT_COLOR`), and the historical chain
+   * is deferred. Neither token appears in UI-SPEC, so both were dropped rather
+   * than invented into the render path.
+   */
+  it('gives every --map-* token a consumer', (): void => {
+    const styleSheets = [THEME_CSS, APP_CSS, CONTROLS_CSS, MAP_CANVAS_CSS].join(
+      '\n',
+    );
+
+    const mapTokens = [...ROOT_TOKENS.keys()].filter((token): boolean =>
+      token.startsWith('--map-'),
+    );
+    expect(mapTokens.length).toBeGreaterThan(0);
+
+    mapTokens.forEach((token): void => {
+      expect(
+        styleSheets.includes(`var(${token})`),
+        `"${token}" is declared and gated as a fixed export token but nothing ` +
+          'reads it, so the guard describes a treatment the map does not have.',
+      ).toBe(true);
     });
   });
 

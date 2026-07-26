@@ -183,7 +183,9 @@ export default function App(): JSX.Element {
   const mapStateRef = useRef(mapState);
   const compositionRef = useRef<CompositionState>(compositionState);
   const activeSceneRef = useRef<EffectiveScene | null>(null);
-  const exportHandlerRef = useRef<() => void>(() => undefined);
+  const exportHandlerRef = useRef<() => void | Promise<void>>(
+    (): void => undefined,
+  );
   const pendingMapFocusRef = useRef(false);
   const hasInitializedSelectionAnnouncementRef = useRef(false);
   const hasInitialStorageError = persistenceError === 'storage-unavailable';
@@ -719,7 +721,7 @@ export default function App(): JSX.Element {
 
   const showExportFailure = useCallback((): void => {
     showError(TOAST_MESSAGES.exportFailed, (): void => {
-      exportHandlerRef.current();
+      void exportHandlerRef.current();
     });
   }, [showError]);
 
@@ -764,8 +766,16 @@ export default function App(): JSX.Element {
     commitCamera: setCamera,
     onOutcome: handleExportOutcome,
   });
-  const handleExport = useCallback((): void => {
-    void exportPng();
+  // Returns the promise rather than discarding it. `Controls` holds a
+  // synchronous activation lock released in a `finally` after `await
+  // onExport()`; with the promise dropped, that await resolved on the next
+  // microtask and the lock's own comment described a guarantee it no longer
+  // provided. The export was still protected in practice - React flushes the
+  // discrete click synchronously, so the button is disabled, and the
+  // transaction refuses re-entry with `already-active` - but a lock whose
+  // comment is false is a trap for the next author.
+  const handleExport = useCallback(async (): Promise<void> => {
+    await exportPng();
   }, [exportPng]);
 
   useEffect((): void => {
@@ -777,6 +787,24 @@ export default function App(): JSX.Element {
   // The saved/loaded name is the composition's identity, so it is recorded only
   // on a committed save or load - never on a refused one, which would name the
   // export after a map that was never written.
+  /**
+   * Identity survives edits, but not the disappearance of what it names.
+   * `Reset All Colors` empties the composition, and deleting the saved map
+   * removes its stored counterpart; leaving the name set after either meant
+   * exporting `Baltic_Tour_2026-07-25.png` for a blank map that no saved record
+   * corresponds to.
+   */
+  const handleResetColors = useCallback((): void => {
+    resetColors();
+    setCompositionName(null);
+  }, [resetColors]);
+
+  const handleCompositionDeleted = useCallback((deletedName: string): void => {
+    setCompositionName((current): string | null =>
+      current === deletedName ? null : current,
+    );
+  }, []);
+
   const handleSaveComposition = useCallback(
     (name: string): CompositionSaveTransactionOutcome => {
       const outcome = runSaveTransaction(name);
@@ -813,7 +841,7 @@ export default function App(): JSX.Element {
       isExporting={isExporting}
       onUndo={handleUndo}
       onRedo={handleRedo}
-      onReset={resetColors}
+      onReset={handleResetColors}
       onOpenSaveLoad={handleOpenSaveLoad}
       onExport={handleExport}
       onStatusMessage={showStatus}
@@ -925,7 +953,7 @@ export default function App(): JSX.Element {
       {layout === 'desktop' ? (
         <ResetColorsAction
           isDisabled={!isMapReady || !canReset}
-          onReset={resetColors}
+          onReset={handleResetColors}
           onStatusMessage={showStatus}
         />
       ) : null}
@@ -1028,6 +1056,7 @@ export default function App(): JSX.Element {
           onSave={handleSaveComposition}
           onLoad={handleLoadComposition}
           onCancelLoad={loadTransaction.cancel}
+          onDeleted={handleCompositionDeleted}
           onClose={handleCloseSaveLoad}
           onFocusMap={focusMap}
           onStatus={showStatus}
