@@ -63,7 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 23/36 complete. 8 deferred with the historical chain, 3 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
+**Plans:** 25/36 complete. 8 deferred with the historical chain, 1 engineering remaining (`02-27`), 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -130,8 +130,8 @@ Plans:
 - [ ] 02-25-PLAN.md — Create and obtain exact human approval for two bounded documentation patches: subsystem rules and authoritative routing/requirements corrections
 
 **Wave 16**
-- [ ] 02-26-PLAN.md — Apply the exact approved five-file coding-rule patch and prove byte identity
-- [ ] 02-36-PLAN.md — Apply the exact approved authoritative-document Patch B and prove byte identity
+- [x] 02-26-PLAN.md — **complete**: Patch A applied mechanically via `git apply`. Artifact SHA-256 verified against `02-25-SUMMARY.md` before applying, and the diff regenerated afterward hashes to the same value — so the five rule files hold exactly the approved bytes. `export.md` no longer bans "Refresh the page" and then recommends it; `data.md` no longer documents three `europe-*.geojson` files and a `useGeoData(timePeriod)` signature that never existed; `frontend.md`'s `geoAzimuthalEquidistant` promise is replaced by the fixed-projection/camera-transform rule. Footers consolidated to the project's own two-entry rule (7→2, 4→2, 3→2). Index matches the real five section files. Lint, `tsc -b`, 516/516 unit, build all clean. **Authorization was the owner's blanket advance approval, given sight-unseen and not hash-bound — not a content review.**
+- [x] 02-36-PLAN.md — **complete**: Patch B applied mechanically via `git apply`, same two-way hash proof, exactly 3 files. `CLAUDE.md` now routes to Phase 2 with the real command set and no `vercel deploy`; `general.md`'s false "LocalStorage is guaranteed" claim is struck through and corrected against the typed `storage-unavailable`/`quota-exceeded` reasons `storage.ts` actually returns; `REQUIREMENTS.md` gains non-destructive F3/F7 supersession annotations and an NFR3 open-decision note. Phase 1 Release Acceptance untouched; F2.1–F2.5 remain explicitly **not** complete. Lint, `tsc -b`, 516/516 unit, build all clean. Found but deliberately not fixed: two pre-existing `CLAUDE.md` rows route to files that never existed — fixing them would have broken the byte-identity proof mitigating T-02-80, so they are logged in `deferred-items.md`. **Same approval caveat as `02-26`.**
 
 **Wave 17**
 - [ ] 02-27-PLAN.md — Complete cross-domain E2E coverage, then prove the exact final implementation commit from a fresh detached clean worktree
