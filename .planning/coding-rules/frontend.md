@@ -358,6 +358,38 @@ accent CTA with `button:first-child`, so reordering it would have moved the acce
 
 ---
 
+## Responsive Composition (Phase 2)
+
+**`overflow-x: hidden` belongs on `body`, never on `.app` or any other element.** On a
+non-viewport element it computes `overflow-y: auto`, which makes that element its own scroll
+container and silently kills `position: sticky` inside it — the app bar simply never moves and
+nothing fails. On `body` the value propagates to the viewport and leaves stickiness intact.
+
+**Never assert "no horizontal page scroll" with `scrollWidth <= clientWidth`.** `body` clips
+horizontally, so that comparison is vacuously true no matter how far a control overflows.
+Measure the elements: collect the bounding rect of every landmark, workspace section, square, and
+action, and assert each fits the viewport. That version can fail.
+
+**A tab-order test must move the sequential navigation starting point, not just blur.** Blurring
+leaves the starting point where focus was, so `Tab` resumes from the middle of the document and
+"proves" an order that begins wherever focus happened to land. Click a non-focusable element at
+the top of the document (the product title) first.
+
+**Read a computed style only after its transition settles.** Country paths carry a 150ms stroke
+transition, so an immediate read after `emulateMedia` samples a colour in flight. Poll to two
+equal consecutive reads.
+
+**Emulation that a browser does not support is not evidence.** Playwright can emulate
+`prefers-color-scheme`, `prefers-reduced-motion`, `prefers-contrast`, and `forced-colors`, but
+not `prefers-reduced-transparency`. Assert the last one statically and leave it to the physical
+acceptance matrix; do not simulate it and label the result browser proof.
+
+**The desktop inspector is one shell.** The `aside` owns the only border, radius, and shadow in
+the column; its sections are transparent panes separated by hairlines. Compact and mobile keep
+per-section cards because the sections are top-level workspace children there, not shell contents.
+
+---
+
 ## Nested Confirmation Dialogs (Phase 2)
 
 **A nested confirmation owns dismissal and the focus trap while it is open.** When

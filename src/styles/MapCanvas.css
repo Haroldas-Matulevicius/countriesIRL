@@ -40,7 +40,7 @@
 }
 
 .composition-bar__period select {
-  min-height: 48px;
+  min-height: var(--space-2xl);
   max-width: 100%;
   padding: 0 var(--space-sm);
   border: var(--border-width) solid var(--border-default);
@@ -51,7 +51,7 @@
 }
 
 .composition-bar__reset-view {
-  min-height: 48px;
+  min-height: var(--space-2xl);
   padding: 0 var(--space-md);
   border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
@@ -78,7 +78,7 @@
 }
 
 .composition-bar__retry {
-  min-height: 48px;
+  min-height: var(--space-2xl);
   padding: 0 var(--space-sm);
   border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);

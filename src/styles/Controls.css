@@ -9,6 +9,22 @@
   background: var(--surface-card);
 }
 
+/*
+ * UI-SPEC 6/7.1: inside the desktop inspector shell these sections are
+ * transparent panes divided by the shell's hairlines. Keeping their own border,
+ * radius, and background here would be a card inside a card - the treatment the
+ * visual direction explicitly prohibits.
+ */
+.workspace--desktop .workspace__control-column .controls,
+.workspace--desktop .workspace__control-column .selection-panel,
+.workspace--desktop .workspace__control-column .color-picker,
+.workspace--desktop .workspace__control-column .country-list {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .workspace__actions h2,
 .selection-panel h2,
 .color-picker h2,
@@ -635,14 +651,17 @@
   padding: var(--space-sm) var(--space-md);
 }
 
-@media (max-width: 767px) {
+/* UI-SPEC 4.1: inspector padding is 24px on desktop and 16px compact/mobile. */
+@media (max-width: 1199px) {
   .workspace__actions > section,
   .selection-panel,
   .color-picker,
   .country-list {
     padding: var(--space-md);
   }
+}
 
+@media (max-width: 767px) {
   .color-picker__preset-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }

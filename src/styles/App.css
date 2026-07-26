@@ -4,12 +4,18 @@
   min-height: 100dvh;
 }
 
+/*
+ * No `overflow-x` here. `overflow-x: hidden` on a non-viewport element computes
+ * `overflow-y: auto`, which makes `.app` its own scroll container and silently
+ * breaks the sticky app bar - it would stick to `.app` instead of the viewport
+ * and simply never move. Horizontal containment belongs on `body`, where the
+ * value propagates to the viewport and leaves stickiness intact.
+ */
 .app {
   min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom);
-  overflow-x: hidden;
 }
 
 .selection-live-region {
@@ -23,17 +29,38 @@
   white-space: nowrap;
 }
 
+/*
+ * UI-SPEC 7.1: the app bar spans the viewport while its content stays inside
+ * the 1440px measure, so the inline padding centers the content instead of a
+ * `max-width` + `auto` margin that would leave the hairline short of the edges.
+ */
 .app > header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: calc(var(--space-lg) + env(safe-area-inset-top))
-    calc(var(--space-xl) + env(safe-area-inset-right)) var(--space-lg)
-    calc(var(--space-xl) + env(safe-area-inset-left));
+  padding-block: calc(var(--space-lg) + env(safe-area-inset-top))
+    var(--space-lg);
+  padding-inline: max(
+      calc(var(--space-xl) + env(safe-area-inset-left)),
+      calc((100% - 1440px) / 2 + var(--space-xl))
+    )
+    max(
+      calc(var(--space-xl) + env(safe-area-inset-right)),
+      calc((100% - 1440px) / 2 + var(--space-xl))
+    );
+  border-bottom: var(--border-width) solid var(--border-default);
+  background: var(--glass-app-bar);
   gap: var(--space-lg);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .app > header {
+    backdrop-filter: blur(var(--glass-blur-app-bar));
+  }
 }
 
 .app > header > div {
@@ -119,7 +146,7 @@
 
 .workspace--desktop {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 376px;
   align-items: start;
   gap: var(--space-lg);
 }
@@ -132,6 +159,8 @@
 .workspace__country-list {
   min-width: 0;
   max-width: 100%;
+  /* The app bar is sticky, so anything scrolled to must clear it. */
+  scroll-margin-block-start: var(--space-3xl);
 }
 
 /*
@@ -150,6 +179,32 @@
   padding: var(--focus-offset);
 }
 
+/*
+ * UI-SPEC 6/7.1: the desktop inspector is ONE shell. Its sections are
+ * transparent and separated by a hairline, never a card inside a card - the
+ * shell owns the only border, radius, and shadow in the column.
+ */
+.workspace--desktop .workspace__control-column {
+  padding: var(--space-lg);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-large);
+  background: var(--glass-inspector);
+  box-shadow: var(--shadow-inspector);
+  gap: 0;
+}
+
+.workspace--desktop .workspace__control-column > * + * {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: var(--border-width) solid var(--border-default);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .workspace--desktop .workspace__control-column {
+    backdrop-filter: blur(var(--glass-blur-inspector));
+  }
+}
+
 .workspace--compact {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -157,15 +212,20 @@
   gap: var(--space-lg);
 }
 
+/*
+ * UI-SPEC 7.2: at 900-1199px the action strip, the map, and the legend each
+ * span both columns; only selection/color and the country browser share a row.
+ */
 .workspace--compact .workspace__actions,
-.workspace--compact .workspace__map {
+.workspace--compact .workspace__map,
+.workspace--compact .workspace__legend {
   grid-column: 1 / -1;
 }
 
 @media (max-width: 1199px) {
   .app > header {
-    padding-right: calc(var(--space-lg) + env(safe-area-inset-right));
-    padding-left: calc(var(--space-lg) + env(safe-area-inset-left));
+    padding-inline: calc(var(--space-lg) + env(safe-area-inset-left))
+      calc(var(--space-lg) + env(safe-area-inset-right));
   }
 
   .onboarding {
@@ -191,17 +251,31 @@
 }
 
 @media (max-width: 767px) {
+  /*
+   * UI-SPEC 7.4: the mobile header stacks and stops sticking. A stacked bar is
+   * tall enough that pinning it would eat the map square it exists to frame.
+   */
   .app > header {
+    position: static;
     align-items: flex-start;
     flex-direction: column;
-    padding-right: calc(var(--space-md) + env(safe-area-inset-right));
-    padding-bottom: var(--space-md);
-    padding-left: calc(var(--space-md) + env(safe-area-inset-left));
+    padding-block-end: var(--space-md);
+    padding-inline: calc(var(--space-md) + env(safe-area-inset-left))
+      calc(var(--space-md) + env(safe-area-inset-right));
     gap: var(--space-md);
   }
 
   .app > header button {
     width: 100%;
+  }
+
+  /*
+   * UI-SPEC 7.4: mobile uses opaque surfaces. Glass here is paint cost and
+   * visual noise on the breakpoint with the least room for either.
+   */
+  .app > header {
+    backdrop-filter: none;
+    background: var(--surface-card);
   }
 
   .onboarding {
