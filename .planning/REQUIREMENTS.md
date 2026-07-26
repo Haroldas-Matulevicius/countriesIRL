@@ -67,7 +67,7 @@
 - [x] **F5.2** PNG includes map + legend in single image
 - [x] **F5.3** High quality output (300+ DPI or screen-optimized)
 - **F5.4** Export also available as SVG (for further editing)
-- **F5.5** Filename includes map name + date (e.g., "EU_HumanZoo_2026-07-21.png") — *partial (02-21): the sanitizer is implemented and tested in `createExportFilename`, but no call site supplies a name yet because `App` holds no composition-name state. Wiring belongs to `02-30`/`02-23`.*
+- [x] **F5.5** Filename includes map name + date (e.g., "EU_HumanZoo_2026-07-21.png") — *complete (02-30): `App` holds the composition name, set only on a committed save or load, and passes it to the export transaction as an accessor. Proven by a real Chrome download: `CountriesIRL_<date>.png` unnamed, `Baltic_Tour_2026_<date>.png` after saving "Baltic  Tour /2026!".*
 
 ### F6: Project Management
 

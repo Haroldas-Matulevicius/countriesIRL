@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "02-21 complete (wrapped-composition PNG export + Chrome export slice); next 02-30/02-22"
-last_updated: "2026-07-25T21:50:00.000Z"
-last_activity: "2026-07-25 -- 02-21 executed: the export clone now strips duplicate accessibility/editor semantics (roles, titles, ids, tab stops, all aria-*) and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders are normalized across path.scene-path so wrapped repeats of a selected country no longer bake the selection treatment into the PNG; a new invalid-composition reason refuses a sibling/duplicate legend or a camera/legend reorder; the UI-SPEC named-filename sanitizer landed. tests/e2e/export.spec.ts + fixtures/export.html drive the real MapCanvas/LegendOverlay/exportMapPng with no stubs, download the PNG, and verify IHDR 1080x1080 plus opaque corner pixels. Gates: lint clean, tsc -b clean, build clean, 420/420 unit, Chrome 48/48, Edge 48/48. Prior -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
+stopped_at: "02-30 complete (export transaction extracted + F5.5 wired end to end); next 02-22/02-23"
+last_updated: "2026-07-25T22:15:00.000Z"
+last_activity: "2026-07-25 -- 02-30 executed: the export transaction moved out of App into useCompositionExportTransaction, which owns the activation lock, the CameraFreezeLease, the frozen-camera commit, selected-scene finalization, the legend gate, and the creator-safe outcome, and releases all three locks from one outermost finally on every path -- refusal, thrown preparation, thrown capture, and a thrown status callback (which is now logged rather than propagated). The transaction is built once per owner and reads its options through a ref, so a dependency change can never hand out a fresh unlocked activation flag mid-export. F5.5 is now genuinely end to end: App holds the composition name, set only on a committed save or load, and passes it to the exporter as an accessor -- a real Chrome download proves CountriesIRL_<date>.png unnamed and Baltic_Tour_2026_<date>.png after saving 'Baltic  Tour /2026!'. Gates: lint clean, tsc -b clean, build clean, 442/442 unit, Chrome 49/49. Prior -- 02-21 executed: the export clone now strips duplicate accessibility/editor semantics (roles, titles, ids, tab stops, all aria-*) and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders are normalized across path.scene-path so wrapped repeats of a selected country no longer bake the selection treatment into the PNG; a new invalid-composition reason refuses a sibling/duplicate legend or a camera/legend reorder; the UI-SPEC named-filename sanitizer landed. tests/e2e/export.spec.ts + fixtures/export.html drive the real MapCanvas/LegendOverlay/exportMapPng with no stubs, download the PNG, and verify IHDR 1080x1080 plus opaque corner pixels. Gates: lint clean, tsc -b clean, build clean, 420/420 unit, Chrome 48/48, Edge 48/48. Prior -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 40
-  percent: 68
+  completed_plans: 41
+  percent: 71
 ---
 
 # State: CountriesIRL Map Generator
@@ -19,9 +19,7 @@ progress:
 > **Status (2026-07-25):** Phase 2 **descoped to Modern-only** — historical snapshots
 > deferred because the rights-cleared archival source material does not exist (blockers name
 > missing scans and geometry, not missing approval). The historical *engine* ships and is
-> tested. **19/36 plans complete, 8 deferred, 7 engineering + 2 owner gates remain.**
-> The Wave 5 production-wiring stack is in its second independent fix round and is **not yet
-> integrated**.
+> tested. **20/36 plans complete, 8 deferred, 6 engineering + 2 owner gates remain.**
 > **Pointers:** [`ROADMAP.md`](ROADMAP.md) (Progress table is canonical) ·
 > [`MILESTONES.md`](MILESTONES.md) · [`ARCHIVES.md`](ARCHIVES.md) ·
 > [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md)
@@ -37,8 +35,7 @@ progress:
 ## Current Position
 
 Phase: 02 (region-variants-advanced-features) — EXECUTING
-Next step: Execute `02-30`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, and finally
-`02-27`.
+Next step: Execute `02-22`, then `02-23`, `02-24`, `02-26`/`02-36`, and finally `02-27`.
 Blocked on owner: `02-25` (doc patches — blanket pre-approval given, sight-unseen) and
 `02-28` (acceptance matrix — requires physically performed tests, cannot be delegated).
 
@@ -63,6 +60,15 @@ Always read [`coding-rules/general.md`](coding-rules/general.md) first.
 Older entries → [`milestones/v1.0/ROADMAP-ARCHIVE.md`](milestones/v1.0/ROADMAP-ARCHIVE.md).
 Per-plan chronology → `phases/*/*-SUMMARY.md`.
 
+- 2026-07-25 — **`02-30` complete.** The export transaction is out of `App` and into
+  `useCompositionExportTransaction`: one outermost `finally` releases the activation lock, the
+  camera lease, and the busy lock on every path, including the three strands the old inline
+  handler still had (a throwing `setIsExporting(true)` outside the `try`, a throwing legend/
+  handle read producing an unhandled rejection, and a throwing status callback escaping the
+  handler). The transaction is created once per owner and reads options through a ref — a
+  `useMemo`-rebuilt one would carry a fresh unlocked activation flag. F5.5 wired end to end:
+  the composition name is owned by `App` (identity shared with save and load, never by the
+  exporter) and proven through a real Chrome download. 442 unit tests, Chrome 49/49.
 - 2026-07-25 — **`02-21` complete.** The export utility stays pure (no camera lease) but now
   strips semantics rather than geometry: every visible wrapped date-line path survives while
   roles, titles, ids, tab stops, all `aria-*`, editor state, and the outgoing crossfade layer
@@ -98,6 +104,15 @@ Per-plan chronology → `phases/*/*-SUMMARY.md`.
 Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/DECISIONS-ARCHIVE.md)
 (still binding — carried forward, not superseded).
 
+- [Phase 02]: The composition name is identity owned by the composition root, set only on a
+  committed save or load. The export transaction receives it as an accessor and never holds
+  it — save, load, and export read one source of truth.
+- [Phase 02]: A hook that owns a lock builds its transaction exactly once and reads its
+  options through a ref. A `useMemo`-rebuilt transaction carries a fresh unlocked activation
+  flag and lets a second export start while the first still holds the camera lease.
+- [Phase 02]: The export transaction does not re-validate the source shape. `exportMapPng`
+  already refuses disconnected, multi-SVG, and sibling-legend sources before capture; a second
+  copy of those rules is drift, not safety. The transaction refuses only a `null` source.
 - [Phase 02]: Export strips duplicate accessibility/editor semantics but never wrapped
   geometry; border normalization targets `path.scene-path`, not `path.country-path`.
 - [Phase 02]: A legend outside the canonical SVG is a hard `invalid-composition` failure
@@ -121,12 +136,14 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 
 ### Pending Todos
 
-- Execute `02-30`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
+- Execute `02-22`, then `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
 - Diagnose the intermittent `historicalPreparationCli` failures before treating `npm test`
-  as a reliable `02-27` gate (see phase `deferred-items.md`).
-- Wire the named-composition export filename: `createExportFilename` accepts and sanitizes a
-  map name, but `App` holds no composition-name state, so no call site supplies one yet
-  (belongs to `02-30`/`02-23`).
+  as a reliable `02-27` gate (see phase `deferred-items.md`). Reproduced again at `02-30`:
+  three isolated runs gave 1 failure, 2 failures, then 28/28.
+- `02-23` should lift `compositionName` (and `savedColorsBaseline`) into the composition root
+  as-is; both are identity/baseline state, not transaction state.
+- Re-run the Edge project before `02-27` — it was last run at `02-21` (48/48) and has not
+  seen the extracted export transaction.
 - Leave `02-28` signature-ready with automated cells pre-filled.
 - If hosting is ever requested, reopen the Vercel runbooks under new explicit authorization.
 
@@ -162,6 +179,6 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 
 ## Session Continuity
 
-Last session: 2026-07-25T21:50:00.000Z
-Stopped at: `02-21` complete (wrapped-composition PNG export + Chrome/Edge export slice)
+Last session: 2026-07-25T22:15:00.000Z
+Stopped at: `02-30` complete (export transaction extracted; F5.5 wired end to end)
 Resume file: [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
