@@ -1,6 +1,11 @@
 # Coding Rules: General
 
-**Read this first.** Applies everywhere in Phase 1.
+**Read this first.** Applies everywhere.
+
+**Phase 1 text is retained; Phase 2 corrections are marked inline and win where they conflict.**
+Several Phase 1 statements below turned out to be false once the code existed — most importantly
+"LocalStorage is guaranteed" and "E2E via manual user flows". They are struck through or annotated
+rather than deleted, because Phase 1 release evidence cites this file.
 
 ---
 
@@ -123,15 +128,38 @@ features.forEach((f) => {
 - Edge cases (empty input, invalid input, boundary values)
 - Error conditions
 
-**Component tests via Storybook or manual.** For Phase 1, manual testing is acceptable:
-- Click countries, verify selection
-- Color changes apply instantly
-- Undo/redo work after N actions
-- PNG export is 1080×1080
-
 **No snapshot tests** for visual components (SVG diffs are too noisy).
 
-**E2E via manual user flows** for Phase 1 (Playwright can be added in Phase 3 if needed).
+### Phase 2: automated testing ships (supersedes the manual-only guidance above)
+
+Storybook was never added, and Playwright did not wait for Phase 3. Both tiers exist now:
+
+| Tier | Runner | Command | Notes |
+|---|---|---|---|
+| Unit / component | Vitest on the **`node`** environment | `npm test` | No DOM. Component-shaped code is tested through `renderToStaticMarkup` plus pure factories. |
+| Browser E2E | Playwright | `npm run test:e2e` | `tests/e2e/`; shared fixtures in `tests/e2e/support/`. |
+
+**Vitest runs on `node`, and that shapes the code.** A hook that needs a DOM or a renderer to be
+tested is the wrong shape — split the rules into a pure factory and keep React state in a thin
+wrapper. If a behavior genuinely needs effects, refs, or real input, it belongs in the Playwright
+suite, not in a heavier unit environment.
+
+**A gate must be able to fail on the bug it covers.** Before landing an assertion, break the
+thing it protects and watch it go red. This phase shipped three tests that could not fail:
+
+- a performance gate that compared a value to itself;
+- a legend-placement assertion inside a fixture that re-implemented the wiring under test;
+- a pixel probe that asserted only cross-context *equality*, which three identical blank
+  canvases satisfy perfectly.
+
+All three read as proof. A test that cannot fail on its own subject is worse than no test,
+because it stops anyone from looking. The corollary: **a fixture that re-implements the
+composition root's wiring can only make claims about the fixture** — keep one real-app
+counterpart for every structural contract `App` owns.
+
+**Manual verification still has a job, but a narrow one:** physical claims automation cannot
+make — touch targets, screen-reader output, and visual judgement. Do not substitute an automated
+result for one of those, and do not accept a manual checklist where a gate would do.
 
 ---
 
@@ -151,7 +179,15 @@ features.forEach((f) => {
 
 ## Forbidden Patterns
 
-❌ **No raw SDK imports.** All Supabase/external-service calls go through utility wrappers (not Phase 1 concern yet, but rule for when Phase 2 adds backend).
+❌ **No backend, and therefore no external-service SDK.** Phase 2 is browser-only and
+localhost-only: no deployment target, no server, no auth, no cloud, no environment secrets. The
+Phase 1 note anticipated "when Phase 2 adds backend" — Phase 2 did not, and adding one is an
+architectural decision, not an implementation detail. If a future phase does add a service, its
+calls go through utility wrappers rather than raw SDK imports.
+
+❌ **No runtime third-party network request.** Map data is bundled same-origin under
+`public/data/` and integrity-checked. A request to another origin at runtime is a defect, not an
+optimization.
 
 ❌ **No magic numbers.** Use named constants (e.g., `MAX_MAPS`, `EXPORT_WIDTH`).
 
@@ -204,7 +240,7 @@ function loadMapConfig(name: string): Record<string, string> | null {
 }
 ```
 
-**User-facing errors → toast/alert.** Never silently fail.
+**User-facing errors → toast.** Never silently fail.
 
 ```typescript
 try {
@@ -215,6 +251,25 @@ try {
   console.error(error);
 }
 ```
+
+**Superseded in Phase 2 — the shape above is wrong twice over.**
+
+1. **`alert()` is not the reporting channel.** Everything creator-facing goes through
+   `ToastRegion`, which is a *boundary*: a message is rendered only if it matches an exact
+   approved string or a bounded dynamic pattern, and anything else degrades to a severity
+   fallback. That is what keeps hashes, file paths, schema versions, and DOM exception names off
+   a creator's screen even if a future call site passes one straight through. "See console for
+   details" is not an instruction a creator can act on.
+2. **Never tell the user to refresh the page.** The composition lives only in browser memory, so
+   a refresh destroys every unsaved colour, camera, period, and legend. It is destructive advice
+   even when the underlying failure really is transient. This applies to *every* message in the
+   app, not just export copy.
+
+**Branch on the reason, and only offer a retry that can succeed.** A refusal decided
+synchronously before any work begins — a blocked legend, an invalid composition — will refuse
+identically on retry, forever. Offering "try again" there is how a permanently stuck gate gets
+shipped. Map each reason exhaustively with a `switch` over the union so a new reason is a
+compile error rather than a wrong sentence.
 
 ---
 
@@ -270,6 +325,27 @@ docs(1): add coding-rules/frontend.md
 
 **No merge commits to main** (use squash or rebase). Phase 1 is single developer, so prefer squash for clean history.
 
+### Git safety
+
+**Never run `git checkout -- <file>` on a file with uncommitted work.** It is a silent,
+unrecoverable discard — there is no reflog for a working-tree change that was never staged. Two
+separate agents lost edits this way in a single session.
+
+This bites hardest during a **RED probe**, where the whole point is to temporarily break
+something, watch a test fail, and put it back. "Put it back" is where the loss happens. Instead:
+
+1. copy the file to a scratchpad directory *outside* the repository;
+2. make the breaking edit in place;
+3. run the test and record that it failed;
+4. restore by copying the scratchpad copy back — never by asking git to do it.
+
+Then confirm with `git status` that the tree is exactly as it was. The same rule covers
+`git restore`, `git stash`, `git clean`, and `git reset --hard`: any command whose effect is
+"discard whatever is in the working tree" needs a copy first.
+
+**Also: do not junction or symlink `node_modules` between git worktrees.** `git worktree remove
+--force` follows the junction and empties the shared target. Run `npm ci` in each worktree.
+
 ---
 
 ## Accessibility (Phase 1 MVP)
@@ -293,8 +369,25 @@ docs(1): add coding-rules/frontend.md
 
 **Use `fetch` (not Axios).** Modern browsers have it built-in.
 
-**LocalStorage is guaranteed.** Don't feature-detect; it's available in all target browsers.
+~~**LocalStorage is guaranteed.** Don't feature-detect; it's available in all target browsers.~~
+
+**Corrected 2026-07-26 — `localStorage` is fallible, and the code already treats it that way.**
+The API being *present* is not the same as it being *usable*: Safari private mode, blocked site
+data, and a full origin all make `setItem` throw. `StorageAdapter` returns typed
+`storage-unavailable` / `quota-exceeded` reasons on every entry point rather than throwing, and
+callers map each reason to its own message. Never write code that assumes a read or a write
+succeeds. See `storage.md` for the bounded-V2 limits that are checked *before* `JSON.parse`.
+
+**Certification status is recorded honestly.** Chrome and Edge are exercised by the Playwright
+suite. Firefox and Safari are **unverified/deferred by owner choice** — never described as
+passing, and never implicitly certified by a claim about "all target browsers".
+
+**Browser support is proven by the suite, not asserted in prose.** Playwright owns that claim;
+if a browser is not in the project's Playwright configuration, no document may say it works.
 
 ---
 
-*Last updated: 2026-07-21 — initial Phase 1 general rules. Full edit history: `git log -p -- .planning/coding-rules/general.md`.*
+*Last updated: 2026-07-26 — Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
+*Last updated: 2026-07-21 — initial Phase 1 general rules.*
+
+*Full edit history: `git log -p -- .planning/coding-rules/general.md`.*

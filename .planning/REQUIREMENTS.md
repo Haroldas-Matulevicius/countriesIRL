@@ -1,7 +1,16 @@
 # CountriesIRL Map Generator — Requirements
 
 **Scope:** MVP (European focus)  
-**Last updated:** 2026-07-22
+**Last updated:** 2026-07-26 — non-destructive supersession annotations for F3 and F7 (D-01) and
+an open-decision note on NFR3. Prior: 2026-07-22.
+
+> **Scope correction (D-01, 2026-07-24).** "European focus" describes Phase 1. From Phase 2 the
+> app is **one full-world canvas** with a free camera and no region modes; Europe is a framing,
+> not a build target.
+>
+> **How to read this file.** Original requirement text is never rewritten or deleted. Where a
+> decision changed the mechanism, an annotation is added beneath the preserved text naming the
+> decision. Phase 1 Release Acceptance is immutable evidence and is not edited.
 
 ---
 
@@ -44,14 +53,35 @@
 
 ### F3: Map Centering & Regional Views
 
+> **Mechanism superseded by D-01 (2026-07-24), intent satisfied.** F3 was written assuming a
+> re-projecting map with three fixed regional presets. D-01 chose **one full-world interactive
+> canvas** with a free camera instead: the Mercator projection is built once and never rebuilt,
+> and centering/framing/zoom are a transform on the camera layer. Original requirement text is
+> preserved verbatim below with per-item annotations.
+>
+> Why the mechanism changed rather than the goal: re-projecting per centre country would change
+> every path's `d` on each pan (breaking the id-keyed D3 join), make the exported geometry depend
+> on camera state, and leave `isWholeWorldCamera` with no stable reference to compare against.
+> Fixed presets would additionally have re-introduced the region modes D-01 removed.
+
 - **F3.1** Dropdown to select center country (any European country in dataset)
+  — *Satisfied by a different control.* Locate is a searchable country picker over the modern
+  195-core catalog, not a dropdown, and it is not limited to Europe.
 - **F3.2** Map reorients/re-projects to put center country in middle
+  — *Satisfied without re-projection.* The camera pans/zooms to frame the country; the projection
+  is fixed. "Re-projects" is superseded wording, not an unmet requirement.
 - **F3.3** Three predefined regional zoom levels:
   - **EU-only**: France to Poland, Mediterranean to North Sea
   - **EU + Middle East**: Extends east to Caucasus, south to Egypt
   - **Europe + Russia**: Full view including European Russia to Urals
+  — *Superseded by D-01 and deliberately not built.* A free camera reaches all three framings and
+  every framing between them; three named presets would be a region-mode selector under another
+  name. `Reset View` returns to the whole-world fit.
 - **F3.4** Smooth transition between zoom levels
+  — *Complete.* Camera motion is animated and honours `prefers-reduced-motion`.
 - **F3.5** Centered country remains readable at all zoom levels
+  — *Physical claim; owner-verified only.* This is a visual judgement, so it belongs to the
+  acceptance matrix (`02-28`) and no automated result may be substituted for it.
 
 ### F4: Legend Generation
 
@@ -77,9 +107,28 @@
 
 ### F7: Region Canvas Variants (Highest Priority After Phase 1)
 
+> **Mechanism superseded by D-01 (2026-07-24); the creator-facing outcome is delivered.** F7 asked
+> for three *canvas variants* and a way to choose between them. D-01 replaced variants with **one
+> full-world canvas** carrying the complete supported dataset, framed by a free camera. There is
+> deliberately **no region selector and no Europe/World/North America mode**. Original requirement
+> text is preserved verbatim below with per-item annotations.
+>
+> Read the intent as satisfied and the implementation as superseded: a creator can make a World
+> map and a North America map, and every workflow F7 enumerates — select, colour, history,
+> persistence, accessibility, exact 1080×1080 PNG — operates on that one canvas. Three variants
+> would have meant three datasets, three camera baselines, and three export paths to keep in
+> agreement, which is the drift hazard D-01 exists to avoid.
+
 - **F7.1** Provide a World canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a world dataset/view.
+  — *Delivered as the single canvas.* One bundled, hash-verified world asset with 195 selectable
+  core states; all named workflows operate on it.
 - **F7.2** Provide a North America canvas variant that preserves the existing select, color, history, persistence, accessibility, and exact-PNG workflows for a North America dataset/view.
+  — *Delivered by framing, not by a variant.* North America is reached with the camera; there is
+  no separate North America dataset or view.
 - **F7.3** Let the creator choose Europe, World, or North America without changing the approved Europe-first Phase 1 release behavior.
+  — *Superseded and deliberately not built.* No mode selector exists. Phase 1's approved
+  Europe-first release behavior is untouched: `public/data/europe-modern.geojson` and the Phase 1
+  acceptance evidence below remain exactly as certified.
 
 ---
 
@@ -92,6 +141,11 @@ The following performance values remain useful diagnostic targets, but Phase 1 r
 - [x] **NFR1** Map render timing is instrumented against the original <1 second target; release acceptance requires functional readiness, stable 57-path integrity, no crash, and clean product behavior rather than a timing threshold.
 - [x] **NFR2** Color changes are instrumented for perceived responsiveness; color/undo/redo timing values are advisory diagnostics and functional state/history correctness is blocking.
 - **NFR3** Historical period switch completes in <500ms
+  — *Open owner decision; no threshold is asserted today.* D-63 retired timing gates for **Phase 1
+  only** and does not carry into Phase 2. `tests/e2e/history.spec.ts` records real warm
+  period-switch samples and their median as advisory annotations. The owner must either set a
+  threshold from those measured numbers or explicitly extend D-63 to Phase 2. Until then this is
+  neither passing nor failing, and must not be recorded as either.
 - [x] **NFR4** Export timing is recorded diagnostically; release acceptance requires successful exact 1080×1080 opaque centered map-only output, correct colors, and no crash rather than a duration threshold.
 
 ### Usability
