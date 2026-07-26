@@ -1,13 +1,16 @@
 # Roadmap: CountriesIRL Map Generator
 
-> **Status:** v1.0 — MVP — open 2026-07-21. Phase 2 executing.
-> **Archives:** [`ARCHIVES.md`](ARCHIVES.md) — index of per-milestone archives + naming conventions.
-> **v1.0 in-flight capsule:** [`milestones/v1.0/`](milestones/v1.0/) — `ROADMAP-ARCHIVE.md`, `phases/`.
-> **Engine docs (version-agnostic):** [`CODING_RULES.md`](CODING_RULES.md), [`coding-rules/`](coding-rules/).
+> **Status:** v1.0 — MVP — open 2026-07-21. Phase 2 executing: engineering complete, two owner
+> gates open. **The [Progress](#progress) table below is canonical for status and counts.**
+> **Pointers:** [`STATE.md`](STATE.md) (live position) · [`MILESTONES.md`](MILESTONES.md)
+> (milestone outcomes + deferrals) · [`ARCHIVES.md`](ARCHIVES.md) (archive navigation) ·
+> [`CODING_RULES.md`](CODING_RULES.md) → [`coding-rules/general.md`](coding-rules/general.md)
+> (live invariants + immutable safety constraints) ·
+> [`milestones/v1.0/`](milestones/v1.0/) (in-flight capsule).
 > ────────────────────────────────────────
 
-**Target:** MVP in 4–6 weeks
-**Focus:** Locally completed Europe-first release, then a unified world composition platform
+**Target:** MVP in 4–6 weeks. **Browser-only, localhost-only — no deployment is authorized.**
+**Focus:** a locally complete Europe release, then one unified world composition platform
 
 ## Overview
 
@@ -45,99 +48,86 @@ Full milestone detail: [`MILESTONES.md`](MILESTONES.md).
 
 **Requirements:** [F1.1, F1.2, F1.3, F1.4, F1.5, F1.6, F2.1, F2.2, F2.3, F2.4, F2.5, F3.1, F3.2, F3.3, F3.4, F3.5, F4.1, F4.2, F4.3, F4.4, F4.5, F5.1, F5.2, F5.3, F5.5, F6.1, F6.2, F7.1, F7.2, F7.3, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11]
 
-**Status:** In progress. **Descoped 2026-07-25** — historical snapshots deferred; see
-[`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md).
+**Status:** **EXECUTING — all engineering complete, two owner gates open.** Descoped
+2026-07-25 to Modern-only → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md).
 
-The historical source-readiness infrastructure is integrated and both 1492/1700 packets
-verify offline as truthfully **BLOCKED** (`deliveryCounted=false`, zero production
-snapshots), joining the already-BLOCKED 1815/1914 packets from `02-32`. The blockers name
-**missing archival material** — Semkowicz-Romer scans, the CNIG 15094 product archive,
-manual-trace operator records and control points, Karlowitz frontier demarcation — not
-missing approval, so no human sign-off can unblock them. `02-17` was rescoped to verify a
-Modern-only catalog and passed: exactly one entry, recorded hash equals actual asset
-SHA-256, zero historical assets or approvals present, both blocked packets still exit
-nonzero.
+All four historical packets (1492, 1700, 1815, 1914) verify offline as truthfully **BLOCKED**
+with `deliveryCounted=false` and zero production snapshots. The blockers name **missing archival
+material** — Semkowicz-Romer scans, the CNIG 15094 product archive, manual-trace operator records
+and control points, Karlowitz frontier demarcation — **not missing approval**, so no human
+sign-off can unblock them. The historical *engine* ships, is tested, and needs no rework when
+data arrives. Historical delivery still requires exact source/license readiness, independent
+source approval, qualified factual review, durable hash binding, and atomic promotion; the
+evidence bar is **not** relaxed by the descope.
 
-Historical delivery still requires exact source/license readiness, independent source
-approval, qualified factual review, durable hash binding, and atomic promotion. Blocked
-snapshots are never counted delivered, and no historical readiness or human approval is
-claimed.
+**Plans:** counts live in the [Progress](#progress) ledger below — the one canonical place for
+them. The list here is the **execution order**; per-plan detail lives in each plan's
+`02-NN-SUMMARY.md` in the [phase directory](phases/02-region-variants-advanced-features-1-5-2-weeks/).
 
-**Plans:** 26/36 complete. 8 deferred with the historical chain, 0 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
+**Wave 1** — validation boundary + contracts
+- [x] `02-01` Exact-pinned build/browser validation boundary and artifact hygiene
+- [x] `02-02` Interface-first contracts: the sole `MapCanvasHandle`, live-camera transaction, historical-entity policy
 
-Plans:
+**Wave 2** — pure cores
+- [x] `02-03` Single React owner for durable composition state; color history untouched
+- [x] `02-04` Deterministic modern-world data platform replacing the fixed Europe asset
+- [x] `02-06` Pure wrapped-world camera mathematics, proven before any D3 wiring
+- [x] `02-10` Pure effective-scene and legend algorithms, including the historical interaction policy
 
-**Wave 1**
-- [x] 02-01-PLAN.md — Establish the exact-pinned Phase 2 build/browser validation boundary and artifact hygiene before feature work
-- [x] 02-02-PLAN.md — Define the interface-first contracts, including the sole MapCanvasHandle, complete live-camera transaction, and historical-entity policy
+**Wave 3** — runtime boundary
+- [x] `02-05` Runtime data boundary moved from fixed Europe to the validated world asset
+- [x] `02-11` Editable export-safe legend with browser-proven interactions
+- [x] `02-12` Historical engine and honest evidence gates, before any acquisition or promotion
 
-**Wave 2**
-- [x] 02-03-PLAN.md — Create the single React owner for durable Phase 2 composition state while leaving color history untouched
-- [x] 02-04-PLAN.md — Generate the deterministic modern-world data platform that replaces the fixed Europe asset at runtime
-- [x] 02-06-PLAN.md — Implement and prove the pure wrapped-world camera mathematics before any D3 gesture wiring
-- [x] 02-10-PLAN.md — Implement the pure effective-scene and legend algorithms, including the locked historical interaction policy
+**Wave 4**
+- [x] `02-07` Pure camera model wired into a stable wrapped canvas; live-camera lease boundary closed
+- [x] `02-19` localStorage authority upgraded with pre-parse resource bounds and full composition persistence
+- [x] `02-32` 1815/1914 source readiness — complete **only** as hash-bound BLOCKED evidence; zero production snapshots
+- [~] `02-31` **DEFERRED** — 1492/1700 source readiness. Infrastructure integrated; both packets verify offline as truthfully BLOCKED. Missing archival material, not missing approval.
 
-**Wave 3**
-- [x] 02-05-PLAN.md — Move the runtime data boundary from fixed Europe to the validated world asset and reviewed manifest
-- [x] 02-11-PLAN.md — Build the editable export-safe legend and prove browser-only interactions in the owning plan
-- [x] 02-12-PLAN.md — Build the historical engine and honest evidence gates before any source acquisition or promotion
+**Wave 5**
+- [x] `02-08` Accessible camera-control alternatives with proven browser behavior
+- [x] `02-09` Modern country browser plus a separate accessible Locate workflow
+- [x] `02-29` Load and live-camera save transactions extracted from `App` into focused hooks
+- [~] `02-33` **DEFERRED** — no reviewable evidence exists, so the non-executor source/license review cannot run
 
-**Wave 4** — `02-31` deferred
-- [x] 02-07-PLAN.md — Wire the pure camera model into a stable wrapped world canvas and complete the live-camera lease boundary
-- [x] 02-19-PLAN.md — Upgrade the sole localStorage authority with pre-parse resource bounds and full modern/historical composition persistence
-- [~] 02-31-PLAN.md — **DEFERRED** (was BLOCKED): 1492/1700 source readiness. Infrastructure is integrated and both packets verify offline as truthfully BLOCKED. Missing archival material, not missing approval.
-- [x] 02-32-PLAN.md — Complete as hash-bound BLOCKED source readiness for 1815 and 1914; no production snapshots delivered
-
-**Wave 5** — `02-33` deferred
-- [x] 02-08-PLAN.md — Provide the exact accessible camera-control alternatives and prove their browser behavior
-- [x] 02-09-PLAN.md — Upgrade the modern country browser and add a separate accessible Locate workflow without conflating the historical effective scene
-- [x] 02-29-PLAN.md — Extract complete load and live-camera save transactions from App into focused tested hooks
-- [~] 02-33-PLAN.md — **DEFERRED**: no reviewable evidence exists, so the non-executor source/license review cannot run.
-
-**Wave 6**
-- [~] 02-13-PLAN.md — **DEFERRED** — Generate and preflight the exact 1492 candidate from the approved source bundle
-- [~] 02-14-PLAN.md — **DEFERRED** — Generate and preflight the exact 1700 candidate from approved evidence
-- [~] 02-15-PLAN.md — **DEFERRED** — Generate and preflight the exact 1815 candidate from approved evidence
-- [~] 02-16-PLAN.md — **DEFERRED** — Generate and preflight the exact 1914 candidate from approved evidence
-
-**Wave 7**
-- [~] 02-34-PLAN.md — **DEFERRED** — Obtain qualified factual approval for the exact four candidate bundles after curation
-
-**Wave 8**
-- [~] 02-35-PLAN.md — **DEFERRED** — Seal the qualified structured factual review into durable per-snapshot approval artifacts
+**Waves 6–8** — the historical curation and approval chain
+- [~] `02-13` · `02-14` · `02-15` · `02-16` **DEFERRED** — generate and preflight the 1492 / 1700 / 1815 / 1914 candidates
+- [~] `02-34` **DEFERRED** — qualified factual approval for the four candidate bundles
+- [~] `02-35` **DEFERRED** — seal the structured factual review into durable per-snapshot approval artifacts
 
 **Wave 9**
-- [x] 02-17-PLAN.md — **RESCOPED + complete**: verifies the Modern-only catalog and proves non-promotion. Original promotion tasks preserved in the plan for the follow-on phase.
+- [x] `02-17` **RESCOPED + complete** — verifies the Modern-only catalog and proves non-promotion. The original promotion tasks are preserved verbatim in the plan for the follow-on data-acquisition phase.
 
 **Wave 10**
-- [x] 02-18-PLAN.md — **RESCOPED + complete**: CompositionBar (sole Reset View owner), catalog-driven period select, exact world copy, crossfade, tooltip period context.
+- [x] `02-18` **RESCOPED + complete** — `CompositionBar` (sole Reset View owner), catalog-driven period select, world copy, crossfade, tooltip period context
 
 **Wave 11**
-- [x] 02-20-PLAN.md — **complete**: complete-composition Save/Load (row metadata, legacy copy, two-step delete, dirty-load confirmation) plus the focused Chrome/Edge persistence slice `tests/e2e/persistence.spec.ts`
-- [x] 02-21-PLAN.md — **complete**: export strips duplicate accessibility/editor semantics and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders normalized across `path.scene-path`; `invalid-composition` refuses a mis-placed legend; named-filename sanitizer; Chrome/Edge slice `tests/e2e/export.spec.ts` downloads and decodes the real 1080×1080 PNG
+- [x] `02-20` Complete-composition Save/Load + the Chrome/Edge persistence slice
+- [x] `02-21` Export strips duplicate accessibility/editor semantics while preserving wrapped geometry; `invalid-composition` refuses a mis-placed legend; named-filename sanitizer
 
 **Wave 12**
-- [x] 02-22-PLAN.md — **complete**: exact app-bar copy and action order, Export as the only filled action with native disabled/busy state, content reset separated from camera reset, Phase 2 onboarding copy, and a bounded creator-safe status allowlist with per-category positive and technical-text negative tests
-- [x] 02-30-PLAN.md — **complete**: the export transaction lives in `useCompositionExportTransaction`, releasing the camera lease, activation lock, and busy lock from one outermost `finally` on every path (refusal, thrown preparation, thrown capture, thrown status callback); F5.5 wired end to end — the last committed save/load name reaches the PNG filename, proven by a real Chrome download
+- [x] `02-22` App-bar copy and action order, content reset separated from camera reset, bounded creator-safe status allowlist
+- [x] `02-30` Export transaction moved into `useCompositionExportTransaction`; all three locks released from one outermost `finally`; F5.5 wired end to end
 
 **Wave 13**
-- [x] 02-23-PLAN.md — **complete**: the composition root was verified rather than rewritten — `App.tsx`/`main.tsx` unchanged, because every clause already shipped in `02-29`/`02-30`/`02-22`. Added the missing guards: save/load/export share ONE `getMapCanvasHandle` by object identity, the legend must render between the camera layer and the canonical SVG close, one workspace/one canvas/exact landmark counts at both layouts, no camera controller in `App`; plus `tests/e2e/transactions.spec.ts` (one bound handle at both sides of 1200px, all three export refusal classes then success in one session with camera input renewed between each, historical entity through undo/redo/save/remount/load). Both guards proven RED.
+- [x] `02-23` Composition root **verified rather than rewritten** — `App.tsx`/`main.tsx` unchanged; the missing guards and `tests/e2e/transactions.spec.ts` added, both proven RED
 
 **Wave 14**
-- [x] 02-24-PLAN.md — **complete**: the exact UI-SPEC token contract landed in `theme.css` with `--map-*` export tokens declared once and glass as progressive enhancement over opaque fallbacks for reduced transparency, increased contrast, and forced colors. Border and focus weights are tokens, so `prefers-contrast: more` strengthens every boundary in one place. The desktop inspector became one shell at the exact 376px column, the app bar is sticky (`.app` lost the `overflow-x` that would have silently killed it), `touch-action: none` is scoped to `svg.map-canvas` alone, and the `filter` hover tint left the map. `src/styles/phase2CssContract.test.ts` walks nested at-rules and enforces the token/spacing/target/glass/export-effect rules plus a positional-selector ban on every control — which caught `button:first-child` still painting the onboarding CTA. `tests/e2e/responsive.spec.ts` adds 12 Chrome cases at 1440/1024/800/360 and the 200%-zoom-equivalent viewport, and proves the PNG is pixel-identical across light, dark, forced colors, and DPR 1/2/3. Chrome 65/65 and Edge 65/65. Honest gaps recorded: `MapNavigation` and the global actions are not yet in their UI-SPEC positions (an `App.tsx` change).
+- [x] `02-24` UI-SPEC token contract, responsive corrections, `phase2CssContract.test.ts` + `responsive.spec.ts`. The two placement gaps it recorded were closed later in the phase.
 
-**Wave 15**
-- [ ] 02-25-PLAN.md — Create and obtain exact human approval for two bounded documentation patches: subsystem rules and authoritative routing/requirements corrections
+**Wave 15** — owner gate
+- [ ] `02-25` **OPEN** — two bounded documentation patches. Both patches were produced and their hashes recorded; **Task 2 (full patch display and explicit per-hash approval) was never executed.** The approval on file is blanket, given in advance and sight-unseen, and both hashes were computed *after* it — so it is **not hash-bound**.
 
 **Wave 16**
-- [x] 02-26-PLAN.md — **complete**: Patch A applied mechanically via `git apply`. Artifact SHA-256 verified against `02-25-SUMMARY.md` before applying, and the diff regenerated afterward hashes to the same value — so the five rule files hold exactly the approved bytes. `export.md` no longer bans "Refresh the page" and then recommends it; `data.md` no longer documents three `europe-*.geojson` files and a `useGeoData(timePeriod)` signature that never existed; `frontend.md`'s `geoAzimuthalEquidistant` promise is replaced by the fixed-projection/camera-transform rule. Footers consolidated to the project's own two-entry rule (7→2, 4→2, 3→2). Index matches the real five section files. Lint, `tsc -b`, 516/516 unit, build all clean. **Authorization was the owner's blanket advance approval, given sight-unseen and not hash-bound — not a content review.**
-- [x] 02-36-PLAN.md — **complete**: Patch B applied mechanically via `git apply`, same two-way hash proof, exactly 3 files. `CLAUDE.md` now routes to Phase 2 with the real command set and no `vercel deploy`; `general.md`'s false "LocalStorage is guaranteed" claim is struck through and corrected against the typed `storage-unavailable`/`quota-exceeded` reasons `storage.ts` actually returns; `REQUIREMENTS.md` gains non-destructive F3/F7 supersession annotations and an NFR3 open-decision note. Phase 1 Release Acceptance untouched; F2.1–F2.5 remain explicitly **not** complete. Lint, `tsc -b`, 516/516 unit, build all clean. Found but deliberately not fixed: two pre-existing `CLAUDE.md` rows route to files that never existed — fixing them would have broken the byte-identity proof mitigating T-02-80, so they are logged in `deferred-items.md`. **Same approval caveat as `02-26`.**
+- [x] `02-26` Patch A applied mechanically via `git apply`, hash-verified before and re-derived after
+- [x] `02-36` Patch B applied the same way, exactly 3 files. Found but out of scope at the time: two `CLAUDE.md` rows routing to files that never existed (fixed 2026-07-26 in the documentation pass).
 
 **Wave 17**
-- [x] 02-27-PLAN.md — **complete**: `tests/e2e/final-integration.spec.ts` covers the cross-domain creator journey (color → legend labels → camera → save → export → undo → export → real `page.reload()` → blank export → load → export), measuring every claim on the downloaded PNG bytes. Colors are counted in disjoint legend/map regions so a legend swatch cannot stand in as evidence that a country reached the export, and the post-reload blank export is an in-test discrimination control so the restored-vs-authored equality cannot be satisfied by two blank squares. Four RED probes proven (legend at `opacity 0`, no-op undo, imprecise camera restore, and a pixel-only selection-border regression that no DOM assertion sees). Gate re-run against the final SHA **`fe5f946`**: PASS in 7m06s from a fresh detached clean worktree — lint, 516/516 unit, `tsc -b`, world 248/195, both blocked packets failing closed, build, Chrome 71/71, Edge 71/71, worktree removed and pruned. Browser versions are recorded by hand in the summary, not by the script.
+- [x] `02-27` `tests/e2e/final-integration.spec.ts` — the cross-domain creator journey measured on downloaded PNG bytes, with four RED probes. Exact-commit gate re-run **PASS at `fe5f946`**.
 
-**Wave 18**
-- [ ] 02-28-PLAN.md — Complete human-only physical, visual, accessibility, historical, and exact-export acceptance against the exact verified SHA
+**Wave 18** — owner gate
+- [ ] `02-28` **OPEN** — the human acceptance matrix. Prepared and bound to `fe5f946`; 60 automatable cells are pre-filled with cited evidence and **every physical cell is `PENDING`**. It cannot be delegated, automated, or blanket-approved → [`02-28-ACCEPTANCE-MATRIX.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-28-ACCEPTANCE-MATRIX.md)
 
 Cross-cutting constraints:
 - One fixed square Mercator world scene uses transform-only camera movement and continuous horizontal wrapping; no separate Europe/World/North America modes or selector.
@@ -206,14 +196,14 @@ Cross-cutting constraints:
 - Accessibility audit (WCAG AA)
 - Performance optimization
 - Comprehensive error handling
-- Deploy to public URL (GitHub Pages, Vercel, Netlify)
+- Deploy to public URL (GitHub Pages, Vercel, Netlify) — **requires a new explicit owner authorization; none exists**
 - Sharing link for team (write-up for creators)
 
 ### Testing
 
-- Deferred compatibility certification for Firefox, Safari, and previous browser versions when those environments become available; Phase 1 does not claim these passed
+- Deferred compatibility certification for Firefox, Safari, and previous browser versions when those environments become available. **No phase has claimed these passed, and none may.**
 - Load testing (100+ map loads, rapid color changes)
-- Historical border accuracy spot-check
+- Historical border accuracy spot-check — **only if the deferred snapshots have shipped by then; they have not**
 - Export quality verification
 - Offline functionality test
 
@@ -291,68 +281,73 @@ The original 1.5–2 week Phase 2 estimate applies to the engineering platform o
 
 ## Next Steps
 
-1. **Continue Plan 02-31 research** → Keep 1492/1700 source readiness isolated and blocked until exact rights-approved six-region packets exist; do not treat partial research as completion.
-2. **Hold Plan 02-33** → Independent non-executor source/license approval cannot start until both 02-31 and 02-32 prerequisites are complete; 02-32 remains BLOCKED evidence rather than production readiness.
-3. **Hold downstream execution** → No non-historical plan is dependency-ready because 02-18 requires the full historical promotion chain; resume engineering only when declared dependencies are satisfied.
-4. **Honor Evidence Gates** → Historical promotion and final acceptance remain blocked until exact source/factual/physical-touch/browser evidence is available and approved.
-5. **Optional Future Deployment** → Only if explicitly requested later, reopen deployment under new explicit authorization; Phase 2 performs no Vercel/public URL work.
+1. **Hand `02-28` to the owner.** The matrix is prepared and bound to `fe5f946`; the automatable
+   cells are pre-filled with cited evidence. Every physical cell is `PENDING` and must stay that
+   way until a human performs the check.
+2. **Close `02-25` honestly, or leave it open.** Both patches are applied, but the approval on
+   file is blanket and sight-unseen. Do not retro-describe it as hash-bound.
+3. **Decide the NFR3 warm-switch timing threshold** — set one from the advisory samples already
+   recorded in `tests/e2e/history.spec.ts`, or explicitly extend D-63 into Phase 2. D-63 retired
+   timing gates for **Phase 1 only** and does not carry forward on its own.
+4. **Do not dispatch any historical plan.** The material does not exist; approval cannot create it.
+5. **Deployment stays closed.** If hosting is ever wanted, it needs a new explicit authorization.
 
 ## Progress
 
-**Canonical per-phase status.** Counts here are the source of truth — don't duplicate them
-elsewhere.
+**Canonical per-phase status. Counts here are the source of truth — no other file restates them.**
 
 | Phase | Name | Status | Plans | Detail |
 |---|---|---|---|---|
 | 1 | Foundation & Modern Map | ✅ **CLOSED** 2026-07-22 | 22/22 | 73/73 active must-haves verified; 7 deployment-only must-haves deferred (01-16, 01-17); 18/18 requirements satisfied. Chrome 150 + Edge 150 accepted, localhost-only. → [archive](milestones/v1.0/ROADMAP-ARCHIVE.md#phase-1-foundation--modern-map-115-weeks) · [phase dir](milestones/v1.0/phases/01-foundation-modern-map-1-1-5-weeks/) |
-| 2 | Region Variants & Advanced Features | 🔄 **EXECUTING** | see below | World canvas, camera, Locate, legend, composition persistence. Historical snapshots **deferred** → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md) |
+| 2 | Region Variants & Advanced Features | 🔄 **EXECUTING** — engineering complete, 2 owner gates open | 26/36 | World canvas, camera, Locate, legend, composition persistence, export transaction. Historical snapshots **deferred** → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md) |
 | 3 | Polish & Launch | ⏳ **PENDING** | 0/0 | Not yet planned. Deployment remains optional and requires explicit authorization. |
 
 ### Phase 2 plan ledger
 
-**21 complete · 8 deferred · 5 engineering remaining · 2 owner gates.**
+**36 plans: 26 complete · 8 deferred · 0 engineering remaining · 2 owner gates open.**
 
 | Group | Plans | Status |
 |---|---|---|
 | Foundation + contracts | `02-01`–`02-06` | ✅ complete |
-| Camera, browser, Locate, persistence | `02-07`, `02-08`, `02-09`, `02-19`, `02-29`, `02-20` | ✅ complete |
-| Historical validation + snapshot loading | `02-10`, `02-11`, `02-12` | ✅ complete |
-| Catalog verification | `02-17` | ✅ complete (rescoped — Modern-only hash-verified, zero promotion) |
-| Period selector + world states | `02-18` | ✅ complete (rescoped — closed the missing Reset View and the stale Europe fatal copy) |
-| Historical source readiness | `02-31`, `02-32` | ⏸ **DEFERRED** — hash-bound BLOCKED evidence, `deliveryCounted=false`, zero production snapshots |
-| Historical approval + curation chain | `02-33`, `02-13`–`02-16`, `02-34`, `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
-| Wrapped-composition export + export transaction | `02-21`, `02-30` | ✅ complete (F5.5 wired end to end) |
+| Camera, browser, Locate, persistence | `02-07` · `02-08` · `02-09` · `02-19` · `02-20` · `02-29` | ✅ complete |
+| Historical engine + validation | `02-10` · `02-11` · `02-12` | ✅ complete (engine only — no geometry shipped) |
+| Catalog verification | `02-17` | ✅ complete (rescoped — Modern-only, hash-verified, zero promotion) |
+| Period selector + world states | `02-18` | ✅ complete (rescoped — also closed the missing Reset View and stale Europe fatal copy) |
+| Wrapped-composition export + export transaction | `02-21` · `02-30` | ✅ complete (F5.5 wired end to end) |
 | Global UI surfaces + safe status copy | `02-22` | ✅ complete |
 | Composition root + integrated transactions | `02-23` | ✅ complete (guards + `transactions.spec.ts`; `App.tsx` unchanged) |
-| Visual system + responsive slice | `02-24` | ✅ complete (CSS contract + `responsive.spec.ts`; navigation/global-action placement deferred) |
-| Remaining engineering | `02-26`, `02-36` | ✅ complete (both `02-25` doc patches applied) |
-| Final exact-SHA gate | `02-27` | ✅ complete — `final-integration.spec.ts` landed; gate PASS at `fe5f946` |
-| Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
+| Visual system + responsive slice | `02-24` | ✅ complete (CSS contract + `responsive.spec.ts`) |
+| Documentation patch application | `02-26` · `02-36` | ✅ complete (both `02-25` patches applied, two-way hash proof) |
+| Final exact-SHA gate | `02-27` | ✅ complete — journey spec landed; gate **PASS at `fe5f946`** |
+| Historical source readiness | `02-31` · `02-32` | ⏸ **DEFERRED** — hash-bound **BLOCKED** evidence, `deliveryCounted=false`, zero production snapshots |
+| Historical approval + curation chain | `02-33` · `02-13`–`02-16` · `02-34` · `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
+| Owner gate — documentation approval | `02-25` | ⏳ **OPEN** — patches applied under a blanket, sight-unseen, **not hash-bound** approval; Task 2 never executed |
+| Owner gate — human acceptance matrix | `02-28` | ⏳ **OPEN** — prepared and bound to `fe5f946`; all physical cells `PENDING`. Cannot be delegated, automated, or blanket-approved. |
 
-> The remaining engineering plans are smaller than they look. Their *behavior* already
-> ships and is covered by 492 unit tests and 65 Chrome / 65 Edge E2E cases; what remains is mostly
-> refactoring into the plans' named file shapes (split per-domain E2E specs, a CSS contract
-> test, the `02-25` doc patches). See
-> [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
-> for the per-plan breakdown.
+### Verified gates — bound to `fe5f946060707c48c3d9591d368b5f3f8f90dd4d`
 
-### Verified gates (current HEAD)
+Ran 2026-07-26 from a **fresh detached clean worktree with a fresh `npm ci`**; the worktree was
+removed and pruned afterwards. Machine evidence:
+[`02-27-EXACT-COMMIT.json`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-27-EXACT-COMMIT.json).
 
 | Gate | Result |
 |---|---|
-| `npm test` | 36 files, **469 tests** (see the tracked `historicalPreparationCli` flake) |
 | `npm run lint` | clean |
-| `tsc -b` | clean |
+| `npm test` | **516/516** across 38 files |
+| `npm exec tsc -- -b` | clean |
 | `npm run data:world:check` | 248 units, 195 selectable core states |
 | `npm run build` | clean |
-| Chrome E2E | **53/53** |
-| Edge E2E | **48/48** (last run at `02-21`) |
-| Historical promotion | **zero** — catalog Modern-only, hash-verified |
+| Chrome E2E | **71/71** |
+| Edge E2E | **71/71** |
+| Blocked historical packets | both exit **1** — failing closed is the correct result, not a gate failure |
+| Historical promotion | **zero** — catalog Modern-only, asset hash recorded == actual |
+
+**Not covered by this gate, and never claimed:** Firefox, Safari, and previous-version
+certification; browser *versions* are recorded by hand in `02-27-SUMMARY.md` rather than captured
+by the script; the physical acceptance checks in `02-28`.
 
 ## Deferred out of v1.0
 
-| Item | Reason | Disposition |
-|---|---|---|
-| Historical snapshots 1492/1700/1815/1914 | Rights-cleared archival source material does not exist. Blockers name missing scans, product archives, operator records, control points, and frontier demarcation — not missing approval. | Follow-on data-acquisition phase; existing approval chain runs unchanged against it |
-| Vercel deployment + production verification | Owner accepted a localhost-only release; no deployment authorization exists | Optional future work, requires new explicit authorization |
-| Firefox / Safari / previous-version certification | Owner scoped acceptance to installed Chrome 150 + Edge 150 | Explicitly unverified — must never be reported as passed |
+Milestone-level deferrals — historical snapshots, deployment, and Firefox/Safari certification —
+are recorded once, in [`MILESTONES.md`](MILESTONES.md) § Deferred out of v1.0. Phase-local
+deferrals live in each phase's `deferred-items.md`.
