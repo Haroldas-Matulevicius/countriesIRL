@@ -287,4 +287,27 @@ const lookup = useMemo(() => {
 
 ---
 
-*Last updated: 2026-07-21 — initial Phase 1 data rules. Full edit history: `git log -p -- .planning/coding-rules/data.md`.*
+## Filesystem identity
+
+**Always pass `{ bigint: true }` to `fs.stat` when the result feeds a file-identity key.**
+
+A `dev:ino` pair read as a JS Number is lossy on Windows. The NTFS file ID is
+`(sequenceNumber << 48) | mftRecordNumber`; past 2^53 the low bits round away, so two
+**distinct** files can produce the same `dev:ino` and be reported as a false hard-link alias.
+Temp-directory churn recycles MFT records and drives the sequence number up, so this fails in
+**bursts and then goes quiet** — it reads as a flaky test and is not one.
+
+Measured on this repo: 6020/6400 lossy stats, 191/800 false collisions as Number, 0/800 as
+BigInt. `String(bigintValue)` stringifies exactly, so downstream key construction is unchanged.
+
+The precision fix **strengthens** alias detection — rounding could equally mask a real alias by
+colliding two keys with the wrong partner. Never "fix" a collision assertion by loosening it.
+
+Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
+`assertNoPathKeyCollisions`).
+
+---
+
+*Last updated: 2026-07-25 — added the filesystem-identity rule after a Windows inode-precision
+defect surfaced as an intermittent test failure. Prior: 2026-07-21 — initial Phase 1 data rules.
+Full edit history: `git log -p -- .planning/coding-rules/data.md`.*

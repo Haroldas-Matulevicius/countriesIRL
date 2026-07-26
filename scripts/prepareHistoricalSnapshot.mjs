@@ -2337,8 +2337,13 @@ async function inspectFilesystemPath(path, label, mustExist) {
   }
   const canonicalBase = await realpath(cursor);
   const canonicalPath = join(canonicalBase, ...missingSegments);
+  // bigint: true is required, not cosmetic. The NTFS file ID is
+  // (sequenceNumber << 48) | mftRecordNumber; as a JS Number it loses low bits past
+  // 2^53, so two distinct files can round to the same dev:ino and be reported as a
+  // false hard-link alias. Temp-dir churn recycles MFT records, which made this fail
+  // in bursts and then go quiet. Measured 191/800 collisions as Number, 0/800 as BigInt.
   const fileIdentity = missingSegments.length === 0
-    ? await stat(absolutePath)
+    ? await stat(absolutePath, { bigint: true })
     : null;
   return {
     path: absolutePath,
