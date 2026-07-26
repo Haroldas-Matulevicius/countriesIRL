@@ -378,6 +378,26 @@ element.closest('[role="listbox"]') === null
 Rule of thumb: **when a fixture re-implements the wiring under test, its assertion is about the
 fixture.** Keep one real-app counterpart for every structural contract the composition root owns.
 
+**A pixel probe that only asserts equality passes on a blank canvas.** The theme-independence
+gate exported in three browser contexts and compared 64 sample points across them. Three
+identical all-white 1080×1080 squares satisfy that perfectly — and that is exactly the shape a
+`foreignObject`/CORS or `isolation: isolate` regression produces, in every context at once. Every
+creator ships a blank PNG, green.
+
+So a comparison gate owes a **content** assertion first, and it must be independent of where the
+sample grid lands:
+
+```ts
+expect(baseline.nonWhitePixels).toBeGreaterThan(MIN_NON_WHITE_PIXELS); // ~71k actual
+expect(baseline.appliedRedPixels).toBeGreaterThan(MIN_APPLIED_RED_PIXELS); // ~1.1k actual
+// only then: expect(dark.samples).toStrictEqual(baseline.samples)
+```
+
+Assert the positive claim (the composition rasterized, and the color the test applied reached the
+PNG) before the relational one (all contexts agree). Pick thresholds with a real margin over the
+measured value, and record the measured value in the same change so the next author can tell a
+regression from a threshold that was always tight.
+
 **Inspect the clone with a `MutationObserver` on `document.body`,** not by stubbing. The
 export frame is a body-level `div[aria-hidden="true"]` containing the sanitized clone; it is
 appended after sanitization and removed in `finally`, so the observer callback is the only
@@ -441,6 +461,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
+*Last updated: 2026-07-26 — a pixel probe that only asserts cross-context equality passes on a blank canvas; assert content first (wave789 MEDIUM-2).*
 *Last updated: 2026-07-25 — the generic export failure copy no longer says "Refresh the page" (plan 02-22). Prior: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

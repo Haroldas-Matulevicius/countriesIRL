@@ -748,7 +748,27 @@ interface PngProbe {
   readonly width: number;
   readonly height: number;
   readonly samples: ReadonlyArray<ReadonlyArray<number>>;
+  /**
+   * Cross-context equality alone is satisfied by three identical blank squares.
+   * These two say the export has content at all, independent of where the 8x8
+   * grid happens to land: a full-image count of pixels that are not the white
+   * frame, and a count of the exact fill the test applied.
+   */
+  readonly nonWhitePixels: number;
+  readonly appliedRedPixels: number;
 }
+
+/** `Apply Red` in the palette, and therefore what must reach the PNG. */
+const APPLIED_RED: readonly [number, number, number] = [0xdc, 0x26, 0x26];
+
+/**
+ * The map does not fill the square edge to edge, but it is never a hairline
+ * either. Well under a percent of the frame means the composition did not
+ * rasterize.
+ */
+const MIN_NON_WHITE_PIXELS = 10_000;
+/** France at the whole-world fit is small, but it is not a dozen pixels. */
+const MIN_APPLIED_RED_PIXELS = 200;
 
 async function probeExportedPng(
   browser: Browser,
@@ -783,7 +803,7 @@ async function probeExportedPng(
     await download.saveAs(target);
     const bytes = await readFile(target);
 
-    return page.evaluate(async (base64: string): Promise<PngProbe> => {
+    return page.evaluate(async ({ base64, red }): Promise<PngProbe> => {
       const binary = atob(base64);
       const buffer = new Uint8Array(binary.length);
       for (let index = 0; index < binary.length; index += 1) {
@@ -811,8 +831,35 @@ async function probeExportedPng(
         }
       }
 
-      return { width: bitmap.width, height: bitmap.height, samples };
-    }, bytes.toString('base64'));
+      const all = rendering.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      let nonWhitePixels = 0;
+      let appliedRedPixels = 0;
+      for (let offset = 0; offset < all.length; offset += 4) {
+        const [pixelRed, pixelGreen, pixelBlue] = [
+          all[offset],
+          all[offset + 1],
+          all[offset + 2],
+        ];
+        if (pixelRed !== 255 || pixelGreen !== 255 || pixelBlue !== 255) {
+          nonWhitePixels += 1;
+        }
+        if (
+          pixelRed === red[0] &&
+          pixelGreen === red[1] &&
+          pixelBlue === red[2]
+        ) {
+          appliedRedPixels += 1;
+        }
+      }
+
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        samples,
+        nonWhitePixels,
+        appliedRedPixels,
+      };
+    }, { base64: bytes.toString('base64'), red: [...APPLIED_RED] });
   } finally {
     await context.close();
   }
@@ -834,6 +881,22 @@ test.describe('preference-independent export', (): void => {
     expect(baseline.width).toBe(EXPORT_SIZE);
     expect(baseline.height).toBe(EXPORT_SIZE);
 
+    /*
+     * Assert content BEFORE comparing contexts. Equality is satisfied by three
+     * identical all-white squares - the exact shape a foreignObject/CORS or
+     * `isolation: isolate` regression produces, in every context at once, with
+     * the 1080x1080 frame intact. The gate would stay green while every creator
+     * shipped a blank PNG.
+     */
+    expect(
+      baseline.nonWhitePixels,
+      'the exported PNG is blank: nothing rasterized into the frame.',
+    ).toBeGreaterThan(MIN_NON_WHITE_PIXELS);
+    expect(
+      baseline.appliedRedPixels,
+      'the applied #DC2626 fill did not reach the PNG.',
+    ).toBeGreaterThan(MIN_APPLIED_RED_PIXELS);
+
     const dark = await probeExportedPng(browser, {
       colorScheme: 'dark',
       deviceScaleFactor: 3,
@@ -850,5 +913,9 @@ test.describe('preference-independent export', (): void => {
     expect(forced.height).toBe(EXPORT_SIZE);
     expect(dark.samples).toStrictEqual(baseline.samples);
     expect(forced.samples).toStrictEqual(baseline.samples);
+    [dark, forced].forEach((probe): void => {
+      expect(probe.nonWhitePixels).toBe(baseline.nonWhitePixels);
+      expect(probe.appliedRedPixels).toBe(baseline.appliedRedPixels);
+    });
   });
 });
