@@ -6,3 +6,8 @@ public/data/snapshots/*.geojson text eol=lf
 sources/historical/*.json text eol=lf
 sources/historical/*.geojson text eol=lf
 sources/historical/*.zip binary
+
+# Patch artifacts are hash-verified by the plans that apply them. core.autocrlf=true would
+# rewrite them to CRLF on checkout, changing their SHA-256 and breaking both the hash check
+# and `git apply`. Pin them to LF so the bytes are stable across clones.
+*.patch text eol=lf
