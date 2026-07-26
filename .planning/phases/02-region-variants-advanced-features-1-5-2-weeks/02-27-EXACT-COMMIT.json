@@ -1,9 +1,9 @@
 {
   "schema": "countriesirl.phase2.exact-commit.v1",
   "status": "PASS",
-  "verifiedSha": "6297ecbeee19abe9355e38624d756ced9d56917e",
-  "startedAt": "2026-07-25T11:00:46.971Z",
-  "finishedAt": "2026-07-25T11:03:51.087Z",
+  "verifiedSha": "fe5f946060707c48c3d9591d368b5f3f8f90dd4d",
+  "startedAt": "2026-07-26T06:27:59.107Z",
+  "finishedAt": "2026-07-26T06:35:05.586Z",
   "failureReason": null,
   "descope": {
     "applied": true,
@@ -70,7 +70,7 @@
       "status": 0,
       "expectFailure": false,
       "passed": true,
-      "tail": "> countriesirl@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.10 C:/Users/matul/AppData/Local/Temp/countriesirl-phase2-gate-qSq8Gx/worktree\n\n\n Test Files  34 passed (34)\n      Tests  404 passed (404)\n   Start at  06:01:03\n   Duration  6.21s (transform 3.02s, setup 0ms, import 16.15s, tests 9.60s, environment 5ms)"
+      "tail": "> countriesirl@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.10 C:/Users/matul/AppData/Local/Temp/countriesirl-phase2-gate-96hlu9/worktree\n\n\n Test Files  38 passed (38)\n      Tests  516 passed (516)\n   Start at  01:28:13\n   Duration  5.70s (transform 2.98s, setup 0ms, import 14.53s, tests 9.15s, environment 6ms)"
     },
     {
       "id": "typecheck",
@@ -112,7 +112,7 @@
       "status": 0,
       "expectFailure": false,
       "passed": true,
-      "tail": "> countriesirl@0.1.0 build\n> tsc -b && vite build\n\n\u001b[36mvite v8.1.5 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\rtransforming...✓ 632 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.48 kB │ gzip:   0.31 kB\ndist/assets/index-DxY9AMqf.css   23.37 kB │ gzip:   4.66 kB\ndist/assets/index-CZDhUQ9h.js   536.13 kB │ gzip: 155.81 kB\n\n\u001b[32m✓ built in 232ms\u001b[39m"
+      "tail": "> countriesirl@0.1.0 build\n> tsc -b && vite build\n\n\u001b[36mvite v8.1.5 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\rtransforming...✓ 635 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.48 kB │ gzip:   0.31 kB\ndist/assets/index-B0RANtPZ.css   33.57 kB │ gzip:   5.99 kB\ndist/assets/index-fWkag3Ve.js   547.12 kB │ gzip: 159.11 kB\n\n\u001b[32m✓ built in 212ms\u001b[39m"
     },
     {
       "id": "e2e:chrome",
@@ -120,7 +120,7 @@
       "status": 0,
       "expectFailure": false,
       "passed": true,
-      "tail": "  ✓  25 [chrome] › tests\\e2e\\phase2-composition.spec.ts:348:1 › world baseline exposes 195 logical states and 248 modern units (1.6s)\n  ✓  26 [chrome] › tests\\e2e\\phase2-composition.spec.ts:415:1 › camera input anchors wheel, wraps, clamps poles, and never regenerates geometry (1.3s)\n  ✓  27 [chrome] › tests\\e2e\\phase2-composition.spec.ts:496:1 › camera freeze uses one visible controller handle and renews input (1.4s)\n  ✓  28 [chrome] › tests\\e2e\\phase2-composition.spec.ts:548:1 › real app navigation controls move the sole live D3 camera accessibly (2.3s)\n  ✓  29 [chrome] › tests\\e2e\\phase2-composition.spec.ts:606:1 › real app saves and loads the complete composition after responsive rebinding (4.4s)\n  ✓  30 [chrome] › tests\\e2e\\phase2-composition.spec.ts:754:1 › a duplicate-identity scene degrades to the fatal error state instead of a blank page (615ms)\n  ✓  31 [chrome] › tests\\e2e\\phase2-composition.spec.ts:789:1 › the inspector keeps its in-progress UI state across the 1200px transition (2.4s)\n  ✓  32 [chrome] › tests\\e2e\\phase2-composition.spec.ts:847:1 › real app export failure and frozen load both release without false success (10.7s)\n  ✓  33 [chrome] › tests\\e2e\\phase2-composition.spec.ts:935:1 › a collapsed Legend panel never leaves Export PNG permanently blocked (5.9s)\n  ✓  34 [chrome] › tests\\e2e\\phase2-composition.spec.ts:996:1 › real app round-trips a historical scene with live catalog and exported legend (7.8s)\n\n  34 passed (1.2m)"
+      "tail": "  ✓  62 [chrome] › tests\\e2e\\responsive.spec.ts:594:3 › responsive world workspace › every disabled action in the responsive strip is natively disabled (1.3s)\n  ✓  63 [chrome] › tests\\e2e\\responsive.spec.ts:616:3 › preference emulation › dark preference restyles chrome and leaves the composition square white (1.4s)\n  ✓  64 [chrome] › tests\\e2e\\responsive.spec.ts:673:3 › preference emulation › reduced-motion preference removes every authored transition (1.3s)\n  ✓  65 [chrome] › tests\\e2e\\responsive.spec.ts:715:3 › preference emulation › the map reads the SPEC motion tokens when motion is not reduced (1.3s)\n  ✓  66 [chrome] › tests\\e2e\\responsive.spec.ts:742:3 › preference emulation › increased-contrast preference strengthens boundaries and focus rings (1.3s)\n  ✓  67 [chrome] › tests\\e2e\\responsive.spec.ts:765:3 › preference emulation › forced-colors preference drops every glass surface to opaque (1.4s)\n  ✓  68 [chrome] › tests\\e2e\\responsive.spec.ts:918:3 › preference-independent export › the PNG is identical across theme, forced colors, and device pixel ratio (15.0s)\n  ✓  69 [chrome] › tests\\e2e\\transactions.spec.ts:66:1 › every camera callback reaches the one bound handle across the 1200px remount (3.6s)\n  ✓  70 [chrome] › tests\\e2e\\transactions.spec.ts:126:1 › every export refusal class releases the camera lease in one session (8.6s)\n  ✓  71 [chrome] › tests\\e2e\\transactions.spec.ts:231:1 › a historical entity keeps its color through undo, redo, a remount, and a reload (4.1s)\n\n  71 passed (3.2m)"
     },
     {
       "id": "e2e:msedge",
@@ -128,7 +128,7 @@
       "status": 0,
       "expectFailure": false,
       "passed": true,
-      "tail": "  ✓  25 [msedge] › tests\\e2e\\phase2-composition.spec.ts:348:1 › world baseline exposes 195 logical states and 248 modern units (1.8s)\n  ✓  26 [msedge] › tests\\e2e\\phase2-composition.spec.ts:415:1 › camera input anchors wheel, wraps, clamps poles, and never regenerates geometry (1.4s)\n  ✓  27 [msedge] › tests\\e2e\\phase2-composition.spec.ts:496:1 › camera freeze uses one visible controller handle and renews input (1.5s)\n  ✓  28 [msedge] › tests\\e2e\\phase2-composition.spec.ts:548:1 › real app navigation controls move the sole live D3 camera accessibly (2.3s)\n  ✓  29 [msedge] › tests\\e2e\\phase2-composition.spec.ts:606:1 › real app saves and loads the complete composition after responsive rebinding (4.4s)\n  ✓  30 [msedge] › tests\\e2e\\phase2-composition.spec.ts:754:1 › a duplicate-identity scene degrades to the fatal error state instead of a blank page (722ms)\n  ✓  31 [msedge] › tests\\e2e\\phase2-composition.spec.ts:789:1 › the inspector keeps its in-progress UI state across the 1200px transition (2.4s)\n  ✓  32 [msedge] › tests\\e2e\\phase2-composition.spec.ts:847:1 › real app export failure and frozen load both release without false success (10.8s)\n  ✓  33 [msedge] › tests\\e2e\\phase2-composition.spec.ts:935:1 › a collapsed Legend panel never leaves Export PNG permanently blocked (5.9s)\n  ✓  34 [msedge] › tests\\e2e\\phase2-composition.spec.ts:996:1 › real app round-trips a historical scene with live catalog and exported legend (7.9s)\n\n  34 passed (1.2m)"
+      "tail": "  ✓  62 [msedge] › tests\\e2e\\responsive.spec.ts:594:3 › responsive world workspace › every disabled action in the responsive strip is natively disabled (1.4s)\n  ✓  63 [msedge] › tests\\e2e\\responsive.spec.ts:616:3 › preference emulation › dark preference restyles chrome and leaves the composition square white (1.4s)\n  ✓  64 [msedge] › tests\\e2e\\responsive.spec.ts:673:3 › preference emulation › reduced-motion preference removes every authored transition (1.4s)\n  ✓  65 [msedge] › tests\\e2e\\responsive.spec.ts:715:3 › preference emulation › the map reads the SPEC motion tokens when motion is not reduced (1.4s)\n  ✓  66 [msedge] › tests\\e2e\\responsive.spec.ts:742:3 › preference emulation › increased-contrast preference strengthens boundaries and focus rings (1.4s)\n  ✓  67 [msedge] › tests\\e2e\\responsive.spec.ts:765:3 › preference emulation › forced-colors preference drops every glass surface to opaque (1.4s)\n  ✓  68 [msedge] › tests\\e2e\\responsive.spec.ts:918:3 › preference-independent export › the PNG is identical across theme, forced colors, and device pixel ratio (15.8s)\n  ✓  69 [msedge] › tests\\e2e\\transactions.spec.ts:66:1 › every camera callback reaches the one bound handle across the 1200px remount (3.6s)\n  ✓  70 [msedge] › tests\\e2e\\transactions.spec.ts:126:1 › every export refusal class releases the camera lease in one session (8.5s)\n  ✓  71 [msedge] › tests\\e2e\\transactions.spec.ts:231:1 › a historical entity keeps its color through undo, redo, a remount, and a reload (4.2s)\n\n  71 passed (3.3m)"
     }
   ],
   "cleanup": {

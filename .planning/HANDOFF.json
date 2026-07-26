@@ -1,131 +1,180 @@
 {
-  "version": "2.0",
-  "timestamp": "2026-07-25T06:00:00Z",
-  "phase": "02",
-  "phase_name": "Region Variants & Advanced Features",
-  "phase_dir": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks",
-  "canonical_continuation_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md",
-  "status": "executing_descoped",
-  "supersedes": {
-    "version": "1.1",
-    "timestamp": "2026-07-25T02:08:31Z",
-    "note": "That version described a phase blocked behind the historical approval chain with two unintegrated correction worktrees. Both are now integrated and the historical chain is formally deferred. Do not act on its wording."
+ "version": "2.0",
+ "timestamp": "2026-07-26T06:45:00Z",
+ "phase": "02",
+ "phase_name": "Region Variants & Advanced Features",
+ "phase_dir": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks",
+ "canonical_continuation_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md",
+ "status": "executing_descoped",
+ "supersedes": {
+  "version": "1.1",
+  "timestamp": "2026-07-25T02:08:31Z",
+  "note": "That version described a phase blocked behind the historical approval chain with two unintegrated correction worktrees. Both are now integrated and the historical chain is formally deferred. Do not act on its wording."
+ },
+ "primary_checkout": {
+  "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL",
+  "branch": "gsd/phase-01-pattern-map"
+ },
+ "descope": {
+  "applied": true,
+  "decided_on": "2026-07-25",
+  "decision_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md",
+  "summary": "Historical snapshots 1492/1700/1815/1914 deferred to a data-acquisition phase. The engine ships and is tested; the rights-cleared archival geometry does not exist.",
+  "reason_class": "missing_source_material_not_missing_approval",
+  "evidence": "prepareHistoricalSnapshot.mjs --validate-sources exits nonzero for 1492 and 1700 with blockers naming missing scans, product archives, operator records, control points, and frontier demarcation.",
+  "engine_retained": true,
+  "rework_required_when_data_arrives": false
+ },
+ "execution_progress": {
+  "total_plans": 36,
+  "complete": 26,
+  "deferred_historical": 8,
+  "engineering_remaining": 0,
+  "owner_gates": 2,
+  "percent_plans_complete": 72
+ },
+ "complete_plans": [
+  "02-01",
+  "02-02",
+  "02-03",
+  "02-04",
+  "02-05",
+  "02-06",
+  "02-07",
+  "02-08",
+  "02-09",
+  "02-10",
+  "02-11",
+  "02-12",
+  "02-17",
+  "02-18",
+  "02-19",
+  "02-20",
+  "02-21",
+  "02-22",
+  "02-23",
+  "02-24",
+  "02-26",
+  "02-27",
+  "02-29",
+  "02-30",
+  "02-32",
+  "02-36"
+ ],
+ "deferred_plans": [
+  "02-31",
+  "02-33",
+  "02-13",
+  "02-14",
+  "02-15",
+  "02-16",
+  "02-34",
+  "02-35"
+ ],
+ "engineering_remaining": [],
+ "owner_gates": [
+  "02-25",
+  "02-28"
+ ],
+ "plan_status_notes": {
+  "02-17": "Complete as RESCOPED. Verifies a Modern-only catalog and proves non-promotion. Original promotion tasks preserved verbatim in the plan for the follow-on phase.",
+  "02-18": "Complete as RESCOPED. Catalog-driven selector renders the single Modern entry. Closed two real functional gaps: no Reset View control existed anywhere, and FatalErrorState carried Phase 1 Europe copy.",
+  "02-27": "Complete. tests/e2e/final-integration.spec.ts adds the cross-domain creator journey (color, legend labels, camera, save, export, undo, export, real page.reload(), blank export, load, export) with every claim measured on the downloaded PNG bytes. Gate re-run PASS at fe5f946060707c48c3d9591d368b5f3f8f90dd4d. Known gap: the evidence JSON records Node/npm/platform/arch but not browser versions; Chrome 150.0.7871.182 and Edge 150.0.4078.83 are recorded by hand in 02-27-SUMMARY.md rather than claimed as machine evidence.",
+  "02-32": "Complete only as hash-bound BLOCKED readiness evidence. Zero production snapshots, deliveryCounted=false.",
+  "02-25": "Owner gave blanket pre-approval SIGHT-UNSEEN; the patches do not exist yet. Record that honestly rather than claiming hash-bound approval.",
+  "02-28": "CANNOT be delegated or approved in the abstract. Its resume-signal rejects generic approval and forbids automation substitution for physical claims."
+ },
+ "verified_gates": {
+  "test_files": 34,
+  "tests": 404,
+  "lint": "clean",
+  "typecheck": "clean",
+  "world_data": "248 units, 195 selectable core states",
+  "build": "clean",
+  "e2e_chrome": "34/34",
+  "e2e_msedge": "34/34",
+  "historical_promotion": "zero; catalog Modern-only and hash-verified"
+ },
+ "integrated_this_session": [
+  {
+   "stack": "historical source-readiness infrastructure",
+   "review_rounds": 1,
+   "outcome": "integrated; packets truthfully BLOCKED, zero promotion"
   },
-  "primary_checkout": {
-    "path": "C:\\Users\\matul\\ClaudeProjects\\CountriesIRL",
-    "branch": "gsd/phase-01-pattern-map"
+  {
+   "stack": "Wave 5 production wiring",
+   "review_rounds": 3,
+   "defects_found_by_independent_review": 5,
+   "outcome": "integrated after two fix rounds; final review APPROVE, 0 critical / 0 high"
   },
-  "descope": {
-    "applied": true,
-    "decided_on": "2026-07-25",
-    "decision_artifact": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md",
-    "summary": "Historical snapshots 1492/1700/1815/1914 deferred to a data-acquisition phase. The engine ships and is tested; the rights-cleared archival geometry does not exist.",
-    "reason_class": "missing_source_material_not_missing_approval",
-    "evidence": "prepareHistoricalSnapshot.mjs --validate-sources exits nonzero for 1492 and 1700 with blockers naming missing scans, product archives, operator records, control points, and frontier demarcation.",
-    "engine_retained": true,
-    "rework_required_when_data_arrives": false
+  {
+   "stack": "plan 02-18",
+   "review_rounds": 1,
+   "outcome": "integrated after correcting a tautological NFR3 gate"
+  }
+ ],
+ "live_invariants": [
+  "Selection/color can never reach a country absent from the active scene. Eleven routes enumerated and gated. Undo/redo is safe ONLY because history stores colors, never selection.",
+  "Nothing reads legend.position raw on a render or export path; all go through resolveLegendPosition/resolveLegendRender. One bypass clips legend content out of the exported PNG.",
+  "Exactly one MapCanvasHandle and one svg.map-canvas across the 1200px transition.",
+  "CountryList and Locate keep the unfiltered modern 195-core catalog; out-of-scene rows are disabled, never removed.",
+  "The period selector is catalog-driven; deferred snapshots stay structurally unreachable and a manifest label can never override an approved catalog label.",
+  "Legend opacity is a single 0-100 scale; a stored 0-1 fraction is repaired and reported, not silently clamped."
+ ],
+ "immutable_safety_constraints": [
+  "Historical geometry, source rights, and factual approvals must never be inferred, synthesized, or fabricated.",
+  "No unapproved historical geometry may be promoted to public/data or added to the production catalog.",
+  "BLOCKED source packets are not delivered snapshots and must not be counted as such.",
+  "Executor self-approval is forbidden for source/license and factual review.",
+  "Any changed byte covered by a source or factual approval invalidates that approval until reviewed again.",
+  "The six region IDs must never be silently merged.",
+  "Phase 2 remains browser-only and localhost-only; no deployment, production URL, backend, auth, or cloud work is authorized."
+ ],
+ "open_owner_decisions": [
+  {
+   "id": "nfr3-threshold",
+   "question": "Set an NFR3 warm-switch timing threshold, or explicitly extend D-63 to Phase 2.",
+   "context": "D-63 retired timing gates for Phase 1 ONLY and does not carry into Phase 2. Phase 2 asserts no threshold and records warm period-switch samples plus their median as advisory annotations in tests/e2e/history.spec.ts.",
+   "blocking": false
   },
-  "execution_progress": {
-    "total_plans": 36,
-    "complete": 17,
-    "deferred_historical": 8,
-    "engineering_remaining": 9,
-    "owner_gates": 2,
-    "percent_plans_complete": 47
-  },
-  "complete_plans": [
-    "02-01", "02-02", "02-03", "02-04", "02-05", "02-06",
-    "02-07", "02-08", "02-09", "02-10", "02-11", "02-12",
-    "02-17", "02-18", "02-19", "02-29", "02-32"
+  {
+   "id": "02-28-acceptance",
+   "question": "Perform the physical acceptance matrix.",
+   "context": "Touch, screen-reader, and visual checks cannot be automated or delegated. Automated cells can be pre-filled.",
+   "blocking": true
+  }
+ ],
+ "process_lesson": "Executor self-reported checkpoints were not reliable for integration. Independent non-author review of the aggregate diff caught five real defects across three rounds on one stack that the executor had marked resolved. Keep the independent review step for every stack.",
+ "housekeeping": {
+  "gitignored_now": [
+   ".claude/ (24 agent worktrees)",
+   "ui-reviews browser profiles, caches, and verification-root nested checkouts"
   ],
-  "deferred_plans": ["02-31", "02-33", "02-13", "02-14", "02-15", "02-16", "02-34", "02-35"],
-  "engineering_remaining": ["02-20", "02-21", "02-22", "02-23", "02-24", "02-26", "02-27", "02-30", "02-36"],
-  "owner_gates": ["02-25", "02-28"],
-  "plan_status_notes": {
-    "02-17": "Complete as RESCOPED. Verifies a Modern-only catalog and proves non-promotion. Original promotion tasks preserved verbatim in the plan for the follow-on phase.",
-    "02-18": "Complete as RESCOPED. Catalog-driven selector renders the single Modern entry. Closed two real functional gaps: no Reset View control existed anywhere, and FatalErrorState carried Phase 1 Europe copy.",
-    "02-27": "PARTIAL. scripts/verifyPhase2ExactCommit.mjs is written and validated end-to-end. tests/e2e/final-integration.spec.ts is not written.",
-    "02-32": "Complete only as hash-bound BLOCKED readiness evidence. Zero production snapshots, deliveryCounted=false.",
-    "02-25": "Owner gave blanket pre-approval SIGHT-UNSEEN; the patches do not exist yet. Record that honestly rather than claiming hash-bound approval.",
-    "02-28": "CANNOT be delegated or approved in the abstract. Its resume-signal rejects generic approval and forbids automation substitution for physical claims."
+  "note": "24 git worktrees exist on disk, ~20 from earlier sessions. None are prunable and all are gitignored. Left in place rather than deleted; clean up with `git worktree remove` when confirmed unneeded."
+ },
+ "first_actions_next_session": [
+  "Start in the primary checkout: C:UsersmatulClaudeProjectsCountriesIRL.",
+  "Read .continue-here.md and this file.",
+  "Hand 02-28 to the owner with the automated cells pre-filled, bound to verified SHA fe5f946060707c48c3d9591d368b5f3f8f90dd4d.",
+  "Do not dispatch any historical plan, and do not treat blanket approval as satisfying 02-28."
+ ],
+ "do_not": [
+  "Do not dispatch any historical plan; the material does not exist.",
+  "Do not treat the owner's blanket approval as satisfying 02-28.",
+  "Do not cite D-63 to justify a Phase 2 timing decision.",
+  "Do not put selection into a map-state history snapshot."
+ ],
+ "exact_commit_gate": {
+  "verified_sha": "fe5f946060707c48c3d9591d368b5f3f8f90dd4d",
+  "result": "PASS",
+  "evidence": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-27-EXACT-COMMIT.json",
+  "ran_at": "2026-07-26T06:27:59Z",
+  "unit_tests": "516/516 across 38 files",
+  "e2e": {
+   "chrome": "71/71",
+   "msedge": "71/71"
   },
-  "verified_gates": {
-    "test_files": 34,
-    "tests": 404,
-    "lint": "clean",
-    "typecheck": "clean",
-    "world_data": "248 units, 195 selectable core states",
-    "build": "clean",
-    "e2e_chrome": "34/34",
-    "e2e_msedge": "34/34",
-    "historical_promotion": "zero; catalog Modern-only and hash-verified"
-  },
-  "integrated_this_session": [
-    {
-      "stack": "historical source-readiness infrastructure",
-      "review_rounds": 1,
-      "outcome": "integrated; packets truthfully BLOCKED, zero promotion"
-    },
-    {
-      "stack": "Wave 5 production wiring",
-      "review_rounds": 3,
-      "defects_found_by_independent_review": 5,
-      "outcome": "integrated after two fix rounds; final review APPROVE, 0 critical / 0 high"
-    },
-    {
-      "stack": "plan 02-18",
-      "review_rounds": 1,
-      "outcome": "integrated after correcting a tautological NFR3 gate"
-    }
-  ],
-  "live_invariants": [
-    "Selection/color can never reach a country absent from the active scene. Eleven routes enumerated and gated. Undo/redo is safe ONLY because history stores colors, never selection.",
-    "Nothing reads legend.position raw on a render or export path; all go through resolveLegendPosition/resolveLegendRender. One bypass clips legend content out of the exported PNG.",
-    "Exactly one MapCanvasHandle and one svg.map-canvas across the 1200px transition.",
-    "CountryList and Locate keep the unfiltered modern 195-core catalog; out-of-scene rows are disabled, never removed.",
-    "The period selector is catalog-driven; deferred snapshots stay structurally unreachable and a manifest label can never override an approved catalog label.",
-    "Legend opacity is a single 0-100 scale; a stored 0-1 fraction is repaired and reported, not silently clamped."
-  ],
-  "immutable_safety_constraints": [
-    "Historical geometry, source rights, and factual approvals must never be inferred, synthesized, or fabricated.",
-    "No unapproved historical geometry may be promoted to public/data or added to the production catalog.",
-    "BLOCKED source packets are not delivered snapshots and must not be counted as such.",
-    "Executor self-approval is forbidden for source/license and factual review.",
-    "Any changed byte covered by a source or factual approval invalidates that approval until reviewed again.",
-    "The six region IDs must never be silently merged.",
-    "Phase 2 remains browser-only and localhost-only; no deployment, production URL, backend, auth, or cloud work is authorized."
-  ],
-  "open_owner_decisions": [
-    {
-      "id": "nfr3-threshold",
-      "question": "Set an NFR3 warm-switch timing threshold, or explicitly extend D-63 to Phase 2.",
-      "context": "D-63 retired timing gates for Phase 1 ONLY and does not carry into Phase 2. Phase 2 asserts no threshold and records warm period-switch samples plus their median as advisory annotations in tests/e2e/history.spec.ts.",
-      "blocking": false
-    },
-    {
-      "id": "02-28-acceptance",
-      "question": "Perform the physical acceptance matrix.",
-      "context": "Touch, screen-reader, and visual checks cannot be automated or delegated. Automated cells can be pre-filled.",
-      "blocking": true
-    }
-  ],
-  "process_lesson": "Executor self-reported checkpoints were not reliable for integration. Independent non-author review of the aggregate diff caught five real defects across three rounds on one stack that the executor had marked resolved. Keep the independent review step for every stack.",
-  "housekeeping": {
-    "gitignored_now": [".claude/ (24 agent worktrees)", "ui-reviews browser profiles, caches, and verification-root nested checkouts"],
-    "note": "24 git worktrees exist on disk, ~20 from earlier sessions. None are prunable and all are gitignored. Left in place rather than deleted; clean up with `git worktree remove` when confirmed unneeded."
-  },
-  "first_actions_next_session": [
-    "Start in the primary checkout only.",
-    "Read the canonical .continue-here.md and this file.",
-    "Continue with 02-30 and 02-21 (mutually independent), then 02-20/02-22, 02-23, 02-24.",
-    "Generate the 02-25 patches and apply via 02-26/02-36.",
-    "Add tests/e2e/final-integration.spec.ts, then re-run node scripts/verifyPhase2ExactCommit.mjs against the final SHA.",
-    "Hand 02-28 to the owner with automated cells pre-filled."
-  ],
-  "do_not": [
-    "Do not dispatch any historical plan; the material does not exist.",
-    "Do not treat the owner's blanket approval as satisfying 02-28.",
-    "Do not cite D-63 to justify a Phase 2 timing decision.",
-    "Do not put selection into a map-state history snapshot."
-  ]
+  "browser_versions_machine_recorded": false,
+  "note": "Plan 02-28 must bind to this SHA, not to the workspace and not to the superseded 6297ecb."
+ }
 }

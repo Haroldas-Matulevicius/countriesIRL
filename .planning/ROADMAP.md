@@ -63,7 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 25/36 complete. 8 deferred with the historical chain, 1 engineering remaining (`02-27`), 2 owner gates. See the [Progress](#progress) ledger.
+**Plans:** 26/36 complete. 8 deferred with the historical chain, 0 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -134,7 +134,7 @@ Plans:
 - [x] 02-36-PLAN.md — **complete**: Patch B applied mechanically via `git apply`, same two-way hash proof, exactly 3 files. `CLAUDE.md` now routes to Phase 2 with the real command set and no `vercel deploy`; `general.md`'s false "LocalStorage is guaranteed" claim is struck through and corrected against the typed `storage-unavailable`/`quota-exceeded` reasons `storage.ts` actually returns; `REQUIREMENTS.md` gains non-destructive F3/F7 supersession annotations and an NFR3 open-decision note. Phase 1 Release Acceptance untouched; F2.1–F2.5 remain explicitly **not** complete. Lint, `tsc -b`, 516/516 unit, build all clean. Found but deliberately not fixed: two pre-existing `CLAUDE.md` rows route to files that never existed — fixing them would have broken the byte-identity proof mitigating T-02-80, so they are logged in `deferred-items.md`. **Same approval caveat as `02-26`.**
 
 **Wave 17**
-- [ ] 02-27-PLAN.md — Complete cross-domain E2E coverage, then prove the exact final implementation commit from a fresh detached clean worktree
+- [x] 02-27-PLAN.md — **complete**: `tests/e2e/final-integration.spec.ts` covers the cross-domain creator journey (color → legend labels → camera → save → export → undo → export → real `page.reload()` → blank export → load → export), measuring every claim on the downloaded PNG bytes. Colors are counted in disjoint legend/map regions so a legend swatch cannot stand in as evidence that a country reached the export, and the post-reload blank export is an in-test discrimination control so the restored-vs-authored equality cannot be satisfied by two blank squares. Four RED probes proven (legend at `opacity 0`, no-op undo, imprecise camera restore, and a pixel-only selection-border regression that no DOM assertion sees). Gate re-run against the final SHA **`fe5f946`**: PASS in 7m06s from a fresh detached clean worktree — lint, 516/516 unit, `tsc -b`, world 248/195, both blocked packets failing closed, build, Chrome 71/71, Edge 71/71, worktree removed and pruned. Browser versions are recorded by hand in the summary, not by the script.
 
 **Wave 18**
 - [ ] 02-28-PLAN.md — Complete human-only physical, visual, accessibility, historical, and exact-export acceptance against the exact verified SHA
@@ -325,8 +325,8 @@ elsewhere.
 | Global UI surfaces + safe status copy | `02-22` | ✅ complete |
 | Composition root + integrated transactions | `02-23` | ✅ complete (guards + `transactions.spec.ts`; `App.tsx` unchanged) |
 | Visual system + responsive slice | `02-24` | ✅ complete (CSS contract + `responsive.spec.ts`; navigation/global-action placement deferred) |
-| Remaining engineering | `02-26`, `02-36` | ⬜ not started |
-| Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
+| Remaining engineering | `02-26`, `02-36` | ✅ complete (both `02-25` doc patches applied) |
+| Final exact-SHA gate | `02-27` | ✅ complete — `final-integration.spec.ts` landed; gate PASS at `fe5f946` |
 | Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
 
 > The remaining engineering plans are smaller than they look. Their *behavior* already
