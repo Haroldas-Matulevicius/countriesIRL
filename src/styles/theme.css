@@ -1,3 +1,15 @@
+/*
+ * UI-SPEC sections 4-6 and 20. Two hard rules govern this file:
+ *
+ * 1. `--map-*` are export tokens. They are declared exactly once, in `:root`,
+ *    and are never redefined inside a media or supports block. A dark, contrast,
+ *    or forced-colors override of any of them would change the exported PNG,
+ *    which must be theme- and device-pixel-ratio independent.
+ * 2. Glass is progressive enhancement over an opaque fallback. The opaque value
+ *    is the `:root` value; the translucent value exists only under
+ *    `@supports (backdrop-filter: blur(1px))`, and every accessibility
+ *    preference restores the opaque baseline.
+ */
 :root {
   color-scheme: light;
 
@@ -8,6 +20,7 @@
   --space-xl: 32px;
   --space-2xl: 48px;
   --space-3xl: 64px;
+  --target-compact: 44px;
 
   --font-label: 14px;
   --font-body: 16px;
@@ -18,67 +31,166 @@
 
   --radius-control: 8px;
   --radius-large: 16px;
+
   --motion-fast: 150ms;
+  --motion-scene: 160ms;
+  --motion-camera: 240ms;
+  --easing-control: ease-out;
+  --easing-camera: cubic-bezier(0.22, 1, 0.36, 1);
+
   --focus-width: 2px;
   --focus-offset: 2px;
+  --border-width: 1px;
 
-  --surface-page: #f3f4f6;
+  --surface-page: #eef1f3;
   --surface-card: #ffffff;
-  --surface-hover: #e5e7eb;
-  --surface-accent-tint: #eef2ff;
+  --surface-hover: #e2e8f0;
+  --surface-pressed: #cbd5e1;
+  --surface-accent-tint: #ccfbf1;
   --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-  --border-default: #d1d5db;
-  --border-strong: #111827;
-  --accent: #4338ca;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-default: #cbd5e1;
+  --border-strong: #1f2937;
+  --accent: #0f766e;
   --accent-contrast: #ffffff;
+  --accent-hover: #0b5b55;
   --destructive: #b42318;
   --destructive-tint: #fef3f2;
   --success: #067647;
   --success-tint: #ecfdf3;
   --warning: #b54708;
   --warning-tint: #fffaeb;
-  --overlay: rgba(17, 24, 39, 0.72);
+  --overlay: rgba(15, 23, 42, 0.72);
+
+  --glass-app-bar: #f8fafc;
+  --glass-inspector: #ffffff;
+  --glass-navigation: #ffffff;
+  --glass-blur-app-bar: 0;
+  --glass-blur-inspector: 0;
+  --glass-blur-navigation: 0;
+
+  --shadow-inspector: 0 16px 48px rgba(15, 23, 42, 0.1);
+  --shadow-navigation: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --modal-shadow: 0 16px 48px rgba(15, 23, 42, 0.32);
+  --toast-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
 
   --map-surface: #ffffff;
   --map-fill-default: #ffffff;
+  --map-fill-non-selectable: #f3f4f6;
   --map-border-default: #9ca3af;
+  --map-border-historical: #4b5563;
   --map-border-hover: #4b5563;
   --map-border-selected: #111827;
+  --map-border-focus: #0f766e;
   --map-fixed-text: #111827;
   --map-skeleton-fill: #e5e7eb;
   --map-skeleton-stroke: #d1d5db;
-  --map-shadow: 0 8px 24px rgba(17, 24, 39, 0.12);
-  --tooltip-border: #d1d5db;
+  --map-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+  --tooltip-border: #cbd5e1;
   --tooltip-surface: #111827;
-  --tooltip-text: #f9fafb;
-  --tooltip-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
+  --tooltip-text: #f8fafc;
+  --tooltip-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
   --swatch-border: #9ca3af;
   --mixed-color-light: #ffffff;
-  --mixed-color-dark: #6b7280;
+  --mixed-color-dark: #64748b;
   --active-check-border: #ffffff;
   --active-check-surface: #111827;
   --active-check-text: #ffffff;
-  --modal-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-  --toast-shadow: 0 8px 24px rgba(17, 24, 39, 0.2);
 }
 
+/*
+ * Dark changes editor chrome only (UI-SPEC 5.3). No `--map-*` token appears
+ * here: the composition square and the exported PNG stay fixed and opaque.
+ */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --surface-page: #111827;
-    --surface-card: #1f2937;
-    --surface-hover: #374151;
-    --surface-accent-tint: #312e81;
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-muted: #9ca3af;
-    --border-default: #4b5563;
-    --border-strong: #f9fafb;
-    --accent: #818cf8;
-    --accent-contrast: #111827;
+    --surface-page: #0b0f12;
+    --surface-card: #151b20;
+    --surface-hover: #1e293b;
+    --surface-pressed: #334155;
+    --surface-accent-tint: #134e4a;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-default: #334155;
+    --border-strong: #f8fafc;
+    --accent: #5eead4;
+    --accent-contrast: #042f2e;
+    --accent-hover: #99f6e4;
     --overlay: rgba(0, 0, 0, 0.8);
+    --glass-app-bar: #151b20;
+    --glass-inspector: #151b20;
+    --glass-navigation: #151b20;
+  }
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  :root {
+    --glass-app-bar: rgba(248, 250, 252, 0.86);
+    --glass-inspector: rgba(255, 255, 255, 0.88);
+    --glass-navigation: rgba(255, 255, 255, 0.9);
+    --glass-blur-app-bar: 16px;
+    --glass-blur-inspector: 18px;
+    --glass-blur-navigation: 14px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-app-bar: rgba(21, 27, 32, 0.86);
+      --glass-inspector: rgba(21, 27, 32, 0.88);
+      --glass-navigation: rgba(21, 27, 32, 0.9);
+    }
+  }
+}
+
+/*
+ * Opaque baseline restoration. Each of these preferences independently returns
+ * the enhanced glass tokens to their opaque `:root` values and removes blur, so
+ * no readability ever depends on content behind a translucent surface.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-app-bar: #f8fafc;
+    --glass-inspector: #ffffff;
+    --glass-navigation: #ffffff;
+    --glass-blur-app-bar: 0;
+    --glass-blur-inspector: 0;
+    --glass-blur-navigation: 0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --border-width: 2px;
+    --focus-width: 3px;
+    --border-default: #1f2937;
+    --text-secondary: #1f2937;
+    --text-muted: #1f2937;
+    --glass-app-bar: #f8fafc;
+    --glass-inspector: #ffffff;
+    --glass-navigation: #ffffff;
+    --glass-blur-app-bar: 0;
+    --glass-blur-inspector: 0;
+    --glass-blur-navigation: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --border-width: 2px;
+    --focus-width: 3px;
+    --glass-app-bar: Canvas;
+    --glass-inspector: Canvas;
+    --glass-navigation: Canvas;
+    --glass-blur-app-bar: 0;
+    --glass-blur-inspector: 0;
+    --glass-blur-navigation: 0;
+    --shadow-inspector: none;
+    --shadow-navigation: none;
+    --modal-shadow: none;
+    --toast-shadow: none;
   }
 }
 
@@ -110,7 +222,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   color: inherit;
   font: inherit;
 }
@@ -118,7 +231,7 @@ input {
 button {
   min-width: 0;
   min-height: var(--space-2xl);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--surface-card);
   color: var(--text-primary);
@@ -127,24 +240,31 @@ button {
   line-height: 1.4;
   cursor: pointer;
   transition:
-    background-color var(--motion-fast) ease-out,
-    border-color var(--motion-fast) ease-out,
-    color var(--motion-fast) ease-out;
+    background-color var(--motion-fast) var(--easing-control),
+    border-color var(--motion-fast) var(--easing-control),
+    color var(--motion-fast) var(--easing-control);
 }
 
 button:hover:not(:disabled) {
   background: var(--surface-hover);
 }
 
+button:active:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-pressed);
+}
+
 button:disabled,
-input:disabled {
+input:disabled,
+select:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
-  opacity: 0.64;
+  opacity: 0.56;
 }
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 [tabindex]:focus-visible {
   outline: var(--focus-width) solid var(--accent);
   outline-offset: var(--focus-offset);
@@ -189,6 +309,12 @@ legend {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-scene: 0ms;
+    --motion-camera: 0ms;
+  }
+
   *,
   *::before,
   *::after {

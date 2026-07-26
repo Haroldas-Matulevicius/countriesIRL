@@ -55,53 +55,58 @@
   padding: var(--space-sm) var(--space-md);
 }
 
-.app > aside {
+.onboarding {
   width: calc(100% - (var(--space-xl) * 2));
   max-width: 1376px;
   margin: 0 auto var(--space-lg);
   padding: var(--space-lg);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-left: var(--space-xs) solid var(--accent);
   border-radius: var(--radius-control);
   background: var(--surface-accent-tint);
 }
 
-.app > aside h2 {
+.onboarding h2 {
   margin-bottom: var(--space-sm);
 }
 
-.app > aside p,
-.app > aside ol {
+.onboarding p,
+.onboarding ol {
   margin-bottom: var(--space-md);
 }
 
-.app > aside ol {
+.onboarding ol {
   padding-left: var(--space-lg);
 }
 
-.app > aside li + li {
+.onboarding li + li {
   margin-top: var(--space-xs);
 }
 
-.app > aside > div {
+.onboarding__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
-.app > aside button {
+.onboarding__action {
   padding: var(--space-sm) var(--space-md);
 }
 
-.app > aside button:first-child {
+/*
+ * Keyed on the action's own role class. `button:first-child` styled whichever
+ * action happened to be first, so reordering the banner would have silently
+ * moved the accent onto `Dismiss Help` with nothing failing.
+ */
+.onboarding__action--accent {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--accent-contrast);
 }
 
-.app > aside button:first-child:hover:not(:disabled) {
-  background: var(--accent);
-  filter: brightness(0.92);
+.onboarding__action--accent:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 .workspace {
@@ -163,7 +168,7 @@
     padding-left: calc(var(--space-lg) + env(safe-area-inset-left));
   }
 
-  .app > aside {
+  .onboarding {
     width: calc(100% - (var(--space-lg) * 2));
   }
 
@@ -199,13 +204,13 @@
     width: 100%;
   }
 
-  .app > aside {
+  .onboarding {
     width: calc(100% - (var(--space-md) * 2));
     margin-bottom: var(--space-md);
     padding: var(--space-md);
   }
 
-  .app > aside > div {
+  .onboarding__actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }

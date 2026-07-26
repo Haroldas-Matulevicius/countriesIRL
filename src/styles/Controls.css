@@ -4,7 +4,7 @@
 .country-list {
   min-width: 0;
   padding: var(--space-lg);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--surface-card);
 }
@@ -45,9 +45,14 @@
   font-size: var(--font-body);
 }
 
+/*
+ * A token, not `filter: brightness()`: a filter on a chrome control is one
+ * copy-paste away from a filter on exported content, and the contract test
+ * below bans the property outright on export selectors.
+ */
 .controls__action--primary:hover:not(:disabled) {
-  background: var(--accent);
-  filter: brightness(0.92);
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 .workspace__actions button[aria-busy="true"]::before {
@@ -122,7 +127,7 @@
   width: var(--space-2xl);
   height: var(--space-2xl);
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--map-fill-default);
 }
@@ -182,7 +187,7 @@
   flex: 0 0 auto;
   width: var(--space-xl);
   height: var(--space-xl);
-  border: 1px solid var(--swatch-border);
+  border: var(--border-width) solid var(--swatch-border);
   border-radius: var(--radius-control);
 }
 
@@ -207,7 +212,7 @@
   display: grid;
   width: var(--space-lg);
   height: var(--space-lg);
-  border: 1px solid var(--active-check-border);
+  border: var(--border-width) solid var(--active-check-border);
   border-radius: var(--radius-control);
   background: var(--active-check-surface);
   color: var(--active-check-text);
@@ -226,7 +231,7 @@
   min-width: 0;
   min-height: var(--space-2xl);
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--surface-card);
   color: var(--text-primary);
@@ -301,13 +306,13 @@
   max-height: 48vh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   scrollbar-gutter: stable;
 }
 
 .country-list__item + .country-list__item {
-  border-top: 1px solid var(--border-default);
+  border-top: var(--border-width) solid var(--border-default);
 }
 
 .country-list__label {
@@ -365,7 +370,7 @@
   display: block;
   width: var(--space-xl);
   height: var(--space-xl);
-  border: 1px solid var(--swatch-border);
+  border: var(--border-width) solid var(--swatch-border);
   border-radius: var(--radius-control);
 }
 
@@ -387,7 +392,7 @@
   width: min(100%, 560px);
   max-height: 80vh;
   overflow-y: auto;
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-large);
   background: var(--surface-card);
   color: var(--text-primary);
@@ -417,7 +422,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: var(--border-width) solid var(--border-default);
   gap: var(--space-md);
 }
 
@@ -452,13 +457,13 @@
 }
 
 .saved-maps-section {
-  border-top: 1px solid var(--border-default);
+  border-top: var(--border-width) solid var(--border-default);
 }
 
 .saved-maps-empty {
   margin-top: var(--space-md);
   padding: var(--space-lg);
-  border: 1px dashed var(--border-default);
+  border: var(--border-width) dashed var(--border-default);
   border-radius: var(--radius-control);
   text-align: center;
 }
@@ -482,7 +487,7 @@
   display: grid;
   align-items: center;
   padding: var(--space-md);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--surface-card);
   grid-template-columns: minmax(0, 1fr) auto;
@@ -555,7 +560,7 @@
 .save-load-confirm {
   width: min(100%, 420px);
   padding: var(--space-lg);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-large);
   background: var(--surface-card);
   box-shadow: var(--modal-shadow);
@@ -577,7 +582,7 @@
 }
 
 .save-load-footer {
-  border-top: 1px solid var(--border-default);
+  border-top: var(--border-width) solid var(--border-default);
   text-align: right;
 }
 
@@ -592,7 +597,7 @@
   max-width: min(560px, calc(100vw - (var(--space-xl) * 2)));
   margin: 0 auto;
   padding: var(--space-md);
-  border: 1px solid var(--border-default);
+  border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
   background: var(--surface-card);
   color: var(--text-primary);

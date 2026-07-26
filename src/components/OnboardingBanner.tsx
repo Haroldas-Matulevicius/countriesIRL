@@ -16,6 +16,7 @@ export function OnboardingBanner({
   return (
     <aside
       id="onboarding-help"
+      className="onboarding"
       aria-labelledby="onboarding-heading"
       aria-describedby="onboarding-description"
     >
@@ -29,11 +30,24 @@ export function OnboardingBanner({
         <li>Move the map or choose a historical period.</li>
         <li>Edit the legend, then export the exact view.</li>
       </ol>
-      <div>
-        <button type="button" onClick={onStartCreating}>
+      {/*
+        The accent CTA is keyed on its own class. `button:first-child` would
+        repaint whichever action happened to be first the next time this order
+        changes, and nothing would fail.
+      */}
+      <div className="onboarding__actions">
+        <button
+          type="button"
+          className="onboarding__action onboarding__action--accent"
+          onClick={onStartCreating}
+        >
           Start Creating
         </button>
-        <button type="button" onClick={onDismiss}>
+        <button
+          type="button"
+          className="onboarding__action"
+          onClick={onDismiss}
+        >
           Dismiss Help
         </button>
       </div>

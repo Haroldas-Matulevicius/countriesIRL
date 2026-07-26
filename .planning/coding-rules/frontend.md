@@ -321,6 +321,43 @@ is served by a route and never promotes geometry into `public/data`.
 
 ---
 
+## Visual Tokens and Preference Fallbacks (Phase 2)
+
+**`--map-*` are export tokens: declared once in `:root`, never inside a media or supports
+block.** The PNG must be theme- and device-pixel-ratio independent. Redefining
+`--map-border-default` under `prefers-color-scheme: dark` would not fail any test that renders
+the map — it would just ship a differently-bordered PNG to dark-mode users.
+`phase2CssContract.test.ts` walks nested at-rules (a flat regex cannot see the nesting an
+accidental override hides in) and asserts each export token is declared exactly once.
+
+**A focus or selection stroke on map geometry uses a `--map-*` token, not `--accent`.** The
+chrome accent flips with the OS theme; the square does not.
+
+**Glass is progressive enhancement over an opaque `:root` value.** The translucent value lives
+only under `@supports (backdrop-filter: blur(1px))`, and `prefers-reduced-transparency`,
+`prefers-contrast: more`, and `forced-colors: active` each restore the opaque baseline and zero
+the blur. Readability never depends on what is behind a surface. Glass is permitted on exactly
+three surfaces — app bar, inspector shell, map-navigation cluster — and never on the map square,
+legend, modal body, toast, or an overlay.
+
+**`filter` is banned on anything that can reach the export clone, and avoided on chrome.**
+`filter: brightness()` for a hover tint is one copy-paste from a filter on a `.country-path`,
+which html2canvas rasterizes differently than the browser paints it. Author an explicit
+`--accent-hover` token instead.
+
+**Border and focus weights are tokens (`--border-width`, `--focus-width`), not literals.** They
+are the only reason `prefers-contrast: more` can strengthen every boundary to 2px and every focus
+ring to 3px in one place. `1px solid var(--border-default)` opts that rule out silently.
+
+**Positional CSS selectors on interactive controls are banned.** Not just on the action strip —
+on any `button`, `input`, `select`, `a`, or `summary`. `:nth-child`, `:first-child`, and
+`:last-child` bind a role to an ordinal, and order is copy: the onboarding banner styled its
+accent CTA with `button:first-child`, so reordering it would have moved the accent onto
+`Dismiss Help` with nothing failing. Key on a role class (`--primary`, `--destructive`,
+`--accent`). The ban is enforced by `phase2CssContract.test.ts`, not by review.
+
+---
+
 ## Nested Confirmation Dialogs (Phase 2)
 
 **A nested confirmation owns dismissal and the focus trap while it is open.** When
@@ -518,6 +555,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-25 — visual token rules: fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, positional-selector ban on all controls (plan 02-24).*
 *Last updated: 2026-07-25 — composition-root rules: one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections (plan 02-23).*
 *Last updated: 2026-07-25 — creator-safe status copy rules: bounded dynamic parameters, catalog-derived copy, data-derived bounds (plan 02-22).*
 
