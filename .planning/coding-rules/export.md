@@ -378,6 +378,15 @@ element.closest('[role="listbox"]') === null
 Rule of thumb: **when a fixture re-implements the wiring under test, its assertion is about the
 fixture.** Keep one real-app counterpart for every structural contract the composition root owns.
 
+**The export-unsafe-CSS guard must list every class the clone can carry, and prove the list.**
+`EXPORT_CONTENT_PATTERN` is hand-maintained, so it rots the moment `MapCanvas` gains a path
+class. It omitted `.map-unit-path` for a whole phase and nothing noticed, because
+`.map-unit-path` and `.scene-path` have zero rules today — the omission only becomes a defect the
+day someone adds `.map-unit-path { filter: brightness(0.98) }` to dim non-selectable units, which
+html2canvas approximates differently than the browser paints it. Bind the list back to the
+component (`expect(mapCanvasSource.includes("'map-unit-path'")).toBe(true)`) so removing a class
+breaks the test rather than leaving it guarding a ghost.
+
 **A pixel probe that only asserts equality passes on a blank canvas.** The theme-independence
 gate exported in three browser contexts and compared 64 sample points across them. Three
 identical all-white 1080×1080 squares satisfy that perfectly — and that is exactly the shape a
@@ -461,6 +470,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
+*Last updated: 2026-07-26 — the export-unsafe-CSS guard lists every path class MapCanvas renders, bound back to the component (wave789 MEDIUM-4).*
 *Last updated: 2026-07-26 — a pixel probe that only asserts cross-context equality passes on a blank canvas; assert content first (wave789 MEDIUM-2).*
 *Last updated: 2026-07-25 — the generic export failure copy no longer says "Refresh the page" (plan 02-22). Prior: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7).*
 
