@@ -253,6 +253,11 @@ and load read the same identity.
 
 ## Error Handling
 
+> **Superseded in Phase 2.** `alert()` is not how the app reports anything — outcomes go through
+> `ToastRegion`, whose allowlist rejects any string it does not recognize, and the reason is
+> branched per the table above. The Phase 1 shape below is kept for release-evidence continuity
+> only; do not copy it into new code.
+
 **Errors in export should alert the user but not crash the app.**
 
 ```typescript
@@ -278,7 +283,7 @@ const handleExport = async () => {
 | Error | Cause | Mitigation |
 |---|---|---|
 | "SVG element not found" | svgRef.current is null | Ensure MapCanvas is rendered before export button is enabled |
-| "Canvas blob creation failed" | Browser out of memory | Rare; recommend refreshing the page |
+| "Canvas blob creation failed" | Browser out of memory | Return `encoding-failed` and offer a retry. **Never recommend refreshing the page** — the composition lives only in browser memory, so a refresh destroys every unsaved colour, camera, period, and legend. This row said "recommend refreshing the page" until 2026-07-26, contradicting the rule three sections above; the contradiction is the point of this note. |
 | Network timeout | html2canvas trying to fetch resources | Avoid external image URLs in SVG; embed base64 or use data URIs |
 
 ---
@@ -296,7 +301,9 @@ const canvas = await html2canvas(clone, {
 
 **Why white?** Instagram's square format looks best with a white background. Users can overlay it on any background in their editor. Transparent PNGs (alpha channel) are harder for non-technical creators to work with.
 
-**If Phase 2 adds a legend, include it in the export.** Legend should be part of the SVG before calling exportMapPng.
+**The Phase 2 legend ships, and it is part of the canonical SVG before `exportMapPng` is
+called** — see the clone contract above. A legend that is a *sibling* of `svg.map-canvas` is a
+hard `invalid-composition` refusal, never a silently legend-less PNG.
 
 ---
 
@@ -458,9 +465,14 @@ evidence never enters the repository.
 
 ---
 
-## Phase 2: Batch Timelapse Export
+## Batch Timelapse Export (not built; deferred with the historical chain)
 
-**Future contract for Phase 2:**
+**Nothing below ships.** A timelapse is a sequence of historical snapshots, and the historical
+geometry is deferred for missing rights-cleared source material. This sketch is retained as an
+intent record only — it is not a contract, and no part of it may be cited as evidence that
+historical snapshots exist.
+
+**Draft contract, unimplemented:**
 
 ```typescript
 // Batch export 10 images of Lithuania's borders, 1500–1750, 25-year intervals
@@ -486,9 +498,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-26 — a zero-legend source is innocent only when the document has none either; <style> text carries id references too (wave789 LOW-1/LOW-2).*
-*Last updated: 2026-07-26 — the export-unsafe-CSS guard lists every path class MapCanvas renders, bound back to the component (wave789 MEDIUM-4).*
-*Last updated: 2026-07-26 — a pixel probe that only asserts cross-context equality passes on a blank canvas; assert content first (wave789 MEDIUM-2).*
-*Last updated: 2026-07-25 — the generic export failure copy no longer says "Refresh the page" (plan 02-22). Prior: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7).*
+*Last updated: 2026-07-26 — removed the "recommend refreshing the page" mitigation that contradicted this file's own no-refresh rule; marked the Phase 1 `alert()` error handling and the unbuilt timelapse sketch as superseded/deferred; the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
+*Last updated: 2026-07-26 — wave789 and wave 6 review rules: a zero-legend source is innocent only when the document has none either, `<style>` text carries id references, the export-unsafe-CSS guard is bound back to the component, a pixel probe must assert content before cross-context equality, reference-aware id stripping, the real-app legend-containment rule, and per-reason refusal messaging with no "Refresh the page" copy.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

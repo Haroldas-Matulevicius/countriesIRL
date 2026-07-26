@@ -286,9 +286,14 @@ const savedMaps = getMaps();
 
 ---
 
-## Phase 2: Cloud Sync (Future)
+## Cloud Sync (not built; no backend exists)
 
-**Contract for Phase 2+:**
+**Nothing below ships, and nothing below is planned for Phase 2.** Phase 2 is browser-only and
+localhost-only: no backend, no auth, no cloud, no deployment target. There is no Supabase
+dependency and adding one is an architectural decision, not an implementation detail. This
+sketch is an intent record for some future phase, retained so the idea is not silently lost.
+
+**Draft contract, unimplemented:**
 
 ```typescript
 // Save to cloud
@@ -352,6 +357,28 @@ path.
 period, legend, and settings but not colors. The color baseline is set only by an explicit
 save or load — never by undo/redo, which must stay colors-only history.
 
+**Stored bytes are untrusted input, and the bounds are checked BEFORE `JSON.parse`.** Anyone can
+edit localStorage, and a deeply nested or enormous payload turns a synchronous parse on the main
+thread into a hang the creator cannot escape. `try/catch` around `JSON.parse` — the Phase 1 rule
+above — does not help: by the time it catches, the cost is already paid.
+
+| Bound | Value | Checked |
+|---|---|---|
+| `MAX_STORAGE_SERIALIZED_LENGTH` | 1,000,000 chars | on the raw string, **before** parse |
+| `MAX_STORAGE_JSON_DEPTH` | 32 | during a bounded walk |
+| `MAX_STORAGE_JSON_NODES` | 50,000 | during the same walk |
+| `MAX_SAVED_MAPS` | 10 | records past it are dropped with a corrupt warning |
+
+Per-record bounds (colour entries, legend entries, label length, legend coordinates) are applied
+during validation. **Over-bound input is repaired and reported, never silently clamped** — the
+same rule that makes a stored 0-1 legend opacity become percent *and* raise `isRepaired`, rather
+than quietly becoming 1%.
+
+**`localStorage` is fallible; every entry point returns a typed reason.** `storage-unavailable`
+and `quota-exceeded` are real outcomes — Safari private mode, disabled site data, and a full
+origin all produce them — and they are returned, not thrown. This supersedes the Phase 1 claims
+that quota is "plenty of headroom" and that private browsing needs no special case.
+
 **Proving a live-camera save needs a fixture, not the real app.** A mid-animation save cannot
 be driven through the real UI — opening Save/Load costs more than the 240ms transition.
 `tests/e2e/fixtures/persistence.html` mounts `MapCanvas` with the real save/load transactions
@@ -365,6 +392,7 @@ stale. A save that stored it would be the stale-save bug. Assert
 
 ---
 
-*Last updated: 2026-07-25 — save-vs-load failure messaging rule (wave 6 review LOW-8).*
-*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules (plan 02-20).*
-*Last updated: 2026-07-21 — initial Phase 1 storage rules. Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*
+*Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25).*
+*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
+
+*Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

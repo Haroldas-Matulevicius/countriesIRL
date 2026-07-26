@@ -53,6 +53,10 @@ const withIds = europeFeatures.map(f => ({
 
 ## GeoJSON Loading & Filtering
 
+> **Superseded in Phase 2 by the world asset — see "World Asset and Snapshot Catalog" below.**
+> `useGeoData` now loads `/data/world-modern.geojson` and there is no Europe filter. The Phase 1
+> text is kept because Phase 1 release evidence cites it.
+
 **Load once, cache in state.** useGeoData hook fetches `/data/europe-modern.geojson` on mount and caches the result.
 
 **Filter to Europe for Phase 1.** Natural Earth 10m global dataset is ~500KB; filter to ~30 European countries to keep the bundle small.
@@ -162,35 +166,55 @@ dispatch({ type: 'SELECT_COUNTRY', payload: countryId });
 
 ---
 
-## Historical Borders (Phase 2+)
+## World Asset and Snapshot Catalog (Phase 2)
 
-**Future contract:** Each time period will have its own GeoJSON file.
+**This section replaces the Phase 1 "Historical Borders (Phase 2+)" sketch**, which named
+`europe-1400.geojson` / `europe-1700.geojson` / `europe-1800.geojson` and a
+`useGeoData(timePeriod)` signature. None of those exist. Do not build against them.
 
-- `europe-1400.geojson`
-- `europe-1700.geojson`
-- `europe-1800.geojson`
-- `europe-modern.geojson` (current)
+**One bundled world asset, same-origin, no runtime third-party fetch.**
 
-**Structure:** Same as modern GeoJSON — `id` must match a canonical country ID (e.g., 'LT' for Lithuania), but the geometry changes per period.
+- `public/data/world-modern.geojson` — the modern world geometry
+- `public/data/world-manifest.json` — its provenance and integrity record
+- `public/data/snapshots/index.json` — the snapshot catalog
 
-**Validate period coverage.** Not every country exists in every period. If a country isn't in the chosen period, mark it as "no data" in the UI.
+**Periods come from the catalog, never from a filename convention.** A period is an entry in
+`SNAPSHOT_CATALOG` (`src/constants/snapshots.ts`) whose `assetPath` and `sha256` are verified.
+Do not derive an asset URL by interpolating a year into a template — an unapproved id would
+then be one string concatenation away from reaching the network.
 
-```typescript
-// Phase 2: useGeoData accepts a timePeriod parameter
-function useGeoData(timePeriod: string) {
-  const [features, setFeatures] = useState<GeoFeature[]>([]);
+**A snapshot that is not in the approved catalog is structurally unreachable, not merely
+hidden.** As of 2026-07-25 the catalog holds exactly one entry, `Modern`. The 1492/1700/1815/
+1914 packets are **deferred for missing archival source material** — not pending a signature.
+`resolvePeriodOptions` decides reachability; listing an id anywhere else (a manifest, a saved
+record, an announcement allowlist) does not make it reachable and must never be treated as
+approval.
 
-  useEffect(() => {
-    fetch(`/data/europe-${timePeriod}.geojson`)
-      .then(r => r.json())
-      .then(setFeatures);
-  }, [timePeriod]);
+**Approval is evidence, never inference.** Geometry reaches `public/data` only with a durable
+chain: an identified rights-cleared source, a recorded licence, a content hash that matches the
+catalog, and independent factual and topology review. Specifically:
 
-  return features;
-}
-```
+- **Executor self-approval is forbidden** for source/licence and factual review. The author of a
+  packet cannot be its reviewer.
+- **A manually traced boundary carries its own record** — operator, source scan and edition,
+  control points, and the georeferencing method — or it is not usable. "Traced from an atlas" with
+  no control points is not a provenance record.
+- **A BLOCKED packet is not a delivered snapshot** and is never counted as one.
+- **The six historical region IDs are never silently merged.** They stay distinct through
+  curation, validation, and approval, even when their geometry is absent.
 
-**Preserve color assignments across period changes.** If the user colored Lithuania red, and then switches from 1700 to 1800, Lithuania should still be red (if it exists in 1800).
+**Effective entities, not raw features.** A scene's selectable set is the *effective* entity list
+for the active snapshot — the entities that scene actually contains — and selection/colour can
+never reach a country outside it. Out-of-scene rows in `CountryList` and Locate are **disabled,
+never removed**: the modern 195-core catalog stays whole so the creator sees a stable list.
+
+**Colour survives a period change; selection is reconciled in the same write.** History is
+colours-only. `commitScene` reconciles the selection against the new scene in the same write as
+the snapshot switch — putting selection into a history snapshot would let undo resurrect a
+country the active scene does not contain.
+
+**Failure retains the prior scene.** A snapshot that fails validation, hash check, or fetch
+leaves the previous scene on screen; it never blanks the map.
 
 ---
 
@@ -241,14 +265,20 @@ const features = geoData.features
 
 ## File Paths
 
-**GeoJSON lives in `public/data/`.** Vercel/Vite serve it as a static asset.
+**GeoJSON lives in `public/data/`.** Vite serves it as a static asset.
 
-- `public/data/europe-modern.geojson` — Phase 1 (modern borders)
-- `public/data/europe-1400.geojson` — Phase 2
-- `public/data/europe-1700.geojson` — Phase 2
-- etc.
+- `public/data/world-modern.geojson` — the Phase 2 world geometry
+- `public/data/world-manifest.json` — provenance and integrity
+- `public/data/snapshots/index.json` — the approved snapshot catalog
+- `public/data/europe-modern.geojson` — Phase 1 (modern European borders), retained
 
-**Fetch relative paths.** `fetch('/data/europe-modern.geojson')` works both locally and on production (Vercel handles the routing).
+There is no `europe-1400.geojson` / `europe-1700.geojson` / `europe-1800.geojson`. The Phase 1
+draft listed them; the approved chain writes into `public/data/snapshots/` instead, and only
+after the approval evidence above exists.
+
+**Fetch same-origin absolute paths.** `fetch('/data/world-modern.geojson')`. Phase 2 is
+browser-only and localhost-only — no deployment target, no backend, and no runtime request to a
+third-party origin.
 
 ---
 
@@ -308,6 +338,9 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
+*Last updated: 2026-07-26 — replaced the Phase 1 historical-borders sketch with the world asset
+and approved snapshot catalog: catalog-driven periods, evidence-not-inference approval, manual-trace
+records, effective entities, and the corrected file-path list (plan 02-25).*
 *Last updated: 2026-07-25 — added the filesystem-identity rule after a Windows inode-precision
-defect surfaced as an intermittent test failure. Prior: 2026-07-21 — initial Phase 1 data rules.
+defect surfaced as an intermittent test failure.
 Full edit history: `git log -p -- .planning/coding-rules/data.md`.*

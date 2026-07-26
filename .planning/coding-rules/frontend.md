@@ -162,9 +162,20 @@ svg.selectAll('path')
 <g onClick={handleReactClick} />  // Unpredictable precedence
 ```
 
-**D3 projections for flexibility.** `geoMercator` for Phase 1 (standard map). Phase 2 will add `geoAzimuthalEquidistant` for centered maps.
-
 **Performance: memoize projections.** `d3.geoMercator().fitExtent()` is expensive. Do it once per data shape, not per render.
+
+**The projection is fixed; the camera moves (Phase 2).** `createWorldProjection()` in
+`src/utils/mapProjection.ts` builds one whole-world `geoMercator` and that is the only
+projection the app ever constructs. Centering, framing, and zoom are a **transform on
+`g[data-layer="camera"]`**, never a re-projection.
+
+This replaces the Phase 1 note that Phase 2 would add `geoAzimuthalEquidistant` for centered
+maps. D-01 chose one full-world canvas over per-region modes, and re-projecting per centre
+country would break three things at once: path `d` strings would change on every pan, so the D3
+join could no longer key on `id`; the export clone's geometry would depend on camera state; and
+`isWholeWorldCamera`'s tolerance check would have nothing stable to compare against. Reproject
+only if the projection *itself* is being changed for every scene simultaneously — not to centre
+on a country.
 
 ---
 
@@ -734,12 +745,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-07-26 — one CSS rule per (selector, conditions) pair; a lock is only as good as the promise it awaits; composition identity is cleared when what it names stops existing (wave789 LOW-3/4/5/6).*
-*Last updated: 2026-07-26 — a declared token needs a consumer; d3 transitions read motion/easing tokens (wave789 MEDIUM-3).*
-*Last updated: 2026-07-26 — every focus host in a layered modal owns its own tabIndex={-1} (wave789 MEDIUM-1).*
-*Last updated: 2026-07-26 — a preference media query must define both schemes; a token contract asserts a resolved relationship, not a shape (wave789 HIGH-1/HIGH-2).*
-*Last updated: 2026-07-25 — composition-root placement rules: overlay-outside-the-export-source, one Controls with a declared variant, two homes for Reset All Colors, SPEC'd focus order with a RED probe (02-24 UI-SPEC gap closure).*
-*Last updated: 2026-07-25 — visual token rules: fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, positional-selector ban on all controls (plan 02-24).*
-*Last updated: 2026-07-25 — composition-root rules: one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections (plan 02-23).*
+*Last updated: 2026-07-26 — the projection is fixed and the camera moves, replacing the Phase 1 `geoAzimuthalEquidistant` note (plan 02-25). Prior: 2026-07-26 — wave789 review rules: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity.*
+*Last updated: 2026-07-25 — Phase 2 composition-root, visual-token, and UI-SPEC placement rules (plans 02-23, 02-24): one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections, fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, the positional-selector ban, overlay-outside-the-export-source, one Controls with a declared variant, and SPEC'd focus order with a RED probe.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
