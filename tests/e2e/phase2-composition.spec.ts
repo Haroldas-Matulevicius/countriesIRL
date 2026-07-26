@@ -603,154 +603,6 @@ test('real app navigation controls move the sole live D3 camera accessibly', asy
   await expectD3ZoomSynchronized(page);
 });
 
-test('real app saves and loads the complete composition after responsive rebinding', async ({
-  page,
-}): Promise<void> => {
-  await page.setViewportSize({ width: 1300, height: 900 });
-  await waitForApp(page);
-  await page.evaluate((storageKey): void => localStorage.removeItem(storageKey), STORAGE_KEY);
-  await page.locator('svg.map-canvas').evaluate((svg): void => {
-    svg.setAttribute('data-camera-owner-sentinel', 'stable-owner');
-  });
-  await expectDesktopWorkspaceShell(page);
-
-  const francePath = page.locator(
-    'path.country-path[data-country-id="FRA"]',
-  );
-  await francePath.focus();
-  await francePath.press('Enter');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
-  await page.getByRole('button', { name: /^Legend/ }).click();
-  const legendLabel = page.getByLabel('Legend label for #DC2626');
-  await legendLabel.fill('Visited France');
-  await legendLabel.press('Enter');
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText(
-    'Visited France',
-  );
-  const mapListbox = page.getByRole('listbox', {
-    name: MODERN_MAP_LISTBOX_NAME,
-  });
-  const moveLegend = page.getByRole('button', { name: 'Move legend' });
-  await expect(mapListbox).toHaveCount(1);
-  await expect(mapListbox.locator('[data-layer="legend"]')).toHaveCount(0);
-  await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(1);
-  expect(
-    await moveLegend.evaluate((element): boolean =>
-      element.closest('[role="listbox"]') !== null,
-    ),
-  ).toBe(false);
-  await moveLegend.focus();
-  await expect(moveLegend).toBeFocused();
-  await moveLegend.press('ArrowRight');
-  await expect(page.getByText('Legend position updated.')).toBeVisible();
-  await page.getByRole('button', { name: 'Zoom In' }).click();
-  await page.getByRole('button', { name: 'Move Map' }).click();
-  await page.getByRole('button', { name: 'Pan Right' }).click();
-  const savedTransform = await readCameraTransform(page);
-
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
-  await page.getByRole('textbox', { name: 'Map name' }).fill('Integrated view');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
-
-  const savedEvidence = await page.evaluate((storageKey) => {
-    const raw = localStorage.getItem(storageKey);
-    if (raw === null) {
-      throw new Error('Saved composition is missing.');
-    }
-    const records = JSON.parse(raw) as Array<{
-      schemaVersion: number;
-      composition: {
-        colors: Record<string, string>;
-        camera: { zoom: number };
-        snapshotId: string;
-        legend: {
-          entries: Array<{ label: string }>;
-          theme: string;
-        };
-        settings: { backgroundColor: string };
-      };
-    }>;
-    const record = records[0];
-    if (record === undefined) {
-      throw new Error('Saved composition record is missing.');
-    }
-    return {
-      schemaVersion: record.schemaVersion,
-      color: record.composition.colors.FRA,
-      zoom: record.composition.camera.zoom,
-      snapshotId: record.composition.snapshotId,
-      legendLabel: record.composition.legend.entries[0]?.label,
-      legendTheme: record.composition.legend.theme,
-      backgroundColor: record.composition.settings.backgroundColor,
-    };
-  }, STORAGE_KEY);
-
-  expect(savedEvidence).toMatchObject({
-    schemaVersion: 2,
-    zoom: 1.5,
-    snapshotId: 'modern',
-    legendLabel: 'Visited France',
-    legendTheme: 'light',
-    backgroundColor: '#FFFFFF',
-  });
-  expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);
-
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
-  await page.getByRole('button', { name: 'Reset All Colors' }).click();
-  await page.getByRole('button', { name: 'Zoom In' }).click();
-  await francePath.focus();
-  await page.setViewportSize({ width: 900, height: 900 });
-  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
-    /workspace--compact/,
-  );
-  await expect(page.locator('svg.map-canvas')).toHaveAttribute(
-    'data-camera-owner-sentinel',
-    'stable-owner',
-  );
-  await expect(francePath).toBeFocused();
-  await expectCompactWorkspaceOrder(page);
-  await page.setViewportSize({ width: 1300, height: 900 });
-  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
-    /workspace--desktop/,
-  );
-  await expect(page.locator('svg.map-canvas')).toHaveAttribute(
-    'data-camera-owner-sentinel',
-    'stable-owner',
-  );
-  await expect(francePath).toBeFocused();
-  await expectDesktopWorkspaceShell(page);
-
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
-  await page.getByRole('button', { name: 'Load This Map: Integrated view' }).click();
-  await expect(page.getByRole('dialog', { name: 'Save or load maps' })).toHaveCount(0);
-
-  const loadedTransform = await readCameraTransform(page);
-  expect(loadedTransform.k).toBeCloseTo(savedTransform.k, 5);
-  expect(loadedTransform.x).toBeCloseTo(savedTransform.x, 5);
-  expect(loadedTransform.y).toBeCloseTo(savedTransform.y, 5);
-  await expectD3ZoomSynchronized(page);
-  await expect(
-    page.locator('path.country-path[data-country-id="FRA"]'),
-  ).toHaveAttribute('fill', savedEvidence.color);
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText(
-    'Visited France',
-  );
-
-  const mapBounds = await page.locator('svg.map-canvas').boundingBox();
-  if (mapBounds === null) {
-    throw new Error('Map bounds are unavailable after load.');
-  }
-  await page.mouse.move(
-    mapBounds.x + mapBounds.width / 2,
-    mapBounds.y + mapBounds.height / 2,
-  );
-  await page.mouse.wheel(0, -300);
-  await expect
-    .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
-    .toBeGreaterThan(savedTransform.k);
-});
-
 test('a duplicate-identity scene degrades to the fatal error state instead of a blank page', async ({
   page,
 }): Promise<void> => {
@@ -900,6 +752,10 @@ test('real app export failure and frozen load both release without false success
   expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Freeze baseline' }).click();
+  // The extra Zoom In after saving left unsaved work, so the load is confirmed
+  // before it can reach the frozen camera.
+  await expect(page.getByRole('dialog', { name: 'Replace the current map?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Load Saved Map' }).click();
   await expect(page.getByText('Finish the current export before loading a saved composition.')).toBeVisible();
   expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
 

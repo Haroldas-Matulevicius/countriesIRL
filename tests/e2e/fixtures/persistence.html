@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL persistence fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      #root {
+        width: 720px;
+        height: 720px;
+      }
+
+      .map-export-source,
+      .map-canvas {
+        display: block;
+        width: 720px;
+        height: 720px;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement, useCallback, useRef, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { MapCanvas } from '/src/components/MapCanvas.tsx';
+      import { INITIAL_WORLD_CAMERA } from '/src/constants/camera.ts';
+      import { createCompositionLoadTransaction } from '/src/hooks/useCompositionLoadTransaction.ts';
+      import { createCompositionSaveTransaction } from '/src/hooks/useCompositionSaveTransaction.ts';
+      import { useGeoData } from '/src/hooks/useGeoData.ts';
+      import { createDefaultLegendState, reconcileLegend } from '/src/utils/legend.ts';
+      import { composeEffectiveScene, reconcileSelectionForScene } from '/src/utils/scene.ts';
+      import { createStorageAdapter } from '/src/utils/storage.ts';
+
+      const nextFrame = () =>
+        new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+      function PersistenceFixture() {
+        const geoData = useGeoData();
+        const mapRef = useRef(null);
+        const adapterRef = useRef(null);
+        if (adapterRef.current === null) {
+          adapterRef.current = createStorageAdapter();
+        }
+
+        const [colors, setColors] = useState({});
+        const [selectedIds, setSelectedIds] = useState(new Set());
+        const [scene, setScene] = useState(null);
+        // The committed camera only advances on gesture end, so it is the
+        // stale value a save would store if it ever read composition state
+        // instead of the painted frame.
+        const [composition, setComposition] = useState({
+          camera: INITIAL_WORLD_CAMERA,
+          snapshotId: 'modern',
+          legend: createDefaultLegendState(),
+          settings: { backgroundColor: '#FFFFFF' },
+        });
+
+        const colorsRef = useRef(colors);
+        colorsRef.current = colors;
+        const compositionRef = useRef(composition);
+        compositionRef.current = composition;
+        const sceneRef = useRef(scene);
+        sceneRef.current = scene;
+        const selectedIdsRef = useRef(selectedIds);
+        selectedIdsRef.current = selectedIds;
+        const savedSnapshotRef = useRef(null);
+
+        const selectCountry = useCallback((countryId) => {
+          setSelectedIds(new Set([countryId]));
+        }, []);
+        const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+        const commitCamera = useCallback((camera) => {
+          setComposition((current) => ({ ...current, camera }));
+        }, []);
+
+        const modernFeatures =
+          geoData.status === 'ready' ? geoData.features : [];
+        const activeFeatures =
+          scene === null ? modernFeatures : scene.features;
+
+        const readPaintedCamera = () =>
+          mapRef.current?.readCurrentCamera() ?? null;
+
+        const saveTransaction = createCompositionSaveTransaction({
+          getMapCanvasHandle: () => mapRef.current,
+          getColors: () => colorsRef.current,
+          getComposition: () => compositionRef.current,
+          saveComposition: (name, snapshot) =>
+            adapterRef.current.save(name, snapshot),
+          markSaved: (snapshot) => {
+            savedSnapshotRef.current = snapshot;
+          },
+        });
+
+        const loadTransaction = createCompositionLoadTransaction({
+          loadStoredComposition: (name) => adapterRef.current.load(name),
+          resolveScene: (snapshotId) =>
+            Promise.resolve(
+              composeEffectiveScene({
+                snapshotId,
+                modernFeatures,
+              }),
+            ),
+          getMapCanvasHandle: () => mapRef.current,
+          getSelectedIds: () => selectedIdsRef.current,
+          captureRollbackState: () => ({
+            camera: compositionRef.current.camera,
+            scene: sceneRef.current,
+            mapState: { colors: colorsRef.current, selectedIds: selectedIdsRef.current },
+            compositionState: compositionRef.current,
+          }),
+          rollback: (state, handle) => {
+            handle.restore(state.camera);
+            setScene(state.scene);
+            setColors(state.mapState.colors);
+            setSelectedIds(state.mapState.selectedIds);
+            setComposition(state.compositionState);
+          },
+          loadScene: (nextScene) => setScene(nextScene),
+          loadColors: (nextColors) => setColors(nextColors),
+          loadComposition: (nextComposition) =>
+            setComposition(nextComposition),
+          replaceSelection: (ids) => setSelectedIds(new Set(ids)),
+          markBaseline: (snapshot) => {
+            savedSnapshotRef.current = snapshot;
+          },
+          requestFocus: () => undefined,
+        });
+
+        /**
+         * Reads the painted frame and saves inside one synchronous step, then
+         * samples the next animation frame. A painted camera that keeps moving
+         * one frame later proves the save landed while motion was still active.
+         */
+        const captureAndSave = async (name) => {
+          const painted = readPaintedCamera();
+          const committed = compositionRef.current.camera;
+          const outcome = saveTransaction.save(name);
+          await nextFrame();
+          return {
+            painted,
+            committed,
+            nextFramePainted: readPaintedCamera(),
+            ok: outcome.ok,
+            reason: outcome.ok ? null : outcome.reason,
+          };
+        };
+
+        window.__persistenceFixture = {
+          get status() {
+            return geoData.status;
+          },
+          readPaintedCamera,
+          getCommittedCamera: () => compositionRef.current.camera,
+          getColors: () => ({ ...colorsRef.current }),
+          getSnapshotId: () => compositionRef.current.snapshotId,
+          getLegendEntryCount: () =>
+            compositionRef.current.legend.entries.length,
+          setColor: (countryId, color) => {
+            setColors((current) => {
+              const next = { ...current, [countryId]: color };
+              setComposition((currentComposition) => ({
+                ...currentComposition,
+                legend: reconcileLegend(
+                  Object.values(next),
+                  currentComposition.legend,
+                ),
+              }));
+              return next;
+            });
+          },
+          locate: (countryId) => mapRef.current?.locate(countryId) ?? false,
+          saveNow: (name) => captureAndSave(name),
+          saveAfter: (delayMs, name) =>
+            new Promise((resolve) => {
+              window.setTimeout(() => {
+                resolve(captureAndSave(name));
+              }, delayMs);
+            }),
+          load: async (name) => {
+            const outcome = await loadTransaction.load(name);
+            await nextFrame();
+            return {
+              ok: outcome.ok,
+              reason: outcome.ok ? null : outcome.reason,
+              sourceVersion: outcome.ok ? outcome.sourceVersion : null,
+              compositionWarnings: outcome.ok
+                ? outcome.compositionWarnings.map((warning) => warning.code)
+                : [],
+            };
+          },
+          listSummaries: () => {
+            const result = adapterRef.current.listSummaries();
+            return result.ok ? result.value : null;
+          },
+        };
+
+        if (geoData.status !== 'ready') {
+          return createElement('p', { role: 'status' }, geoData.status);
+        }
+
+        return createElement(MapCanvas, {
+          snapshotId: composition.snapshotId,
+          periodLabel: 'Modern — current borders',
+          ref: mapRef,
+          features: activeFeatures,
+          locateFeatures: modernFeatures,
+          colors,
+          selectedIds: reconcileSelectionForScene(
+            selectedIds,
+            scene ?? {
+              snapshotId: 'modern',
+              features: modernFeatures,
+              selectableEntityIds: new Set(
+                modernFeatures.map((feature) => feature.entityId),
+              ),
+            },
+          ),
+          onSelectCountry: selectCountry,
+          onClearSelection: clearSelection,
+          onTooltipChange: () => undefined,
+          onCameraCommit: commitCamera,
+        });
+      }
+
+      createRoot(document.getElementById('root')).render(
+        createElement(PersistenceFixture),
+      );
+    </script>
+  </body>
+</html>

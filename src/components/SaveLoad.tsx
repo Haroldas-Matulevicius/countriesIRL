@@ -239,6 +239,7 @@ export function SaveLoad({
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmLoadButtonRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreDeleteFocusRef = useRef<string | null>(null);
   const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const nameInputRef = useRef<HTMLInputElement>(null);
   const savedMapsSectionRef = useRef<HTMLElement>(null);
@@ -329,11 +330,20 @@ export function SaveLoad({
     confirmLoadButtonRef.current?.focus();
   }, [pendingLoad]);
 
+  // The row swaps its buttons, so the control to focus does not exist until
+  // after the render that follows the state change.
   useEffect((): void => {
-    if (pendingDeleteKey === null) {
+    if (pendingDeleteKey !== null) {
+      confirmDeleteButtonRef.current?.focus();
       return;
     }
-    confirmDeleteButtonRef.current?.focus();
+
+    const restoreKey = restoreDeleteFocusRef.current;
+    if (restoreKey === null) {
+      return;
+    }
+    restoreDeleteFocusRef.current = null;
+    deleteButtonRefs.current.get(restoreKey)?.focus();
   }, [pendingDeleteKey]);
 
   const handleDialogKeyDown = useCallback(
@@ -657,8 +667,8 @@ export function SaveLoad({
                           type="button"
                           aria-label={`Keep Map: ${savedMap.name}`}
                           onClick={(): void => {
+                            restoreDeleteFocusRef.current = focusKey;
                             setPendingDeleteKey(null);
-                            deleteButtonRefs.current.get(focusKey)?.focus();
                           }}
                         >
                           Keep Map

@@ -343,7 +343,18 @@ and **loading over dirty work opens a confirmation dialog** (`Load Saved Map` /
 period, legend, and settings but not colors. The color baseline is set only by an explicit
 save or load — never by undo/redo, which must stay colors-only history.
 
+**Proving a live-camera save needs a fixture, not the real app.** A mid-animation save cannot
+be driven through the real UI — opening Save/Load costs more than the 240ms transition.
+`tests/e2e/fixtures/persistence.html` mounts `MapCanvas` with the real save/load transactions
+and exposes `saveAfter(delayMs, name)`.
+
+**Do not assert a live-camera save by comparing it to another live read** — that is
+tautological. The load-bearing comparison is against the *committed* camera: `onGestureFrame`
+only paints and `onGestureEnd` commits, so during motion the composition camera is provably
+stale. A save that stored it would be the stale-save bug. Assert
+`stored ≈ painted-at-activation`, `stored ≠ committed-at-activation`, and `stored ≠ settled`.
+
 ---
 
-*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations (plan 02-20).*
+*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules (plan 02-20).*
 *Last updated: 2026-07-21 — initial Phase 1 storage rules. Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*
