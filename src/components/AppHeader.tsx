@@ -13,7 +13,7 @@ export function AppHeader({
     <header>
       <div>
         <h1>CountriesIRL Map Generator</h1>
-        <p>Color countries and export an Instagram-ready map.</p>
+        <p>Color the world, frame your view, and export a polished map.</p>
       </div>
       <button
         type="button"

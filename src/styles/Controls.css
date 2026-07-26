@@ -28,11 +28,16 @@
   overflow-wrap: anywhere;
 }
 
-.workspace__actions button:nth-child(3) {
+/*
+ * Keyed on the action's own class, never on its position: the strip's order is
+ * a copy decision (UI-SPEC section 8) and a `:nth-child` rule silently repaints
+ * a different button the next time that order changes.
+ */
+.controls__action--destructive {
   color: var(--destructive);
 }
 
-.workspace__actions button:last-child {
+.controls__action--primary {
   grid-column: 1 / -1;
   border-color: var(--accent);
   background: var(--accent);
@@ -40,7 +45,7 @@
   font-size: var(--font-body);
 }
 
-.workspace__actions button:last-child:hover:not(:disabled) {
+.controls__action--primary:hover:not(:disabled) {
   background: var(--accent);
   filter: brightness(0.92);
 }

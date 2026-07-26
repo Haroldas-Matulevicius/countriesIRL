@@ -352,6 +352,32 @@ confirmations discards the other one's prompt and dumps the user back at the ope
 
 ---
 
+## Global Action Strip (Phase 2)
+
+**Action order is copy, so never style an action by its position.** `:nth-child(3)` and
+`:last-child` repaint a *different* button the moment the strip is reordered, and nothing fails
+— the destructive tint and the filled CTA just move. Give every action a stable
+`data-action` and a role class (`controls__action--destructive`, `controls__action--primary`)
+and key the CSS on that.
+
+**`Export PNG` is the only filled action.** Exactly one `controls__action--primary` may exist in
+the composed DOM; everything else is a neutral outline button.
+
+**Disabled and busy are native, never simulated.** `disabled` + `aria-busy` on the button
+itself, driven by the parent's truth. `aria-disabled` on a still-clickable button spoofs the
+state (T-02-53). Labels swap exactly: `Export PNG` ⇄ `Exporting PNG…`.
+
+**Content reset and camera reset are different actions and never sit together.**
+`Reset All Colors` is undoable color history and lives in the inspector; `Reset View` is camera
+only and lives **solely** in `CompositionBar`. The composed DOM must contain exactly one visible
+`Reset View` — assert its absence in every other control component's test, not just the presence
+in one.
+
+**A presentational control that starts an async owner action needs its own synchronous
+activation lock.** The parent's `isExporting` is only true one render later, so two activations
+in the same tick both pass the prop check. Guard with a `useRef` flag cleared in `finally`; the
+control stays event-only and owns no transaction state.
+
 ---
 
 ## Transaction Hooks (Phase 2)
@@ -408,7 +434,7 @@ another transaction also reads.
 
 ---
 
+*Last updated: 2026-07-25 — global action strip rules: position-free styling, single filled CTA, native disabled/busy, reset separation, synchronous activation lock (plan 02-22).*
 *Last updated: 2026-07-25 — inert-behind-confirmation and Escape-layering rules (wave 6 review MEDIUM-4/MEDIUM-5).*
-*Last updated: 2026-07-25 — transaction-hook rules from the export transaction extraction (plan 02-30).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
