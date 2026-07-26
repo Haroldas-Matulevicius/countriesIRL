@@ -1,9 +1,12 @@
 # Milestones
 
-> **Status:** v1.0 — MVP — open 2026-07-21 (executing).
-> **Archives:** [`ARCHIVES.md`](ARCHIVES.md) — index of per-milestone archives + naming conventions.
-> **v1.0 in-flight capsule:** [`milestones/v1.0/`](milestones/v1.0/) — `ROADMAP-ARCHIVE.md`, `phases/`.
-> **Engine docs (version-agnostic):** [`CODING_RULES.md`](CODING_RULES.md), [`coding-rules/`](coding-rules/).
+> **Status:** v1.0 — MVP — open 2026-07-21, executing. **This file owns the milestone-level
+> deferral table** (§Deferred out of v1.0); nothing else restates it.
+> **Pointers:** [`ROADMAP.md`](ROADMAP.md) (Progress table is canonical for status and counts) ·
+> [`STATE.md`](STATE.md) (live position) · [`ARCHIVES.md`](ARCHIVES.md) (archive navigation +
+> `.planning/` conventions) · [`CODING_RULES.md`](CODING_RULES.md) →
+> [`coding-rules/general.md`](coding-rules/general.md) (live invariants + immutable safety
+> constraints) · [`milestones/v1.0/`](milestones/v1.0/) (in-flight capsule).
 > ────────────────────────────────────────
 
 ## v1.0 — MVP (open 2026-07-21)
@@ -28,7 +31,7 @@ Per-phase status, plan counts, and completion dates live in the **Progress table
 
 | Phase | Name | Status |
 |---|---|---|
-| 2 | Region Variants & Advanced Features | Executing — world/region variants, camera, legend, composition persistence. Historical snapshots **deferred** (see below). |
+| 2 | Region Variants & Advanced Features | Executing — **all engineering complete and gate-verified at `fe5f946`; two owner gates (`02-25`, `02-28`) still OPEN.** One world canvas, free camera, Locate, export-safe legend, bounded composition persistence. Historical snapshots **deferred** (see below). |
 
 ### Deferred out of v1.0
 
@@ -56,3 +59,8 @@ Per-phase status, plan counts, and completion dates live in the **Progress table
 
 ---
 *Last phase number: 3*
+
+*Last updated: 2026-07-26 — declared this file the owner of the milestone-level deferral table, adopted the breadcrumb header, and recorded that Phase 2 engineering is complete with two owner gates open.*
+*Last updated: 2026-07-25 — created as part of the three-layer doc reorganization.*
+
+*Full edit history: `git log -p -- .planning/MILESTONES.md`.*
