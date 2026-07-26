@@ -813,17 +813,22 @@ export default function App(): JSX.Element {
         onExport={handleExport}
         onStatusMessage={showStatus}
       />
-      {isMapReady ? (
-        <MapNavigation
-          currentZoom={compositionState.camera.zoom}
-          isMoveMapOpen={isMoveMapOpen}
-          onMoveMapOpenChange={setIsMoveMapOpen}
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onPan={handlePan}
-        />
-      ) : null}
     </div>
+  );
+
+  // UI-SPEC 10: the cluster is an editor-only overlay at the top-left of the
+  // square, so it is handed to MapWorkspace's navigation slot rather than
+  // rendered in the inspector. It stays a sibling of the export source: the
+  // export clones `svg.map-canvas`, so the overlay cannot reach the PNG.
+  const mapNavigation = (
+    <MapNavigation
+      currentZoom={compositionState.camera.zoom}
+      isMoveMapOpen={isMoveMapOpen}
+      onMoveMapOpenChange={setIsMoveMapOpen}
+      onZoomIn={handleZoomIn}
+      onZoomOut={handleZoomOut}
+      onPan={handlePan}
+    />
   );
 
   const legendSlot = (
@@ -883,6 +888,7 @@ export default function App(): JSX.Element {
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
         legendSlot={legendSlot}
+        navigationSlot={mapNavigation}
         onCameraCommit={setCamera}
         onSelectCountry={handleSelectCountry}
         onClearSelection={clearSelection}

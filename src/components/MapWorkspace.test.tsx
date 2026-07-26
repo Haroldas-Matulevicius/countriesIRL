@@ -165,6 +165,61 @@ describe('MapWorkspace unavailable scene', (): void => {
   });
 });
 
+describe('MapWorkspace navigation overlay', (): void => {
+  it('overlays the navigation slot on the square, outside the export source', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapWorkspace
+        geoData={READY_GEO_DATA}
+        compositionBar={createCompositionBar()}
+        snapshotId="modern"
+        periodLabel={MODERN_PERIOD_OPTION.label}
+        features={[]}
+        colors={{}}
+        selectedIds={new Set()}
+        exportSourceRef={{ current: null }}
+        navigationSlot={<div data-navigation-slot="true" />}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+
+    const squareIndex = markup.indexOf('class="map-workspace__square"');
+    const slotIndex = markup.indexOf('data-navigation-slot="true"');
+    // The export source holds exactly one child, the canonical SVG, so
+    // `</svg></div>` is where it closes. Anything after that point cannot be
+    // cloned into the PNG - which is the whole reason the slot exists here
+    // instead of inside MapCanvas (UI-SPEC 10 + 14).
+    const exportSourceEnd = markup.indexOf('</svg></div>');
+
+    expect(squareIndex).toBeGreaterThanOrEqual(0);
+    expect(exportSourceEnd).toBeGreaterThan(squareIndex);
+    expect(slotIndex).toBeGreaterThan(exportSourceEnd);
+  });
+
+  it('renders no navigation overlay while the scene is unavailable', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapWorkspace
+        geoData={READY_GEO_DATA}
+        compositionBar={createCompositionBar()}
+        snapshotId="modern"
+        periodLabel={MODERN_PERIOD_OPTION.label}
+        features={null}
+        colors={{}}
+        selectedIds={new Set()}
+        exportSourceRef={{ current: null }}
+        navigationSlot={<div data-navigation-slot="true" />}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onReload={vi.fn()}
+      />,
+    );
+
+    // Camera controls with no camera to drive would be controls that lie.
+    expect(markup).not.toContain('data-navigation-slot="true"');
+  });
+});
+
 describe('composed workspace composition bar', (): void => {
   it('owns the only Reset View control and the exact preview and period copy', (): void => {
     const markup = renderToStaticMarkup(

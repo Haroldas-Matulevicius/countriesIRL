@@ -167,16 +167,31 @@
 
 /*
  * UI-SPEC 10: one glass surface holding three 44x44 icon-only controls, not
- * three floating pills. The 44px targets themselves are set by the component
- * and asserted in MapNavigation.test.tsx.
+ * three floating pills, positioned as an editor-only overlay at the top-left of
+ * the square. The 44px targets themselves are set by the component and asserted
+ * in MapNavigation.test.tsx.
+ *
+ * `pointer-events: none` on the wrapper with `auto` restored on the cluster and
+ * popover: the wrapper is a positioning box that spans more than the controls it
+ * holds, and an overlay that swallows pointer input over the square would take
+ * hit area away from the map and from a top-left legend (UI-SPEC 12), which is
+ * draggable.
  */
 .map-navigation {
-  position: relative;
+  position: absolute;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  z-index: 3;
   display: flex;
   align-items: flex-start;
   flex-direction: column;
-  margin-top: var(--space-sm);
   gap: var(--space-sm);
+  pointer-events: none;
+}
+
+.map-navigation__cluster,
+.map-navigation__popover {
+  pointer-events: auto;
 }
 
 .map-navigation__cluster {
@@ -266,10 +281,15 @@
   opacity: 0.72;
 }
 
+/*
+ * Pinned to the bottom of the square, not the top: the navigation cluster now
+ * overlays the top-left corner, and a full-width banner across the top would sit
+ * under it and make Zoom In and Move Map unreachable.
+ */
 .map-workspace__warning {
   position: absolute;
-  top: var(--space-md);
   right: var(--space-md);
+  bottom: var(--space-md);
   left: var(--space-md);
   z-index: 2;
   margin-bottom: 0;
@@ -326,8 +346,8 @@
   }
 
   .map-workspace__warning {
-    top: var(--space-sm);
     right: var(--space-sm);
+    bottom: var(--space-sm);
     left: var(--space-sm);
   }
 }

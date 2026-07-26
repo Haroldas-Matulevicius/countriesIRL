@@ -39,6 +39,13 @@ interface MapWorkspaceProps {
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
+  /**
+   * The editor-only camera cluster (UI-SPEC 10). It is rendered inside the
+   * square but as a SIBLING of the export source, never inside it: the export
+   * clones `svg.map-canvas`, so anything placed in here can never reach the PNG,
+   * and nothing in here may be moved under `MapCanvas`.
+   */
+  navigationSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -55,6 +62,7 @@ export function MapWorkspace({
   selectedIds,
   exportSourceRef,
   legendSlot,
+  navigationSlot,
   onCameraCommit,
   onSelectCountry,
   onClearSelection,
@@ -124,6 +132,7 @@ export function MapWorkspace({
               onCameraCommit={onCameraCommit}
             />
             <Tooltip data={tooltipData} />
+            {navigationSlot}
           </>
         ) : null}
       </div>

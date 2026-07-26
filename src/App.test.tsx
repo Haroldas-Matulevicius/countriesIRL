@@ -370,6 +370,31 @@ describe('App composition root', () => {
     expect(cameraIndex).toBeGreaterThan(svgStart);
   });
 
+  it('overlays map navigation on the square and never inside the export source', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    expect(countOccurrences(markup, 'class="map-navigation"')).toBe(1);
+
+    const squareIndex = markup.indexOf('class="map-workspace__square"');
+    const exportSourceEnd = markup.indexOf('</svg></div>');
+    const navigationIndex = markup.indexOf('class="map-navigation"');
+    const squareEnd = markup.indexOf('class="workspace__selection-color"');
+
+    // Inside the square (UI-SPEC 10) but after the export source closes: the
+    // clone starts at `svg.map-canvas`, so an overlay placed after it cannot
+    // reach the PNG. Moving it under MapCanvas would put chrome in the export.
+    expect(navigationIndex).toBeGreaterThan(exportSourceEnd);
+    expect(exportSourceEnd).toBeGreaterThan(squareIndex);
+    expect(navigationIndex).toBeLessThan(squareEnd);
+    // UI-SPEC 20: the compact focus order is map, then map navigation.
+    expect(navigationIndex).toBeGreaterThan(
+      markup.indexOf('class="map-canvas"'),
+    );
+  });
+
   it('renders one workspace with the desktop inspector landmark', () => {
     stubWindow(true, createMemoryStorage());
     mocks.world.current = READY_WORLD;

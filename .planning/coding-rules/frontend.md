@@ -406,6 +406,24 @@ than the browser paints them. Hover is a darker boundary, never `filter: brightn
 group holding three 44×44 icon buttons — not three floating pills. Pan directions are placed by
 `--up`/`--right`/`--down`/`--left` role classes, never by child index.
 
+**An overlay on the square is a sibling of the export source, never a descendant of it.** The
+export clones `svg.map-canvas`, so `MapWorkspace`'s `navigationSlot` renders after `MapCanvas`
+inside `.map-workspace__square`: placement decides export membership, and `data-editor-only`
+is a second line of defence, not the first. Moving the cluster under `MapCanvas` would bake
+chrome into every PNG, and only the three-context pixel probe would notice. This is the mirror
+image of the legend rule — the legend must be *inside* the canonical SVG, the overlay must be
+*outside* it, and both are placement facts no attribute can repair.
+
+**An overlay wrapper sets `pointer-events: none` and restores `auto` on the surfaces that hold
+controls.** The positioning box spans more than the buttons it carries, and a transparent box
+over the square silently steals hit area from the map paths and from a top-left legend, which is
+draggable. Nothing fails; the creator just cannot grab what is underneath.
+
+**An absolutely positioned banner inside the square may not share a corner with the overlay.**
+The partial-data warning moved from the top edge to the bottom when the cluster took the
+top-left: a full-width banner at the top renders *over* `Zoom In` and `Move Map`, and both
+elements still pass every test that only checks they exist.
+
 ---
 
 ## Nested Confirmation Dialogs (Phase 2)
