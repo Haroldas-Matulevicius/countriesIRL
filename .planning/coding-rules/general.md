@@ -9,6 +9,58 @@ rather than deleted, because Phase 1 release evidence cites this file.
 
 ---
 
+## Live Invariants — the canonical list
+
+**This section is the single home for the Phase 2 engineering invariants.** `STATE.md`,
+`ROADMAP.md`, and the phase `.continue-here.md` point here; they do not restate these.
+Each line is the contract; the owning file holds the detail and the tests that enforce it.
+
+Regressing one of these does not usually break a test in the file you are editing — that is
+exactly why they are listed here rather than left implicit.
+
+| # | Invariant | Detail owner |
+|---|---|---|
+| 1 | **Selection and color can never reach a country absent from the active scene.** Eleven routes were enumerated and gated; `commitScene` reconciles selection in the same write as the snapshot switch, and `ColorPicker.selectableCountryIds` is required and intersected. | [`data.md`](data.md), [`frontend.md`](frontend.md) |
+| 2 | **Undo/redo history stores colors only, never selection.** Invariant 1 holds *because* of this. Putting selection into a history snapshot reopens the whole class. | [`frontend.md`](frontend.md) |
+| 3 | **Nothing reads `legend.position` raw on a render or export path.** Everything goes through `resolveLegendPosition` / `resolveLegendRender` in `src/utils/legend.ts`. One bypass clips legend content out of the exported PNG. | [`export.md`](export.md) |
+| 4 | **Exactly one `MapCanvasHandle` and one `svg.map-canvas`** across the 1200px responsive transition, guarded by `data-camera-owner-sentinel`. Save reads the camera live and non-locking; export takes an idempotent `CameraFreezeLease` released from the outermost `finally` on every path. | [`frontend.md`](frontend.md), [`export.md`](export.md) |
+| 5 | **`CountryList` and Locate keep the unfiltered modern 195-core catalog.** Out-of-scene rows are *disabled*, never removed. Historical-only entities are map-interactive while active but never searchable. | [`data.md`](data.md) |
+| 6 | **The period selector is catalog-driven.** Deferred snapshots stay structurally unreachable, and a manifest label can never override an approved catalog label. | [`data.md`](data.md) |
+| 7 | **Export strips semantics, never geometry.** Every visible wrapped date-line path stays in the clone; roles, titles, ids, tab stops, all `aria-*`, editor state, and the outgoing crossfade layer are removed. Border normalization targets `path.scene-path` — a `path.country-path`-only rule silently leaves the 2px selection border on decorative wrapped repeats. A legend outside the canonical SVG is a hard `invalid-composition` refusal, never a silently legend-less PNG. | [`export.md`](export.md) |
+| 8 | **Legend opacity is a single 0–100 scale.** A stored 0–1 fraction is repaired to percent and reported, not silently clamped. | [`storage.md`](storage.md) |
+| 9 | **`--map-*` are export tokens, declared exactly once in `:root`.** No media, `@supports`, or nested block may redefine one, or the exported PNG starts following the viewer's theme. Enforced by `src/styles/phase2CssContract.test.ts`. | [`frontend.md`](frontend.md) |
+
+---
+
+## Immutable Safety Constraints
+
+**Binding on every agent, every plan, and every document in this repository.** They are not
+softened by a descope, a deadline, or an owner's blanket approval. They are repeated in no
+other planning file — those files link here.
+
+1. **Historical geometry, source rights, and factual approvals are never inferred, synthesized,
+   or fabricated.** Approval is evidence, not a judgement call.
+2. **No unapproved historical geometry reaches `public/data/` or the production catalog.**
+3. **A BLOCKED source packet is not a delivered snapshot and is never counted as one.**
+   "Deferred" is not "done"; nothing may read as though a historical snapshot shipped.
+4. **Executor self-approval is forbidden** for source/license and factual review.
+5. **Any changed byte covered by a source or factual approval invalidates that approval**
+   until it is reviewed again.
+6. **The six historical region IDs are never silently merged.**
+7. **Phase 2 is browser-only and localhost-only.** No deployment, production URL, backend,
+   auth, cloud work, or environment secrets are authorized or claimed.
+8. **A blanket, in-advance, sight-unseen approval authorizes proceeding — it is not a content
+   review, and it is not hash-bound.** Record which one you actually have. An owner gate marked
+   `autonomous: false` that asks for a *physically performed* check can never be satisfied by an
+   automated result, an emulation, or a generic "approved".
+9. **Browsers outside the project's Playwright configuration are unverified.** Firefox, Safari,
+   and previous-version certification have never been run here and must never be reported as
+   passed.
+10. **A gate must be able to fail on the bug it covers.** Before landing an assertion, break its
+    subject and watch it go red — see §Git safety for how to do that without losing work.
+
+---
+
 ## TypeScript Discipline
 
 **Strict mode always.** `tsconfig.json` must have `"strict": true`.
@@ -346,6 +398,20 @@ Then confirm with `git status` that the tree is exactly as it was. The same rule
 **Also: do not junction or symlink `node_modules` between git worktrees.** `git worktree remove
 --force` follows the junction and empties the shared target. Run `npm ci` in each worktree.
 
+### Planning-file safety
+
+**Never run these gsd-sdk verbs against this repository:**
+
+| Verb | What it did here |
+|---|---|
+| `state.advance-plan` | Marked a plan complete because a SUMMARY file existed, when its deliverable did not |
+| `state.update-progress` | Zeroed the progress counters (3 phases / 76% → 1 phase / 0%) and deleted the entire activity log |
+| `roadmap.update-plan-progress` | Same class of loss against `ROADMAP.md` |
+
+They infer status from file *presence* rather than from evidence, which is the one thing this
+project's safety constraints forbid. **Edit `STATE.md` and `ROADMAP.md` by hand.** If one of
+these has already run, revert the file rather than trying to repair the counters.
+
 ---
 
 ## Accessibility (Phase 1 MVP)
@@ -387,7 +453,7 @@ if a browser is not in the project's Playwright configuration, no document may s
 
 ---
 
+*Last updated: 2026-07-26 — became the canonical home for the Live Invariants and the Immutable Safety Constraints (previously triplicated across `STATE.md`, `HANDOFF.json`, and the phase `.continue-here.md`); added the destructive gsd-sdk planning-file verbs to §Git safety.*
 *Last updated: 2026-07-26 — Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
-*Last updated: 2026-07-21 — initial Phase 1 general rules.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/general.md`.*

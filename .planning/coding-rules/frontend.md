@@ -745,7 +745,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-07-26 — the projection is fixed and the camera moves, replacing the Phase 1 `geoAzimuthalEquidistant` note (plan 02-25). Prior: 2026-07-26 — wave789 review rules: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity.*
-*Last updated: 2026-07-25 — Phase 2 composition-root, visual-token, and UI-SPEC placement rules (plans 02-23, 02-24): one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections, fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, the positional-selector ban, overlay-outside-the-export-source, one Controls with a declared variant, and SPEC'd focus order with a RED probe.*
+*Last updated: 2026-07-26 — the projection is fixed and the camera moves, replacing the Phase 1 `geoAzimuthalEquidistant` note (plan 02-25).*
+*Last updated: 2026-07-26 — wave789 review rules: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

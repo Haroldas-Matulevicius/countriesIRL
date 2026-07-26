@@ -342,5 +342,6 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 and approved snapshot catalog: catalog-driven periods, evidence-not-inference approval, manual-trace
 records, effective entities, and the corrected file-path list (plan 02-25).*
 *Last updated: 2026-07-25 — added the filesystem-identity rule after a Windows inode-precision
-defect surfaced as an intermittent test failure.
-Full edit history: `git log -p -- .planning/coding-rules/data.md`.*
+defect surfaced as an intermittent test failure.*
+
+*Full edit history: `git log -p -- .planning/coding-rules/data.md`.*
