@@ -363,6 +363,21 @@ combination, follows `var()` aliases, and asserts a WCAG ratio between the resol
 resolved surface. Before landing a contract assertion, break the thing it covers and watch it go
 red; a test that cannot fail on its own subject is worse than no test, because it reads as proof.
 
+**A declared token needs a consumer, or its contract assertion is theatre.** `--motion-scene`,
+`--motion-camera`, and `--easing-camera` were declared, asserted to fall to `0ms` under
+`prefers-reduced-motion`, and referenced by nothing. The real durations were the TS literals
+`CROSSFADE_DURATION_MS` and `CAMERA_MOTION_DURATION_MS`, and the real easing was d3's default —
+so the camera animated for 240ms on the SPEC'd curve's behalf, for a user who asked for no
+motion, while the test read as proof that it did not.
+
+- **d3 transitions read tokens too.** `getComputedStyle(element).getPropertyValue('--motion-…')`
+  in `utils/motion.ts`, parsed to ms; a `cubic-bezier()` token is solved into an easing function
+  for `.ease()`. The TS constant survives only as the unstyled-environment fallback, and that
+  fallback still checks `prefers-reduced-motion` itself.
+- **`phase2CssContract.test.ts` asserts every `--motion-*` / `--easing-*` token has a consumer**
+  (a CSS `var()` or a named read in `motion.ts`). Deleting an unused token is the other valid
+  answer — but not when UI-SPEC names it, which is why these three were wired instead.
+
 **`filter` is banned on anything that can reach the export clone, and avoided on chrome.**
 `filter: brightness()` for a hover tint is one copy-paste from a filter on a `.country-path`,
 which html2canvas rasterizes differently than the browser paints it. Author an explicit
@@ -693,6 +708,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-26 — a declared token needs a consumer; d3 transitions read motion/easing tokens (wave789 MEDIUM-3).*
 *Last updated: 2026-07-26 — every focus host in a layered modal owns its own tabIndex={-1} (wave789 MEDIUM-1).*
 *Last updated: 2026-07-26 — a preference media query must define both schemes; a token contract asserts a resolved relationship, not a shape (wave789 HIGH-1/HIGH-2).*
 *Last updated: 2026-07-25 — composition-root placement rules: overlay-outside-the-export-source, one Controls with a declared variant, two homes for Reset All Colors, SPEC'd focus order with a RED probe (02-24 UI-SPEC gap closure).*

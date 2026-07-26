@@ -688,6 +688,55 @@ test.describe('preference emulation', (): void => {
     durations.forEach((duration): void => {
       expect(duration).toBe('0s');
     });
+
+    /*
+     * The scene crossfade and the camera transition are d3 transitions, not CSS
+     * ones, so the loop above cannot see them. They read `--motion-scene` and
+     * `--motion-camera` off this element, which is the only reason the
+     * preference reaches them at all - previously the crossfade honoured it
+     * through a separate JS branch and the camera ignored it entirely.
+     */
+    const motion = await page.evaluate((): Record<string, string> => {
+      const canvas = document.querySelector('svg.map-canvas');
+      if (canvas === null) {
+        throw new Error('The map canvas is not rendered.');
+      }
+      const style = getComputedStyle(canvas);
+      return {
+        scene: style.getPropertyValue('--motion-scene').trim(),
+        camera: style.getPropertyValue('--motion-camera').trim(),
+      };
+    });
+
+    expect(motion.scene).toBe('0ms');
+    expect(motion.camera).toBe('0ms');
+  });
+
+  test('the map reads the SPEC motion tokens when motion is not reduced', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await waitForApp(page);
+
+    // The counterpart of the assertion above: without it, "0ms under reduced
+    // motion" would also pass if the tokens were 0ms unconditionally.
+    const motion = await page.evaluate((): Record<string, string> => {
+      const canvas = document.querySelector('svg.map-canvas');
+      if (canvas === null) {
+        throw new Error('The map canvas is not rendered.');
+      }
+      const style = getComputedStyle(canvas);
+      return {
+        scene: style.getPropertyValue('--motion-scene').trim(),
+        camera: style.getPropertyValue('--motion-camera').trim(),
+        easing: style.getPropertyValue('--easing-camera').trim(),
+      };
+    });
+
+    expect(motion.scene).toBe('160ms');
+    expect(motion.camera).toBe('240ms');
+    expect(motion.easing).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
   });
 
   test('increased-contrast preference strengthens boundaries and focus rings', async ({

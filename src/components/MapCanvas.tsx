@@ -27,6 +27,7 @@ import {
   DEFAULT_COLOR,
   SELECTED_BORDER_COLOR,
 } from '../constants/colors';
+import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
 import { MAP_VIEWBOX_SIZE } from '../constants/config';
 import {
   useCameraController,
@@ -38,6 +39,11 @@ import {
   createSafeMapPath,
   createWorldProjection,
 } from '../utils/mapProjection';
+import {
+  MOTION_SCENE_TOKEN,
+  resolveCameraEasing,
+  resolveMotionDuration,
+} from '../utils/motion';
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const MAP_READY_MEASURE = 'countriesirl-map-ready';
@@ -50,8 +56,12 @@ const REDO_VISIBLE_MEASURE = 'countriesirl-redo-visible';
 const COUNTRIES_LAYER_SELECTOR = '[data-layer="countries"]';
 const OUTGOING_LAYER_SELECTOR = '[data-layer="outgoing-scenes"]';
 const CROSSFADE_TRANSITION_NAME = 'scene-crossfade';
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-export const CROSSFADE_DURATION_MS = 160;
+/**
+ * The SPEC default, and the value `--motion-scene` declares. It is a fallback
+ * for an unstyled environment only - `resolveMotionDuration` reads the token, so
+ * `theme.css` is the source of truth and its reduced-motion `0ms` reaches here.
+ */
+export const CROSSFADE_DURATION_MS = SCENE_CROSSFADE_DURATION_MS;
 const SCENE_PATH_SELECTOR = 'path.scene-path';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[data-path-kind="logical"]';
 const SCENE_PATH_CLASS = 'scene-path';
@@ -160,10 +170,6 @@ export function resolveCrossfadeDuration(
   prefersReducedMotion: boolean,
 ): number {
   return prefersReducedMotion ? 0 : CROSSFADE_DURATION_MS;
-}
-
-function prefersReducedMotion(): boolean {
-  return globalThis.matchMedia?.(REDUCED_MOTION_QUERY).matches === true;
 }
 
 /**
@@ -442,16 +448,26 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       makeOutgoingSceneInert(outgoingScene);
       outgoingHost.append(outgoingScene);
 
-      const duration = resolveCrossfadeDuration(prefersReducedMotion());
+      // The token, not a literal: `theme.css` drops `--motion-scene` to 0ms
+      // under `prefers-reduced-motion`, and that is what suppresses the
+      // crossfade. `CROSSFADE_DURATION_MS` survives only as the unstyled
+      // fallback inside `resolveMotionDuration`.
+      const duration = resolveMotionDuration(MOTION_SCENE_TOKEN, svgElement);
       if (duration === 0) {
         finalizeSelectedScene();
         return;
       }
 
+      // UI-SPEC 4.4 names one curve for camera and scene completion. It lived in
+      // `--easing-camera` and was read by nothing, so both transitions actually
+      // ran on d3's default `easeCubic`.
+      const easing = resolveCameraEasing(svgElement);
+
       countriesLayer.style.opacity = '0';
       select(countriesLayer)
         .transition(CROSSFADE_TRANSITION_NAME)
         .duration(duration)
+        .ease(easing)
         .style('opacity', 1)
         .on('end', (): void => {
           countriesLayer.style.opacity = '1';
@@ -460,6 +476,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         .style('opacity', 1)
         .transition(CROSSFADE_TRANSITION_NAME)
         .duration(duration)
+        .ease(easing)
         .style('opacity', 0)
         .on('end interrupt', (): void => {
           outgoingScene.remove();

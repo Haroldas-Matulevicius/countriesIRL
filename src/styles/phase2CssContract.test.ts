@@ -613,6 +613,36 @@ describe('Phase 2 glass and preference contract', (): void => {
     expect(tokens.get('--motion-scene')).toBe('0ms');
     expect(tokens.get('--motion-camera')).toBe('0ms');
   });
+
+  /**
+   * The assertion above is only proof if something reads the tokens.
+   * `--motion-scene` and `--motion-camera` were declared, gated, and referenced
+   * by nothing: the real durations were TS literals, and the camera transition
+   * ignored the preference entirely while this test stayed green. Every motion
+   * token must have a consumer - a CSS `var()` or a named read in `motion.ts`.
+   */
+  it('gives every motion token a consumer', (): void => {
+    const motionSource = readStyleSheet('../utils/motion.ts');
+    const styleSheets = [THEME_CSS, APP_CSS, CONTROLS_CSS, MAP_CANVAS_CSS].join(
+      '\n',
+    );
+
+    const motionTokens = [...ROOT_TOKENS.keys()].filter(
+      (token): boolean =>
+        token.startsWith('--motion-') || token.startsWith('--easing-'),
+    );
+    expect(motionTokens.length).toBeGreaterThan(0);
+
+    motionTokens.forEach((token): void => {
+      const consumed =
+        styleSheets.includes(`var(${token})`) || motionSource.includes(token);
+      expect(
+        consumed,
+        `"${token}" is declared and gated but nothing reads it. A reduced-motion ` +
+          'assertion on a dead token proves nothing.',
+      ).toBe(true);
+    });
+  });
 });
 
 const COMPACT_BREAKPOINT = '@media (max-width: 1199px)';
@@ -789,7 +819,23 @@ describe('Phase 2 responsive layout contract', (): void => {
  * html2canvas approximates them differently than the browser paints them.
  */
 const EXPORT_CONTENT_PATTERN =
-  /\.map-canvas|\.country-path|\.scene-path|\[data-layer=|\.map-export-source/u;
+  /\.map-canvas|\.country-path|\.scene-path|\.map-unit-path|\[data-layer=|\.map-export-source/u;
+
+/**
+ * Every path class `MapCanvas` can put on a rendered element. All of them reach
+ * the export clone, so all of them must be in `EXPORT_CONTENT_PATTERN`. Today
+ * only `.country-path` carries any rules at all - `.scene-path` and
+ * `.map-unit-path` have none - which is exactly why the omission was invisible:
+ * a future `.map-unit-path { filter: brightness(0.98) }` to dim non-selectable
+ * units would rasterize differently under html2canvas than the browser paints
+ * it, and the guard would not fire.
+ */
+const EXPORTED_PATH_CLASSES = [
+  'scene-path',
+  'country-path',
+  'country-path--decorative',
+  'map-unit-path',
+] as const;
 
 const EXPORT_UNSAFE_PROPERTIES = [
   'filter',
@@ -827,6 +873,27 @@ describe('Phase 2 export isolation contract', (): void => {
           ).toBe('none');
         });
       });
+    });
+  });
+
+  /**
+   * The pattern is a hand-maintained list, so it silently rots when `MapCanvas`
+   * gains a path class. Bind it to the component instead of trusting the list.
+   */
+  it('covers every path class MapCanvas can render', (): void => {
+    const mapCanvasSource = readStyleSheet('../components/MapCanvas.tsx');
+
+    EXPORTED_PATH_CLASSES.forEach((className): void => {
+      expect(
+        mapCanvasSource.includes(`'${className}'`),
+        `"${className}" is no longer rendered by MapCanvas. Drop it here too, ` +
+          'or the guard is protecting a class that does not exist.',
+      ).toBe(true);
+      expect(
+        EXPORT_CONTENT_PATTERN.test(`.${className}`),
+        `".${className}" reaches the export clone but is not matched by ` +
+          'EXPORT_CONTENT_PATTERN, so an export-unsafe rule on it would ship.',
+      ).toBe(true);
     });
   });
 

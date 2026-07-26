@@ -7,7 +7,6 @@ import {
 } from 'd3';
 
 import {
-  CAMERA_MOTION_DURATION_MS,
   DRAG_CLICK_DISTANCE,
   INITIAL_WORLD_CAMERA,
   MAX_ZOOM,
@@ -20,6 +19,11 @@ import type {
   CameraState,
 } from '../types/composition';
 import type { CountryId, GeoFeature } from '../types/map';
+import {
+  MOTION_CAMERA_TOKEN,
+  resolveCameraEasing,
+  resolveMotionDuration,
+} from '../utils/motion';
 import {
   cameraToTransform,
   constrainCameraTransform,
@@ -364,9 +368,14 @@ export function useCameraController({
       },
       transitionTo: (target, onFrame, onEnd): void => {
         activeTransition = { onFrame, onEnd };
+        // UI-SPEC 17/18: Locate and Reset View are immediate under reduced
+        // motion. That was declared in `--motion-camera` and asserted by the CSS
+        // contract, but this transition read the literal and animated for 240ms
+        // regardless. Reading the token is what makes the preference reach here.
         svgSelection
           .transition(CAMERA_TRANSITION_NAME)
-          .duration(CAMERA_MOTION_DURATION_MS)
+          .duration(resolveMotionDuration(MOTION_CAMERA_TOKEN, svgElement))
+          .ease(resolveCameraEasing(svgElement))
           .call(zoomBehavior.transform, constrainCameraTransform(target));
       },
       getFeature: (countryId): GeoFeature | undefined =>
