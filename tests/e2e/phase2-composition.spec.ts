@@ -1036,3 +1036,75 @@ test('a saved composition exports under its sanitized name in the real app', asy
   await expect.poll((): number => downloadNames.length).toBe(2);
   expect(downloadNames[1]).toMatch(/^Baltic_Tour_2026_\d{4}-\d{2}-\d{2}\.png$/u);
 });
+
+test('a legend detached from the canonical SVG refuses the export without a refresh instruction', async ({
+  page,
+}): Promise<void> => {
+  const downloadNames: string[] = [];
+  page.on('download', (download): void => {
+    downloadNames.push(download.suggestedFilename());
+    void download.cancel();
+  });
+  await waitForApp(page);
+
+  const francePath = page.locator('path.country-path[data-country-id="FRA"]');
+  await francePath.focus();
+  await francePath.press('Enter');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await expect(
+    page.locator('svg.map-canvas > [data-layer="legend"]'),
+  ).toHaveCount(1);
+
+  // Exactly the regression the composition tripwire exists to catch: the legend
+  // rendered as a sibling of the canonical SVG instead of inside it.
+  const moveLegendOutOfCanvas = async (): Promise<void> => {
+    await page.locator('svg.map-canvas').evaluate((element): void => {
+      const legend = element.querySelector('[data-layer="legend"]');
+      if (legend === null || element.parentElement === null) {
+        throw new Error('The legend layer is not inside the canonical SVG.');
+      }
+      element.parentElement.appendChild(legend);
+    });
+  };
+  await moveLegendOutOfCanvas();
+  await expect(
+    page.locator('svg.map-canvas > [data-layer="legend"]'),
+  ).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const refusalToast = page.locator('[data-severity="error"]');
+  await expect(refusalToast).toContainText(
+    'The map layout could not be captured. Your map is unchanged. Move the legend, then try Export PNG again.',
+  );
+  // Refreshing destroys the in-memory composition and repairs nothing, and the
+  // retry re-enters the same synchronous refusal forever.
+  await expect(refusalToast).not.toContainText('Refresh the page');
+  await expect(
+    refusalToast.getByRole('button', { name: 'Try Export Again' }),
+  ).toHaveCount(0);
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toHaveCount(0);
+  expect(downloadNames).toHaveLength(0);
+  // The colors survive the refusal, which is what "Your map is unchanged" says.
+  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+
+  // The gate is not stuck: restoring the composition exports on the next click.
+  await page.locator('svg.map-canvas').evaluate((element): void => {
+    const legend = element.parentElement?.querySelector(
+      ':scope > [data-layer="legend"]',
+    );
+    if (legend === undefined || legend === null) {
+      throw new Error('The detached legend layer is missing.');
+    }
+    element.appendChild(legend);
+  });
+  await expect(
+    page.locator('svg.map-canvas > [data-layer="legend"]'),
+  ).toHaveCount(1);
+  await page.getByRole('button', { name: 'Dismiss Message' }).click();
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
+    timeout: 20_000,
+  });
+  expect(downloadNames).toHaveLength(1);
+});

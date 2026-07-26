@@ -77,6 +77,32 @@ describe('color application messages', (): void => {
     ).toBe(LEGEND_LABEL_FIT_MESSAGE);
   });
 
+  it('surfaces a refused composition without a refresh instruction or retry', (): void => {
+    const markup = renderToStaticMarkup(
+      <ToastRegion
+        message={{
+          id: 'invalid-composition',
+          severity: 'error',
+          message: TOAST_MESSAGES.exportLayoutInvalid,
+          // Even when a retry is handed in, the refusal is synchronous and
+          // structural, so no retry affordance may be offered.
+          retry: vi.fn(),
+        }}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain(TOAST_MESSAGES.exportLayoutInvalid);
+    expect(markup).not.toContain('Refresh the page');
+    expect(markup).not.toContain('Try Export Again');
+    expect(markup).not.toContain(
+      'The operation could not be completed. Please try again.',
+    );
+    expect(TOAST_MESSAGES.exportLayoutInvalid).not.toBe(
+      TOAST_MESSAGES.exportFailed,
+    );
+  });
+
   it('still falls back for an unapproved error message', (): void => {
     const markup = renderToStaticMarkup(
       <ToastRegion

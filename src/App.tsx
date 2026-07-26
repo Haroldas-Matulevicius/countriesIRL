@@ -744,6 +744,14 @@ export default function App(): JSX.Element {
         showError(outcome.message);
         return;
       }
+      if (outcome.reason === 'invalid-composition') {
+        // Same reasoning as the legend blocker: this refusal is synchronous and
+        // structural, so the retry can never succeed, and the composition is
+        // in-memory only, so "Refresh the page" would destroy the user's
+        // unsaved map instead of repairing the layout.
+        showError(TOAST_MESSAGES.exportLayoutInvalid);
+        return;
+      }
       showExportFailure();
     },
     [showError, showExportFailure, showStatus],

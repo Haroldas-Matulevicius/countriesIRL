@@ -7,6 +7,14 @@ import { APPROVED_PERIOD_ANNOUNCEMENTS } from '../utils/periods';
 
 const EXPORT_FAILURE_MESSAGE =
   'The PNG could not be created. Refresh the page and try Export PNG again.';
+/**
+ * A refused composition is decided synchronously, before any capture, so the
+ * generic export failure would be a lie twice over: a retry re-enters the same
+ * refusal forever, and the composition is browser-memory only, so "Refresh the
+ * page" destroys the unsaved map instead of fixing it.
+ */
+const INVALID_COMPOSITION_MESSAGE =
+  'The map layout could not be captured. Your map is unchanged. Move the legend, then try Export PNG again.';
 const FALLBACK_ERROR_MESSAGE =
   'The operation could not be completed. Please try again.';
 const FALLBACK_STATUS_MESSAGE = 'Map updated.';
@@ -49,6 +57,7 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   'Legend moved to Bottom left.',
   'Legend moved to Bottom right.',
   EXPORT_FAILURE_MESSAGE,
+  INVALID_COMPOSITION_MESSAGE,
   // A legend-blocked export names the actual problem and its clearing action
   // instead of telling the user to refresh (which would destroy the unsaved
   // map). Both strings are the exact output of `getLegendBlockingMessage`, so
@@ -115,6 +124,7 @@ export const TOAST_MESSAGES = {
   corruptStorage:
     'Some saved maps could not be read and were left out of the list. Your current map is unchanged.',
   exportFailed: EXPORT_FAILURE_MESSAGE,
+  exportLayoutInvalid: INVALID_COMPOSITION_MESSAGE,
 } as const;
 
 interface ToastRegionProps {

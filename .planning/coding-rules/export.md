@@ -129,6 +129,27 @@ div.map-export-source
 The post-sanitize check is not a tautology: it is the tripwire that catches a **future**
 sanitize rule that deletes or reorders a required layer.
 
+### Every refusal reason needs its own creator-facing message
+
+**A synchronous refusal must never be reported as the generic export failure.** The generic
+copy says *"Refresh the page and try Export PNG again."* and offers a retry. Both are wrong for
+a refusal decided before capture:
+
+- the composition lives **only in browser memory**, so refreshing destroys every unsaved color,
+  camera, period, and legend — the advice is destructive, not corrective;
+- the retry re-enters the identical synchronous refusal, forever. That is the permanently stuck
+  export gate wearing a different hat.
+
+| Reason | Message shape | Retry offered |
+|---|---|---|
+| `legend-blocked` | the blocking condition itself (`getLegendBlockingMessage`) | no |
+| `invalid-composition` | names the layout problem, states the map is unchanged, gives the repair action | no |
+| `capture-failed`, `encoding-failed`, `invalid-dimensions`, `source-not-found` | generic transient failure | yes |
+
+So: **branch on the reason** in the outcome handler, add each new message to the `ToastRegion`
+allowlist, and never write "Refresh the page" into copy for a reason that a refresh cannot
+clear.
+
 ### Strip semantics, never geometry
 
 Every visible wrapped copy is load-bearing. The Pacific / date-line composition is built from
@@ -391,6 +412,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30). Prior: 2026-07-25 — added the Phase 2 prepared-composition clone contract, the named-filename sanitizer order, and the browser export-evidence rules.*
+*Last updated: 2026-07-25 — added the per-reason export refusal messaging contract (wave 6 review HIGH-1). Prior: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*
