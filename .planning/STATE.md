@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 02 descoped to Modern-only; Wave 5 wiring under second fix round before integration"
-last_updated: "2026-07-25T04:40:00.000Z"
-last_activity: "2026-07-25 -- Historical infrastructure merged (packets truthfully BLOCKED, zero promotion). Phase 2 descoped: historical snapshots deferred to a data-acquisition phase. 02-17 rescoped and complete (Modern-only catalog hash-verified). Doc architecture rebuilt three-layer. 02-27 gate script written and validated end-to-end (10/10 gates, clean worktree teardown). Wave 5 wiring stack twice independently reviewed; four real defects found and being fixed."
+stopped_at: "02-20 complete (Save/Load complete compositions + persistence E2E slice); next 02-30/02-21"
+last_updated: "2026-07-25T21:30:00.000Z"
+last_activity: "2026-07-25 -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 38
+  completed_plans: 39
   percent: 66
 ---
 
@@ -37,8 +37,8 @@ progress:
 ## Current Position
 
 Phase: 02 (region-variants-advanced-features) — EXECUTING
-Next step: Land the Wave 5 HI-1 fix round, re-review, integrate, then execute `02-18`
-(CompositionBar / Reset View / world fatal copy) and the remaining engineering waves.
+Next step: Execute `02-30` and `02-21` (independent of each other), then `02-22`, `02-23`,
+`02-24`, `02-26`/`02-36`, and finally `02-27`.
 Blocked on owner: `02-25` (doc patches — blanket pre-approval given, sight-unseen) and
 `02-28` (acceptance matrix — requires physically performed tests, cannot be delegated).
 
@@ -63,6 +63,11 @@ Always read [`coding-rules/general.md`](coding-rules/general.md) first.
 Older entries → [`milestones/v1.0/ROADMAP-ARCHIVE.md`](milestones/v1.0/ROADMAP-ARCHIVE.md).
 Per-plan chronology → `phases/*/*-SUMMARY.md`.
 
+- 2026-07-25 — **`02-20` complete.** Save/Load renders the exact UI-SPEC 15 composition
+  states over a `SavedMapSummary` projection that never hands stored colors to the list
+  surface. Delete is a two-step inline confirmation; loading over unsaved work is confirmed.
+  `tests/e2e/persistence.spec.ts` proves mid-motion saves store the painted frame rather than
+  the stale committed camera. 410 unit tests, Chrome 39/39, Edge 39/39.
 - 2026-07-25 — **Phase 2 DESCOPED.** Historical snapshots 1492/1700/1815/1914 deferred to a
   data-acquisition phase. All four packets verified truthfully BLOCKED offline. `02-17`
   rescoped to Modern-only catalog verification and completed. `02-18` rescoped to a
@@ -90,6 +95,11 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 - [Phase 02]: Country browser/Locate stay at the modern 195 core. Out-of-scene rows are
   disabled, not filtered out — the catalog stays the full 195.
 - [Phase 02]: Bound stored compositions before and after parse; migrate V1 in memory only.
+- [Phase 02]: Saved-map rows consume a `SavedMapSummary` projection; a period label is only
+  ever resolved through `SNAPSHOT_CATALOG`, so a deferred snapshot cannot be named from a
+  stored record.
+- [Phase 02]: The dirty-load gate uses a separate colors baseline in `App`, set only by an
+  explicit save or load — nothing new enters colors-only undo history.
 - [Phase 02 descope]: Ship Modern-only. The historical engine, validation, and
   approval-aware promotion path are retained and tested so deferred snapshots drop in with
   no rework. The evidence bar is **not** relaxed — delivery is deferred, not approved.
@@ -99,10 +109,9 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 
 ### Pending Todos
 
-- Land Wave 5 HI-1 fix round → independent re-review → integrate → rerun combined gate.
-- Execute `02-18` (CompositionBar, Reset View, world fatal/loading copy) — currently **no
-  Reset View control exists at all** and `FatalErrorState` still says "Europe map".
-- Then `02-30`/`02-21`, `02-20`/`02-22`, `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
+- Execute `02-30`/`02-21`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
+- Diagnose the intermittent `historicalPreparationCli` failures before treating `npm test`
+  as a reliable `02-27` gate (see phase `deferred-items.md`).
 - Leave `02-28` signature-ready with automated cells pre-filled.
 - If hosting is ever requested, reopen the Vercel runbooks under new explicit authorization.
 

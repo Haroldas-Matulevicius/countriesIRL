@@ -113,7 +113,7 @@ Plans:
 - [x] 02-18-PLAN.md — **RESCOPED + complete**: CompositionBar (sole Reset View owner), catalog-driven period select, exact world copy, crossfade, tooltip period context.
 
 **Wave 11**
-- [ ] 02-20-PLAN.md — Upgrade Save/Load to complete compositions using focused live-camera save and atomic load transactions
+- [x] 02-20-PLAN.md — **complete**: complete-composition Save/Load (row metadata, legacy copy, two-step delete, dirty-load confirmation) plus the focused Chrome/Edge persistence slice `tests/e2e/persistence.spec.ts`
 - [ ] 02-21-PLAN.md — Extend the export chokepoint for exact wrapped-world/legend content without embedding camera orchestration in the utility
 
 **Wave 12**
@@ -310,23 +310,23 @@ elsewhere.
 
 ### Phase 2 plan ledger
 
-**17 complete · 8 deferred · 9 engineering remaining · 2 owner gates.**
+**18 complete · 8 deferred · 8 engineering remaining · 2 owner gates.**
 
 | Group | Plans | Status |
 |---|---|---|
 | Foundation + contracts | `02-01`–`02-06` | ✅ complete |
-| Camera, browser, Locate, persistence | `02-07`, `02-08`, `02-09`, `02-19`, `02-29` | ✅ complete |
+| Camera, browser, Locate, persistence | `02-07`, `02-08`, `02-09`, `02-19`, `02-29`, `02-20` | ✅ complete |
 | Historical validation + snapshot loading | `02-10`, `02-11`, `02-12` | ✅ complete |
 | Catalog verification | `02-17` | ✅ complete (rescoped — Modern-only hash-verified, zero promotion) |
 | Period selector + world states | `02-18` | ✅ complete (rescoped — closed the missing Reset View and the stale Europe fatal copy) |
 | Historical source readiness | `02-31`, `02-32` | ⏸ **DEFERRED** — hash-bound BLOCKED evidence, `deliveryCounted=false`, zero production snapshots |
 | Historical approval + curation chain | `02-33`, `02-13`–`02-16`, `02-34`, `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
-| Remaining engineering | `02-20`–`02-24`, `02-26`, `02-30`, `02-36` | ⬜ not started |
+| Remaining engineering | `02-21`–`02-24`, `02-26`, `02-30`, `02-36` | ⬜ not started |
 | Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
 | Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
 
 > The nine remaining engineering plans are smaller than they look. Their *behavior* already
-> ships and is covered by 404 unit tests and 34 Chrome/Edge E2E cases; what remains is mostly
+> ships and is covered by 410 unit tests and 39 Chrome/Edge E2E cases; what remains is mostly
 > refactoring into the plans' named file shapes (`useCompositionExportTransaction.ts`, split
 > per-domain E2E specs, a CSS contract test). See
 > [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
