@@ -17,7 +17,7 @@ import type {
   MapCanvasHandle,
   SnapshotId,
 } from './types/composition';
-import type { CountryId, GeoFeature } from './types/map';
+import type { ColorMap, CountryId, GeoFeature } from './types/map';
 import type { ToastMessage } from './types/ui';
 import { DEFAULT_COLOR } from './constants/colors';
 import { AppHeader } from './components/AppHeader';
@@ -53,6 +53,7 @@ import { useMapState } from './hooks/useMapState';
 import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
 import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
+import { areColorMapsEqual } from './utils/colors';
 import { exportMapPng } from './utils/export';
 import {
   getActiveLegendEntries,
@@ -145,6 +146,7 @@ export default function App(): JSX.Element {
   const { colors, selectedIds } = mapState;
   const {
     state: compositionState,
+    isDirty: isCompositionDirty,
     setCamera,
     setSnapshot,
     setLegendEntry,
@@ -185,6 +187,9 @@ export default function App(): JSX.Element {
     () => !onboardingDismissed,
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
+  const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
+    () => colors,
+  );
   const [isMoveMapOpen, setIsMoveMapOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<EffectiveScene | null>(null);
   const [pendingLoadedFocusId, setPendingLoadedFocusId] =
@@ -398,8 +403,14 @@ export default function App(): JSX.Element {
     },
     [geoData],
   );
+  /**
+   * Colors live in map state and the composition baseline does not cover them,
+   * so the dirty-load gate needs its own color baseline. It is set only by an
+   * explicit save or load, never by undo/redo, so history stays colors-only.
+   */
   const markSavedSnapshot = useCallback(
     (snapshot: CompositionSnapshot): void => {
+      setSavedColorsBaseline(snapshot.colors);
       markSaved(snapshotToComposition(snapshot));
     },
     [markSaved],
@@ -680,6 +691,9 @@ export default function App(): JSX.Element {
     showStatus(TOAST_MESSAGES.redo, 'info');
   }, [redo, showStatus]);
 
+  const isDirty =
+    isCompositionDirty || !areColorMapsEqual(colors, savedColorsBaseline);
+
   const handleOpenSaveLoad = useCallback((): void => {
     setIsSaveLoadOpen(true);
   }, []);
@@ -959,6 +973,7 @@ export default function App(): JSX.Element {
 
       {isSaveLoadOpen && isMapReady ? (
         <SaveLoad
+          isDirty={isDirty}
           onSave={saveTransaction.save}
           onLoad={loadTransaction.load}
           onCancelLoad={loadTransaction.cancel}

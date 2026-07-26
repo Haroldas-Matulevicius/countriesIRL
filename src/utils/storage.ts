@@ -8,6 +8,7 @@ import {
 } from '../constants/config';
 import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import type {
+  CameraState,
   CompositionLoadOutcome,
   CompositionLoadWarning,
   CompositionSnapshot,
@@ -23,7 +24,12 @@ import type {
   SnapshotId,
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
-import type { SavedMap, StorageResult, StorageWarning } from '../types/ui';
+import type {
+  SavedMap,
+  SavedMapSummary,
+  StorageResult,
+  StorageWarning,
+} from '../types/ui';
 import { repairCameraState } from './camera';
 import { createEmptyColorMap, normalizeColor } from './colors';
 import { isSafeStableCountryId } from './countryIds';
@@ -40,6 +46,8 @@ const MIN_FRACTIONAL_LEGEND_OPACITY = 0.7;
 const MAX_FRACTIONAL_LEGEND_OPACITY = 1;
 const MIN_PERCENT_LEGEND_OPACITY = 70;
 const MAX_PERCENT_LEGEND_OPACITY = 100;
+const WHOLE_WORLD_ZOOM_EPSILON = 0.001;
+const WHOLE_WORLD_DEGREE_EPSILON = 0.01;
 const MIN_LEGEND_COORDINATE = 0;
 const MAX_LEGEND_COORDINATE = WORLD_SIZE;
 
@@ -72,6 +80,7 @@ export interface SaveMapValue {
 
 export interface StorageAdapter {
   list: () => StorageResult<ReadonlyArray<SavedMap>>;
+  listSummaries: () => StorageResult<ReadonlyArray<SavedMapSummary>>;
   save: (
     name: string,
     snapshot: CompositionSnapshot,
@@ -661,6 +670,47 @@ function isParsedStoredRecord(
   return 'storedRecord' in record;
 }
 
+/**
+ * A saved camera is written from the live D3 transform, so a view the user
+ * reset can differ from `INITIAL_WORLD_CAMERA` in the last float digits. The
+ * row label is a human claim, not an identity check, so it tolerates that.
+ */
+export function isWholeWorldCamera(camera: CameraState): boolean {
+  return (
+    Math.abs(camera.zoom - INITIAL_WORLD_CAMERA.zoom) <=
+      WHOLE_WORLD_ZOOM_EPSILON &&
+    Math.abs(camera.centerLongitude - INITIAL_WORLD_CAMERA.centerLongitude) <=
+      WHOLE_WORLD_DEGREE_EPSILON &&
+    Math.abs(camera.centerLatitude - INITIAL_WORLD_CAMERA.centerLatitude) <=
+      WHOLE_WORLD_DEGREE_EPSILON
+  );
+}
+
+function summarizeStoredRecord(record: ParsedStoredRecord): SavedMapSummary {
+  const { storedRecord, loadOutcome } = record;
+
+  if (!loadOutcome.ok || loadOutcome.sourceVersion === 1) {
+    return {
+      name: storedRecord.name,
+      timestamp: storedRecord.timestamp,
+      sourceVersion: 1,
+      snapshotId: null,
+      legendEntryCount: 0,
+      isWholeWorldView: true,
+    };
+  }
+
+  const snapshot = loadOutcome.value;
+  return {
+    name: storedRecord.name,
+    timestamp: storedRecord.timestamp,
+    sourceVersion: 2,
+    snapshotId: snapshot.snapshotId,
+    legendEntryCount: snapshot.legend.entries.length,
+    isWholeWorldView: isWholeWorldCamera(snapshot.camera),
+  };
+}
+
 function parseSavedMaps(
   serialized: string,
   parser: JsonParser,
@@ -805,6 +855,19 @@ export function createStorageAdapter(
     return {
       ok: true,
       value: parsedResult.value.records.map(({ map }) => map),
+      warnings: parsedResult.warnings,
+    };
+  }
+
+  function listSummaries(): StorageResult<ReadonlyArray<SavedMapSummary>> {
+    const parsedResult = readParsedMaps();
+    if (!parsedResult.ok) {
+      return parsedResult;
+    }
+
+    return {
+      ok: true,
+      value: parsedResult.value.records.map(summarizeStoredRecord),
       warnings: parsedResult.warnings,
     };
   }
@@ -1022,6 +1085,7 @@ export function createStorageAdapter(
 
   return {
     list,
+    listSummaries,
     save,
     load,
     delete: deleteMap,

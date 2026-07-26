@@ -1,4 +1,4 @@
-import type { LegacySavedComposition } from './composition';
+import type { LegacySavedComposition, SnapshotId } from './composition';
 
 export interface ColorPreset {
   name: string;
@@ -15,6 +15,19 @@ export type ColorNormalizationResult =
   | { ok: false; reason: ColorNormalizationError };
 
 export type SavedMap = LegacySavedComposition;
+
+/**
+ * Row-level description of a stored record. Saved-map rows must never read the
+ * stored colors, so the list surface gets this projection instead of `SavedMap`.
+ */
+export interface SavedMapSummary {
+  readonly name: string;
+  readonly timestamp: number;
+  readonly sourceVersion: 1 | 2;
+  readonly snapshotId: SnapshotId | null;
+  readonly legendEntryCount: number;
+  readonly isWholeWorldView: boolean;
+}
 
 export type StorageWarningCode = 'corrupt-data';
 

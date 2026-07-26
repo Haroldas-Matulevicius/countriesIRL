@@ -315,4 +315,22 @@ svg.selectAll('path')
 
 ---
 
+## Nested Confirmation Dialogs (Phase 2)
+
+**A nested confirmation owns dismissal and the focus trap while it is open.** When
+`SaveLoad` shows the dirty-load confirmation, the trap root switches from the outer dialog
+to the confirmation element and `Escape` cancels the confirmation only. If the outer dialog
+keeps the trap, `Escape` closes the whole surface and the destructive action is skipped
+rather than declined.
+
+**Confirmations return focus to the control that opened them.** `Keep Editing` refocuses the
+row's `Load This Map`; `Keep Map` refocuses that row's `Delete Saved Map`. Keep a ref map
+keyed by a stable row key — index keys break as soon as a row is deleted.
+
+**Scrim dismissal must compare `event.target === event.currentTarget`.** A nested overlay
+rendered inside the dialog then cannot be mistaken for the outer scrim.
+
+---
+
+*Last updated: 2026-07-25 — nested confirmation dialog rules from Save/Load (plan 02-20).*
 *Last updated: 2026-07-21 — initial Phase 1 frontend rules. Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

@@ -8,6 +8,7 @@ import type {
 import type { ColorMap } from '../types/map';
 import type {
   SavedMap,
+  SavedMapSummary,
   StorageErrorReason,
   StorageResult,
   StorageWarning,
@@ -20,12 +21,12 @@ import {
 } from '../utils/storage';
 
 export interface UseLocalStorageValue {
-  savedMaps: ReadonlyArray<SavedMap>;
+  savedMapSummaries: ReadonlyArray<SavedMapSummary>;
   onboardingDismissed: boolean;
   warnings: ReadonlyArray<StorageWarning>;
   error: StorageErrorReason | null;
   isPersistenceAvailable: boolean;
-  refreshSavedMaps: () => StorageResult<ReadonlyArray<SavedMap>>;
+  refreshSavedMaps: () => StorageResult<ReadonlyArray<SavedMapSummary>>;
   saveComposition: (
     name: string,
     snapshot: CompositionSnapshot,
@@ -65,7 +66,9 @@ export function useLocalStorage(): UseLocalStorageValue {
   const [initialOnboardingResult] = useState(() =>
     adapter.getOnboardingDismissed(),
   );
-  const [savedMaps, setSavedMaps] = useState<ReadonlyArray<SavedMap>>([]);
+  const [savedMapSummaries, setSavedMapSummaries] = useState<
+    ReadonlyArray<SavedMapSummary>
+  >([]);
   const [onboardingDismissed, setOnboardingDismissed] = useState(
     initialOnboardingResult.ok ? initialOnboardingResult.value : false,
   );
@@ -88,13 +91,13 @@ export function useLocalStorage(): UseLocalStorageValue {
   }, []);
 
   const refreshSavedMaps = useCallback((): StorageResult<
-    ReadonlyArray<SavedMap>
+    ReadonlyArray<SavedMapSummary>
   > => {
-    const result = adapter.list();
+    const result = adapter.listSummaries();
     recordResult(result);
 
     if (result.ok) {
-      setSavedMaps(result.value);
+      setSavedMapSummaries(result.value);
     }
 
     return result;
@@ -109,12 +112,14 @@ export function useLocalStorage(): UseLocalStorageValue {
       recordResult(result);
 
       if (result.ok) {
-        setSavedMaps(result.value.savedMaps);
+        // Row metadata comes from the stored record, never from the write
+        // result, so the list is re-read rather than patched in memory.
+        refreshSavedMaps();
       }
 
       return result;
     },
-    [adapter, recordResult],
+    [adapter, recordResult, refreshSavedMaps],
   );
 
   const loadComposition = useCallback(
@@ -151,12 +156,12 @@ export function useLocalStorage(): UseLocalStorageValue {
       recordResult(result);
 
       if (result.ok) {
-        setSavedMaps(result.value);
+        refreshSavedMaps();
       }
 
       return result;
     },
-    [adapter, recordResult],
+    [adapter, recordResult, refreshSavedMaps],
   );
 
   const dismissOnboarding = useCallback((): StorageResult<boolean> => {
@@ -171,7 +176,7 @@ export function useLocalStorage(): UseLocalStorageValue {
   }, [adapter, recordResult]);
 
   return {
-    savedMaps,
+    savedMapSummaries,
     onboardingDismissed,
     warnings,
     error,

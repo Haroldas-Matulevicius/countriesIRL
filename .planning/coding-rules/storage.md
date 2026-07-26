@@ -309,4 +309,41 @@ The hook API stays the same; the backend swaps out.
 
 ---
 
+## Phase 2 Amendments (authoritative where they conflict with the above)
+
+The Phase 1 sections above describe the colors-only V1 record and the one-click delete. Both
+are superseded. Phase 1 records are still readable and are migrated in memory.
+
+**Saved-map rows never read stored colors.** `StorageAdapter.listSummaries()` returns
+`SavedMapSummary` (`name`, `timestamp`, `sourceVersion`, `snapshotId`, `legendEntryCount`,
+`isWholeWorldView`). The list surface consumes only that projection. `list()` still returns
+full `SavedMap` records and stays reserved for callers that genuinely need the colors.
+
+**Row metadata is derived from the stored record, never patched in memory.** After a
+successful save or delete, re-read the list instead of splicing the write result into state,
+or the metadata line drifts from what is actually on disk.
+
+**A V1 record is never rewritten by reading or loading it.** Migration is in memory only;
+only an explicit save/replace may write a V2 record over it. Any list/summary path that
+writes is a bug.
+
+**Never name a period from a stored id alone.** `snapshotId` is looked up in
+`SNAPSHOT_CATALOG`; an id outside the approved catalog falls back to the legacy metadata
+line. A deferred snapshot must never become reachable through a saved record's label.
+
+**`isWholeWorldCamera` is a tolerance check, not identity.** Saved cameras are written from
+the live D3 transform, so a reset view can differ from `INITIAL_WORLD_CAMERA` in the last
+float digits. The row label is a human claim; use the epsilons, not `===`.
+
+**Delete is a two-step inline confirmation** (`Delete Saved Map` → `Delete Map` / `Keep Map`),
+and **loading over dirty work opens a confirmation dialog** (`Load Saved Map` /
+`Keep Editing`). Replacement uses the inline pre-action warning only — no extra modal.
+
+**Dirty state needs a color baseline of its own.** The composition baseline covers camera,
+period, legend, and settings but not colors. The color baseline is set only by an explicit
+save or load — never by undo/redo, which must stay colors-only history.
+
+---
+
+*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations (plan 02-20).*
 *Last updated: 2026-07-21 — initial Phase 1 storage rules. Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

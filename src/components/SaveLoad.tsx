@@ -11,11 +11,12 @@ import type { CompositionLoadTransactionOutcome } from '../hooks/useCompositionL
 import type { CompositionSaveTransactionOutcome } from '../hooks/useCompositionSaveTransaction';
 import type { CompositionLoadWarning } from '../types/composition';
 import type {
-  SavedMap,
+  SavedMapSummary,
   StorageErrorReason,
   StorageWarning,
 } from '../types/ui';
 import { MAX_MAP_NAME_LENGTH } from '../constants/config';
+import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const SAVE_LOAD_CONTROL_SELECTOR = '[data-save-load-control="true"]';
@@ -44,7 +45,12 @@ const MONTH_NAMES = [
 const EMPTY_NAME_ERROR = 'Enter a map name before saving.';
 const NAME_TOO_LONG_ERROR = `Map names can be up to ${MAX_MAP_NAME_LENGTH} characters.`;
 const OVERWRITE_NOTICE =
-  'A saved map already uses this name. Saving will replace it.';
+  'A saved map already uses this name. Saving will replace its colors, view, period, and legend.';
+const LEGACY_ROW_METADATA =
+  'Legacy map · Opens with modern borders and whole-world view';
+const SAVED_EMPTY_BODY =
+  'Name the current map above to keep its colors, view, period, and legend in this browser.';
+const DIRTY_LOAD_HEADING = 'Replace the current map?';
 const CORRUPT_STORAGE_WARNING =
   'Some saved maps could not be read and were left out of the list. Your current map is unchanged.';
 const LEGACY_LOAD_WARNING =
@@ -63,10 +69,13 @@ const LOAD_FAILED_ERROR =
   'This saved composition could not be loaded. Your current map is unchanged.';
 const CAMERA_BUSY_ERROR =
   'Finish the current export before loading a saved composition.';
+const SNAPSHOT_UNAVAILABLE_ERROR =
+  'This saved map uses a period that is not available. Choose another saved map or close this window.';
 
 export type SaveLoadStatusSeverity = 'success' | 'warning';
 
 export interface SaveLoadProps {
+  isDirty: boolean;
   onSave: (name: string) => CompositionSaveTransactionOutcome;
   onLoad: (name: string) => Promise<CompositionLoadTransactionOutcome>;
   onCancelLoad: () => void;
@@ -104,8 +113,44 @@ function formatSavedDate(timestamp: number): FormattedSavedDate {
   };
 }
 
-function getSavedMapFocusKey(savedMap: SavedMap): string {
+function getSavedMapFocusKey(savedMap: SavedMapSummary): string {
   return `${savedMap.name.length}:${savedMap.name}:${savedMap.timestamp}`;
+}
+
+/**
+ * UI-SPEC 15 asks for the "period short label", which is the leading token of
+ * the catalog label (`Modern — current borders` -> `Modern`). The catalog stays
+ * the only source, so a deferred period can never be named from a stored id.
+ */
+export function getPeriodShortLabel(snapshotId: string): string | null {
+  const entry = SNAPSHOT_CATALOG.find(
+    (candidate): boolean => candidate.id === snapshotId,
+  );
+  return entry === undefined ? null : entry.label.split(' — ')[0];
+}
+
+export function getLegendEntrySummary(entryCount: number): string {
+  if (entryCount === 0) {
+    return 'No legend entries';
+  }
+  return entryCount === 1 ? '1 legend entry' : `${entryCount} legend entries`;
+}
+
+export function getSavedMapMetadata(savedMap: SavedMapSummary): string {
+  if (savedMap.sourceVersion === 1 || savedMap.snapshotId === null) {
+    return LEGACY_ROW_METADATA;
+  }
+
+  const periodLabel = getPeriodShortLabel(savedMap.snapshotId);
+  if (periodLabel === null) {
+    return LEGACY_ROW_METADATA;
+  }
+
+  return [
+    periodLabel,
+    getLegendEntrySummary(savedMap.legendEntryCount),
+    savedMap.isWholeWorldView ? 'Whole world view' : 'Custom view',
+  ].join(' · ');
 }
 
 export function restoreSaveLoadFocus(
@@ -168,6 +213,7 @@ function getStorageErrorMessage(
 }
 
 export function SaveLoad({
+  isDirty,
   onSave,
   onLoad,
   onCancelLoad,
@@ -176,7 +222,7 @@ export function SaveLoad({
   onStatus,
 }: SaveLoadProps): JSX.Element {
   const {
-    savedMaps,
+    savedMapSummaries: savedMaps,
     warnings,
     error,
     refreshSavedMaps,
@@ -187,7 +233,13 @@ export function SaveLoad({
   const [operationError, setOperationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
+  const [pendingLoad, setPendingLoad] = useState<SavedMapSummary | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const confirmDialogRef = useRef<HTMLDivElement>(null);
+  const confirmLoadButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const nameInputRef = useRef<HTMLInputElement>(null);
   const savedMapsSectionRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -198,6 +250,8 @@ export function SaveLoad({
   const headingId = useId();
   const nameErrorId = useId();
   const overwriteNoticeId = useId();
+  const confirmHeadingId = useId();
+  const confirmBodyId = useId();
 
   const trimmedName = mapName.trim();
   const isReplacing =
@@ -259,25 +313,57 @@ export function SaveLoad({
     nameInputRef.current?.focus();
   }, [savedMaps]);
 
+  const cancelPendingLoad = useCallback((): void => {
+    const cancelled = pendingLoad;
+    setPendingLoad(null);
+    if (cancelled === null) {
+      return;
+    }
+    loadButtonRefs.current.get(getSavedMapFocusKey(cancelled))?.focus();
+  }, [pendingLoad]);
+
+  useEffect((): void => {
+    if (pendingLoad === null) {
+      return;
+    }
+    confirmLoadButtonRef.current?.focus();
+  }, [pendingLoad]);
+
+  useEffect((): void => {
+    if (pendingDeleteKey === null) {
+      return;
+    }
+    confirmDeleteButtonRef.current?.focus();
+  }, [pendingDeleteKey]);
+
   const handleDialogKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>): void => {
+      // The dirty-load confirmation owns dismissal and the trap while it is
+      // open, so Escape can never skip past it and load over unsaved work.
+      const trapRoot =
+        pendingLoad === null ? dialogRef.current : confirmDialogRef.current;
+
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
-        requestClose();
+        if (pendingLoad === null) {
+          requestClose();
+        } else {
+          cancelPendingLoad();
+        }
         return;
       }
 
-      if (event.key !== 'Tab' || dialogRef.current === null) {
+      if (event.key !== 'Tab' || trapRoot === null) {
         return;
       }
 
       const focusableElements = Array.from(
-        dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+        trapRoot.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
       );
       if (focusableElements.length === 0) {
         event.preventDefault();
-        dialogRef.current.focus();
+        trapRoot.focus();
         return;
       }
 
@@ -291,12 +377,12 @@ export function SaveLoad({
       } else if (!event.shiftKey && activeElement === lastElement) {
         event.preventDefault();
         firstElement.focus();
-      } else if (!dialogRef.current.contains(activeElement)) {
+      } else if (!trapRoot.contains(activeElement)) {
         event.preventDefault();
         firstElement.focus();
       }
     },
-    [requestClose],
+    [cancelPendingLoad, pendingLoad, requestClose],
   );
 
   const handleSave = useCallback(
@@ -357,9 +443,10 @@ export function SaveLoad({
     [onSave, onStatus, refreshSavedMaps, trimmedName],
   );
 
-  const handleLoad = useCallback(
-    async (savedMap: SavedMap): Promise<void> => {
+  const performLoad = useCallback(
+    async (savedMap: SavedMapSummary): Promise<void> => {
       setOperationError(null);
+      setPendingLoad(null);
       setIsLoading(true);
       const result = await onLoad(savedMap.name);
       setIsLoading(false);
@@ -370,6 +457,11 @@ export function SaveLoad({
           refreshSavedMaps();
         } else if (result.reason === 'camera-restore-blocked') {
           setOperationError(CAMERA_BUSY_ERROR);
+        } else if (
+          result.reason === 'snapshot-unavailable' ||
+          result.reason === 'snapshot-resolution-failed'
+        ) {
+          setOperationError(SNAPSHOT_UNAVAILABLE_ERROR);
         } else if (result.reason !== 'cancelled') {
           setOperationError(LOAD_FAILED_ERROR);
         }
@@ -388,9 +480,23 @@ export function SaveLoad({
     [onClose, onFocusMap, onLoad, onStatus, refreshSavedMaps],
   );
 
+  const handleLoadRequest = useCallback(
+    (savedMap: SavedMapSummary): void => {
+      setPendingDeleteKey(null);
+      if (isDirty) {
+        setOperationError(null);
+        setPendingLoad(savedMap);
+        return;
+      }
+      void performLoad(savedMap);
+    },
+    [isDirty, performLoad],
+  );
+
   const handleDelete = useCallback(
-    (savedMap: SavedMap, index: number): void => {
+    (savedMap: SavedMapSummary, index: number): void => {
       setOperationError(null);
+      setPendingDeleteKey(null);
       const result = deleteMap(savedMap.name);
 
       if (!result.ok) {
@@ -510,15 +616,14 @@ export function SaveLoad({
           {savedMaps.length === 0 ? (
             <div className="saved-maps-empty">
               <h4>No saved maps yet</h4>
-              <p>
-                Name the current map above to keep it in this browser and load it later.
-              </p>
+              <p>{SAVED_EMPTY_BODY}</p>
             </div>
           ) : (
             <ul className="saved-maps-list">
               {savedMaps.map((savedMap, index) => {
                 const focusKey = getSavedMapFocusKey(savedMap);
                 const formattedDate = formatSavedDate(savedMap.timestamp);
+                const isConfirmingDelete = pendingDeleteKey === focusKey;
 
                 return (
                   <li
@@ -530,34 +635,72 @@ export function SaveLoad({
                       <time dateTime={formattedDate.dateTime}>
                         {formattedDate.display}
                       </time>
+                      <span className="saved-map-metadata">
+                        {getSavedMapMetadata(savedMap)}
+                      </span>
                     </div>
-                    <div className="saved-map-actions">
-                      <button
-                        ref={(element): void => {
-                          if (element === null) {
-                            loadButtonRefs.current.delete(focusKey);
-                          } else {
-                            loadButtonRefs.current.set(focusKey, element);
-                          }
-                        }}
-                        type="button"
-                        aria-label={`Load This Map: ${savedMap.name}`}
-                        disabled={isLoading}
-                        onClick={(): void => {
-                          void handleLoad(savedMap);
-                        }}
-                      >
-                        Load This Map
-                      </button>
-                      <button
-                        type="button"
-                        className="saved-map-delete"
-                        aria-label={`Delete Saved Map: ${savedMap.name}`}
-                        onClick={(): void => handleDelete(savedMap, index)}
-                      >
-                        Delete Saved Map
-                      </button>
-                    </div>
+                    {isConfirmingDelete ? (
+                      <div className="saved-map-actions saved-map-actions--confirm">
+                        <p className="saved-map-delete-prompt">
+                          {`Delete “${savedMap.name}”? This saved map cannot be recovered.`}
+                        </p>
+                        <button
+                          ref={confirmDeleteButtonRef}
+                          type="button"
+                          className="saved-map-delete"
+                          aria-label={`Delete Map: ${savedMap.name}`}
+                          onClick={(): void => handleDelete(savedMap, index)}
+                        >
+                          Delete Map
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Keep Map: ${savedMap.name}`}
+                          onClick={(): void => {
+                            setPendingDeleteKey(null);
+                            deleteButtonRefs.current.get(focusKey)?.focus();
+                          }}
+                        >
+                          Keep Map
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="saved-map-actions">
+                        <button
+                          ref={(element): void => {
+                            if (element === null) {
+                              loadButtonRefs.current.delete(focusKey);
+                            } else {
+                              loadButtonRefs.current.set(focusKey, element);
+                            }
+                          }}
+                          type="button"
+                          aria-label={`Load This Map: ${savedMap.name}`}
+                          disabled={isLoading}
+                          onClick={(): void => handleLoadRequest(savedMap)}
+                        >
+                          Load This Map
+                        </button>
+                        <button
+                          ref={(element): void => {
+                            if (element === null) {
+                              deleteButtonRefs.current.delete(focusKey);
+                            } else {
+                              deleteButtonRefs.current.set(focusKey, element);
+                            }
+                          }}
+                          type="button"
+                          className="saved-map-delete"
+                          aria-label={`Delete Saved Map: ${savedMap.name}`}
+                          onClick={(): void => {
+                            setOperationError(null);
+                            setPendingDeleteKey(focusKey);
+                          }}
+                        >
+                          Delete Saved Map
+                        </button>
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -570,6 +713,38 @@ export function SaveLoad({
             Close Saved Maps
           </button>
         </footer>
+
+        {pendingLoad !== null && (
+          <div className="save-load-confirm-overlay">
+            <div
+              ref={confirmDialogRef}
+              className="save-load-confirm"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={confirmHeadingId}
+              aria-describedby={confirmBodyId}
+            >
+              <h3 id={confirmHeadingId}>{DIRTY_LOAD_HEADING}</h3>
+              <p id={confirmBodyId}>
+                {`Loading “${pendingLoad.name}” will replace unsaved colors, view, period, and legend changes.`}
+              </p>
+              <div className="save-load-confirm-actions">
+                <button
+                  ref={confirmLoadButtonRef}
+                  type="button"
+                  onClick={(): void => {
+                    void performLoad(pendingLoad);
+                  }}
+                >
+                  Load Saved Map
+                </button>
+                <button type="button" onClick={cancelPendingLoad}>
+                  Keep Editing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
