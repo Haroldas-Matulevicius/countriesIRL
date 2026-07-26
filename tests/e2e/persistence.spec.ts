@@ -3,6 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { STORAGE_KEY } from '../../src/constants/config';
 
 const LOGICAL_CORE_COUNT = 195;
+// UI-SPEC section 20: the map label names the active period.
+const MODERN_MAP_LISTBOX_NAME =
+  'Interactive world map, Modern — current borders';
 const PERSISTENCE_FIXTURE_URL = '/tests/e2e/fixtures/persistence.html';
 const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
@@ -354,6 +357,28 @@ test('real app saves and loads the complete composition after responsive rebindi
     'Visited France',
   );
   const moveLegend = page.getByRole('button', { name: 'Move legend' });
+
+  // Legend placement, asserted against the REAL app and not against a fixture:
+  // `fixtures/export.html` re-implements App's `legendSlot` wiring, so it can
+  // only prove that MapCanvas fills the slot it is handed. If a composition-root
+  // refactor renders <LegendOverlay/> as a sibling of the canvas instead, every
+  // export refuses with `invalid-composition` and only this assertion notices.
+  const mapListbox = page.getByRole('listbox', {
+    name: MODERN_MAP_LISTBOX_NAME,
+  });
+  await expect(mapListbox).toHaveCount(1);
+  await expect(mapListbox.locator('[data-layer="legend"]')).toHaveCount(0);
+  await expect(
+    page.locator('svg.map-canvas > [data-layer="legend"]'),
+  ).toHaveCount(1);
+  // A legend inside the countries listbox is announced as a map option and is
+  // refused by the direct-children composition check.
+  expect(
+    await moveLegend.evaluate(
+      (element): boolean => element.closest('[role="listbox"]') !== null,
+    ),
+  ).toBe(false);
+
   await moveLegend.focus();
   await moveLegend.press('ArrowRight');
   await expect(page.getByText('Legend position updated.')).toBeVisible();

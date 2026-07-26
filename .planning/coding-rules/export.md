@@ -349,6 +349,23 @@ return (
 then calls the **real** `exportMapPng`. A handcrafted fixture SVG can silently drift from
 `MapCanvas` and keep passing while production breaks.
 
+**A fixture cannot prove legend placement — only the real app can.**
+`fixtures/export.html` passes its own `legendSlot: h(LegendOverlay, …)` into `MapCanvas`, which
+re-implements `App`'s wiring. Asserting `svg.map-canvas > [data-layer="legend"]` there proves
+only that `MapCanvas` fills the slot it is handed; it stays green while `App` renders the legend
+as a sibling and **every** export refuses with `invalid-composition`. So the containment
+assertions must also run against `page.goto('/')`:
+
+```ts
+await expect(mapListbox.locator('[data-layer="legend"]')).toHaveCount(0);
+await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(1);
+// the legend must not be announced as a map option
+element.closest('[role="listbox"]') === null
+```
+
+Rule of thumb: **when a fixture re-implements the wiring under test, its assertion is about the
+fixture.** Keep one real-app counterpart for every structural contract the composition root owns.
+
 **Inspect the clone with a `MutationObserver` on `document.body`,** not by stubbing. The
 export frame is a body-level `div[aria-hidden="true"]` containing the sanitized clone; it is
 appended after sanitization and removed in `finally`, so the observer callback is the only
