@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CountriesIRL export fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #ffffff;
+      }
+
+      #root {
+        width: 540px;
+        height: 540px;
+      }
+
+      .map-export-source,
+      .map-canvas {
+        display: block;
+        width: 540px;
+        height: 540px;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { createElement, useCallback, useEffect, useRef, useState } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { MapCanvas } from '/src/components/MapCanvas.tsx';
+      import { LegendOverlay } from '/src/components/LegendOverlay.tsx';
+      import { CompositionStateProvider } from '/src/providers/CompositionStateProvider.tsx';
+      import { useCompositionState } from '/src/hooks/useCompositionState.ts';
+      import { useGeoData } from '/src/hooks/useGeoData.ts';
+      import { exportMapPng } from '/src/utils/export.ts';
+
+      const h = createElement;
+      const LEGEND_COLOR = '#DC2626';
+      const LEGEND_LABEL = 'Pacific route';
+      const EXPORT_DATE = new Date('2026-07-21T12:00:00.000Z');
+      // Fiji straddles the date line: only wrapped repeats make it whole.
+      const DATE_LINE_COUNTRY = 'FJI';
+
+      // The export frame is a body-level div holding the sanitized clone.
+      // Snapshot it as it lands so the spec can inspect exactly what
+      // html2canvas was handed, without stubbing anything.
+      let lastClone = null;
+
+      function summarizeAttributeUse(svg) {
+        const elements = [svg, ...svg.querySelectorAll('*')];
+        let ariaAttributes = 0;
+        let ids = 0;
+        elements.forEach((element) => {
+          element.getAttributeNames().forEach((name) => {
+            if (name.startsWith('aria-')) {
+              ariaAttributes += 1;
+            }
+            if (name === 'id') {
+              ids += 1;
+            }
+          });
+        });
+        return { ariaAttributes, ids };
+      }
+
+      function summarizeClone(frame) {
+        const svgs = frame.querySelectorAll('svg');
+        const svg = svgs[0] ?? null;
+        if (svg === null) {
+          return { svgCount: svgs.length };
+        }
+        const scenePaths = [...svg.querySelectorAll('path.scene-path')];
+        const legend = svg.querySelector('[data-layer="legend"]');
+        const camera = svg.querySelector('[data-layer="camera"]');
+        const { ariaAttributes, ids } = summarizeAttributeUse(svg);
+
+        return {
+          svgCount: svgs.length,
+          frameBackgroundColor: frame.style.backgroundColor,
+          layerOrder: [...svg.children].map((child) =>
+            child.getAttribute('data-layer'),
+          ),
+          cameraTransform: camera?.getAttribute('transform') ?? null,
+          legendTransform: legend?.getAttribute('transform') ?? null,
+          legendTexts: [...(legend?.querySelectorAll('text') ?? [])].map(
+            (node) => node.textContent,
+          ),
+          legendEditorOnly: legend?.querySelectorAll('[data-editor-only]').length ?? -1,
+          scenePathCount: scenePaths.length,
+          pathKindCounts: scenePaths.reduce((counts, path) => {
+            const kind = path.getAttribute('data-path-kind') ?? 'none';
+            counts[kind] = (counts[kind] ?? 0) + 1;
+            return counts;
+          }, {}),
+          emptyGeometryCount: scenePaths.filter(
+            (path) => (path.getAttribute('d') ?? '') === '',
+          ).length,
+          strokes: [
+            ...new Set(scenePaths.map((path) => path.getAttribute('stroke'))),
+          ].sort(),
+          strokeWidths: [
+            ...new Set(scenePaths.map((path) => path.getAttribute('stroke-width'))),
+          ].sort(),
+          vectorEffects: scenePaths.filter(
+            (path) => path.getAttribute('vector-effect') !== null,
+          ).length,
+          roles: svg.querySelectorAll('[role]').length,
+          tabStops: svg.querySelectorAll('[tabindex]').length,
+          focusables: svg.querySelectorAll('[focusable]').length,
+          titles: svg.querySelectorAll('title').length,
+          ariaAttributes,
+          ids,
+          editorOnly: svg.querySelectorAll('[data-editor-only]').length,
+          outgoingScenes: svg.querySelectorAll(
+            '[data-layer="outgoing-scenes"],[data-layer="outgoing-scene"]',
+          ).length,
+          selectionClasses: svg.querySelectorAll('.selected,.hovered,.focused').length,
+        };
+      }
+
+      new MutationObserver((records) => {
+        records.forEach((record) => {
+          record.addedNodes.forEach((node) => {
+            if (
+              node instanceof HTMLDivElement &&
+              node.getAttribute('aria-hidden') === 'true' &&
+              node.querySelector('svg') !== null
+            ) {
+              lastClone = summarizeClone(node);
+            }
+          });
+        });
+      }).observe(document.body, { childList: true });
+
+      function ExportFixture() {
+        const { state, setLegendEntry } = useCompositionState();
+        const mapRef = useRef(null);
+        const [selectedIds, setSelectedIds] = useState(new Set());
+        const colors = { FRA: LEGEND_COLOR };
+        const effectiveColors = [LEGEND_COLOR];
+        const geoData = useGeoData();
+
+        useEffect(() => {
+          setLegendEntry({ color: LEGEND_COLOR, label: LEGEND_LABEL, order: 0 });
+        }, [setLegendEntry]);
+
+        const selectCountry = useCallback((countryId) => {
+          setSelectedIds(new Set([countryId]));
+        }, []);
+        const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+        window.__exportFixture = {
+          get lastClone() {
+            return lastClone;
+          },
+          get bodyFrameCount() {
+            return document.querySelectorAll('body > div[aria-hidden="true"]').length;
+          },
+          get anchorCount() {
+            return document.querySelectorAll('body > a[download]').length;
+          },
+          selectCountry,
+          showDateLine: () =>
+            mapRef.current?.restore({
+              zoom: 3,
+              centerLongitude: 179,
+              centerLatitude: 0,
+            }) ?? false,
+          // Mirrors App's export transaction shape without owning it: freeze,
+          // finalize, export, then release in the outermost finally.
+          run: async (mapName) => {
+            const handle = mapRef.current;
+            if (handle === null) {
+              return { ok: false, reason: 'no-handle' };
+            }
+            let lease = null;
+            try {
+              lease = handle.freezeAndSnapshot();
+              handle.finalizeSelectedScene();
+              const source = handle.getExportSource();
+              if (source === null) {
+                return { ok: false, reason: 'no-source' };
+              }
+              return await exportMapPng(source, EXPORT_DATE, mapName);
+            } finally {
+              lease?.release();
+            }
+          },
+          // Defect shape guarded by `invalid-composition`: a legend that lives
+          // beside the canonical SVG is silently dropped by cloneNode.
+          moveLegendOutsideCanvas: () => {
+            const source = mapRef.current?.getExportSource() ?? null;
+            const legend = source?.querySelector('[data-layer="legend"]') ?? null;
+            if (source === null || legend === null) {
+              return false;
+            }
+            source.append(legend);
+            return true;
+          },
+          failBlobEncoding: () => {
+            HTMLCanvasElement.prototype.toBlob = function nullToBlob(callback) {
+              callback(null);
+            };
+          },
+          failObjectUrl: () => {
+            URL.createObjectURL = () => {
+              throw new Error('object url blocked');
+            };
+          },
+          failAnchorClick: () => {
+            HTMLAnchorElement.prototype.click = function blockedClick() {
+              throw new Error('download blocked');
+            };
+          },
+          failCanvasContext: () => {
+            // A blocked 2D context is how html2canvas fails in the wild.
+            HTMLCanvasElement.prototype.getContext = () => null;
+          },
+        };
+
+        if (geoData.status !== 'ready') {
+          return h('p', { role: 'status' }, geoData.status);
+        }
+
+        return h(MapCanvas, {
+          snapshotId: 'modern',
+          periodLabel: 'Modern — current borders',
+          ref: mapRef,
+          features: geoData.features,
+          colors,
+          selectedIds,
+          onSelectCountry: selectCountry,
+          onClearSelection: clearSelection,
+          onTooltipChange: () => undefined,
+          legendSlot: h(LegendOverlay, {
+            legend: state.legend,
+            effectiveColors,
+            onPositionChange: () => undefined,
+            onStatusMessage: () => undefined,
+          }),
+        });
+      }
+
+      window.__DATE_LINE_COUNTRY = DATE_LINE_COUNTRY;
+
+      createRoot(document.getElementById('root')).render(
+        h(CompositionStateProvider, null, h(ExportFixture)),
+      );
+    </script>
+  </body>
+</html>

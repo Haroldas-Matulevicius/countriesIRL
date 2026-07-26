@@ -284,6 +284,40 @@ return (
 - [ ] Colors match the map on screen
 - [ ] Upload to Instagram; confirm it displays correctly in feed
 
+### Browser evidence: `tests/e2e/export.spec.ts` + `fixtures/export.html`
+
+**Never stub `html2canvas` in the browser slice.** The fixture composes the **real**
+`MapCanvas` (real geo data → real 248 × 3 wrapped paths) and the **real** `LegendOverlay`,
+then calls the **real** `exportMapPng`. A handcrafted fixture SVG can silently drift from
+`MapCanvas` and keep passing while production breaks.
+
+**Inspect the clone with a `MutationObserver` on `document.body`,** not by stubbing. The
+export frame is a body-level `div[aria-hidden="true"]` containing the sanitized clone; it is
+appended after sanitization and removed in `finally`, so the observer callback is the only
+place it can be read without changing the code under test.
+
+**Prove pixels, not promises.** `download.saveAs()` → parse the PNG `IHDR` (`width` at byte
+16, `height` at byte 20) for the exact 1080 square, then re-decode the bytes in the page via
+`createImageBitmap` and sample all four corners for `[255, 255, 255, 255]`. A `toBlob`
+success alone proves nothing about size or opacity.
+
+**Failure branches are injected through real browser APIs**, each mapping to one reason:
+
+| Injection | Reason |
+|---|---|
+| `HTMLCanvasElement.prototype.getContext = () => null` | `capture-failed` |
+| `toBlob` callback with `null` | `encoding-failed` |
+| `URL.createObjectURL` throws | `encoding-failed` |
+| `HTMLAnchorElement.prototype.click` throws | `encoding-failed` |
+| legend moved beside the canonical SVG | `invalid-composition` |
+
+**Every failure test asserts zero leaked `body > div[aria-hidden="true"]` frames and zero
+leaked `body > a[download]` anchors.** A leak here is the same defect class as the permanently
+stuck export gate.
+
+**Downloads are written under `.artifacts/playwright/` only** — that root is git-ignored, so
+evidence never enters the repository.
+
 **Edge cases:**
 
 - [ ] Export twice in a row (both files should have the same name, second one should ask to overwrite)
@@ -320,6 +354,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-25 — added the Phase 2 prepared-composition clone contract (strip semantics, never wrapped geometry) and the named-filename sanitizer order. Prior: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup.*
+*Last updated: 2026-07-25 — added the Phase 2 prepared-composition clone contract, the named-filename sanitizer order, and the browser export-evidence rules. Prior: 2026-07-21 — corrected connected-anchor download handoff and finally cleanup.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

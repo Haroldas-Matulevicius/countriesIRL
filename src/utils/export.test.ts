@@ -334,7 +334,7 @@ function createSource(): FakeSource {
   wrappedPath.setAttribute('stroke-width', '2');
   wrappedPath.setAttribute('vector-effect', 'non-scaling-stroke');
   wrappedPath.setAttribute('transform', WRAPPED_OFFSET_TRANSFORM);
-  wrappedPath.setAttribute('data-path-kind', 'wrapped');
+  wrappedPath.setAttribute('data-path-kind', 'decorative');
   wrappedPath.setAttribute('aria-hidden', 'true');
   wrappedPath.setAttribute('focusable', 'false');
   wrappedPath.setAttribute('tabindex', '-1');
@@ -344,7 +344,7 @@ function createSource(): FakeSource {
   nonSelectablePath.setAttribute('d', 'M20 20 L30 20 L30 30 Z');
   nonSelectablePath.setAttribute('fill', '#E5E7EB');
   nonSelectablePath.setAttribute('vector-effect', 'non-scaling-stroke');
-  nonSelectablePath.setAttribute('data-path-kind', 'wrapped');
+  nonSelectablePath.setAttribute('data-path-kind', 'decorative');
   nonSelectablePath.setAttribute('aria-hidden', 'true');
 
   countries.appendChild(sourcePath);
@@ -548,11 +548,11 @@ describe('exportMapPng', (): void => {
       clonedPaths.map((path: FakeElement): string | null =>
         path.getAttribute('data-path-kind'),
       ),
-    ).toEqual(['logical', 'wrapped', 'wrapped']);
+    ).toEqual(['logical', 'decorative', 'decorative']);
 
     const wrapped = clonedPaths.filter(
       (path: FakeElement): boolean =>
-        path.getAttribute('data-path-kind') === 'wrapped',
+        path.getAttribute('data-path-kind') === 'decorative',
     );
     wrapped.forEach((path: FakeElement): void => {
       expect(path.getAttribute('d')).not.toBeNull();
