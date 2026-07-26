@@ -104,10 +104,11 @@ export function MapNavigation({
   };
 
   return (
-    <div ref={navigationRef} data-editor-only="true">
-      <div aria-label="Map navigation">
+    <div ref={navigationRef} className="map-navigation" data-editor-only="true">
+      <div className="map-navigation__cluster" aria-label="Map navigation">
         <button
           type="button"
+          className="map-navigation__control"
           aria-label="Zoom In"
           title="Zoom In"
           data-editor-only="true"
@@ -132,6 +133,7 @@ export function MapNavigation({
         </button>
         <button
           type="button"
+          className="map-navigation__control"
           aria-label="Zoom Out"
           title="Zoom Out"
           data-editor-only="true"
@@ -157,6 +159,7 @@ export function MapNavigation({
         <button
           ref={moveMapButtonRef}
           type="button"
+          className="map-navigation__control"
           aria-label="Move Map"
           title="Move Map"
           aria-expanded={isMoveMapOpen}
@@ -185,12 +188,14 @@ export function MapNavigation({
       {isMoveMapOpen ? (
         <div
           id={popoverId}
+          className="map-navigation__popover"
           role="group"
           aria-label="Move map"
           data-editor-only="true"
         >
           <button
             type="button"
+            className="map-navigation__control map-navigation__pan--up"
             aria-label="Pan Up"
             title="Pan Up"
             data-editor-only="true"
@@ -214,6 +219,7 @@ export function MapNavigation({
           </button>
           <button
             type="button"
+            className="map-navigation__control map-navigation__pan--right"
             aria-label="Pan Right"
             title="Pan Right"
             data-editor-only="true"
@@ -237,6 +243,7 @@ export function MapNavigation({
           </button>
           <button
             type="button"
+            className="map-navigation__control map-navigation__pan--down"
             aria-label="Pan Down"
             title="Pan Down"
             data-editor-only="true"
@@ -260,6 +267,7 @@ export function MapNavigation({
           </button>
           <button
             type="button"
+            className="map-navigation__control map-navigation__pan--left"
             aria-label="Pan Left"
             title="Pan Left"
             data-editor-only="true"

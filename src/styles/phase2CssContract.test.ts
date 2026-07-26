@@ -537,6 +537,86 @@ describe('Phase 2 responsive layout contract', (): void => {
   });
 });
 
+/**
+ * Everything the export clone can carry. `sanitizeExportClone` hard-sets stroke
+ * and stroke-width inline, but it does not neutralize an inherited `filter`,
+ * `box-shadow`, or blend mode - those would rasterize into the PNG, and
+ * html2canvas approximates them differently than the browser paints them.
+ */
+const EXPORT_CONTENT_PATTERN =
+  /\.map-canvas|\.country-path|\.scene-path|\[data-layer=|\.map-export-source/u;
+
+const EXPORT_UNSAFE_PROPERTIES = [
+  'filter',
+  'backdrop-filter',
+  'box-shadow',
+  'text-shadow',
+  'mix-blend-mode',
+  'mask',
+  'mask-image',
+  'clip-path',
+] as const;
+
+describe('Phase 2 export isolation contract', (): void => {
+  it('authors no export-unsafe effect on exported content', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        const touchesExport = rule.selector
+          .split(',')
+          .some((part): boolean => EXPORT_CONTENT_PATTERN.test(part));
+        if (!touchesExport) {
+          return;
+        }
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (
+            !(EXPORT_UNSAFE_PROPERTIES as ReadonlyArray<string>).includes(
+              property,
+            )
+          ) {
+            return;
+          }
+          expect(
+            value,
+            `${file}: "${rule.selector}" sets ${property}: ${value} on ` +
+              'exported content.',
+          ).toBe('none');
+        });
+      });
+    });
+  });
+
+  it('scopes touch-action: none to the interactive square alone', (): void => {
+    const owners: string[] = [];
+    ALL_RULES.forEach(([, rules]): void => {
+      rules.forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (property === 'touch-action' && value !== 'auto') {
+            owners.push(rule.selector);
+          }
+        });
+      });
+    });
+
+    expect(owners).toStrictEqual(['.map-canvas']);
+    expect(
+      new Map(
+        declarationsOf(findRule(parseRules(MAP_CANVAS_CSS), '.map-canvas').body),
+      ).get('touch-action'),
+    ).toBe('none');
+  });
+
+  it('keeps the composition square exactly square and opaque', (): void => {
+    const square = new Map(
+      declarationsOf(
+        findRule(parseRules(MAP_CANVAS_CSS), '.map-workspace__square').body,
+      ),
+    );
+    expect(square.get('aspect-ratio')).toBe('1');
+    expect(square.get('background')).toBe('var(--map-surface)');
+    expect(square.get('overflow')).toBe('hidden');
+  });
+});
+
 describe('Phase 2 prohibited visual treatments', (): void => {
   it('authors no gradient anywhere', (): void => {
     ALL_RULES.forEach(([file, rules]): void => {

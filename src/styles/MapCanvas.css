@@ -110,9 +110,15 @@
   background: var(--map-surface);
 }
 
+/*
+ * UI-SPEC 10: `touch-action: none` applies to the interactive square and to
+ * nothing else. On the page, workspace, or any ancestor panel it would swallow
+ * the creator's normal vertical scroll on touch, which is how a mobile user
+ * reaches the inspector at all.
+ */
 .map-canvas {
   overflow: hidden;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 .country-path {
@@ -121,16 +127,16 @@
   stroke-linejoin: round;
   stroke-width: 1px;
   transition:
-    fill var(--motion-fast) ease-out,
-    stroke var(--motion-fast) ease-out,
-    stroke-width var(--motion-fast) ease-out,
-    filter var(--motion-fast) ease-out;
+    fill var(--motion-fast) var(--easing-control),
+    stroke var(--motion-fast) var(--easing-control),
+    stroke-width var(--motion-fast) var(--easing-control);
 }
 
+/* UI-SPEC 6: hover is a darker boundary. No glow, no filter - a filter on map
+ * geometry is rasterized differently by the export clone than it is painted. */
 .country-path.hovered:not(.focused) {
   stroke: var(--map-border-hover);
   stroke-width: 1px;
-  filter: brightness(0.96);
 }
 
 .country-path.selected:not(.focused) {
@@ -149,7 +155,6 @@
   stroke: var(--map-border-focus);
   stroke-dasharray: var(--space-sm) var(--space-xs);
   stroke-width: 3px;
-  filter: none;
 }
 
 [aria-hidden="true"] .country-path,
@@ -157,8 +162,72 @@
   stroke: var(--map-border-default);
   stroke-dasharray: none;
   stroke-width: 1px;
-  filter: none;
   transition: none;
+}
+
+/*
+ * UI-SPEC 10: one glass surface holding three 44x44 icon-only controls, not
+ * three floating pills. The 44px targets themselves are set by the component
+ * and asserted in MapNavigation.test.tsx.
+ */
+.map-navigation {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  margin-top: var(--space-sm);
+  gap: var(--space-sm);
+}
+
+.map-navigation__cluster {
+  display: flex;
+  padding: var(--space-xs);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--glass-navigation);
+  gap: var(--space-xs);
+  box-shadow: var(--shadow-navigation);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .map-navigation__cluster {
+    backdrop-filter: blur(var(--glass-blur-navigation));
+  }
+}
+
+.map-navigation__control {
+  display: grid;
+  min-height: var(--target-compact);
+  padding: 0;
+  place-items: center;
+}
+
+.map-navigation__popover {
+  display: grid;
+  padding: var(--space-xs);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  grid-template-columns: repeat(3, auto);
+  gap: var(--space-xs);
+  box-shadow: var(--shadow-navigation);
+}
+
+/* Keyed on the direction, never on the child index. */
+.map-navigation__pan--up {
+  grid-area: 1 / 2;
+}
+
+.map-navigation__pan--left {
+  grid-area: 2 / 1;
+}
+
+.map-navigation__pan--down {
+  grid-area: 2 / 2;
+}
+
+.map-navigation__pan--right {
+  grid-area: 2 / 3;
 }
 
 .map-workspace__loading,

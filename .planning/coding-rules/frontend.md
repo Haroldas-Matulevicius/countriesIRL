@@ -390,6 +390,24 @@ per-section cards because the sections are top-level workspace children there, n
 
 ---
 
+## Map Chrome and Export Isolation (Phase 2)
+
+**`touch-action: none` belongs on `svg.map-canvas` and nowhere else.** On the page, workspace, or
+any ancestor panel it swallows the creator's normal vertical scroll on touch, which is the only
+way a mobile user reaches the inspector. Assert the ownership set, not just the value.
+
+**No `filter`, `box-shadow`, `text-shadow`, `mix-blend-mode`, `mask`, or `clip-path` on anything
+the export clone carries** — `.map-canvas`, `.country-path`, `.scene-path`, `[data-layer=…]`,
+`.map-export-source`. `sanitizeExportClone` hard-sets stroke and stroke-width inline, so those are
+safe; it does not neutralize an inherited effect, and html2canvas approximates effects differently
+than the browser paints them. Hover is a darker boundary, never `filter: brightness()`.
+
+**A compact control cluster is one surface.** The map navigation is a single bordered, shadowed
+group holding three 44×44 icon buttons — not three floating pills. Pan directions are placed by
+`--up`/`--right`/`--down`/`--left` role classes, never by child index.
+
+---
+
 ## Nested Confirmation Dialogs (Phase 2)
 
 **A nested confirmation owns dismissal and the focus trap while it is open.** When

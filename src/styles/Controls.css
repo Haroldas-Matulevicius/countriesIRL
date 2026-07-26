@@ -651,6 +651,204 @@
   padding: var(--space-sm) var(--space-md);
 }
 
+/*
+ * UI-SPEC 12: a native disclosure, collapsed by default. The trigger carries the
+ * label and the summary; the panel is a plain region, not another card.
+ */
+.legend-disclosure > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  gap: var(--space-md);
+  text-align: left;
+}
+
+.legend-disclosure > button[aria-expanded="true"] {
+  border-color: var(--border-strong);
+}
+
+.legend-editor {
+  display: grid;
+  margin-top: var(--space-md);
+  gap: var(--space-md);
+}
+
+.legend-editor__empty {
+  padding: var(--space-lg);
+  border: var(--border-width) dashed var(--border-default);
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+
+.legend-editor__empty h3 {
+  margin-bottom: var(--space-sm);
+}
+
+.legend-editor__empty p {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+.legend-editor__entries {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.legend-editor__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: var(--space-sm);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  gap: var(--space-sm);
+}
+
+.legend-editor__swatch {
+  display: block;
+  flex: 0 0 auto;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  border: var(--border-width) solid var(--swatch-border);
+  border-radius: var(--radius-control);
+}
+
+.legend-editor__entry label {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: var(--space-sm);
+}
+
+.legend-editor__entry input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.legend-editor__entry input[aria-invalid="true"] {
+  border-color: var(--destructive);
+  background: var(--destructive-tint);
+}
+
+.legend-editor__entry button {
+  padding: var(--space-sm) var(--space-md);
+}
+
+.legend-editor__entry p[role="alert"],
+.legend-editor > p[role="alert"] {
+  flex-basis: 100%;
+  margin-bottom: 0;
+  padding: var(--space-sm);
+  border-radius: var(--radius-control);
+  background: var(--destructive-tint);
+  color: var(--destructive);
+  font-size: var(--font-label);
+  line-height: 1.4;
+}
+
+.legend-editor fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend-editor fieldset fieldset {
+  margin-top: var(--space-md);
+}
+
+.legend-editor fieldset label {
+  display: flex;
+  align-items: center;
+  min-height: var(--space-2xl);
+  gap: var(--space-sm);
+}
+
+.legend-editor input[type="radio"] {
+  width: var(--space-lg);
+  height: var(--space-lg);
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.legend-editor input[type="range"] {
+  width: 100%;
+  min-height: var(--space-2xl);
+  accent-color: var(--accent);
+}
+
+/* UI-SPEC 10: Locate is a separate workflow that never changes selection. */
+.locate-country {
+  position: relative;
+  display: grid;
+  margin-top: var(--space-md);
+  gap: var(--space-sm);
+}
+
+.locate-country input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.locate-country__options {
+  max-height: 40vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  list-style: none;
+}
+
+.locate-country__options button {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.locate-country__options [aria-selected="true"] > button {
+  background: var(--surface-hover);
+}
+
+.locate-country__empty {
+  padding: var(--space-md);
+  border: var(--border-width) dashed var(--border-default);
+  border-radius: var(--radius-control);
+}
+
+.locate-country__empty h3 {
+  margin-bottom: var(--space-sm);
+}
+
+.locate-country__empty p {
+  margin-bottom: var(--space-md);
+  color: var(--text-secondary);
+}
+
+.locate-country__empty button {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+}
+
 /* UI-SPEC 4.1: inspector padding is 24px on desktop and 16px compact/mobile. */
 @media (max-width: 1199px) {
   .workspace__actions > section,
