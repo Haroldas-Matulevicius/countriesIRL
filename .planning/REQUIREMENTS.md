@@ -1,8 +1,20 @@
 # CountriesIRL Map Generator — Requirements
 
-**Scope:** MVP (European focus)  
-**Last updated:** 2026-07-26 — non-destructive supersession annotations for F3 and F7 (D-01) and
-an open-decision note on NFR3. Prior: 2026-07-22.
+> **Status:** v1.0 — MVP. Requirement *scope* lives here; requirement *progress* does not —
+> [`ROADMAP.md`](ROADMAP.md) § Progress is canonical for what is done.
+> **Pointers:** [`PROJECT.md`](PROJECT.md) (why) · [`ROADMAP.md`](ROADMAP.md) (when) ·
+> [`STATE.md`](STATE.md) (now) · [`coding-rules/general.md`](coding-rules/general.md)
+> (the invariants and safety constraints that bind how any of this may be satisfied).
+> ────────────────────────────────────────
+
+**Scope:** MVP (European focus — see the correction below)
+
+Last updated: 2026-07-26 — non-destructive supersession annotations for F3 and F7 (D-01) and an open-decision note on NFR3. Prior: 2026-07-22. Full edit history: `git log -p -- .planning/REQUIREMENTS.md`.
+
+> **F2.1–F2.5 (historical snapshots) are NOT complete and are not ticked.** They are deferred
+> because the rights-cleared archival source material does not exist. The engine that would
+> consume that material ships and is tested; the snapshots do not. See
+> [`MILESTONES.md`](MILESTONES.md) § Deferred out of v1.0.
 
 > **Scope correction (D-01, 2026-07-24).** "European focus" describes Phase 1. From Phase 2 the
 > app is **one full-world canvas** with a free camera and no region modes; Europe is a framing,

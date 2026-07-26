@@ -1,8 +1,20 @@
 # CountriesIRL Map Generator
 
-**Status:** Initiating  
-**Owner:** georgibg88  
+> **Status:** v1.0 — MVP in flight. This file holds the **durable why** — vision, problem,
+> users, constraints. It is not updated for progress; [`ROADMAP.md`](ROADMAP.md) § Progress is
+> canonical for that, and [`STATE.md`](STATE.md) for the live position.
+> **Pointers:** [`REQUIREMENTS.md`](REQUIREMENTS.md) (what) · [`ROADMAP.md`](ROADMAP.md) (when) ·
+> [`MILESTONES.md`](MILESTONES.md) (what was cut and why).
+> ────────────────────────────────────────
+
+**Owner:** georgibg88
 **Created:** 2026-07-21
+
+> **Reading note.** The vision below still names historical borders and regional zoom levels. That
+> remains the intent; it is **not** a description of what ships. Historical snapshots are deferred
+> out of v1.0 for missing rights-cleared source material, and Phase 2 replaced regional zoom modes
+> with a single wrapping world canvas and a free camera. The original text is preserved rather
+> than rewritten.
 
 ## Vision
 
@@ -81,3 +93,10 @@ Instagram creators running country-themed pages manually color maps in image edi
 - Example format: Instagram post with Europe map, colored by category, legend overlay
 - Historical source: Natural Earth historical data (1800+), Wikidata borders
 - Map projections: D3-geo for flexible centering
+
+---
+
+*Last updated: 2026-07-26 — added the breadcrumb header and a reading note distinguishing durable vision from shipped scope; the body text is unchanged.*
+*Last updated: 2026-07-21 — initial project definition.*
+
+*Full edit history: `git log -p -- .planning/PROJECT.md`.*
