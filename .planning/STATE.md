@@ -141,10 +141,14 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 ### Pending Todos
 
 - Hand `02-28` to the owner, bound to `fe5f946`.
-- **Diagnose the intermittent `historicalPreparationCli` failures** before treating `npm test` as
-  a reliable gate. Reproduced at `02-30`: three isolated runs gave 1 failure, 2 failures, then
-  28/28. Not observed during the `fe5f946` gate (516/516 twice). Detail in the phase
-  [`deferred-items.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/deferred-items.md).
+- ~~Diagnose the intermittent `historicalPreparationCli` failures.~~ **RESOLVED 2026-07-26**
+  (commit `2f08050`). Root cause was not a flaky test: `fs.stat` was called without
+  `{ bigint: true }`, truncating the NTFS 64-bit file ID to a JS double, so two distinct files
+  could round to the same `dev:ino` and raise a false hard-link alias. Temp-dir churn recycles
+  MFT records and drives the sequence number past 2^53, which is why it failed in bursts and
+  then went quiet. Measured 191/800 false collisions as Number, 0/800 as BigInt. The fix
+  strengthens the assertion — rounding could equally have masked a real alias. Rule recorded in
+  [`coding-rules/data.md`](coding-rules/data.md) § Filesystem identity.
 - `persistence.spec.ts` and `phase2-composition.spec.ts` still re-declare camera helpers instead of
   importing `tests/e2e/support/appHarness.ts`.
 - Two stale temp worktrees predating the `02-27` gate run were left in place rather than removed.
