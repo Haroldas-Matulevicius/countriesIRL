@@ -56,7 +56,7 @@ Claude models only. Single role per session:
 - **Smart tier — orchestrator/planner** (Opus or Fable): architecture decisions, feature planning, code review, debugging complex issues. Token-efficient, high leverage.
 - **Workhorse — Opus** (if not smart tier): writes/edits/tests product code off smart-tier plan, bulk reads, verification, doc writing.
 
-**Delegation rule:** For Phase 1 implementation, push code writing/editing/debugging and read-heavy sweeps down to a workhorse subagent (executor, code-fixer, verifier) instead of doing them inline.
+**Delegation rule:** Push code writing/editing/debugging and read-heavy sweeps down to a workhorse subagent (executor, code-fixer, verifier) instead of doing them inline. Independent non-author review of the aggregate diff is not optional — see Guardrails.
 
 ---
 
@@ -83,7 +83,12 @@ plus `npm run test:e2e` for anything touching render, camera, export, persistenc
 
 ## Guardrails
 
-**Always read `.planning/coding-rules/general.md` first** — it covers naming, TypeScript discipline, and forbidden patterns that apply everywhere.
+**Always read `.planning/coding-rules/general.md` first.** Besides naming, TypeScript discipline,
+and forbidden patterns, it is the **canonical home** for two lists that bind every change:
+**§Live Invariants** (the nine contracts a change can silently regress) and **§Immutable Safety
+Constraints** (historical evidence, approval semantics, browser certification, localhost-only
+scope). No other planning file restates them — they all link there. The excerpts below are
+reminders, not the source of truth.
 
 **No auto-load docs.** `CLAUDE.md` tags which docs to load — respect the guards to keep context lean.
 
@@ -93,7 +98,13 @@ plus `npm run test:e2e` for anything touching render, camera, export, persistenc
 
 **Approval is evidence, never inference.** Never infer, fabricate, or self-approve a rights,
 factual, or topology approval. A BLOCKED packet is not a delivered snapshot and is never counted
-as one. The six historical region IDs are never silently merged.
+as one. **Deferred is not done** — nothing may read as though a historical snapshot shipped. The
+six historical region IDs are never silently merged. A blanket, in-advance, sight-unseen approval
+authorizes proceeding; it is **not** a content review and it is **not** hash-bound. Record which
+one you have.
+
+**Firefox, Safari, and previous-version certification have never been run here** and must never be
+reported as passed. Acceptance is scoped to installed Chrome 150 + Edge 150.
 
 **A gate must be able to fail on the bug it covers.** Before landing an assertion, break its
 subject and watch it go red. This phase shipped three tests that could not fail — a self-comparing
@@ -102,6 +113,11 @@ cross-context equality (which three blank canvases satisfy). Each read as proof.
 
 **Never `git checkout --` a file with uncommitted work.** Copy it to a scratchpad first and restore
 by copying back. Two agents lost edits this way in one session. See `coding-rules/general.md`.
+
+**Never run the gsd-sdk verbs `state.advance-plan`, `state.update-progress`, or
+`roadmap.update-plan-progress`.** They infer status from file presence and have already zeroed
+this repo's progress counters, deleted its activity log, and marked an incomplete plan complete.
+**Edit `.planning/STATE.md` and `.planning/ROADMAP.md` by hand.**
 
 **Independent review is not optional.** Executor self-reported checkpoints proved unreliable:
 non-author review of an aggregate diff caught five real defects that the executor had already
@@ -115,16 +131,14 @@ marked resolved.
 
 | Doc | Holds | Load when |
 |---|---|---|
-| `.planning/CODING_RULES.md` | Index → `coding-rules/*.md` (general, frontend, data, export, storage) | Before writing/reviewing any code. **Always read `coding-rules/general.md` first**, then the section matching the code you're touching. |
-| `.planning/STATE.md` | Live phase status, progress, last activity | Before starting a session; auto-loaded by GSD. |
-| `.planning/ROADMAP.md` | Phase timeline, success criteria, risk mitigations | Context for Phase 2+ planning. |
+| `.planning/CODING_RULES.md` | Index → `coding-rules/*.md` (general, frontend, data, export, storage) | Before writing/reviewing any code. **Always read `coding-rules/general.md` first** — it also owns §Live Invariants and §Immutable Safety Constraints — then the section matching the code you're touching. |
+| `.planning/STATE.md` | Live position, open owner gates, decisions, blockers, pending todos | Before starting a session; auto-loaded by GSD. |
+| `.planning/ROADMAP.md` | **Canonical** phase/plan status and counts (§Progress), verified gates, timeline, risks | Whenever you need to know what is done. No other file restates these counts. |
+| `.planning/MILESTONES.md` | Milestone outcomes and the milestone-level deferral table | Milestone framing; what was cut from v1.0 and why. |
+| `.planning/ARCHIVES.md` | Archive navigation index + `.planning/` file-hygiene conventions | Before looking for anything historical. **Grep the archives first, read narrowly.** |
 | `.planning/REQUIREMENTS.md` | Functional / non-functional / data / acceptance criteria | Reference for feature scope. **Original requirement text is never rewritten** — F2/F3/F7 carry supersession annotations, and Phase 1 Release Acceptance is immutable evidence. |
-| `.planning/phases/02-.../.continue-here.md` | Canonical Phase 2 handoff: plan ledger, live invariants, immutable safety constraints | Start of any Phase 2 session, before acting on an individual plan. |
+| `.planning/phases/02-.../.continue-here.md` | Session resumption only: current position, next action, working-tree hazards | Start of any Phase 2 session. It points at the canonical homes rather than copying them. |
 | `.planning/PROJECT.md` | Vision, problem, solution, target users, constraints | Shipped; reference only. |
-
-### Codebase map (optional, read selectively)
-
-`.planning/codebase/STRUCTURE.md` (file-by-file layout) — load only if disoriented on where a feature lives.
 
 ### GSD files (auto-loaded by GSD commands — don't hand-load)
 
@@ -134,8 +148,13 @@ marked resolved.
 
 | Doc | Load ONLY when |
 |---|---|
-| `.planning/PHASE2_PLANNING.md` | Superseded by the `.planning/phases/02-…/` documents. Historical interest only. |
-| `Design.md` (future) | Actively building Phase 3+ visual polish. |
+| `.planning/CODEX_PROMPT.md` · `.planning/PHASE1_CODEX_BRIEF.md` | **Spent Phase 1 inputs, kept for provenance only.** Frozen Phase 1 artifacts cite them by path, so they stay put. They describe a Europe-only app with a Vercel deployment target — neither is true now. Load only when auditing Phase 1 evidence. |
+| `.planning/phases/02-…/02-RESEARCH.md` · `02-PATTERNS.md` · `02-UI-SPEC.md` · `02-VALIDATION.md` | Planning a change inside the surface they cover. These are large (50–80KB each) — grep them, never read one whole. |
+| `Design.md` | **Does not exist yet.** Create it when Phase 3 visual polish starts. |
+
+There is **no** `.planning/codebase/` directory and no `.planning/PHASE2_PLANNING.md`. Rows for
+both were carried in this table for months; neither file has ever been committed. Removed
+2026-07-26.
 
 ---
 
@@ -196,7 +215,7 @@ Every subsystem owns a rules file, and the rule lands with the code:
 
 ---
 
+*Last updated: 2026-07-26 — documentation pass: removed the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), pointed the guardrails at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, added the destructive gsd-sdk verbs and the unverified-browser rule, and load-gated the spent Phase 1 inputs.*
 *Last updated: 2026-07-26 — Phase 2 routing: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, and documentation-as-you-build (plan 02-25).*
-*Last updated: 2026-07-21 — initial CLAUDE.md for Phase 1 MVP. Routing table format adapted from Themely structure.*
 
 *Full edit history: `git log -p -- CLAUDE.md`.*
