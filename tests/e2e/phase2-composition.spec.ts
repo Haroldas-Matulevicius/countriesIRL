@@ -998,3 +998,41 @@ test('real app round-trips a historical scene with live catalog and exported leg
     timeout: 10_000,
   });
 });
+
+test('a saved composition exports under its sanitized name in the real app', async ({
+  page,
+}): Promise<void> => {
+  const downloadNames: string[] = [];
+  page.on('download', (download): void => {
+    downloadNames.push(download.suggestedFilename());
+    void download.cancel();
+  });
+  await waitForApp(page);
+  await page.evaluate(
+    (storageKey): void => localStorage.removeItem(storageKey),
+    STORAGE_KEY,
+  );
+
+  // Unnamed first: the composition has no identity until a save or load
+  // commits one.
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
+    timeout: 10_000,
+  });
+  expect(downloadNames).toHaveLength(1);
+  expect(downloadNames[0]).toMatch(/^CountriesIRL_\d{4}-\d{2}-\d{2}\.png$/u);
+
+  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
+  await page
+    .getByRole('textbox', { name: 'Map name' })
+    .fill('Baltic  Tour /2026!');
+  await page.getByRole('button', { name: 'Save Current Map' }).click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect.poll((): number => downloadNames.length).toBe(2);
+  expect(downloadNames[1]).toMatch(/^Baltic_Tour_2026_\d{4}-\d{2}-\d{2}\.png$/u);
+});
