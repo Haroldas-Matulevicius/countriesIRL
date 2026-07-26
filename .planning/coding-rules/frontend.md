@@ -474,6 +474,22 @@ and key the CSS on that.
 **`Export PNG` is the only filled action.** Exactly one `controls__action--primary` may exist in
 the composed DOM; everything else is a neutral outline button.
 
+**The strip is one component with a declared `variant`, never two copies.** `app-bar` composes
+Undo / Redo / Save or Load Maps / Export PNG into the desktop app bar; `strip` composes the
+compact/mobile action strip and additionally carries `Reset All Colors`. Two components would
+drift in label, status copy, or disabled logic while both kept passing. Exactly one instance is
+mounted at a time, which is what keeps the "one filled action" and "one Reset All Colors"
+invariants true by construction rather than by review.
+
+**`Reset All Colors` has two homes and must never have both at once.** Selection/color section
+on desktop, action strip on compact/mobile (UI-SPEC 11). Assert the count in the *composed* DOM,
+not the presence in one component — a second copy renders, works, and fails nothing.
+
+**Style a strip action on its role class, not on its container.** `.workspace__actions button`
+silently stops applying the moment the same component is composed somewhere else; the busy
+spinner keyed that way simply disappears from the app bar with every test still green. Key on
+`.controls__action`.
+
 **Disabled and busy are native, never simulated.** `disabled` + `aria-busy` on the button
 itself, driven by the parent's truth. `aria-disabled` on a still-clickable button spoofs the
 state (T-02-53). Labels swap exactly: `Export PNG` ⇄ `Exporting PNG…`.
@@ -615,6 +631,14 @@ that any remounted section shows (`useInspectorUiState`, `compositionName`,
 `savedColorsBaseline`) lives above the branch. `savedColorsBaseline` and `compositionName` stay
 out of the history snapshot — history is colors-only, which is the only reason undo/redo cannot
 resurrect a selection the active scene does not contain.
+
+**Placement is App's decision, and every placement move needs a landmark census in the same
+change.** Moving a section between the app bar, the workspace, and the inspector changes which
+landmark contains it and whether the `ErrorBoundary` around the workspace still covers it. A
+silently deleted landmark was a real defect in this phase, so `App.test.tsx` counts
+`Map creator workspace` and `Map inspector`, and `responsive.spec.ts` counts banner / main /
+complementary at every viewport. A visually hidden heading stays a heading: hide it with
+`clip-path`, never `display: none`, or the section's `aria-labelledby` name disappears with it.
 
 **Unit-test the root with mocked hooks, in static markup.** Vitest runs on `node`: render with
 `renderToStaticMarkup`, mock `useGeoData` and the three transaction hooks, and assert what App

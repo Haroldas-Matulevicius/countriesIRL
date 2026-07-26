@@ -395,6 +395,56 @@ describe('App composition root', () => {
     );
   });
 
+  it('composes the desktop global actions on the app bar, reset with the colors', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    // UI-SPEC 8: the four global actions belong to the app bar, which is why
+    // the sticky bar carries more than title, subtitle, and Show Help.
+    expect(countOccurrences(markup, 'controls controls--app-bar')).toBe(1);
+    expect(countOccurrences(markup, 'controls--strip')).toBe(0);
+    expect(countOccurrences(markup, 'workspace__actions')).toBe(0);
+
+    const headerEnd = markup.indexOf('</header>');
+    ['data-action="undo"', 'data-action="redo"', 'data-action="save-load"', 'data-action="export"'].forEach(
+      (action): void => {
+        expect(countOccurrences(markup, action)).toBe(1);
+        expect(markup.indexOf(action)).toBeLessThan(headerEnd);
+      },
+    );
+
+    // UI-SPEC 11: exactly one Reset All Colors, in the selection/color section
+    // and never on the bar beside the export action.
+    expect(countOccurrences(markup, 'data-action="reset-colors"')).toBe(1);
+    expect(markup.indexOf('data-action="reset-colors"')).toBeGreaterThan(
+      markup.indexOf('class="workspace__selection-color"'),
+    );
+    expect(markup.indexOf('data-action="reset-colors"')).toBeLessThan(
+      markup.indexOf('class="workspace__legend"'),
+    );
+  });
+
+  it('composes the compact global actions as the first workspace section', () => {
+    stubWindow(false, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    // UI-SPEC 7.4/8: compact and mobile keep the strip in the workspace, and it
+    // is the strip - not the app bar - that carries Reset All Colors.
+    expect(countOccurrences(markup, 'controls controls--strip')).toBe(1);
+    expect(countOccurrences(markup, 'controls--app-bar')).toBe(0);
+    expect(countOccurrences(markup, 'data-action="reset-colors"')).toBe(1);
+
+    const headerEnd = markup.indexOf('</header>');
+    expect(markup.indexOf('data-action="export"')).toBeGreaterThan(headerEnd);
+    expect(markup.indexOf('class="workspace__actions"')).toBeGreaterThan(
+      headerEnd,
+    );
+  });
+
   it('renders one workspace with the desktop inspector landmark', () => {
     stubWindow(true, createMemoryStorage());
     mocks.world.current = READY_WORLD;

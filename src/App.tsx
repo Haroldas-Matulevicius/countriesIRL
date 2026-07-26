@@ -38,6 +38,7 @@ import { LocateCountry } from './components/LocateCountry';
 import { MapNavigation } from './components/MapNavigation';
 import { MapWorkspace } from './components/MapWorkspace';
 import { OnboardingBanner } from './components/OnboardingBanner';
+import { ResetColorsAction } from './components/ResetColorsAction';
 import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
@@ -797,22 +798,31 @@ export default function App(): JSX.Element {
     [runLoadTransaction],
   );
 
+  // UI-SPEC 8: on desktop the four global actions live on the app bar; compact
+  // and mobile compose the same component as the first workspace section. One
+  // instance is mounted at a time, so `Export PNG` stays the only filled action
+  // and `Reset All Colors` appears exactly once in the composed DOM.
+  const globalActions = (
+    <Controls
+      variant={layout === 'desktop' ? 'app-bar' : 'strip'}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      canReset={canReset}
+      isMapReady={isMapReady}
+      isStorageAvailable={isPersistenceAvailable}
+      isExporting={isExporting}
+      onUndo={handleUndo}
+      onRedo={handleRedo}
+      onReset={resetColors}
+      onOpenSaveLoad={handleOpenSaveLoad}
+      onExport={handleExport}
+      onStatusMessage={showStatus}
+    />
+  );
+
   const actionControls = (
     <div key="actions" className="workspace__actions">
-      <Controls
-        canUndo={canUndo}
-        canRedo={canRedo}
-        canReset={canReset}
-        isMapReady={isMapReady}
-        isStorageAvailable={isPersistenceAvailable}
-        isExporting={isExporting}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onReset={resetColors}
-        onOpenSaveLoad={handleOpenSaveLoad}
-        onExport={handleExport}
-        onStatusMessage={showStatus}
-      />
+      {globalActions}
     </div>
   );
 
@@ -907,6 +917,18 @@ export default function App(): JSX.Element {
         isDisabled={!isMapReady}
         onStatus={showStatus}
       />
+      {/*
+        UI-SPEC 11: `Reset All Colors` lives in the selection/color section on
+        desktop and in the action strip on compact/mobile - never in both, and
+        never next to `Reset View`.
+      */}
+      {layout === 'desktop' ? (
+        <ResetColorsAction
+          isDisabled={!isMapReady || !canReset}
+          onReset={resetColors}
+          onStatusMessage={showStatus}
+        />
+      ) : null}
     </div>
   );
 
@@ -958,7 +980,6 @@ export default function App(): JSX.Element {
       className="workspace__control-column"
       aria-label="Map inspector"
     >
-      {actionControls}
       {selectionAndColorControls}
       {legendControls}
       {countryList}
@@ -980,6 +1001,7 @@ export default function App(): JSX.Element {
       <AppHeader
         isHelpVisible={isHelpRendered}
         isHelpAvailable={isHelpAvailable}
+        globalActions={layout === 'desktop' ? globalActions : null}
         onShowHelp={handleShowHelp}
       />
 

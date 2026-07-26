@@ -1,12 +1,24 @@
 import { useRef } from 'react';
 
-export const RESET_STATUS_MESSAGE =
-  'All colors reset. Use Undo Color Change to restore them.';
+import { ResetColorsAction } from './ResetColorsAction';
 
 const EXPORT_IDLE_LABEL = 'Export PNG';
 const EXPORT_BUSY_LABEL = 'Exporting PNG…';
 
+/**
+ * Where the strip is composed, which decides whether it carries
+ * `Reset All Colors` (UI-SPEC 8/11):
+ *
+ * - `app-bar`: the desktop app bar action group - Undo, Redo, Save or Load
+ *   Maps, Export PNG. `Reset All Colors` is rendered by the selection/color
+ *   section instead, so content reset can never be read as a pair with
+ *   `Reset View`.
+ * - `strip`: the compact/mobile action strip, which does carry it.
+ */
+export type ControlsVariant = 'app-bar' | 'strip';
+
 interface ControlsProps {
+  variant: ControlsVariant;
   canUndo: boolean;
   canRedo: boolean;
   canReset: boolean;
@@ -22,6 +34,7 @@ interface ControlsProps {
 }
 
 export function Controls({
+  variant,
   canUndo,
   canRedo,
   canReset,
@@ -36,11 +49,6 @@ export function Controls({
   onStatusMessage,
 }: ControlsProps): JSX.Element {
   const exportActivationLocked = useRef(false);
-
-  const handleReset = (): void => {
-    onReset();
-    onStatusMessage(RESET_STATUS_MESSAGE);
-  };
 
   // Synchronous activation lock: `isExporting` only becomes true after the
   // owner re-renders, so a second activation in the same tick would otherwise
@@ -60,8 +68,13 @@ export function Controls({
   };
 
   return (
-    <section className="controls" aria-labelledby="map-actions-heading">
-      <h2 id="map-actions-heading">Map actions</h2>
+    <section
+      className={`controls controls--${variant}`}
+      aria-labelledby="map-actions-heading"
+    >
+      <h2 className="controls__heading" id="map-actions-heading">
+        Map actions
+      </h2>
       <div className="controls__actions">
         <button
           type="button"
@@ -94,19 +107,18 @@ export function Controls({
           Save or Load Maps
         </button>
         {/*
-          Content reset, not camera reset: it sits in its own destructive group
-          inside the inspector, never beside CompositionBar's `Reset View`, so
-          the two cannot be read as one pair (D-17, D-18).
+          Content reset, not camera reset: never beside CompositionBar's
+          `Reset View`, so the two cannot be read as one pair (D-17, D-18). The
+          desktop app bar omits it entirely - UI-SPEC 8 keeps it in the
+          selection/color section there.
         */}
-        <button
-          type="button"
-          data-action="reset-colors"
-          className="controls__action controls__action--destructive"
-          onClick={handleReset}
-          disabled={!isMapReady || !canReset}
-        >
-          Reset All Colors
-        </button>
+        {variant === 'strip' ? (
+          <ResetColorsAction
+            isDisabled={!isMapReady || !canReset}
+            onReset={onReset}
+            onStatusMessage={onStatusMessage}
+          />
+        ) : null}
         <button
           type="button"
           data-action="export"

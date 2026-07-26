@@ -67,6 +67,25 @@
   min-width: 0;
 }
 
+.app-bar__identity {
+  flex: 1 1 auto;
+}
+
+/*
+ * UI-SPEC 8: the desktop app bar carries the global action group; compact and
+ * mobile leave only `Show Help` here. The group wraps rather than overflows -
+ * the four labels are full phrases and the bar has to survive 1200px, the
+ * narrowest desktop width.
+ */
+.app-bar__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
 .app > header h1 {
   margin-bottom: var(--space-xs);
   overflow-wrap: anywhere;
@@ -265,7 +284,8 @@
     gap: var(--space-md);
   }
 
-  .app > header button {
+  .app > header button,
+  .app-bar__actions {
     width: 100%;
   }
 

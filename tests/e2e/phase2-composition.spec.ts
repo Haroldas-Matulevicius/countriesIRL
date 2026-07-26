@@ -169,11 +169,14 @@ async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
         elements.map((element): string => element.className),
       ),
   ).toEqual([
-    'workspace__actions',
+    // UI-SPEC 8: the global action strip is not here on desktop - it composes
+    // into the app bar, and the inspector opens with selection/color.
     'workspace__selection-color',
     'workspace__legend',
     'workspace__country-list',
   ]);
+  await expect(page.locator('.app > header .controls--app-bar')).toHaveCount(1);
+  await expect(page.locator('.workspace__actions')).toHaveCount(0);
   expect(
     await inspector.evaluate((element): string =>
       globalThis.getComputedStyle(element).overscrollBehaviorY,

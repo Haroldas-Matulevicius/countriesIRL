@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Controls } from './Controls';
+import { Controls, type ControlsVariant } from './Controls';
 
 interface RenderOverrides {
+  readonly variant?: ControlsVariant;
   readonly canUndo?: boolean;
   readonly canRedo?: boolean;
   readonly canReset?: boolean;
@@ -15,6 +16,7 @@ interface RenderOverrides {
 function renderControls(overrides: RenderOverrides = {}): string {
   return renderToStaticMarkup(
     <Controls
+      variant={overrides.variant ?? 'strip'}
       canUndo={overrides.canUndo ?? true}
       canRedo={overrides.canRedo ?? true}
       canReset={overrides.canReset ?? true}
@@ -53,6 +55,36 @@ describe('Controls global action strip', (): void => {
         expect(markup).toContain(`>${label}</button>`);
       },
     );
+  });
+
+  it('drops Reset All Colors from the desktop app bar group', (): void => {
+    const appBar = renderControls({ variant: 'app-bar' });
+
+    // UI-SPEC 8: the app bar carries exactly Undo, Redo, Save or Load Maps and
+    // Export PNG. `Reset All Colors` is content reset and belongs to the
+    // selection/color section on desktop, so composing it here would put it one
+    // control away from `Reset View`, which is exactly the pairing D-17/D-18
+    // forbid.
+    expect(getActionOrder(appBar)).toEqual([
+      'undo',
+      'redo',
+      'save-load',
+      'export',
+    ]);
+    expect(appBar).not.toContain('Reset All Colors');
+    expect(appBar).not.toContain('controls__action--destructive');
+    expect(appBar).toContain('controls controls--app-bar');
+    // The section keeps its accessible name; only its visible presentation
+    // changes, so the group is still announced as "Map actions".
+    expect(appBar).toContain('aria-labelledby="map-actions-heading"');
+    expect(appBar).toContain('class="controls__heading" id="map-actions-heading"');
+  });
+
+  it('disables every app-bar action while the world map is not ready', (): void => {
+    const markup = renderControls({ variant: 'app-bar', isMapReady: false });
+
+    expect(markup.match(/disabled=""/gu)).toHaveLength(4);
+    expect(markup).not.toContain('aria-disabled');
   });
 
   it('makes Export the only filled action and marks the reset as its own destructive group', (): void => {
@@ -98,7 +130,7 @@ describe('Controls global action strip', (): void => {
     });
   });
 
-  it('disables every action while the world map is not ready', (): void => {
+  it('disables every strip action while the world map is not ready', (): void => {
     const markup = renderControls({ isMapReady: false });
 
     expect(markup.match(/disabled=""/gu)).toHaveLength(5);

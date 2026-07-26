@@ -15,7 +15,6 @@
  * radius, and background here would be a card inside a card - the treatment the
  * visual direction explicitly prohibits.
  */
-.workspace--desktop .workspace__control-column .controls,
 .workspace--desktop .workspace__control-column .selection-panel,
 .workspace--desktop .workspace__control-column .color-picker,
 .workspace--desktop .workspace__control-column .country-list {
@@ -36,6 +35,33 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-sm);
+}
+
+/*
+ * UI-SPEC 8: on the app bar the actions are one wrapping row, not the compact
+ * strip's three-row grid. `grid-column: 1 / -1` on the primary action is inert
+ * in a flex container, so `Export PNG` stays a normal-width button here and
+ * still spans the full width of the compact strip.
+ */
+.controls--app-bar .controls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * The heading is the section's accessible name (`aria-labelledby`), so it is
+ * hidden visually and never with `display: none`, which would strip the name
+ * from the landmark. On the app bar the actions themselves are the label.
+ */
+.controls--app-bar .controls__heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .workspace__actions button {
@@ -71,7 +97,8 @@
   background: var(--accent-hover);
 }
 
-.workspace__actions button[aria-busy="true"]::before {
+/* Keyed on the action class, so the busy spinner survives both compositions. */
+.controls__action[aria-busy="true"]::before {
   display: inline-block;
   width: var(--space-md);
   height: var(--space-md);
@@ -94,6 +121,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+/* UI-SPEC 11: the desktop home of `Reset All Colors`. */
+.workspace__selection-color > .controls__action {
+  padding: var(--space-sm) var(--space-md);
 }
 
 .selection-panel p {
@@ -923,7 +955,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workspace__actions button[aria-busy="true"]::before {
+  .controls__action[aria-busy="true"]::before {
     border-right-color: currentColor;
     animation: none;
   }

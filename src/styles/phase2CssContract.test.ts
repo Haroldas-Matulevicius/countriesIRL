@@ -478,7 +478,7 @@ describe('Phase 2 responsive layout contract', (): void => {
       declarationsOf(
         findRule(
           parseRules(CONTROLS_CSS),
-          '.workspace--desktop .workspace__control-column .controls, .workspace--desktop .workspace__control-column .selection-panel, .workspace--desktop .workspace__control-column .color-picker, .workspace--desktop .workspace__control-column .country-list',
+          '.workspace--desktop .workspace__control-column .selection-panel, .workspace--desktop .workspace__control-column .color-picker, .workspace--desktop .workspace__control-column .country-list',
         ).body,
       ),
     );
