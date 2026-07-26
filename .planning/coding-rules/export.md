@@ -361,6 +361,15 @@ return (
 - [ ] Colors match the map on screen
 - [ ] Upload to Instagram; confirm it displays correctly in feed
 
+### Journey evidence: `tests/e2e/final-integration.spec.ts`
+
+**One spec owns the interactions between domains; the focused specs own the domains.** Do not
+re-assert a claim `export`, `persistence`, `history`, `legend`, `responsive`, or `transactions`
+already makes — duplicated assertions add runtime and no signal. The journey covers only what a
+single continuous session can catch: history position → exported pixels, a **real** `page.reload()`
+→ `localStorage` → load → exported pixels, and legend labels, legend placement, and the camera
+surviving that whole chain into the downloaded bytes.
+
 ### Browser evidence: `tests/e2e/export.spec.ts` + `fixtures/export.html`
 
 **Never stub `html2canvas` in the browser slice.** The fixture composes the **real**
@@ -430,6 +439,26 @@ PNG) before the relational one (all contexts agree). Pick thresholds with a real
 measured value, and record the measured value in the same change so the next author can tell a
 regression from a threshold that was always tight.
 
+**Count colors in disjoint regions, never in the whole frame.** A legend swatch is painted in
+the country's own colour, so a whole-frame count of `#DC2626` cannot distinguish "France
+reached the PNG" from "the legend swatch reached the PNG" — and one probe passing for the other
+reason is how a half-broken export stays green. Split the 1080 square into a legend corner box
+and a map column that do not overlap, and count each colour per region
+(`tests/e2e/final-integration.spec.ts`). Measured at a 1.5× world camera: France ≈ 1.1k map
+pixels, Germany ≈ 1.2k, one legend swatch ≈ 570 corner pixels.
+
+**A cross-export equality needs a discrimination control in the same test.** Comparing a
+restored export against the authored one is the strongest assertion available — and it is also
+satisfied by two identical blank squares. Export the *known-different* state (the blank page
+after a reload, before the load) in the same run and assert it differs. Content floors alone are
+not enough: they prove something rasterized, not that the comparison can tell two compositions
+apart.
+
+**The exported bytes follow the history position, not the saved baseline.** Undo must remove the
+undone colour *and its legend swatch* from the next PNG. Assert it on the pixels, not only on the
+DOM: an exporter that captured `savedColorsBaseline`, or a stale scene, passes every DOM-level
+undo assertion and still ships the wrong map.
+
 **Inspect the clone with a `MutationObserver` on `document.body`,** not by stubbing. The
 export frame is a body-level `div[aria-hidden="true"]` containing the sanitized clone; it is
 appended after sanitization and removed in `finally`, so the observer callback is the only
@@ -498,7 +527,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
+*Last updated: 2026-07-26 — cross-domain journey rules from plan 02-27: region-disjoint colour counting, a discrimination control beside every cross-export equality, exported bytes must follow the history position, and the journey spec owns interactions rather than re-asserting the focused specs.*
 *Last updated: 2026-07-26 — removed the "recommend refreshing the page" mitigation that contradicted this file's own no-refresh rule; marked the Phase 1 `alert()` error handling and the unbuilt timelapse sketch as superseded/deferred; the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
-*Last updated: 2026-07-26 — wave789 and wave 6 review rules: a zero-legend source is innocent only when the document has none either, `<style>` text carries id references, the export-unsafe-CSS guard is bound back to the component, a pixel probe must assert content before cross-context equality, reference-aware id stripping, the real-app legend-containment rule, and per-reason refusal messaging with no "Refresh the page" copy.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*
