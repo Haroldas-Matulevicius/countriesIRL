@@ -340,6 +340,29 @@ the blur. Readability never depends on what is behind a surface. Glass is permit
 three surfaces — app bar, inspector shell, map-navigation cluster — and never on the map square,
 legend, modal body, toast, or an overlay.
 
+**A preference media query must define BOTH schemes.** `prefers-reduced-transparency`,
+`prefers-contrast`, and `forced-colors` are orthogonal to `prefers-color-scheme`, and they are
+authored *after* the dark block at equal specificity — so a literal written for one scheme wins
+in the other. Restoring `--glass-app-bar: #f8fafc` inside `prefers-contrast: more` painted a
+light bar under `--text-primary: #f8fafc` at **1.0:1** in dark mode: the user who asked for more
+contrast got the worst contrast in the app.
+
+| Token kind | How the preference block restores it |
+|---|---|
+| Surface (`--glass-*`) | `var(--surface-card)` — derive; the scheme token already tracks the scheme |
+| Text / border literal | pair with an explicit `@media (…) and (prefers-color-scheme: dark)` block |
+
+Derivation is preferred because it makes the defect unrepresentable. Where a literal is
+unavoidable (contrast deliberately *darkens* text, which no surface token expresses), the paired
+dark block is mandatory and `phase2CssContract.test.ts` enforces the pairing structurally.
+
+**A token contract asserts a relationship, not a shape.** `expect(token).not.toContain('rgba')`
+plus `blur === 0` was green through the whole 1.0:1 defect — both are true of a light hex. The
+contract now resolves `:root` through the real cascade for each (scheme × preference)
+combination, follows `var()` aliases, and asserts a WCAG ratio between the resolved text and the
+resolved surface. Before landing a contract assertion, break the thing it covers and watch it go
+red; a test that cannot fail on its own subject is worse than no test, because it reads as proof.
+
 **`filter` is banned on anything that can reach the export clone, and avoided on chrome.**
 `filter: brightness()` for a hover tint is one copy-paste from a filter on a `.country-path`,
 which html2canvas rasterizes differently than the browser paints it. Author an explicit
@@ -660,6 +683,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-26 — a preference media query must define both schemes; a token contract asserts a resolved relationship, not a shape (wave789 HIGH-1/HIGH-2).*
 *Last updated: 2026-07-25 — composition-root placement rules: overlay-outside-the-export-source, one Controls with a declared variant, two homes for Reset All Colors, SPEC'd focus order with a RED probe (02-24 UI-SPEC gap closure).*
 *Last updated: 2026-07-25 — visual token rules: fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, positional-selector ban on all controls (plan 02-24).*
 *Last updated: 2026-07-25 — composition-root rules: one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections (plan 02-23).*

@@ -163,10 +163,181 @@ const SUPPORTS_GLASS_CONDITION = '@supports (backdrop-filter: blur(1px))';
 const REDUCED_TRANSPARENCY_CONDITION =
   '@media (prefers-reduced-transparency: reduce)';
 const CONTRAST_CONDITION = '@media (prefers-contrast: more)';
+const CONTRAST_DARK_CONDITION =
+  '@media (prefers-contrast: more) and (prefers-color-scheme: dark)';
 const FORCED_COLORS_CONDITION = '@media (forced-colors: active)';
 const REDUCED_MOTION_CONDITION = '@media (prefers-reduced-motion: reduce)';
 
 const ROOT_TOKENS = tokensOf(findRule(THEME_RULES, ':root'));
+
+/**
+ * Resolves `:root` as a browser would for one combination of media/supports
+ * states: every `:root` rule whose enclosing conditions are all active, applied
+ * in source order.
+ *
+ * The cascade is the whole point. `prefers-reduced-transparency` and
+ * `prefers-contrast` are orthogonal to `prefers-color-scheme` but are authored
+ * later at equal specificity, so a literal in a preference block overrides the
+ * dark block. Asserting token values block-by-block cannot see that; only
+ * resolving the stack can.
+ */
+function resolveRootTokens(active: readonly string[]): Map<string, string> {
+  const resolved = new Map<string, string>();
+
+  THEME_RULES.filter(
+    (rule): boolean =>
+      rule.selector === ':root' &&
+      rule.conditions.every((condition): boolean => active.includes(condition)),
+  ).forEach((rule): void => {
+    tokensOf(rule).forEach((value, token): void => {
+      resolved.set(token, value);
+    });
+  });
+
+  return resolved;
+}
+
+/** Follows a `var(--token)` alias chain to the literal it bottoms out at. */
+function resolveTokenValue(
+  tokens: Map<string, string>,
+  token: string,
+  seen: ReadonlySet<string> = new Set(),
+): string {
+  const raw = tokens.get(token);
+  if (raw === undefined) {
+    throw new Error(`"${token}" is never declared on :root.`);
+  }
+
+  const alias = /^var\(\s*(--[\w-]+)\s*\)$/u.exec(raw);
+  if (alias === null) {
+    return raw;
+  }
+  if (seen.has(token)) {
+    throw new Error(`"${token}" resolves through a cyclic var() chain.`);
+  }
+  return resolveTokenValue(tokens, alias[1], new Set([...seen, token]));
+}
+
+function parseHexColor(value: string): [number, number, number] | null {
+  const match = /^#(?<digits>[\da-f]{6}|[\da-f]{3})$/iu.exec(value.trim());
+  if (match?.groups === undefined) {
+    return null;
+  }
+
+  const digits = match.groups.digits;
+  const expanded =
+    digits.length === 3
+      ? [...digits].map((digit): string => digit + digit).join('')
+      : digits;
+
+  return [
+    Number.parseInt(expanded.slice(0, 2), 16),
+    Number.parseInt(expanded.slice(2, 4), 16),
+    Number.parseInt(expanded.slice(4, 6), 16),
+  ];
+}
+
+/** WCAG 2.2 relative luminance. */
+function relativeLuminance([red, green, blue]: readonly [
+  number,
+  number,
+  number,
+]): number {
+  const channel = (raw: number): number => {
+    const srgb = raw / 255;
+    return srgb <= 0.03928
+      ? srgb / 12.92
+      : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+
+  return (
+    0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+  );
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const foregroundRgb = parseHexColor(foreground);
+  const backgroundRgb = parseHexColor(background);
+  if (foregroundRgb === null || backgroundRgb === null) {
+    throw new Error(
+      `Contrast needs two hex colors, got "${foreground}" on "${background}".`,
+    );
+  }
+
+  const first = relativeLuminance(foregroundRgb);
+  const second = relativeLuminance(backgroundRgb);
+  const lighter = Math.max(first, second);
+  const darker = Math.min(first, second);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+interface PreferenceCase {
+  readonly name: string;
+  /** Every at-rule prelude that is matching, in the browser's terms. */
+  readonly active: readonly string[];
+  /** Glass must be opaque here, so its tokens are contrast-checkable. */
+  readonly opaqueGlass: boolean;
+}
+
+/**
+ * Glass is always enhanced, because the failure this matrix exists to catch is
+ * "preference block restores an opaque surface, but the wrong scheme's one".
+ * A browser that supports `backdrop-filter` is the case where that override has
+ * to fire at all.
+ */
+const PREFERENCE_CASES: readonly PreferenceCase[] = [
+  {
+    name: 'light',
+    active: [SUPPORTS_GLASS_CONDITION],
+    opaqueGlass: false,
+  },
+  {
+    name: 'dark',
+    active: [SUPPORTS_GLASS_CONDITION, DARK_CONDITION],
+    opaqueGlass: false,
+  },
+  {
+    name: 'light + reduced transparency',
+    active: [SUPPORTS_GLASS_CONDITION, REDUCED_TRANSPARENCY_CONDITION],
+    opaqueGlass: true,
+  },
+  {
+    name: 'dark + reduced transparency',
+    active: [
+      SUPPORTS_GLASS_CONDITION,
+      DARK_CONDITION,
+      REDUCED_TRANSPARENCY_CONDITION,
+    ],
+    opaqueGlass: true,
+  },
+  {
+    name: 'light + more contrast',
+    active: [SUPPORTS_GLASS_CONDITION, CONTRAST_CONDITION],
+    opaqueGlass: true,
+  },
+  {
+    name: 'dark + more contrast',
+    active: [
+      SUPPORTS_GLASS_CONDITION,
+      DARK_CONDITION,
+      CONTRAST_CONDITION,
+      CONTRAST_DARK_CONDITION,
+    ],
+    opaqueGlass: true,
+  },
+];
+
+/** Surfaces that carry body copy, and therefore owe it WCAG AA. */
+const OPAQUE_GLASS_SURFACE_TOKENS = [
+  '--glass-app-bar',
+  '--glass-inspector',
+  '--glass-navigation',
+] as const;
+
+const TEXT_TOKENS = ['--text-primary', '--text-secondary', '--text-muted'] as const;
+
+const WCAG_AA_BODY_RATIO = 4.5;
 
 const EXACT_SCALE_TOKENS: ReadonlyArray<readonly [string, string]> = [
   ['--space-xs', '4px'],
@@ -349,6 +520,80 @@ describe('Phase 2 glass and preference contract', (): void => {
       expect(tokens.get('--glass-app-bar')).not.toContain('rgba');
       expect(tokens.get('--glass-inspector')).not.toContain('rgba');
       expect(tokens.get('--glass-navigation')).not.toContain('rgba');
+    });
+  });
+
+  /**
+   * The assertion above cannot fail on the defect it looks like it covers: a
+   * preference block that hard-codes `--glass-app-bar: #f8fafc` satisfies both
+   * "not rgba" and "blur 0" while painting a light bar under `--text-primary:
+   * #f8fafc` in dark mode, at 1.0:1. Contrast is a relationship between two
+   * resolved tokens, so it has to be asserted as one, in both schemes.
+   */
+  it('keeps body copy legible on every chrome surface in both schemes', (): void => {
+    let assertions = 0;
+
+    PREFERENCE_CASES.forEach((preference): void => {
+      const tokens = resolveRootTokens(preference.active);
+      const surfaces = [
+        '--surface-card',
+        ...(preference.opaqueGlass ? OPAQUE_GLASS_SURFACE_TOKENS : []),
+      ];
+
+      surfaces.forEach((surfaceToken): void => {
+        const surface = resolveTokenValue(tokens, surfaceToken);
+        expect(
+          parseHexColor(surface),
+          `${preference.name}: "${surfaceToken}" resolves to "${surface}", ` +
+            'which is not an opaque color.',
+        ).not.toBeNull();
+
+        TEXT_TOKENS.forEach((textToken): void => {
+          const text = resolveTokenValue(tokens, textToken);
+          const ratio = contrastRatio(text, surface);
+          expect(
+            ratio,
+            `${preference.name}: ${textToken} (${text}) on ${surfaceToken} ` +
+              `(${surface}) is ${ratio.toFixed(2)}:1.`,
+          ).toBeGreaterThanOrEqual(WCAG_AA_BODY_RATIO);
+          assertions += 1;
+        });
+      });
+    });
+
+    // A matrix that silently resolved to nothing would pass. It must not.
+    expect(assertions).toBe(54);
+  });
+
+  /**
+   * `--border-default` is not text, so it has no body-copy ratio to meet, but it
+   * is a literal that the light contrast block darkens to #1f2937 - invisible on
+   * a #0b0f12 page, at the exact moment the same block widens it to 2px "for
+   * contrast". Rather than pin an arbitrary non-text ratio against a hairline
+   * that is deliberately subtle in light mode, require the structure: every
+   * literal color in the contrast block owes a dark counterpart.
+   */
+  it('restates the contrast preference for dark rather than inheriting light literals', (): void => {
+    const darkContrast = tokensOf(
+      findRule(THEME_RULES, ':root', [CONTRAST_DARK_CONDITION]),
+    );
+
+    // Every literal color the light contrast block sets must be answered here,
+    // or the next token added to it silently ships near-black on near-black.
+    const lightContrast = tokensOf(
+      findRule(THEME_RULES, ':root', [CONTRAST_CONDITION]),
+    );
+    const literalColorTokens = [...lightContrast.entries()]
+      .filter(([, value]): boolean => parseHexColor(value) !== null)
+      .map(([token]): string => token);
+
+    expect(literalColorTokens.length).toBeGreaterThan(0);
+    literalColorTokens.forEach((token): void => {
+      expect(
+        darkContrast.has(token),
+        `"${token}" is a literal in ${CONTRAST_CONDITION} with no dark ` +
+          'counterpart. Add one, or derive it from a --surface-* token.',
+      ).toBe(true);
     });
   });
 

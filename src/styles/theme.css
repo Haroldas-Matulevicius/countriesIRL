@@ -9,6 +9,13 @@
  *    is the `:root` value; the translucent value exists only under
  *    `@supports (backdrop-filter: blur(1px))`, and every accessibility
  *    preference restores the opaque baseline.
+ * 3. A preference block must define BOTH schemes. `prefers-reduced-transparency`
+ *    and `prefers-contrast` are orthogonal to `prefers-color-scheme` and come
+ *    later in source order at equal specificity, so a literal authored for one
+ *    scheme silently overrides the other. Restore surfaces by deriving from the
+ *    scheme-tracked surface tokens; where a literal is unavoidable (text and
+ *    border under `prefers-contrast`), pair it with an explicit
+ *    `and (prefers-color-scheme: dark)` counterpart.
  */
 :root {
   color-scheme: light;
@@ -147,14 +154,19 @@
 
 /*
  * Opaque baseline restoration. Each of these preferences independently returns
- * the enhanced glass tokens to their opaque `:root` values and removes blur, so
- * no readability ever depends on content behind a translucent surface.
+ * the enhanced glass tokens to an opaque surface and removes blur, so no
+ * readability ever depends on content behind a translucent surface.
+ *
+ * The restored value is `var(--surface-card)`, not a literal: these blocks come
+ * after `@media (prefers-color-scheme: dark)` at equal specificity, so a light
+ * literal here would paint a light bar under dark-mode text at ~1:1. Deriving
+ * from the scheme-tracked surface token makes that defect unrepresentable.
  */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --glass-app-bar: #f8fafc;
-    --glass-inspector: #ffffff;
-    --glass-navigation: #ffffff;
+    --glass-app-bar: var(--surface-card);
+    --glass-inspector: var(--surface-card);
+    --glass-navigation: var(--surface-card);
     --glass-blur-app-bar: 0;
     --glass-blur-inspector: 0;
     --glass-blur-navigation: 0;
@@ -168,12 +180,26 @@
     --border-default: #1f2937;
     --text-secondary: #1f2937;
     --text-muted: #1f2937;
-    --glass-app-bar: #f8fafc;
-    --glass-inspector: #ffffff;
-    --glass-navigation: #ffffff;
+    --glass-app-bar: var(--surface-card);
+    --glass-inspector: var(--surface-card);
+    --glass-navigation: var(--surface-card);
     --glass-blur-app-bar: 0;
     --glass-blur-inspector: 0;
     --glass-blur-navigation: 0;
+  }
+}
+
+/*
+ * The contrast block above darkens text and borders, which is only "more
+ * contrast" against a light surface. Dark mode needs the opposite move against
+ * `--surface-card: #151b20`, so the same preference is restated for that scheme
+ * rather than left to inherit a near-black-on-near-black override.
+ */
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --border-default: #e2e8f0;
+    --text-secondary: #f8fafc;
+    --text-muted: #e2e8f0;
   }
 }
 
