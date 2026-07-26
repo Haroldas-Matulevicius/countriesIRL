@@ -64,10 +64,10 @@
 ### F5: Export & Output
 
 - [x] **F5.1** Export map as PNG image (1080×1080 Instagram square format)
-- **F5.2** PNG includes map + legend in single image
+- [x] **F5.2** PNG includes map + legend in single image
 - [x] **F5.3** High quality output (300+ DPI or screen-optimized)
 - **F5.4** Export also available as SVG (for further editing)
-- **F5.5** Filename includes map name + date (e.g., "EU_HumanZoo_2026-07-21.png")
+- **F5.5** Filename includes map name + date (e.g., "EU_HumanZoo_2026-07-21.png") — *partial (02-21): the sanitizer is implemented and tested in `createExportFilename`, but no call site supplies a name yet because `App` holds no composition-name state. Wiring belongs to `02-30`/`02-23`.*
 
 ### F6: Project Management
 

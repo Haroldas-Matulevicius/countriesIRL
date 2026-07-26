@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "02-20 complete (Save/Load complete compositions + persistence E2E slice); next 02-30/02-21"
-last_updated: "2026-07-25T21:30:00.000Z"
-last_activity: "2026-07-25 -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
+stopped_at: "02-21 complete (wrapped-composition PNG export + Chrome export slice); next 02-30/02-22"
+last_updated: "2026-07-25T21:50:00.000Z"
+last_activity: "2026-07-25 -- 02-21 executed: the export clone now strips duplicate accessibility/editor semantics (roles, titles, ids, tab stops, all aria-*) and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders are normalized across path.scene-path so wrapped repeats of a selected country no longer bake the selection treatment into the PNG; a new invalid-composition reason refuses a sibling/duplicate legend or a camera/legend reorder; the UI-SPEC named-filename sanitizer landed. tests/e2e/export.spec.ts + fixtures/export.html drive the real MapCanvas/LegendOverlay/exportMapPng with no stubs, download the PNG, and verify IHDR 1080x1080 plus opaque corner pixels. Gates: lint clean, tsc -b clean, build clean, 420/420 unit, Chrome 48/48, Edge 48/48. Prior -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 39
-  percent: 66
+  completed_plans: 40
+  percent: 68
 ---
 
 # State: CountriesIRL Map Generator
@@ -19,7 +19,7 @@ progress:
 > **Status (2026-07-25):** Phase 2 **descoped to Modern-only** — historical snapshots
 > deferred because the rights-cleared archival source material does not exist (blockers name
 > missing scans and geometry, not missing approval). The historical *engine* ships and is
-> tested. **16/36 plans complete, 8 deferred, 10 engineering + 2 owner gates remain.**
+> tested. **19/36 plans complete, 8 deferred, 7 engineering + 2 owner gates remain.**
 > The Wave 5 production-wiring stack is in its second independent fix round and is **not yet
 > integrated**.
 > **Pointers:** [`ROADMAP.md`](ROADMAP.md) (Progress table is canonical) ·
@@ -37,8 +37,8 @@ progress:
 ## Current Position
 
 Phase: 02 (region-variants-advanced-features) — EXECUTING
-Next step: Execute `02-30` and `02-21` (independent of each other), then `02-22`, `02-23`,
-`02-24`, `02-26`/`02-36`, and finally `02-27`.
+Next step: Execute `02-30`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, and finally
+`02-27`.
 Blocked on owner: `02-25` (doc patches — blanket pre-approval given, sight-unseen) and
 `02-28` (acceptance matrix — requires physically performed tests, cannot be delegated).
 
@@ -63,6 +63,14 @@ Always read [`coding-rules/general.md`](coding-rules/general.md) first.
 Older entries → [`milestones/v1.0/ROADMAP-ARCHIVE.md`](milestones/v1.0/ROADMAP-ARCHIVE.md).
 Per-plan chronology → `phases/*/*-SUMMARY.md`.
 
+- 2026-07-25 — **`02-21` complete.** The export utility stays pure (no camera lease) but now
+  strips semantics rather than geometry: every visible wrapped date-line path survives while
+  roles, titles, ids, tab stops, all `aria-*`, editor state, and the outgoing crossfade layer
+  are removed. Borders are normalized across `path.scene-path` — the previous
+  `path.country-path`-only rule left the 2px selection border on decorative wrapped repeats.
+  A new `invalid-composition` reason refuses a legend rendered beside the canonical SVG.
+  `tests/e2e/export.spec.ts` downloads the real PNG and checks IHDR 1080×1080 plus opaque
+  corners. 420 unit tests, Chrome 48/48, Edge 48/48.
 - 2026-07-25 — **`02-20` complete.** Save/Load renders the exact UI-SPEC 15 composition
   states over a `SavedMapSummary` projection that never hands stored colors to the list
   surface. Delete is a two-step inline confirmation; loading over unsaved work is confirmed.
@@ -90,6 +98,10 @@ Per-plan chronology → `phases/*/*-SUMMARY.md`.
 Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/DECISIONS-ARCHIVE.md)
 (still binding — carried forward, not superseded).
 
+- [Phase 02]: Export strips duplicate accessibility/editor semantics but never wrapped
+  geometry; border normalization targets `path.scene-path`, not `path.country-path`.
+- [Phase 02]: A legend outside the canonical SVG is a hard `invalid-composition` failure
+  rather than a silently legend-less PNG.
 - [Phase 02]: Non-locking live camera read for save; idempotent `CameraFreezeLease` for
   export, released from the outermost `finally` on every path.
 - [Phase 02]: Country browser/Locate stay at the modern 195 core. Out-of-scene rows are
@@ -109,9 +121,12 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 
 ### Pending Todos
 
-- Execute `02-30`/`02-21`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
+- Execute `02-30`, then `02-22`, `02-23`, `02-24`, `02-26`/`02-36`, `02-27`.
 - Diagnose the intermittent `historicalPreparationCli` failures before treating `npm test`
   as a reliable `02-27` gate (see phase `deferred-items.md`).
+- Wire the named-composition export filename: `createExportFilename` accepts and sanitizes a
+  map name, but `App` holds no composition-name state, so no call site supplies one yet
+  (belongs to `02-30`/`02-23`).
 - Leave `02-28` signature-ready with automated cells pre-filled.
 - If hosting is ever requested, reopen the Vercel runbooks under new explicit authorization.
 
@@ -147,6 +162,6 @@ Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/D
 
 ## Session Continuity
 
-Last session: 2026-07-25T04:40:00.000Z
-Stopped at: Phase 02 descoped; Wave 5 wiring in second fix round, not yet integrated
+Last session: 2026-07-25T21:50:00.000Z
+Stopped at: `02-21` complete (wrapped-composition PNG export + Chrome/Edge export slice)
 Resume file: [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)

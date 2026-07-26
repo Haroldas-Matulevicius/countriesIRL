@@ -63,7 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 17/36 complete. 8 deferred with the historical chain, 9 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
+**Plans:** 19/36 complete. 8 deferred with the historical chain, 7 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -114,7 +114,7 @@ Plans:
 
 **Wave 11**
 - [x] 02-20-PLAN.md — **complete**: complete-composition Save/Load (row metadata, legacy copy, two-step delete, dirty-load confirmation) plus the focused Chrome/Edge persistence slice `tests/e2e/persistence.spec.ts`
-- [ ] 02-21-PLAN.md — Extend the export chokepoint for exact wrapped-world/legend content without embedding camera orchestration in the utility
+- [x] 02-21-PLAN.md — **complete**: export strips duplicate accessibility/editor semantics and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders normalized across `path.scene-path`; `invalid-composition` refuses a mis-placed legend; named-filename sanitizer; Chrome/Edge slice `tests/e2e/export.spec.ts` downloads and decodes the real 1080×1080 PNG
 
 **Wave 12**
 - [ ] 02-22-PLAN.md — Update the small global UI surfaces to the exact Phase 2 workflow, copy, disabled/busy states, and safe status messages
