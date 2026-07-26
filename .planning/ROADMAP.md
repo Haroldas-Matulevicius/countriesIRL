@@ -63,7 +63,7 @@ approval, qualified factual review, durable hash binding, and atomic promotion. 
 snapshots are never counted delivered, and no historical readiness or human approval is
 claimed.
 
-**Plans:** 21/36 complete. 8 deferred with the historical chain, 5 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
+**Plans:** 23/36 complete. 8 deferred with the historical chain, 3 engineering remaining, 2 owner gates. See the [Progress](#progress) ledger.
 
 Plans:
 
@@ -124,7 +124,7 @@ Plans:
 - [x] 02-23-PLAN.md — **complete**: the composition root was verified rather than rewritten — `App.tsx`/`main.tsx` unchanged, because every clause already shipped in `02-29`/`02-30`/`02-22`. Added the missing guards: save/load/export share ONE `getMapCanvasHandle` by object identity, the legend must render between the camera layer and the canonical SVG close, one workspace/one canvas/exact landmark counts at both layouts, no camera controller in `App`; plus `tests/e2e/transactions.spec.ts` (one bound handle at both sides of 1200px, all three export refusal classes then success in one session with camera input renewed between each, historical entity through undo/redo/save/remount/load). Both guards proven RED.
 
 **Wave 14**
-- [ ] 02-24-PLAN.md — Apply the binding UI-SPEC and prove both static CSS constraints and real responsive browser behavior
+- [x] 02-24-PLAN.md — **complete**: the exact UI-SPEC token contract landed in `theme.css` with `--map-*` export tokens declared once and glass as progressive enhancement over opaque fallbacks for reduced transparency, increased contrast, and forced colors. Border and focus weights are tokens, so `prefers-contrast: more` strengthens every boundary in one place. The desktop inspector became one shell at the exact 376px column, the app bar is sticky (`.app` lost the `overflow-x` that would have silently killed it), `touch-action: none` is scoped to `svg.map-canvas` alone, and the `filter` hover tint left the map. `src/styles/phase2CssContract.test.ts` walks nested at-rules and enforces the token/spacing/target/glass/export-effect rules plus a positional-selector ban on every control — which caught `button:first-child` still painting the onboarding CTA. `tests/e2e/responsive.spec.ts` adds 12 Chrome cases at 1440/1024/800/360 and the 200%-zoom-equivalent viewport, and proves the PNG is pixel-identical across light, dark, forced colors, and DPR 1/2/3. Chrome 65/65 and Edge 65/65. Honest gaps recorded: `MapNavigation` and the global actions are not yet in their UI-SPEC positions (an `App.tsx` change).
 
 **Wave 15**
 - [ ] 02-25-PLAN.md — Create and obtain exact human approval for two bounded documentation patches: subsystem rules and authoritative routing/requirements corrections
@@ -324,12 +324,13 @@ elsewhere.
 | Wrapped-composition export + export transaction | `02-21`, `02-30` | ✅ complete (F5.5 wired end to end) |
 | Global UI surfaces + safe status copy | `02-22` | ✅ complete |
 | Composition root + integrated transactions | `02-23` | ✅ complete (guards + `transactions.spec.ts`; `App.tsx` unchanged) |
-| Remaining engineering | `02-24`, `02-26`, `02-36` | ⬜ not started |
+| Visual system + responsive slice | `02-24` | ✅ complete (CSS contract + `responsive.spec.ts`; navigation/global-action placement deferred) |
+| Remaining engineering | `02-26`, `02-36` | ⬜ not started |
 | Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
 | Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
 
-> The four remaining engineering plans are smaller than they look. Their *behavior* already
-> ships and is covered by 469 unit tests and 53 Chrome E2E cases; what remains is mostly
+> The remaining engineering plans are smaller than they look. Their *behavior* already
+> ships and is covered by 492 unit tests and 65 Chrome / 65 Edge E2E cases; what remains is mostly
 > refactoring into the plans' named file shapes (split per-domain E2E specs, a CSS contract
 > test, the `02-25` doc patches). See
 > [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
