@@ -313,6 +313,12 @@ svg.selectAll('path')
 
 **Storybook stories (optional, Phase 2+):** ColorPicker, CountryList with sample data.
 
+**Browser fixtures shared by two specs live in `tests/e2e/support/`, never copied.** A
+hand-maintained second copy of a snapshot asset or saved record drifts, and then two specs
+assert against two different scenes while both stay green. Support modules are not matched by
+Playwright's `testMatch`, so they carry helpers safely. A support fixture is still a fixture: it
+is served by a route and never promotes geometry into `public/data`.
+
 ---
 
 ## Nested Confirmation Dialogs (Phase 2)

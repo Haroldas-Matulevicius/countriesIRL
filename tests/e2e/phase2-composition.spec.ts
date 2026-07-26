@@ -1,10 +1,15 @@
-import { createHash } from 'node:crypto';
-
 import { expect, test, type Page } from '@playwright/test';
 import { zoomIdentity } from 'd3';
 
 import { STORAGE_KEY } from '../../src/constants/config';
 import { transformToCamera } from '../../src/utils/camera';
+import {
+  HISTORICAL_ASSET_PATH,
+  HISTORICAL_ENTITY_ID,
+  HISTORICAL_LABEL,
+  createHistoricalBrowserFixture,
+  createHistoricalSavedRecord,
+} from './support/historicalFixture';
 
 const LOGICAL_CORE_COUNT = 195;
 const VISIBLE_MODERN_UNIT_COUNT = 248;
@@ -17,17 +22,6 @@ const ALL_SCENE_PATH_SELECTOR = 'path.scene-path';
 // UI-SPEC section 20: the map label names the active period.
 const MODERN_MAP_LISTBOX_NAME =
   'Interactive world map, Modern — current borders';
-const HISTORICAL_ENTITY_ID = 'HIST-HRE';
-const HISTORICAL_LABEL = 'Holy Roman Empire';
-const HISTORICAL_ASSET_PATH = '/data/snapshots/1700.geojson';
-const HISTORICAL_REGIONS = [
-  'poland',
-  'lithuania',
-  'hungary',
-  'balkans',
-  'iberia',
-  'scandinavia',
-] as const;
 
 interface CameraFixtureApi {
   readonly controllerFactoryCalls: number;
@@ -202,82 +196,6 @@ async function expectCompactWorkspaceOrder(page: Page): Promise<void> {
   await expect(page.locator('svg.map-canvas')).toHaveCount(1);
 }
 
-function createHistoricalBrowserFixture(): {
-  readonly assetBody: string;
-  readonly manifest: Record<string, unknown>;
-} {
-  const assetBody = JSON.stringify({
-    type: 'FeatureCollection',
-    snapshotId: '1700',
-    asOf: '1700-01-01',
-    replacedModernSourceFeatureIds: ['FRA'],
-    features: [
-      {
-        type: 'Feature',
-        id: 'historical-hre-1700',
-        properties: { name: HISTORICAL_LABEL },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [5, 45],
-              [5, 55],
-              [18, 55],
-              [18, 45],
-              [5, 45],
-            ],
-          ],
-        },
-        sourceFeatureId: 'historical-hre-1700',
-        entityId: HISTORICAL_ENTITY_ID,
-        colorOwnerId: HISTORICAL_ENTITY_ID,
-        isSelectable: true,
-        interactionMode: 'historical-entity',
-        boundaryMode: 'historical',
-        provenanceId: 'browser-fixture-1700',
-      },
-    ],
-  });
-  const sha256 = createHash('sha256').update(assetBody).digest('hex');
-  return {
-    assetBody,
-    manifest: {
-      version: 1,
-      snapshots: [
-        {
-          id: 'modern',
-          label: 'Modern — current borders',
-          asOf: 'Current',
-          assetPath: '/data/world-modern.geojson',
-          sha256: 'a'.repeat(64),
-          coverageRegions: [],
-          sourceRecords: [],
-          reviewStatus: 'source-reviewed',
-          fallbackLabel: 'Modern boundaries',
-        },
-        {
-          id: '1700',
-          label: '1700 — Browser integration fixture',
-          asOf: '1700-01-01',
-          assetPath: HISTORICAL_ASSET_PATH,
-          sha256,
-          coverageRegions: [...HISTORICAL_REGIONS],
-          sourceRecords: [
-            {
-              url: 'https://example.test/historical-browser-fixture',
-              license: 'Test fixture only',
-              accessedOn: '2026-07-24',
-              attribution: null,
-            },
-          ],
-          reviewStatus: 'historian-reviewed',
-          fallbackLabel: 'Modern fallback outside fixture coverage',
-        },
-      ],
-    },
-  };
-}
-
 /**
  * Two units that normalize cleanly but share a `sourceFeatureId`, so
  * `composeEffectiveScene` throws `duplicate-scene-source-feature-id` inside
@@ -315,34 +233,6 @@ function createDuplicateIdentityWorldAsset(): string {
     type: 'FeatureCollection',
     features: [createUnit('DUPA'), createUnit('DUPB')],
   });
-}
-
-function createHistoricalSavedRecord(): Record<string, unknown> {
-  return {
-    schemaVersion: 2,
-    name: 'Historical composition',
-    timestamp: 1_700_000_000_000,
-    composition: {
-      colors: { [HISTORICAL_ENTITY_ID]: '#DC2626' },
-      camera: {
-        zoom: 2,
-        centerLongitude: 11,
-        centerLatitude: 50,
-      },
-      snapshotId: '1700',
-      legend: {
-        entries: [
-          { color: '#DC2626', label: 'Imperial lands', order: 0 },
-        ],
-        position: { x: 64, y: 720, preset: null },
-        theme: 'dark',
-        textSize: 'large',
-        backgroundOpacity: 85,
-        borderStyle: 'strong',
-      },
-      settings: { backgroundColor: '#FFFFFF' },
-    },
-  };
 }
 
 test('world baseline exposes 195 logical states and 248 modern units', async ({
