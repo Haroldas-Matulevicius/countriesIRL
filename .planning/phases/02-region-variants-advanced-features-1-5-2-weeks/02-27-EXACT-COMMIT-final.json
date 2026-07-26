@@ -1,0 +1,139 @@
+{
+  "schema": "countriesirl.phase2.exact-commit.v1",
+  "status": "PASS",
+  "verifiedSha": "dbd711f74826fdec9b3cedc6f059857850b9706f",
+  "startedAt": "2026-07-26T07:03:34.115Z",
+  "finishedAt": "2026-07-26T07:10:38.546Z",
+  "failureReason": null,
+  "descope": {
+    "applied": true,
+    "decision": ".planning/phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md",
+    "note": "Historical snapshots deferred. The four approval-aware promotion checks are replaced by Modern-only catalog verification plus blocked-packet fail-closed assertions. Zero historical snapshots are claimed delivered."
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "npm": "11.9.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "catalog": {
+    "catalogEntryCount": 1,
+    "modernAssetPath": "/data/world-modern.geojson",
+    "modernAssetSha256": "45ccfed198f2d3ba4cbeb1d1b06889b0ba6869ee944feff32a5355b94cf0827a",
+    "historicalSnapshotsPromoted": 0,
+    "unapprovedHistoricalArtifacts": []
+  },
+  "historicalPackets": {
+    "1492": {
+      "sourceManifestSha256": "90ba249266e974a4edae0ce3b1095985027cfda37f59ba5fa8d9161782b75002",
+      "evidenceArchiveSha256": "b4bfc5d8709fde58d7635a79cb80bd42574da04707b54de1887b84aac0f15911",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1700": {
+      "sourceManifestSha256": "6a32a2689d50db4a629b2ac3a05c8feb3995369aff1d8d547b20f489e3de790c",
+      "evidenceArchiveSha256": "b7066ba911745999a1c6d4bfd95e9ac6b421cd4f2b26719a094ba612a846dc8e",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1815": {
+      "sourceManifestSha256": "e6acf0eac1ea2d9939e2ab2aa21f897a6768b8ff76819af30e70153657580cfd",
+      "evidenceArchiveSha256": "8829e72be316b8c7040e91ea3a3c12d8de61a20796cacc3a8d47869a3ad2c2e9",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    },
+    "1914": {
+      "sourceManifestSha256": "49554aa3d893eb23ecc0409650c8e114a5d81c70e5ddeda785938fb66afa54ba",
+      "evidenceArchiveSha256": "94f8533eba3f1cdd29287ae0a36ebf357781a80664b077a68f5a0f1c74f118aa",
+      "readiness": "BLOCKED",
+      "deliveryCounted": false
+    }
+  },
+  "gates": [
+    {
+      "id": "npm ci",
+      "command": "npm ci",
+      "status": 0,
+      "passed": true
+    },
+    {
+      "id": "lint",
+      "command": "npm run lint",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 lint\n> eslint ."
+    },
+    {
+      "id": "test",
+      "command": "npm test",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 test\n> vitest run\n\n\n RUN  v4.1.10 C:/Users/matul/AppData/Local/Temp/countriesirl-phase2-gate-3RMqkr/worktree\n\n\n Test Files  38 passed (38)\n      Tests  516 passed (516)\n   Start at  02:03:48\n   Duration  5.77s (transform 3.24s, setup 0ms, import 14.74s, tests 9.25s, environment 6ms)"
+    },
+    {
+      "id": "typecheck",
+      "command": "npm exec tsc -- -b --pretty false",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": ""
+    },
+    {
+      "id": "data:world:check",
+      "command": "npm run data:world:check",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 data:world:check\n> node scripts/prepareWorldData.mjs --check\n\nWorld GeoJSON check passed: 248 units and 195 selectable core states."
+    },
+    {
+      "id": "history:1492:blocked",
+      "command": "node scripts/prepareHistoricalSnapshot.mjs --snapshot 1492 --sources sources/historical/1492.sources.json --validate-sources",
+      "status": 1,
+      "expectFailure": true,
+      "passed": true,
+      "note": "BLOCKED packet must fail closed. Exit 0 would mean the gate was bypassed.",
+      "tail": "1492 BLOCKED packet integrity verified offline; readiness and approval remain absent."
+    },
+    {
+      "id": "history:1700:blocked",
+      "command": "node scripts/prepareHistoricalSnapshot.mjs --snapshot 1700 --sources sources/historical/1700.sources.json --validate-sources",
+      "status": 1,
+      "expectFailure": true,
+      "passed": true,
+      "note": "BLOCKED packet must fail closed. Exit 0 would mean the gate was bypassed.",
+      "tail": "1700 BLOCKED packet integrity verified offline; readiness and approval remain absent."
+    },
+    {
+      "id": "build",
+      "command": "npm run build",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "> countriesirl@0.1.0 build\n> tsc -b && vite build\n\n\u001b[36mvite v8.1.5 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\n\u001b[2K\rtransforming...✓ 635 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.48 kB │ gzip:   0.31 kB\ndist/assets/index-B0RANtPZ.css   33.57 kB │ gzip:   5.99 kB\ndist/assets/index-fWkag3Ve.js   547.12 kB │ gzip: 159.11 kB\n\n\u001b[32m✓ built in 221ms\u001b[39m"
+    },
+    {
+      "id": "e2e:chrome",
+      "command": "npm run test:e2e -- --project=chrome",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "  ✓  62 [chrome] › tests\\e2e\\responsive.spec.ts:594:3 › responsive world workspace › every disabled action in the responsive strip is natively disabled (1.3s)\n  ✓  63 [chrome] › tests\\e2e\\responsive.spec.ts:616:3 › preference emulation › dark preference restyles chrome and leaves the composition square white (1.4s)\n  ✓  64 [chrome] › tests\\e2e\\responsive.spec.ts:673:3 › preference emulation › reduced-motion preference removes every authored transition (1.2s)\n  ✓  65 [chrome] › tests\\e2e\\responsive.spec.ts:715:3 › preference emulation › the map reads the SPEC motion tokens when motion is not reduced (1.3s)\n  ✓  66 [chrome] › tests\\e2e\\responsive.spec.ts:742:3 › preference emulation › increased-contrast preference strengthens boundaries and focus rings (1.4s)\n  ✓  67 [chrome] › tests\\e2e\\responsive.spec.ts:765:3 › preference emulation › forced-colors preference drops every glass surface to opaque (1.4s)\n  ✓  68 [chrome] › tests\\e2e\\responsive.spec.ts:918:3 › preference-independent export › the PNG is identical across theme, forced colors, and device pixel ratio (15.2s)\n  ✓  69 [chrome] › tests\\e2e\\transactions.spec.ts:66:1 › every camera callback reaches the one bound handle across the 1200px remount (3.6s)\n  ✓  70 [chrome] › tests\\e2e\\transactions.spec.ts:126:1 › every export refusal class releases the camera lease in one session (8.4s)\n  ✓  71 [chrome] › tests\\e2e\\transactions.spec.ts:231:1 › a historical entity keeps its color through undo, redo, a remount, and a reload (4.0s)\n\n  71 passed (3.2m)"
+    },
+    {
+      "id": "e2e:msedge",
+      "command": "npm run test:e2e -- --project=msedge",
+      "status": 0,
+      "expectFailure": false,
+      "passed": true,
+      "tail": "  ✓  62 [msedge] › tests\\e2e\\responsive.spec.ts:594:3 › responsive world workspace › every disabled action in the responsive strip is natively disabled (1.4s)\n  ✓  63 [msedge] › tests\\e2e\\responsive.spec.ts:616:3 › preference emulation › dark preference restyles chrome and leaves the composition square white (1.4s)\n  ✓  64 [msedge] › tests\\e2e\\responsive.spec.ts:673:3 › preference emulation › reduced-motion preference removes every authored transition (1.3s)\n  ✓  65 [msedge] › tests\\e2e\\responsive.spec.ts:715:3 › preference emulation › the map reads the SPEC motion tokens when motion is not reduced (1.4s)\n  ✓  66 [msedge] › tests\\e2e\\responsive.spec.ts:742:3 › preference emulation › increased-contrast preference strengthens boundaries and focus rings (1.4s)\n  ✓  67 [msedge] › tests\\e2e\\responsive.spec.ts:765:3 › preference emulation › forced-colors preference drops every glass surface to opaque (1.4s)\n  ✓  68 [msedge] › tests\\e2e\\responsive.spec.ts:918:3 › preference-independent export › the PNG is identical across theme, forced colors, and device pixel ratio (15.7s)\n  ✓  69 [msedge] › tests\\e2e\\transactions.spec.ts:66:1 › every camera callback reaches the one bound handle across the 1200px remount (3.5s)\n  ✓  70 [msedge] › tests\\e2e\\transactions.spec.ts:126:1 › every export refusal class releases the camera lease in one session (8.5s)\n  ✓  71 [msedge] › tests\\e2e\\transactions.spec.ts:231:1 › a historical entity keeps its color through undo, redo, a remount, and a reload (4.1s)\n\n  71 passed (3.3m)"
+    }
+  ],
+  "cleanup": {
+    "worktreeRemoved": true,
+    "worktreePruned": true,
+    "broadCleanUsed": false
+  }
+}
