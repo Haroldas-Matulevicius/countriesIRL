@@ -467,7 +467,52 @@ another transaction also reads.
 
 ---
 
+## Composition Root (Phase 2)
+
+`src/App.tsx` is wiring and creator-safe feedback. It owns durable state and hands accessors
+down; it never re-implements a transaction, a validation, or a camera.
+
+**One handle accessor, shared by identity.** App holds exactly one `MapCanvasHandle` in a ref,
+binds it with a stable callback ref, and passes *the same* `getMapCanvasHandle` function to the
+save, load, and export hooks. Three separate accessors would mean three private handles, and
+the 1200px remount would leave some of them stale. Assert the identity, not the shape:
+
+```typescript
+expect(loadDependencies.getMapCanvasHandle).toBe(saveDependencies.getMapCanvasHandle);
+```
+
+**Never import a camera controller into App.** `useCameraController` belongs to `MapCanvas`. A
+second controller paints a second camera and the visible SVG stops following the handle every
+App callback is derived from. This is worth a structural test — the defect is an import.
+
+**The legend renders through `MapWorkspace`'s typed `legendSlot`, inside the canonical SVG.**
+A `<LegendOverlay/>` rendered as a *sibling* of `svg.map-canvas` is silently dropped by the
+export clone, and `isSingleCanonicalComposition` still **passes**, because neither the source
+nor the SVG then contains a legend. The only guards are containment assertions:
+
+| Level | Assertion | Catches |
+|---|---|---|
+| Unit (`App.test.tsx`, static markup) | legend index between the camera layer and `</svg>` | the refactor, at commit time |
+| Real-app E2E | `svg.map-canvas > [data-layer="legend"]` count 1 | the same, in a real browser |
+| Fixture E2E | — | **nothing**: the fixture re-implements the slot wiring |
+
+Never relocate or relax those two. See `export.md`, "A fixture cannot prove legend placement".
+
+**Responsive sections are keyed siblings, not conditional subtrees.** The map and the inspector
+carry stable `key`s so crossing 1200px *moves* the nodes instead of remounting the map; state
+that any remounted section shows (`useInspectorUiState`, `compositionName`,
+`savedColorsBaseline`) lives above the branch. `savedColorsBaseline` and `compositionName` stay
+out of the history snapshot — history is colors-only, which is the only reason undo/redo cannot
+resurrect a selection the active scene does not contain.
+
+**Unit-test the root with mocked hooks, in static markup.** Vitest runs on `node`: render with
+`renderToStaticMarkup`, mock `useGeoData` and the three transaction hooks, and assert what App
+*hands down* plus what the composed DOM *contains*. Behavior that needs effects, refs, or input
+belongs in the Chrome E2E suite.
+
+---
+
+*Last updated: 2026-07-25 — composition-root rules: one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections (plan 02-23).*
 *Last updated: 2026-07-25 — creator-safe status copy rules: bounded dynamic parameters, catalog-derived copy, data-derived bounds (plan 02-22).*
-*Last updated: 2026-07-25 — global action strip rules: position-free styling, single filled CTA, native disabled/busy, reset separation, synchronous activation lock (plan 02-22).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
