@@ -339,6 +339,15 @@ float digits. The row label is a human claim; use the epsilons, not `===`.
 and **loading over dirty work opens a confirmation dialog** (`Load Saved Map` /
 `Keep Editing`). Replacement uses the inline pre-action warning only — no extra modal.
 
+**A save failure is reported with save copy, a load failure with load copy.** Reasons are
+shared (`StorageErrorReason` + `map-canvas-unavailable`), so a fall-through `else` silently
+borrows the other operation's message: `map-canvas-unavailable` on **Save Current Map** used to
+read *"This saved composition could not be loaded"*, and `map-not-found` claimed the browser
+blocks local saves. Map each reason **exhaustively** in one pure `getSaveFailureMessage(reason)`
+/ load equivalent — a `switch` over the union, so a new reason is a type error rather than a
+wrong sentence — and unit-test that the messages stay distinct and never say "loaded" on a save
+path.
+
 **Dirty state needs a color baseline of its own.** The composition baseline covers camera,
 period, legend, and settings but not colors. The color baseline is set only by an explicit
 save or load — never by undo/redo, which must stay colors-only history.
@@ -356,5 +365,6 @@ stale. A save that stored it would be the stale-save bug. Assert
 
 ---
 
+*Last updated: 2026-07-25 — save-vs-load failure messaging rule (wave 6 review LOW-8).*
 *Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules (plan 02-20).*
 *Last updated: 2026-07-21 — initial Phase 1 storage rules. Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

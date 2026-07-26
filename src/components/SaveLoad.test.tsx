@@ -5,9 +5,11 @@ import { INITIAL_WORLD_CAMERA } from '../constants/camera';
 import { STORAGE_KEY } from '../constants/config';
 import type { SavedMapSummary } from '../types/ui';
 import { createStorageAdapter, isWholeWorldCamera } from '../utils/storage';
+import type { CompositionSaveFailureReason } from '../hooks/useCompositionSaveTransaction';
 import {
   getLegendEntrySummary,
   getLoadFeedback,
+  getSaveFailureMessage,
   getPeriodShortLabel,
   getSavedMapMetadata,
   restoreSaveLoadFocus,
@@ -175,6 +177,42 @@ describe('SaveLoad load feedback', () => {
     expect(getLoadFeedback([], [])).toEqual({
       message: 'Saved map loaded.',
       severity: 'success',
+    });
+  });
+});
+
+describe('SaveLoad save failure messages', () => {
+  const reasons: ReadonlyArray<CompositionSaveFailureReason> = [
+    'invalid-name',
+    'name-too-long',
+    'quota-exceeded',
+    'map-not-found',
+    'map-canvas-unavailable',
+    'storage-unavailable',
+  ];
+
+  it('never reports a save failure with load copy', () => {
+    reasons.forEach((reason): void => {
+      const message = getSaveFailureMessage(reason);
+      expect(message).not.toContain('loaded');
+      expect(message).not.toContain('could not be loaded');
+    });
+
+    // The two reasons the dialog previously mislabelled.
+    expect(getSaveFailureMessage('map-canvas-unavailable')).toBe(
+      'This map could not be saved and nothing was written. Try Save Current Map again.',
+    );
+    expect(getSaveFailureMessage('map-not-found')).toBe(
+      'This saved map is no longer available. The saved-map list has been refreshed.',
+    );
+  });
+
+  it('keeps every save failure class distinguishable', () => {
+    const messages = reasons.map(getSaveFailureMessage);
+
+    expect(new Set(messages).size).toBe(reasons.length);
+    messages.forEach((message): void => {
+      expect(message.length).toBeGreaterThan(0);
     });
   });
 });

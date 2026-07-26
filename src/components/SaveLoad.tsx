@@ -8,7 +8,10 @@ import {
 import type { FormEvent, KeyboardEvent } from 'react';
 
 import type { CompositionLoadTransactionOutcome } from '../hooks/useCompositionLoadTransaction';
-import type { CompositionSaveTransactionOutcome } from '../hooks/useCompositionSaveTransaction';
+import type {
+  CompositionSaveFailureReason,
+  CompositionSaveTransactionOutcome,
+} from '../hooks/useCompositionSaveTransaction';
 import type { CompositionLoadWarning } from '../types/composition';
 import type {
   SavedMapSummary,
@@ -67,6 +70,8 @@ const MAP_NOT_FOUND_ERROR =
   'This saved map is no longer available. The saved-map list has been refreshed.';
 const LOAD_FAILED_ERROR =
   'This saved composition could not be loaded. Your current map is unchanged.';
+const SAVE_FAILED_ERROR =
+  'This map could not be saved and nothing was written. Try Save Current Map again.';
 const CAMERA_BUSY_ERROR =
   'Finish the current export before loading a saved composition.';
 const SNAPSHOT_UNAVAILABLE_ERROR =
@@ -191,6 +196,31 @@ export function getLoadFeedback(
   return warningMessages.length > 0
     ? { message: warningMessages.join(' '), severity: 'warning' }
     : { message: 'Saved map loaded.', severity: 'success' };
+}
+
+/**
+ * A save failure must read as a save failure. Reporting `map-canvas-unavailable`
+ * with the load copy told a creator who pressed Save Current Map that a
+ * composition "could not be loaded", and `map-not-found` claimed the browser
+ * blocks local saves.
+ */
+export function getSaveFailureMessage(
+  reason: CompositionSaveFailureReason,
+): string {
+  switch (reason) {
+    case 'invalid-name':
+      return EMPTY_NAME_ERROR;
+    case 'name-too-long':
+      return NAME_TOO_LONG_ERROR;
+    case 'quota-exceeded':
+      return STORAGE_QUOTA_ERROR;
+    case 'map-not-found':
+      return MAP_NOT_FOUND_ERROR;
+    case 'map-canvas-unavailable':
+      return SAVE_FAILED_ERROR;
+    case 'storage-unavailable':
+      return STORAGE_UNAVAILABLE_ERROR;
+  }
 }
 
 function getStorageErrorMessage(
@@ -456,21 +486,22 @@ export function SaveLoad({
       setIsSaving(false);
 
       if (!result.ok) {
-        if (result.reason === 'invalid-name') {
-          setNameError(EMPTY_NAME_ERROR);
+        const message = getSaveFailureMessage(result.reason);
+        if (
+          result.reason === 'invalid-name' ||
+          result.reason === 'name-too-long'
+        ) {
+          setNameError(message);
           nameInputRef.current?.focus();
-        } else if (result.reason === 'name-too-long') {
-          setNameError(NAME_TOO_LONG_ERROR);
-          nameInputRef.current?.focus();
-        } else if (result.reason === 'quota-exceeded') {
-          setOperationError(STORAGE_QUOTA_ERROR);
+          return;
+        }
+
+        setOperationError(message);
+        if (result.reason === 'quota-exceeded') {
           savedMapsSectionRef.current?.scrollIntoView({ block: 'nearest' });
-        } else {
-          setOperationError(
-            result.reason === 'map-canvas-unavailable'
-              ? LOAD_FAILED_ERROR
-              : STORAGE_UNAVAILABLE_ERROR,
-          );
+        }
+        if (result.reason === 'map-not-found') {
+          refreshSavedMaps();
         }
         return;
       }
