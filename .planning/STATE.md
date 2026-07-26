@@ -3,197 +3,180 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "02-27 complete (final-integration spec written, gate re-run PASS at fe5f946); only owner gate 02-28 remains"
-last_updated: "2026-07-26T06:45:00.000Z"
-last_activity: "2026-07-26 -- 02-27 completed: the missing half landed. tests/e2e/final-integration.spec.ts is a genuine cross-domain journey, not a re-run of the six focused specs -- it colors two countries, labels both legend entries, zooms the camera, saves, exports, UNDOES and exports again, redoes, performs a REAL page.reload(), exports the blank page, loads the saved map back, and exports a fourth time. Every claim is measured on the downloaded PNG bytes. Two anti-tautology measures, because this phase shipped three unfailable gates: colors are counted in DISJOINT legend/map regions (a legend swatch is painted in the country own color, so a whole-frame count cannot tell France rasterized from the swatch rasterized), and the blank post-reload export is an in-test DISCRIMINATION CONTROL so the restored-vs-authored equality cannot be satisfied by two identical empty frames. Four RED probes, each made on a scratchpad copy outside the repo and restored from it (never git checkout --): legend at opacity 0 in the export clone failed BOTH tests at expected>200 received 0; a no-op handleUndo (with the DOM assertions stripped in a throwaway spec copy so the pixel claim stood alone) failed at expected 0 received 1209 blue pixels; an imprecise camera restore failed at 1.5 vs 1.5149999856948853; and dropping selection-class removal plus border normalization -- a PIXEL-ONLY regression no DOM assertion can see -- failed the map-red equality at 1077 vs 1209. Measured baselines recorded so a future author can tell a regression from a tight threshold: France ~1077 map pixels, Germany ~1209, one legend swatch ~570 corner pixels. Second test proves the legend FOLLOWS ITS POSITION into the pixels (top-left 0 after switching to bottom right, >200 arriving there) -- previously nothing proved legend placement reached the PNG, only that legend nodes survived into the clone. The exact-commit gate was then re-run against the final SHA fe5f946060707c48c3d9591d368b5f3f8f90dd4d and PASSED in 7m06s from a fresh detached clean worktree with fresh npm ci: lint clean, 516/516 unit across 38 files, tsc -b clean, world check 248/195, both blocked historical packets correctly FAILING CLOSED at exit 1 (which is the correct behavior, not a gate failure -- they are deferred for missing archival material, not missing approval), build clean, Chrome 71/71, Edge 71/71. Catalog is Modern-only, one entry, asset hash 45ccfed1... recorded == actual, zero historical snapshots promoted, all four packets BLOCKED with deliveryCounted=false. Worktree removed and pruned, no broad git clean, nothing leaked. HONEST GAPS: the evidence JSON records Node/npm/platform/arch but NOT browser versions, which the plan must-haves ask for -- the script was left unmodified per the handoff and Chrome 150.0.7871.182 / Edge 150.0.4078.83 are recorded by hand in the summary instead of being claimed as machine evidence; two stale temp worktrees predating this run were left alone rather than removed. No historicalPreparationCli.test.ts flakiness was observed (516/516 twice). coding-rules/export.md was updated in the SAME commit with the region-disjoint counting rule, the discrimination-control rule, the exported-bytes-follow-history rule, and the journey-owns-interactions boundary. Prior -- 02-26 and 02-36 executed: both 02-25 documentation patches are applied and the docs now describe the shipped project rather than the planned one. Each patch was hash-verified against 02-25-SUMMARY.md BEFORE applying (Patch A 78c88da4..., Patch B 460656f2...), applied with git apply and never by hand, and then proven a second way -- the diff regenerated from the working tree hashes to the SAME value as the artifact, so the tree holds exactly the approved bytes and nothing else. Exactly 8 files changed across the two patches with no overlap. The .gitattributes LF pin from 02-25 held; no line-ending drift. Contradictions actually resolved, not merely patched over: export.md banned 'Refresh the page' in creator copy and then recommended it three sections later as the blob-failure mitigation -- the row now returns encoding-failed and carries a note saying it used to say the opposite, so it cannot be quietly reverted; general.md's 'LocalStorage is guaranteed. Don't feature-detect' is struck through and corrected against the typed storage-unavailable/quota-exceeded reasons storage.ts literally returns (both strings checked against the source, not invented); data.md's three europe-1400/1700/1800.geojson files and useGeoData(timePeriod) signature never existed and are replaced by the real world asset plus the hash-verified catalog, with the old filenames surviving only inside explicit negations; frontend.md's geoAzimuthalEquidistant promise is replaced by the fixed-projection/camera-transform rule. CLAUDE.md drops the vercel deploy command that was never used and all seven commands it now lists were verified present in package.json. Footer hygiene now satisfies the project's own two-entry rule (frontend 7->2, export 4->2, storage 3->2, general 1->2), and the CODING_RULES index matches the real five section files exactly. REQUIREMENTS gained non-destructive F3/F7 supersession annotations and an NFR3 open-decision note; Phase 1 Release Acceptance is untouched and NO requirement checkbox was newly ticked -- F2.1-F2.5 remain explicitly not complete because the historical chain is deferred for missing archival source material. SCOPE GUARD HELD: nothing promotes historical geometry, the evidence bar is raised rather than softened, and CLAUDE.md now states outright that the packets are deferred for missing rights-cleared material and not pending a signature. APPROVAL STATUS, RECORDED HONESTLY: the owner's authorization was blanket, given in advance and SIGHT-UNSEEN; both hashes were computed AFTER it was given, so it is NOT hash-bound and must never be described as such. 02-25's Task 2 (full patch display plus explicit per-hash approval) was never executed. Authorization to proceed exists; content review does not -- which matters most for Patch B, whose F3/F7 'satisfied differently' vs 'deliberately not built' judgements are unreviewed. FOUND AND DELIBERATELY NOT FIXED: two CLAUDE.md rows route to .planning/codebase/STRUCTURE.md and .planning/PHASE2_PLANNING.md, neither of which has ever been committed; both rows predate the patch, and hand-editing outside the approved bytes would have destroyed the byte-identity proof that mitigates T-02-80, so they are logged in the phase deferred-items.md with two resolution options. Also note: the generic gsd-sdk state handlers were run and produced destructive, factually wrong edits (zeroed the progress counters, erased this activity log, and marked 02-27 complete when its integration spec is still missing); they were fully reverted and STATE/ROADMAP were updated by hand instead. Gates for both plans: lint clean, tsc -b clean, 516/516 unit across 38 files (identical to the 02-25 baseline), build clean. Playwright was not re-run -- no file under src/ or tests/ changed. Prior -- 02-24 executed: the Phase 2 visual system is now executable rather than advisory. theme.css carries the exact UI-SPEC 4/5 tokens; --map-* export tokens are declared exactly once in :root and a contract test walks nested at-rules (a @supports wrapping a @media is exactly where an accidental dark-mode override would hide) to prove no conditional block redefines one. Glass is progressive enhancement on three approved surfaces only, with opaque fallbacks restored under reduced transparency, increased contrast, and forced colors. Border and focus weights became --border-width/--focus-width across all four sheets, which is the only reason prefers-contrast: more can strengthen every boundary in one place. Layout: the desktop inspector is one shell at the exact 376px column with transparent hairline-divided sections instead of four stacked cards; the app bar is sticky and full-bleed, and .app lost its overflow-x, which computes overflow-y: auto on a non-viewport element and would have silently pinned the bar to .app instead of the viewport with nothing failing. touch-action: none is now scoped to svg.map-canvas alone and asserted to be its only owner; filter: brightness left the country hover state, and the contract test bans filter/box-shadow/text-shadow/mix-blend-mode/mask/clip-path on every export-content selector. The positional-selector ban 02-22 documented is now ENFORCED and immediately caught a second instance: App.css still painted the onboarding accent CTA with button:first-child. MapNavigation and OnboardingBanner received class hooks only (no markup, ARIA, or behavior change). tests/e2e/responsive.spec.ts adds 12 Chrome cases at 1440/1024/800/360 and the 200%-zoom-EQUIVALENT viewport (labelled as such -- physical zoom stays with 02-28), reusing 02-23's appHarness for expectOneCameraOwner at both sides of 1200px and asserting exact landmark counts at every viewport. Invariant 7 is PROVEN, not argued: the real app exports three times in separate browser contexts (light/DPR1, dark/DPR3, forced-colors/DPR2) and a 64-point pixel probe of the downloaded PNG is identical at exactly 1080x1080 each time. Two test-authoring traps were caught and fixed rather than loosened -- a stroke comparison sampling mid-transition, and a tab-order test starting from wherever focus happened to land (blurring does not reset the sequential navigation starting point). HONEST GAPS: MapNavigation still renders inside workspace__actions rather than as an overlay on the square, GlobalActions is not in the app bar, and the compact focus order therefore reads action strip -> navigation -> composition bar -> map; all three are App.tsx placement decisions outside this plan's file set and are recorded in the summary for a follow-up. prefers-reduced-transparency has no Playwright emulation and is asserted statically only. Gates: lint clean, tsc -b clean, build clean, 492/492 unit (37 files), Chrome 65/65, Edge 65/65 (Edge was last run at 02-21). Prior -- 02-23 executed: the composition root was verified, not rewritten. src/App.tsx and src/main.tsx are byte-identical to their pre-plan state, because every behavioral clause the plan names (provider bootstrap, delegated save/load/export, one callback-ref-bound MapCanvasHandle with no camera controller in App, legend through MapWorkspace's typed legendSlot, one keyed responsive workspace, one Reset View, three navigation actions) was already delivered by 02-29/02-30/02-22. What was missing were the guards. src/App.test.tsx went 3 -> 9 cases: save, load, and export must receive the SAME getMapCanvasHandle function object (identity, not shape -- three accessors would mean three private handles); the legend must sit between the camera layer and the canonical SVG's closing tag; one map-canvas, one workspace, and the exact landmark counts at both layouts; and a source-level guard that App never imports a camera controller. tests/e2e/transactions.spec.ts adds three real-app Chrome tests: one bound handle with the sentinel and an exactly-preserved camera at BOTH sides of 1200px with Reset View/Locate/Pan each moving the visible transform after a crossing; all three export refusal classes (legend-blocked, invalid-composition, export-failed) followed by success in ONE session with camera input renewed between every step; and a historical entity through color/undo/redo/save/remount/load where undo reverts colors and legend but never the selection. The historical browser fixture was extracted to tests/e2e/support/ and phase2-composition.spec.ts now imports it -- a pure move, no assertion touched. Both new guards were proven RED (a sibling-legend patch and a dropped-handle patch), then reverted. Gates: lint clean, tsc -b clean, build clean, 469/469 unit (36 files), Chrome 53/53. Prior -- 02-22 executed: the global UI surfaces now match the Phase 2 copy contract exactly. Controls carries the approved action order with Export as the only filled action, native disabled/aria-busy state, and Reset All Colors held out as its own destructive action; Controls.css was rekeyed from :nth-child/:last-child onto role classes, which the reorder would otherwise have silently mis-painted. Onboarding renders the Create your map heading, body, three Phase 2 steps, and the Start Creating CTA. The export failure copy no longer tells a creator to refresh away an in-memory composition, and Centered on {country}. now bounds the country name (initial uppercase, <=60 chars) instead of allowlisting a prefix -- which had accepted a raw 64-character hash and, separately, rejected the real name Falkland Islands / Malvinas. Period load-failure copy joined the catalog-derived approved announcements. Tests cover every approved status category positively and reject hashes, projection terms, schema text, source paths, stack frames, storage exception names, deferred-feature copy, and arbitrary strings across all four severities. No landmark, role, or aria-* attribute was moved or removed. Gates: lint clean, tsc -b clean, build clean, 463/463 unit (36 files), Chrome 50/50. Prior -- 02-30 executed: the export transaction moved out of App into useCompositionExportTransaction, which owns the activation lock, the CameraFreezeLease, the frozen-camera commit, selected-scene finalization, the legend gate, and the creator-safe outcome, and releases all three locks from one outermost finally on every path -- refusal, thrown preparation, thrown capture, and a thrown status callback (which is now logged rather than propagated). The transaction is built once per owner and reads its options through a ref, so a dependency change can never hand out a fresh unlocked activation flag mid-export. F5.5 is now genuinely end to end: App holds the composition name, set only on a committed save or load, and passes it to the exporter as an accessor -- a real Chrome download proves CountriesIRL_<date>.png unnamed and Baltic_Tour_2026_<date>.png after saving 'Baltic  Tour /2026!'. Gates: lint clean, tsc -b clean, build clean, 442/442 unit, Chrome 49/49. Prior -- 02-21 executed: the export clone now strips duplicate accessibility/editor semantics (roles, titles, ids, tab stops, all aria-*) and the outgoing crossfade layer while preserving every visible wrapped date-line path; borders are normalized across path.scene-path so wrapped repeats of a selected country no longer bake the selection treatment into the PNG; a new invalid-composition reason refuses a sibling/duplicate legend or a camera/legend reorder; the UI-SPEC named-filename sanitizer landed. tests/e2e/export.spec.ts + fixtures/export.html drive the real MapCanvas/LegendOverlay/exportMapPng with no stubs, download the PNG, and verify IHDR 1080x1080 plus opaque corner pixels. Gates: lint clean, tsc -b clean, build clean, 420/420 unit, Chrome 48/48, Edge 48/48. Prior -- 02-20 executed: Save/Load now renders the exact UI-SPEC 15 composition states (row metadata over a SavedMapSummary projection, legacy copy, two-step delete, dirty-load confirmation dialog) and a focused Chrome/Edge persistence slice proves mid-Locate and mid-wheel saves store the painted frame, not the stale committed camera. Gates: lint clean, tsc -b clean, 410/410 unit, Chrome 39/39, Edge 39/39."
+stopped_at: "Phase 2 engineering is COMPLETE and gate-verified at fe5f946060707c48c3d9591d368b5f3f8f90dd4d. Two owner gates remain OPEN: 02-25 (documentation approval -- patches applied, but the approval on file is blanket, sight-unseen and NOT hash-bound, and its Task 2 was never executed) and 02-28 (the human acceptance matrix -- prepared and bound to fe5f946, 60 automatable cells pre-filled with cited evidence, every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 are DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: hand 02-28 to the owner."
+last_updated: "2026-07-26T12:00:00.000Z"
+last_activity: "Per-plan execution narrative moved verbatim to phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md on 2026-07-26 so this field holds the current position rather than an accreting ledger. Latest: 02-27 completed and the exact-commit gate re-ran PASS at fe5f946 from a fresh detached worktree -- lint clean, 516/516 unit across 38 files, tsc -b clean, world 248 units / 195 selectable core states, both blocked historical packets failing closed at exit 1 (correct), build clean, Chrome 71/71, Edge 71/71; worktree removed and pruned. Catalog Modern-only, hash-verified, zero historical promotions. Then 02-28 was PREPARED, not completed."
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 58
-  completed_plans: 47
-  percent: 81
+  completed_plans: 48
+  percent: 83
 ---
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-07-25):** Phase 2 **descoped to Modern-only** — historical snapshots
-> deferred because the rights-cleared archival source material does not exist (blockers name
-> missing scans and geometry, not missing approval). The historical *engine* ships and is
-> tested. **22/36 plans complete, 8 deferred, 4 engineering + 2 owner gates remain.**
-> **Pointers:** [`ROADMAP.md`](ROADMAP.md) (Progress table is canonical) ·
-> [`MILESTONES.md`](MILESTONES.md) · [`ARCHIVES.md`](ARCHIVES.md) ·
-> [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md)
+> **Status (2026-07-26):** Phase 2 — **all engineering complete and gate-verified at
+> `fe5f946`; two owner gates OPEN.** Historical snapshots are **deferred** because the
+> rights-cleared archival source material does not exist — that is missing *material*, not
+> missing approval, and no sign-off can unblock it. The historical *engine* ships and is
+> tested. ▶ **Next: hand `02-28` (the physical acceptance matrix) to the owner.**
+> **Pointers:** [`ROADMAP.md`](ROADMAP.md) (**Progress table is canonical for status and
+> counts**) · [`coding-rules/general.md`](coding-rules/general.md) (**live invariants +
+> immutable safety constraints**) · [`MILESTONES.md`](MILESTONES.md) ·
+> [`ARCHIVES.md`](ARCHIVES.md) ·
+> [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
+> (session resumption).
 
 ## Project Reference
 
-- **Core value:** Help non-technical Instagram creators produce accurate, polished
-  choropleth maps quickly.
+- **Core value:** help non-technical Instagram creators produce accurate, polished choropleth
+  maps quickly.
 - **PROJECT.md last touched:** 2026-07-21.
 - **Stack:** React 18 + strict TypeScript + Vite; D3 v7 SVG; html2canvas; localStorage.
-  Browser-only, localhost-only. No backend, auth, or deployment.
+  Vitest (node environment, no DOM) + Playwright (installed Chrome + Edge).
+  **Browser-only, localhost-only — no backend, auth, or deployment exists or is claimed.**
 
 ## Current Position
 
-Phase: 02 (region-variants-advanced-features) — EXECUTING
-Next step: hand `02-28` (acceptance matrix) to the owner with the automated cells pre-filled.
-All Phase 2 engineering plans are complete; the verified SHA is `fe5f946`.
-Blocked on owner: `02-25` (doc patches — blanket pre-approval given, sight-unseen) and
-`02-28` (acceptance matrix — requires physically performed tests, cannot be delegated).
+Phase: **02** (Region Variants & Advanced Features) — EXECUTING; engineering done, owner-gated.
+Plans: **26 of 36 complete · 8 deferred · 0 engineering remaining · 2 owner gates open.**
+Verified SHA: **`fe5f946060707c48c3d9591d368b5f3f8f90dd4d`** — full gate PASS, evidence in
+[`02-27-EXACT-COMMIT.json`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-27-EXACT-COMMIT.json).
+Per-phase and per-group breakdown → [`ROADMAP.md`](ROADMAP.md) § Progress (canonical).
+
+**Next action:** hand
+[`02-28-ACCEPTANCE-MATRIX.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-28-ACCEPTANCE-MATRIX.md)
+to the owner. It is bound to `fe5f946`, the automatable cells are pre-filled with cited
+evidence, and **every physical cell is `PENDING`**.
+
+### The two open owner gates
+
+| Gate | State | Why it is still open |
+|---|---|---|
+| `02-25` — documentation approval | ⏳ **OPEN** | Both patches were produced and applied under a **blanket, in-advance, sight-unseen** authorization. Both patch hashes were computed *after* that authorization, so it is **not hash-bound**. Task 2 (full patch display + explicit per-hash approval) was never executed. Authorization to proceed exists; content review does not — which matters most for Patch B's unreviewed F3/F7 "satisfied differently" judgements. |
+| `02-28` — human acceptance matrix | ⏳ **OPEN** | It records checks a human **physically performs** — touch, screen reader, visual. Its own resume-signal rejects a generic "approved" and forbids substituting automation for a physical claim. A blanket approval does not satisfy it. Writing PASS into a cell nobody executed would be fabricating evidence. |
 
 ## Critical Pitfalls
 
-Rules live in [`coding-rules/`](coding-rules/) — load the relevant file before touching an area.
-Always read [`coding-rules/general.md`](coding-rules/general.md) first.
+**The nine live invariants and the ten immutable safety constraints are canonical in
+[`coding-rules/general.md`](coding-rules/general.md)** — read it before touching anything.
+They are deliberately not restated here. The domain files hold the detail:
 
-- Historical geometry, rights, and factual approvals are **never** inferred or fabricated;
-  executor self-approval is forbidden → [`coding-rules/data.md`](coding-rules/data.md)
-- A BLOCKED packet is not a delivered snapshot and is never counted as one
-- PNG output must be exactly 1080×1080, opaque, DPR-independent → `coding-rules/export.md`
-- One `MapCanvasHandle` owns the camera; save reads it live and non-locking, export takes an
-  idempotent freeze lease released in the outermost `finally`
-- Country browser and Locate stay on the modern 195-core catalog; historical-only entities
-  are map-interactive but never searchable
+| Area | File |
+|---|---|
+| Types, naming, testing, git + planning-file safety | [`coding-rules/general.md`](coding-rules/general.md) |
+| React / D3 / CSS / responsive / composition root | [`coding-rules/frontend.md`](coding-rules/frontend.md) |
+| World asset, catalog, historical approval chain | [`coding-rules/data.md`](coding-rules/data.md) |
+| PNG export, clone contract, refusal reasons | [`coding-rules/export.md`](coding-rules/export.md) |
+| Bounded V2 persistence, migration, confirmations | [`coding-rules/storage.md`](coding-rules/storage.md) |
+
+Two hazards worth naming here because they are *process*, not code:
+
+- **Executor self-reported checkpoints are not trusted for integration.** Independent non-author
+  review of the aggregate diff caught five real defects across three rounds on a single stack
+  that the executor had already marked resolved. Keep the review step for every stack.
+- **The gsd-sdk verbs `state.advance-plan`, `state.update-progress`, and
+  `roadmap.update-plan-progress` corrupt this repo's tracking files** — they infer status from
+  file presence. Edit `STATE.md` and `ROADMAP.md` by hand. Detail in
+  [`coding-rules/general.md`](coding-rules/general.md) § Planning-file safety.
 
 ## Accumulated Context
 
-### Roadmap Evolution (live window: 2026-07-24 onward)
+### Roadmap Evolution (live window: 2026-07-25 onward)
 
 Older entries → [`milestones/v1.0/ROADMAP-ARCHIVE.md`](milestones/v1.0/ROADMAP-ARCHIVE.md).
-Per-plan chronology → `phases/*/*-SUMMARY.md`.
+Per-plan chronology →
+[`02-ACTIVITY-LOG.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md)
+and the `02-NN-SUMMARY.md` files. One line per event here.
 
-- 2026-07-25 — **`02-30` complete.** The export transaction is out of `App` and into
-  `useCompositionExportTransaction`: one outermost `finally` releases the activation lock, the
-  camera lease, and the busy lock on every path, including the three strands the old inline
-  handler still had (a throwing `setIsExporting(true)` outside the `try`, a throwing legend/
-  handle read producing an unhandled rejection, and a throwing status callback escaping the
-  handler). The transaction is created once per owner and reads options through a ref — a
-  `useMemo`-rebuilt one would carry a fresh unlocked activation flag. F5.5 wired end to end:
-  the composition name is owned by `App` (identity shared with save and load, never by the
-  exporter) and proven through a real Chrome download. 442 unit tests, Chrome 49/49.
-- 2026-07-25 — **`02-21` complete.** The export utility stays pure (no camera lease) but now
-  strips semantics rather than geometry: every visible wrapped date-line path survives while
-  roles, titles, ids, tab stops, all `aria-*`, editor state, and the outgoing crossfade layer
-  are removed. Borders are normalized across `path.scene-path` — the previous
-  `path.country-path`-only rule left the 2px selection border on decorative wrapped repeats.
-  A new `invalid-composition` reason refuses a legend rendered beside the canonical SVG.
-  `tests/e2e/export.spec.ts` downloads the real PNG and checks IHDR 1080×1080 plus opaque
-  corners. 420 unit tests, Chrome 48/48, Edge 48/48.
-- 2026-07-25 — **`02-20` complete.** Save/Load renders the exact UI-SPEC 15 composition
-  states over a `SavedMapSummary` projection that never hands stored colors to the list
-  surface. Delete is a two-step inline confirmation; loading over unsaved work is confirmed.
-  `tests/e2e/persistence.spec.ts` proves mid-motion saves store the painted frame rather than
-  the stale committed camera. 410 unit tests, Chrome 39/39, Edge 39/39.
-- 2026-07-25 — **Phase 2 DESCOPED.** Historical snapshots 1492/1700/1815/1914 deferred to a
-  data-acquisition phase. All four packets verified truthfully BLOCKED offline. `02-17`
-  rescoped to Modern-only catalog verification and completed. `02-18` rescoped to a
-  catalog-driven selector. `F2.1`–`F2.5` annotated partially-satisfied.
-- 2026-07-25 — **Doc architecture rebuilt** to the three-layer model: `ARCHIVES.md`,
-  `MILESTONES.md`, `milestones/v1.0/` capsule (roadmap + decisions archives, archived Phase 1
-  phase dir). `ROADMAP.md` restructured with a canonical Progress table. 59 Phase 1 decisions
-  archived out of this file.
-- 2026-07-25 — **Historical source-readiness infrastructure integrated** (packet assembly,
-  hardened validation, 336→349 tests). Zero promotion; catalog remains Modern-only.
-- 2026-07-25 — **`02-27` exact-commit gate script written and validated end-to-end** against
-  `e41a3cf`: 10/10 gates in a detached clean worktree, blocked packets correctly failing
-  closed, worktree removed and pruned with no leak.
-- 2026-07-25 — Wave 5 wiring stack independently reviewed **twice**; four real defects found
-  that self-reported checkpoints had called resolved (stuck export gate, phantom cross-scene
-  selection, deleted inspector landmark, legend overflow clipping the PNG).
+- 2026-07-26 — **Documentation pass.** The invariants/constraints triplication across `STATE.md`,
+  `HANDOFF.json`, and `.continue-here.md` was resolved: contracts moved to
+  `coding-rules/general.md`, counts to the `ROADMAP.md` Progress table, resumption to
+  `.continue-here.md`. `HANDOFF.json` deleted (a one-shot artifact, already consumed). Both
+  `CLAUDE.md` rows pointing at files that never existed were removed.
+- 2026-07-26 — **`02-28` prepared, not completed.** The acceptance matrix was rebound to
+  `fe5f946` and 60 automatable cells pre-filled with cited evidence. It remains an OPEN gate.
+- 2026-07-26 — **`02-27` complete + exact-commit gate PASS at `fe5f946`.**
+  `tests/e2e/final-integration.spec.ts` measures a full creator journey on downloaded PNG bytes,
+  with region-disjoint colour counting and an in-test blank-export discrimination control so
+  neither claim can be satisfied tautologically. Four RED probes proven.
+- 2026-07-26 — **`02-26` + `02-36` complete.** Both `02-25` patches applied mechanically via
+  `git apply`, hash-verified before and re-derived after, so the tree holds exactly the approved
+  bytes. Approval status recorded honestly: blanket, sight-unseen, not hash-bound.
+- 2026-07-25 — **Phase 2 DESCOPED to Modern-only.** All four historical packets verified
+  truthfully BLOCKED offline. `02-17` rescoped to Modern-only catalog verification; `02-18` to a
+  catalog-driven selector; `F2.1`–`F2.5` annotated partially satisfied and **not** ticked.
+- 2026-07-25 — **Doc architecture rebuilt** to the three-layer model (`ARCHIVES.md`,
+  `MILESTONES.md`, `milestones/v1.0/` capsule). 59 Phase 1 decisions archived out of this file.
+- 2026-07-25 — Wave 5 wiring stack independently reviewed **twice**; four real defects found that
+  self-reported checkpoints had called resolved (stuck export gate, phantom cross-scene selection,
+  deleted inspector landmark, legend overflow clipping the PNG).
 
-### Decisions (recent)
+### Decisions (Phase 2, recent)
 
 Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/DECISIONS-ARCHIVE.md)
-(still binding — carried forward, not superseded).
+(still binding — carried forward, not superseded). Decisions that became durable engineering
+contracts have been promoted into `coding-rules/` and are not repeated here.
 
-- [Phase 02]: `--map-*` are export tokens, declared exactly once in `:root`. No media or
-  supports block may redefine one, or the exported PNG starts following the viewer's theme.
-- [Phase 02]: Glass is progressive enhancement over an opaque `:root` value, on three
-  surfaces only. Reduced transparency, increased contrast, and forced colors each restore the
-  opaque baseline.
-- [Phase 02]: Positional CSS selectors are banned on every interactive control, not just the
-  action strip, and the ban is enforced by `phase2CssContract.test.ts` rather than by review.
-- [Phase 02]: `overflow-x: hidden` stays on `body`. On any other element it computes
-  `overflow-y: auto` and silently disables `position: sticky` inside it.
-- [Phase 02]: Emulation a browser does not support is not evidence.
-  `prefers-reduced-transparency` is asserted statically and left to `02-28`; the 200% zoom
-  cell uses a halved CSS viewport labelled as the equivalent, never as physical zoom.
-- [Phase 02]: The composition name is identity owned by the composition root, set only on a
-  committed save or load. The export transaction receives it as an accessor and never holds
-  it — save, load, and export read one source of truth.
-- [Phase 02]: A hook that owns a lock builds its transaction exactly once and reads its
-  options through a ref. A `useMemo`-rebuilt transaction carries a fresh unlocked activation
-  flag and lets a second export start while the first still holds the camera lease.
-- [Phase 02]: The export transaction does not re-validate the source shape. `exportMapPng`
-  already refuses disconnected, multi-SVG, and sibling-legend sources before capture; a second
-  copy of those rules is drift, not safety. The transaction refuses only a `null` source.
-- [Phase 02]: Export strips duplicate accessibility/editor semantics but never wrapped
-  geometry; border normalization targets `path.scene-path`, not `path.country-path`.
-- [Phase 02]: A legend outside the canonical SVG is a hard `invalid-composition` failure
-  rather than a silently legend-less PNG.
-- [Phase 02]: Non-locking live camera read for save; idempotent `CameraFreezeLease` for
-  export, released from the outermost `finally` on every path.
-- [Phase 02]: Country browser/Locate stay at the modern 195 core. Out-of-scene rows are
-  disabled, not filtered out — the catalog stays the full 195.
-- [Phase 02]: Bound stored compositions before and after parse; migrate V1 in memory only.
-- [Phase 02]: Saved-map rows consume a `SavedMapSummary` projection; a period label is only
-  ever resolved through `SNAPSHOT_CATALOG`, so a deferred snapshot cannot be named from a
-  stored record.
-- [Phase 02]: The dirty-load gate uses a separate colors baseline in `App`, set only by an
-  explicit save or load — nothing new enters colors-only undo history.
-- [Phase 02 descope]: Ship Modern-only. The historical engine, validation, and
-  approval-aware promotion path are retained and tested so deferred snapshots drop in with
-  no rework. The evidence bar is **not** relaxed — delivery is deferred, not approved.
-- [Phase 02 process]: Executor self-reported checkpoints are not trusted for integration.
-  Every stack gets an independent non-author review of the aggregate diff. This has caught
-  four real defects across two rounds.
+- **Descope:** ship Modern-only. The historical engine, validation, and approval-aware promotion
+  path are retained and tested so deferred snapshots drop in with no rework. **The evidence bar is
+  not relaxed — delivery is deferred, not approved.**
+- **Process:** every stack gets an independent non-author review of the aggregate diff.
+- Emulation a browser does not support is not evidence. `prefers-reduced-transparency` is asserted
+  statically and left to `02-28`; the 200% zoom cell uses a halved CSS viewport **labelled as the
+  equivalent**, never as physical zoom.
+- The composition name is identity owned by the composition root, set only on a committed save or
+  load; the export transaction receives it as an accessor and never holds it.
+- A hook that owns a lock builds its transaction exactly once and reads options through a ref. A
+  `useMemo`-rebuilt transaction carries a fresh unlocked activation flag.
+- The export transaction does not re-validate source shape — `exportMapPng` already refuses
+  disconnected, multi-SVG, and sibling-legend sources. A second copy of those rules is drift.
+- Bound stored compositions before and after parse; migrate V1 in memory only. Saved-map rows
+  consume a `SavedMapSummary` projection, and a period label resolves only through
+  `SNAPSHOT_CATALOG` — so a deferred snapshot can never be named from a stored record.
+- The dirty-load gate uses a separate colors baseline in `App`, set only by an explicit save or
+  load; nothing new enters colors-only undo history.
 
 ### Pending Todos
 
-- Hand `02-28` to the owner; it must bind to verified SHA `fe5f946`.
-- Move `MapNavigation` onto the map square and `GlobalActions` into the app bar (UI-SPEC 8/10);
-  `02-24` styled both correctly but could not reposition them from CSS. This also restores the
-  UI-SPEC 20 compact focus order.
-- Diagnose the intermittent `historicalPreparationCli` failures before treating `npm test`
-  as a reliable `02-27` gate (see phase `deferred-items.md`). Reproduced again at `02-30`:
-  three isolated runs gave 1 failure, 2 failures, then 28/28.
-- `02-27` should adopt `tests/e2e/support/appHarness.ts` instead of re-declaring the camera
-  helpers; `persistence.spec.ts` and `phase2-composition.spec.ts` still hold local copies
-  (`02-24`'s `responsive.spec.ts` uses the shared harness).
-- Leave `02-28` signature-ready with automated cells pre-filled.
-- If hosting is ever requested, reopen the Vercel runbooks under new explicit authorization.
+- Hand `02-28` to the owner, bound to `fe5f946`.
+- **Diagnose the intermittent `historicalPreparationCli` failures** before treating `npm test` as
+  a reliable gate. Reproduced at `02-30`: three isolated runs gave 1 failure, 2 failures, then
+  28/28. Not observed during the `fe5f946` gate (516/516 twice). Detail in the phase
+  [`deferred-items.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/deferred-items.md).
+- `persistence.spec.ts` and `phase2-composition.spec.ts` still re-declare camera helpers instead of
+  importing `tests/e2e/support/appHarness.ts`.
+- Two stale temp worktrees predating the `02-27` gate run were left in place rather than removed.
+- If hosting is ever requested, reopen deployment under new explicit authorization.
 
-### Blockers/Concerns
+### Blockers / Concerns
 
-- **Historical data (deferred, not solvable by approval):** 1492 lacks Semkowicz-Romer scans,
-  the CNIG 15094 product archive, and manual-trace operator records/control points/geometry.
-  1700 lacks Karlowitz frontier demarcation and approved six-region geometry. Both also need
-  independent rights, factual, and topology review.
-- **`02-28` cannot be delegated.** Its resume-signal explicitly rejects generic approval and
-  forbids automation substitution for physical claims. Blanket owner approval does not
-  satisfy it; a human must perform the touch, screen-reader, and visual checks.
-- Firefox, Safari, and previous-version certification remain unverified and must never be
-  reported as passed.
-- No deployment, production URL, or backend exists or is claimed.
-
-## Known Constraints
-
-- Browser storage must handle capacity, quota, unavailable, corrupt-data, and partial-valid
-  load cases with distinct feedback.
-- Small territories and exclaves remain selectable through the country list.
-- PNG output must remain exactly 1080×1080, opaque white, centered, map-only, and
-  theme/device-pixel-ratio independent.
-- Acceptance evidence contains source tests only; `.claude/**` is gitignored and excluded.
-- Executable evidence harnesses, profiles, cache files, and nested checkouts stay outside
-  authoritative product evidence; immutable JSON/log history is retained unchanged.
-- **NFR3 timing threshold is an OPEN owner decision, not a settled one.** D-63 retired
-  timing gates for **Phase 1 only** ("the user explicitly directs that Phase 1 stop gating
-  on millisecond timing") and does not carry into Phase 2 on its own. Phase 2 currently
-  asserts no timing threshold and records warm period-switch samples plus their median as
-  advisory annotations in `tests/e2e/history.spec.ts`, so a threshold can be set from real
-  numbers. Do not cite D-63 to justify a Phase 2 timing decision.
+- **Historical data — deferred, and not solvable by approval.** 1492 lacks Semkowicz-Romer scans,
+  the CNIG 15094 product archive, and manual-trace operator records/control points/geometry. 1700
+  lacks Karlowitz frontier demarcation and approved six-region geometry; 1815 and 1914 have the
+  same class of gap. All four additionally need independent rights, factual, and topology review.
+- **`02-28` cannot be delegated, automated, or blanket-approved.** A human must perform the touch,
+  screen-reader, and visual checks.
+- **Firefox, Safari, and previous-version certification are unverified and must never be reported
+  as passed.** Acceptance is scoped to installed Chrome 150 + Edge 150.
+- **Browser versions are not machine-recorded.** The `02-27` evidence JSON captures Node, npm,
+  platform, and arch only; Chrome 150.0.7871.182 and Edge 150.0.4078.83 are recorded by hand in
+  `02-27-SUMMARY.md` and must not be presented as machine evidence.
+- **NFR3 timing threshold is an OPEN owner decision.** D-63 retired timing gates for **Phase 1
+  only** — "the user explicitly directs that Phase 1 stop gating on millisecond timing" — and does
+  **not** carry into Phase 2. Phase 2 asserts no threshold and records warm period-switch samples
+  plus their median as advisory annotations in `tests/e2e/history.spec.ts`, so a threshold can be
+  set from real numbers. **Do not cite D-63 to justify a Phase 2 timing decision.**
+- No deployment, production URL, backend, or auth exists or is claimed.
 
 ## Session Continuity
 
-Last session: 2026-07-25T23:45:00.000Z
-Stopped at: `02-24` complete (visual tokens, responsive slice, CSS contract)
-Resume file: [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
+- **Last session:** 2026-07-26 — documentation reorganization pass (planning docs only; no source,
+  test, or script file touched).
+- **Stopped at:** Phase 2 engineering complete and gate-verified at `fe5f946`; `02-28` prepared and
+  waiting on the owner.
+- **Resume file:**
+  [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
+  — the only session-resumption artifact. `HANDOFF.json` was deleted on 2026-07-26; it was a
+  one-shot handoff, already consumed, and had become a stale third copy of the contracts.
