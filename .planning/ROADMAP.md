@@ -121,7 +121,7 @@ Plans:
 - [x] 02-30-PLAN.md — **complete**: the export transaction lives in `useCompositionExportTransaction`, releasing the camera lease, activation lock, and busy lock from one outermost `finally` on every path (refusal, thrown preparation, thrown capture, thrown status callback); F5.5 wired end to end — the last committed save/load name reaches the PNG filename, proven by a real Chrome download
 
 **Wave 13**
-- [ ] 02-23-PLAN.md — Compose all Phase 2 subsystems while keeping App small and transaction ordering delegated
+- [x] 02-23-PLAN.md — **complete**: the composition root was verified rather than rewritten — `App.tsx`/`main.tsx` unchanged, because every clause already shipped in `02-29`/`02-30`/`02-22`. Added the missing guards: save/load/export share ONE `getMapCanvasHandle` by object identity, the legend must render between the camera layer and the canonical SVG close, one workspace/one canvas/exact landmark counts at both layouts, no camera controller in `App`; plus `tests/e2e/transactions.spec.ts` (one bound handle at both sides of 1200px, all three export refusal classes then success in one session with camera input renewed between each, historical entity through undo/redo/save/remount/load). Both guards proven RED.
 
 **Wave 14**
 - [ ] 02-24-PLAN.md — Apply the binding UI-SPEC and prove both static CSS constraints and real responsive browser behavior
@@ -310,7 +310,7 @@ elsewhere.
 
 ### Phase 2 plan ledger
 
-**20 complete · 8 deferred · 6 engineering remaining · 2 owner gates.**
+**21 complete · 8 deferred · 5 engineering remaining · 2 owner gates.**
 
 | Group | Plans | Status |
 |---|---|---|
@@ -323,14 +323,15 @@ elsewhere.
 | Historical approval + curation chain | `02-33`, `02-13`–`02-16`, `02-34`, `02-35` | ⏸ **DEFERRED** — no rights-cleared source material exists |
 | Wrapped-composition export + export transaction | `02-21`, `02-30` | ✅ complete (F5.5 wired end to end) |
 | Global UI surfaces + safe status copy | `02-22` | ✅ complete |
-| Remaining engineering | `02-23`, `02-24`, `02-26`, `02-36` | ⬜ not started |
+| Composition root + integrated transactions | `02-23` | ✅ complete (guards + `transactions.spec.ts`; `App.tsx` unchanged) |
+| Remaining engineering | `02-24`, `02-26`, `02-36` | ⬜ not started |
 | Final exact-SHA gate | `02-27` | 🔶 partial — gate script written and validated; `final-integration.spec.ts` outstanding |
 | Owner gates | `02-25` (docs), `02-28` (acceptance) | ⏳ pending owner |
 
-> The five remaining engineering plans are smaller than they look. Their *behavior* already
-> ships and is covered by 463 unit tests and 50 Chrome E2E cases; what remains is mostly
-> refactoring into the plans' named file shapes (the `App` composition root, split
-> per-domain E2E specs, a CSS contract test). See
+> The four remaining engineering plans are smaller than they look. Their *behavior* already
+> ships and is covered by 469 unit tests and 53 Chrome E2E cases; what remains is mostly
+> refactoring into the plans' named file shapes (split per-domain E2E specs, a CSS contract
+> test, the `02-25` doc patches). See
 > [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
 > for the per-plan breakdown.
 
@@ -338,12 +339,12 @@ elsewhere.
 
 | Gate | Result |
 |---|---|
-| `npm test` | 36 files, **463 tests** (see the tracked `historicalPreparationCli` flake) |
+| `npm test` | 36 files, **469 tests** (see the tracked `historicalPreparationCli` flake) |
 | `npm run lint` | clean |
 | `tsc -b` | clean |
 | `npm run data:world:check` | 248 units, 195 selectable core states |
 | `npm run build` | clean |
-| Chrome E2E | **50/50** |
+| Chrome E2E | **53/53** |
 | Edge E2E | **48/48** (last run at `02-21`) |
 | Historical promotion | **zero** — catalog Modern-only, hash-verified |
 
