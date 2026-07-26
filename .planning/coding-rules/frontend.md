@@ -375,6 +375,19 @@ leaves the starting point where focus was, so `Tab` resumes from the middle of t
 "proves" an order that begins wherever focus happened to land. Click a non-focusable element at
 the top of the document (the product title) first.
 
+**A focus-order test asserts the SPEC'd order. A test that documents a deviation is a comment,
+not a test.** If the composition does not match UI-SPEC 20 yet, the honest move is a failing
+test or an open gap — not a green assertion of the wrong order, which converts a temporary
+deviation into a pinned requirement that a later fix has to "break". Assert the relative
+position of every anchor the spec names, including the ones a control's disabled state removes:
+`Zoom Out` is absent at the whole-world fit, and asserting its absence is the difference between
+knowing why and not noticing.
+
+**Every focus-order claim needs a RED probe against the arrangement it replaced.** Move the
+component back where it was, watch the assertion fail, and put it back. The compact order test
+in this phase passed unchanged while `MapNavigation` sat in the action strip *and* after it
+became an overlay — it named the deviation in a comment and asserted nothing about it.
+
 **Read a computed style only after its transition settles.** Country paths carry a 150ms stroke
 transition, so an immediate read after `emulateMedia` samples a colour in flight. Poll to two
 equal consecutive reads.
@@ -647,8 +660,8 @@ belongs in the Chrome E2E suite.
 
 ---
 
+*Last updated: 2026-07-25 — composition-root placement rules: overlay-outside-the-export-source, one Controls with a declared variant, two homes for Reset All Colors, SPEC'd focus order with a RED probe (02-24 UI-SPEC gap closure).*
 *Last updated: 2026-07-25 — visual token rules: fixed `--map-*` export tokens, glass-over-opaque, tokenized border/focus weights, positional-selector ban on all controls (plan 02-24).*
 *Last updated: 2026-07-25 — composition-root rules: one shared handle accessor, no camera controller in App, legend containment guard levels, keyed responsive sections (plan 02-23).*
-*Last updated: 2026-07-25 — creator-safe status copy rules: bounded dynamic parameters, catalog-derived copy, data-derived bounds (plan 02-22).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

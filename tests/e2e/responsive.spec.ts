@@ -135,6 +135,48 @@ async function findHorizontalOverflow(page: Page): Promise<ElementBox[]> {
   });
 }
 
+/**
+ * Walks the sequential focus order from the current starting point.
+ *
+ * The caller must move the starting point first (click the product title):
+ * blurring leaves it wherever focus last was, so `Tab` resumes from the middle
+ * of the document and "proves" an order that begins at an arbitrary control.
+ */
+async function collectTabOrder(
+  page: Page,
+  steps: number,
+): Promise<ReadonlyArray<string>> {
+  const order: string[] = [];
+  for (let step = 0; step < steps; step += 1) {
+    await page.keyboard.press('Tab');
+    order.push(
+      await page.evaluate((): string => {
+        const active = document.activeElement;
+        if (active === null) {
+          return '';
+        }
+        return (
+          active.getAttribute('aria-label') ??
+          active.textContent?.trim().slice(0, 40) ??
+          ''
+        );
+      }),
+    );
+  }
+  return order;
+}
+
+function positionIn(
+  order: ReadonlyArray<string>,
+): (label: string) => number {
+  return (label: string): number => {
+    const index = order.indexOf(label);
+    expect(index, `"${label}" is not in the tab order: ${order.join(' > ')}`)
+      .toBeGreaterThanOrEqual(0);
+    return index;
+  };
+}
+
 async function measureTargets(page: Page): Promise<ElementBox[]> {
   return page.evaluate((): ElementBox[] =>
     [...document.querySelectorAll('button')]
@@ -346,6 +388,146 @@ test.describe('responsive world workspace', (): void => {
     }
   });
 
+  test('the map navigation cluster overlays the square outside the export source', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+
+    // UI-SPEC 10: an editor-only overlay at the top-left of the square.
+    await expect(
+      page.locator('.map-workspace__square > .map-navigation'),
+    ).toHaveCount(1);
+    /*
+     * The export clones `svg.map-canvas`, so this is the assertion that keeps
+     * chrome out of every PNG. `data-editor-only` would strip the cluster from
+     * the clone, but only if it were in the clone at all - placement is the
+     * primary guard and the attribute is the second one. This is the mirror of
+     * the legend containment assertion: the legend must be inside that SVG, the
+     * overlay must be outside it.
+     */
+    await expect(page.locator('.map-export-source .map-navigation')).toHaveCount(
+      0,
+    );
+    await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(
+      1,
+    );
+
+    const square = await page.locator('.map-workspace__square').boundingBox();
+    const cluster = await page
+      .locator('.map-navigation__cluster')
+      .boundingBox();
+    if (square === null || cluster === null) {
+      throw new Error('The navigation overlay is not composed on the square.');
+    }
+    expect(cluster.x).toBeGreaterThanOrEqual(square.x);
+    expect(cluster.y).toBeGreaterThanOrEqual(square.y);
+    // Top-left, not merely inside: the cluster sits in the first quarter of the
+    // square on both axes at every supported square size.
+    expect(cluster.x - square.x).toBeLessThan(square.width / 4);
+    expect(cluster.y - square.y).toBeLessThan(square.height / 4);
+
+    /*
+     * The wrapper is a positioning box wider than the buttons it holds. If it
+     * swallowed pointer input, the map paths and a top-left legend underneath it
+     * would stop being grabbable, and every existing test would still pass.
+     */
+    expect(
+      await page
+        .locator('.map-navigation')
+        .evaluate((element): string =>
+          globalThis.getComputedStyle(element).pointerEvents,
+        ),
+    ).toBe('none');
+    expect(
+      await page
+        .locator('.map-navigation__cluster')
+        .evaluate((element): string =>
+          globalThis.getComputedStyle(element).pointerEvents,
+        ),
+    ).toBe('auto');
+  });
+
+  test('the desktop app bar carries the global actions in the declared order', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+    await expectLayout(page, 'desktop');
+    await expectLandmarks(page, 'desktop');
+
+    // UI-SPEC 8: Undo, Redo, Save or Load Maps, Export PNG - on the bar, in
+    // that order, and nowhere else in the composed DOM.
+    const barActions = page.locator('.app > header [data-action]');
+    expect(
+      await barActions.evaluateAll((elements): ReadonlyArray<string> =>
+        elements.map((element): string =>
+          element.getAttribute('data-action') ?? '',
+        ),
+      ),
+    ).toStrictEqual(['undo', 'redo', 'save-load', 'export']);
+    await expect(page.locator('[data-action="export"]')).toHaveCount(1);
+    await expect(page.locator('.workspace__actions')).toHaveCount(0);
+
+    // UI-SPEC 11: content reset stays in the selection/color section, never on
+    // the bar and never beside Reset View.
+    await expect(
+      page.locator('.workspace__selection-color [data-action="reset-colors"]'),
+    ).toHaveCount(1);
+    await expect(page.locator('[data-action="reset-colors"]')).toHaveCount(1);
+    await expect(
+      page.locator('.app > header [data-action="reset-colors"]'),
+    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(1);
+
+    expect(await findHorizontalOverflow(page)).toStrictEqual([]);
+
+    const undersized = (await measureTargets(page)).filter(
+      (target): boolean =>
+        ICON_ONLY_LABELS.has(target.label)
+          ? target.height < COMPACT_TARGET_SIZE ||
+            target.width < COMPACT_TARGET_SIZE
+          : target.height < STANDARD_TARGET_HEIGHT,
+    );
+    expect(undersized).toStrictEqual([]);
+  });
+
+  test('the desktop focus order runs bar, composition bar, map, navigation, inspector', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+    await page.locator('.app > header h1').click();
+
+    const order = await collectTabOrder(page, 32);
+    const at = positionIn(order);
+
+    /*
+     * UI-SPEC 20, desktop: app/global actions, map composition bar, map
+     * countries, map navigation, inspector controls.
+     *
+     * Undo, Redo, and Reset All Colors are absent because they are natively
+     * disabled with no color history yet.
+     */
+    expect(order[0]).toBe('Save or Load Maps');
+    expect(at('Save or Load Maps')).toBeLessThan(at('Export PNG'));
+    expect(at('Export PNG')).toBeLessThan(at('Show Help'));
+    expect(at('Show Help')).toBeLessThan(at('Reset View'));
+    expect(at('Reset View')).toBeLessThan(at('Zoom In'));
+    expect(at('Zoom In')).toBeLessThan(at('Move Map'));
+
+    const country = order.findIndex((label): boolean =>
+      label.startsWith('Afghanistan, current color'),
+    );
+    expect(country, `no country in the tab order: ${order.join(' > ')}`)
+      .toBeGreaterThanOrEqual(0);
+    // The map comes before its navigation overlay, and both come before the
+    // inspector - the overlay is part of the map column, not the inspector.
+    expect(at('Reset View')).toBeLessThan(country);
+    expect(country).toBeLessThan(at('Zoom In'));
+    expect(at('Move Map')).toBeLessThan(at('Search countries'));
+  });
+
   test('the responsive focus order follows the declared workflow', async ({
     page,
   }): Promise<void> => {
@@ -361,34 +543,18 @@ test.describe('responsive world workspace', (): void => {
      */
     await page.locator('.app > header h1').click();
 
-    const order: string[] = [];
-    for (let step = 0; step < 20; step += 1) {
-      await page.keyboard.press('Tab');
-      order.push(
-        await page.evaluate((): string => {
-          const active = document.activeElement;
-          if (active === null) {
-            return '';
-          }
-          return (
-            active.getAttribute('aria-label') ??
-            active.textContent?.trim().slice(0, 40) ??
-            ''
-          );
-        }),
-      );
-    }
-
-    const positionOf = (label: string): number => {
-      const index = order.indexOf(label);
-      expect(index, `"${label}" is not in the tab order: ${order.join(' > ')}`)
-        .toBeGreaterThanOrEqual(0);
-      return index;
-    };
+    const order = await collectTabOrder(page, 32);
+    const positionOf = positionIn(order);
 
     /*
-     * UI-SPEC 7.4/20: the compact order is action strip, composition bar, map,
-     * then the inspector sections - never the country browser before the map.
+     * UI-SPEC 20, compact/mobile: action strip, composition bar, map, map
+     * navigation, selection/color, countries/Locate, legend.
+     *
+     * This asserts the SPEC'd order, not the order that happens to exist. Until
+     * `MapNavigation` became an overlay on the square it rendered inside
+     * `workspace__actions`, which put the camera cluster ahead of the
+     * composition bar and the map; this file previously named that deviation
+     * instead of failing on it.
      *
      * Undo, Redo, and Reset All Colors are absent because they are natively
      * disabled with no color history yet (UI-SPEC 8: disabled states are
@@ -404,15 +570,25 @@ test.describe('responsive world workspace', (): void => {
     const saveLoad = positionOf('Save or Load Maps');
     const exportPng = positionOf('Export PNG');
     const resetView = positionOf('Reset View');
+    const zoomIn = positionOf('Zoom In');
+    const moveMap = positionOf('Move Map');
     const country = order.findIndex((label): boolean =>
       label.startsWith('Afghanistan, current color'),
     );
     const countrySearch = positionOf('Search countries');
 
+    expect(country, `no country in the tab order: ${order.join(' > ')}`)
+      .toBeGreaterThanOrEqual(0);
     expect(saveLoad).toBeLessThan(exportPng);
     expect(exportPng).toBeLessThan(resetView);
     expect(resetView).toBeLessThan(country);
-    expect(country).toBeLessThan(countrySearch);
+    // The map navigation follows the map and precedes the inspector.
+    expect(country).toBeLessThan(zoomIn);
+    expect(zoomIn).toBeLessThan(moveMap);
+    expect(moveMap).toBeLessThan(countrySearch);
+    // Zoom Out is natively disabled at the whole-world fit, so it is correctly
+    // absent from the sequence rather than a reachable no-op.
+    expect(order).not.toContain('Zoom Out');
   });
 
   test('every disabled action in the responsive strip is natively disabled', async ({
