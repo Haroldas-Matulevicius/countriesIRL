@@ -5,8 +5,13 @@ import {
 } from '../utils/legend';
 import { APPROVED_PERIOD_ANNOUNCEMENTS } from '../utils/periods';
 
+/**
+ * The composition lives in browser memory only, so "Refresh the page" would
+ * destroy the creator's unsaved map. A capture failure is transient, so this is
+ * the one export refusal that keeps a retry affordance (UI-SPEC section 22).
+ */
 const EXPORT_FAILURE_MESSAGE =
-  'The PNG could not be created. Refresh the page and try Export PNG again.';
+  'The PNG could not be created. Your map is unchanged. Try Export PNG again.';
 /**
  * A refused composition is decided synchronously, before any capture, so the
  * generic export failure would be a lie twice over: a retry re-enters the same
@@ -72,8 +77,16 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
 const SELECTION_MESSAGE_PATTERN = /^\d+ (?:country|countries) selected\.$/;
 const COLOR_MESSAGE_PATTERN =
   /^Applied (?:Red|Green|Blue|Yellow|Magenta|Cyan|Orange|Violet|White|Gray|#[0-9A-F]{6}) to \d+ (?:country|countries)\.$/;
+/**
+ * The country name is a bounded semantic parameter, not an arbitrary prefix:
+ * it must read like a catalog country name - an initial uppercase letter and at
+ * most 60 characters (the longest shipped name is 36). That rejects a raw
+ * 64-character content hash, a lowercase identifier, and a file path, while
+ * still accepting every name in the world catalog, including `Åland Islands`
+ * and `Falkland Islands / Malvinas`.
+ */
 const CENTERED_MESSAGE_PATTERN =
-  /^Centered on [\p{L}\p{N} .,'’()&-]{1,100}\.$/u;
+  /^Centered on \p{Lu}[\p{L}\p{N} .,'’()&/-]{0,59}\.$/u;
 /**
  * Legend labels accept any character up to 32 (`LegendEditor` + `legend.ts`),
  * so the guard bounds the label by length rather than allowlisting a partial

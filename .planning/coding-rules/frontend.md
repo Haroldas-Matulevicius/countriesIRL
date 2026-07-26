@@ -380,6 +380,39 @@ control stays event-only and owns no transaction state.
 
 ---
 
+## Creator-Safe Status Copy (Phase 2)
+
+**`ToastRegion` is a boundary, not a renderer.** Everything it receives is untrusted until it
+matches the allowlist: an exact approved string, or a bounded dynamic pattern. Anything else
+degrades to the severity fallback (`Map updated.` / warning / error). Hashes, projection terms,
+schema versions, file paths, stack frames, and DOM exception names therefore cannot reach a
+creator even if a future call site passes one straight through.
+
+**A dynamic message must bound its semantic parameter, not just its prefix.**
+`^Centered on .{1,100}\.$` is an allowlisted *prefix* — it happily announces a 64-character
+content hash. Bound the parameter to the shape the real value has (`Centered on` takes a country
+name: initial uppercase letter, ≤60 characters).
+
+**Derive the bound from the real data, never from an assumed charset.** An invented
+"safe characters" list silently degraded `Falkland Islands / Malvinas` and
+`Allies & "Central Powers"` to the generic fallback. Check the candidate pattern against the
+whole shipped catalog before committing it; prefer a length + control-character bound over a
+character allowlist, since React escapes the text anyway.
+
+**Copy that names catalog data is generated from the catalog constants**
+(`APPROVED_PERIOD_ANNOUNCEMENTS`), so a manifest-supplied label can never reach the live region.
+Listing a deferred snapshot's copy in the allowlist does not make it reachable — reachability is
+decided by `resolvePeriodOptions`.
+
+**Every message a component can emit needs a positive allowlist test in the same change.** A new
+`onStatusMessage(...)` string with no test is a silent downgrade to `Map updated.` — it renders,
+so nothing fails.
+
+**Onboarding and status copy never advertise a deferred feature.** No "coming soon", no keyboard
+shortcut that is not bound, no control that does not exist.
+
+---
+
 ## Transaction Hooks (Phase 2)
 
 A *transaction hook* (`useComposition{Save,Load,Export}Transaction`) is a pure factory plus a
@@ -434,7 +467,7 @@ another transaction also reads.
 
 ---
 
+*Last updated: 2026-07-25 — creator-safe status copy rules: bounded dynamic parameters, catalog-derived copy, data-derived bounds (plan 02-22).*
 *Last updated: 2026-07-25 — global action strip rules: position-free styling, single filled CTA, native disabled/busy, reset separation, synchronous activation lock (plan 02-22).*
-*Last updated: 2026-07-25 — inert-behind-confirmation and Escape-layering rules (wave 6 review MEDIUM-4/MEDIUM-5).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

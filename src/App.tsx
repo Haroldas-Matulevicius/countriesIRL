@@ -980,7 +980,7 @@ export default function App(): JSX.Element {
       <OnboardingBanner
         isVisible={isHelpRendered}
         onDismiss={dismissHelpAndFocusMap}
-        onStartColoring={dismissHelpAndFocusMap}
+        onStartCreating={dismissHelpAndFocusMap}
       />
 
       <main

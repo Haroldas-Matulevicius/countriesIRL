@@ -142,9 +142,9 @@ async function waitForApp(page: Page): Promise<void> {
   await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
     LOGICAL_CORE_COUNT,
   );
-  const startColoring = page.getByRole('button', { name: 'Start Coloring' });
-  if (await startColoring.isVisible()) {
-    await startColoring.click();
+  const startCreating = page.getByRole('button', { name: 'Start Creating' });
+  if (await startCreating.isVisible()) {
+    await startCreating.click();
   }
 }
 

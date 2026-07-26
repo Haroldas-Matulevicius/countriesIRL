@@ -132,14 +132,14 @@ sanitize rule that deletes or reorders a required layer.
 
 ### Every refusal reason needs its own creator-facing message
 
-**A synchronous refusal must never be reported as the generic export failure.** The generic
-copy says *"Refresh the page and try Export PNG again."* and offers a retry. Both are wrong for
-a refusal decided before capture:
+**A synchronous refusal must never be reported as the generic export failure.** The generic copy
+(*"The PNG could not be created. Your map is unchanged. Try Export PNG again."*) offers a retry,
+which is wrong for a refusal decided before capture: the retry re-enters the identical
+synchronous refusal, forever. That is the permanently stuck export gate wearing a different hat.
 
-- the composition lives **only in browser memory**, so refreshing destroys every unsaved color,
-  camera, period, and legend — the advice is destructive, not corrective;
-- the retry re-enters the identical synchronous refusal, forever. That is the permanently stuck
-  export gate wearing a different hat.
+**No export message may ever say "Refresh the page."** The composition lives **only in browser
+memory**, so refreshing destroys every unsaved color, camera, period, and legend — the advice is
+destructive, not corrective, even for a genuinely transient capture failure.
 
 | Reason | Message shape | Retry offered |
 |---|---|---|
@@ -441,6 +441,6 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7). Prior: 2026-07-25 — added the export transaction ownership contract and the composition-name source of truth (plan 02-30).*
+*Last updated: 2026-07-25 — the generic export failure copy no longer says "Refresh the page" (plan 02-22). Prior: 2026-07-25 — reference-aware id stripping, the zero-legend contract, the real-app legend-containment rule, and the per-reason export refusal messaging contract (wave 6 review HIGH-1, MEDIUM-2, LOW-6, LOW-7).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

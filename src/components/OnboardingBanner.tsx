@@ -1,13 +1,13 @@
 interface OnboardingBannerProps {
   isVisible: boolean;
   onDismiss: () => void;
-  onStartColoring: () => void;
+  onStartCreating: () => void;
 }
 
 export function OnboardingBanner({
   isVisible,
   onDismiss,
-  onStartColoring,
+  onStartCreating,
 }: OnboardingBannerProps): JSX.Element | null {
   if (!isVisible) {
     return null;
@@ -19,19 +19,19 @@ export function OnboardingBanner({
       aria-labelledby="onboarding-heading"
       aria-describedby="onboarding-description"
     >
-      <h2 id="onboarding-heading">Start your map</h2>
+      <h2 id="onboarding-heading">Create your map</h2>
       <p id="onboarding-description">
-        Select countries, choose a color, then export a square PNG for
-        Instagram.
+        Color countries, move the world to frame your view, and export a square
+        PNG with a polished legend.
       </p>
       <ol>
-        <li>Select one country on the map or several from the list.</li>
-        <li>Choose a preset or enter a custom color.</li>
-        <li>Export PNG when the map is ready.</li>
+        <li>Select countries and apply colors.</li>
+        <li>Move the map or choose a historical period.</li>
+        <li>Edit the legend, then export the exact view.</li>
       </ol>
       <div>
-        <button type="button" onClick={onStartColoring}>
-          Start Coloring
+        <button type="button" onClick={onStartCreating}>
+          Start Creating
         </button>
         <button type="button" onClick={onDismiss}>
           Dismiss Help

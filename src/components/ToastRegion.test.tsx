@@ -6,7 +6,20 @@ import {
   LEGEND_OVERFLOW_MESSAGE,
   getLegendBlockingMessage,
 } from '../utils/legend';
+import { getPeriodFailureMessage } from '../utils/periods';
 import { TOAST_MESSAGES, ToastRegion } from './ToastRegion';
+
+function renderToast(
+  message: string,
+  severity: 'success' | 'info' | 'warning' | 'error' = 'info',
+): string {
+  return renderToStaticMarkup(
+    <ToastRegion
+      message={{ id: `toast-${severity}`, severity, message }}
+      onDismiss={vi.fn()}
+    />,
+  );
+}
 
 describe('color application messages', (): void => {
   it('uses singular and plural country grammar', (): void => {
@@ -200,6 +213,152 @@ describe('color application messages', (): void => {
       expect(markup).toContain('Map updated.');
       expect(markup).not.toContain(message);
     });
+  });
+
+  it('covers every approved Phase 2 status category', (): void => {
+    const approved = [
+      // Camera
+      'Centered on Poland.',
+      'Centered on Bosnia and Herzegovina.',
+      'Centered on Åland Islands.',
+      // A real catalog name with a slash: it is a country name, not two paths.
+      'Centered on Falkland Islands / Malvinas.',
+      'Map view reset.',
+      // Period
+      'Showing Modern — current borders.',
+      'Showing 1914 — Before World War I.',
+      getPeriodFailureMessage('1914 — Before World War I'),
+      // Legend
+      'Legend added. Open Legend to edit labels.',
+      'Legend moved to Bottom right.',
+      'Legend position updated.',
+      'Legend order updated.',
+      'Moved Allies to position 1 of 2.',
+      // Colors and history
+      'No countries selected.',
+      '3 countries selected.',
+      'Applied Red to 2 countries.',
+      'Applied #1A2B3C to 1 country.',
+      'Color change undone.',
+      'Color change redone.',
+      'All colors reset. Use Undo Color Change to restore them.',
+      // Persistence
+      'Map saved to this browser.',
+      'Saved map replaced.',
+      'Saved map loaded.',
+      'Saved map deleted.',
+      'Older saved map loaded with a modern world view. Save it again to keep the full composition.',
+      'Saved map loaded, but some invalid saved colors were omitted.',
+      'This browser blocked local saves. You can keep editing and export a PNG, but maps cannot be saved here.',
+      'Browser storage is full. Delete an older saved map, then save this map again.',
+      // Export
+      'PNG downloaded at 1080 × 1080.',
+      TOAST_MESSAGES.exportFailed,
+      TOAST_MESSAGES.exportLayoutInvalid,
+    ];
+
+    // React escapes the message when it renders it as text.
+    const escapeHtml = (value: string): string =>
+      value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#x27;');
+
+    approved.forEach((message): void => {
+      const markup = renderToast(message);
+      expect(markup).toContain(escapeHtml(message));
+      expect(markup).not.toContain('Map updated.');
+    });
+  });
+
+  it('states the export failure without a refresh instruction', (): void => {
+    // The composition is browser-memory only: "Refresh the page" would destroy
+    // the unsaved map instead of repairing the export.
+    expect(TOAST_MESSAGES.exportFailed).toBe(
+      'The PNG could not be created. Your map is unchanged. Try Export PNG again.',
+    );
+    expect(renderToast(TOAST_MESSAGES.exportFailed, 'error')).not.toContain(
+      'Refresh the page',
+    );
+  });
+
+  it('offers the retry affordance only for the recoverable export failure', (): void => {
+    const withRetry = (message: string): string =>
+      renderToStaticMarkup(
+        <ToastRegion
+          message={{ id: 'retry', severity: 'error', message, retry: vi.fn() }}
+          onDismiss={vi.fn()}
+        />,
+      );
+
+    expect(withRetry(TOAST_MESSAGES.exportFailed)).toContain('Try Export Again');
+    expect(withRetry(TOAST_MESSAGES.exportLayoutInvalid)).not.toContain(
+      'Try Export Again',
+    );
+    expect(withRetry(LEGEND_OVERFLOW_MESSAGE)).not.toContain('Try Export Again');
+  });
+
+  it('rejects technical and arbitrary text in every severity', (): void => {
+    const rejected = [
+      // Raw content hash
+      'a'.repeat(64),
+      '3b1f8c2d4e5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c',
+      // A bounded parameter is not a place to smuggle one either
+      `Centered on ${'a'.repeat(64)}.`,
+      // Projection terminology
+      'Mercator projection updated.',
+      'Showing Mercator — current borders.',
+      // Schema and versioning
+      'schemaVersion 3 migrated.',
+      'Saved map schema 2 upgraded to 3.',
+      // Source paths and filenames
+      'public/data/snapshots/1700.geojson could not be read.',
+      'world-modern.geojson loaded.',
+      // Stack traces and error frames
+      "TypeError: Cannot read properties of null (reading 'ownerDocument')",
+      '    at exportMapPng (src/utils/export.ts:42:9)',
+      // Storage exception names
+      'QuotaExceededError',
+      'DOMException: QuotaExceededError',
+      'SecurityError: The operation is insecure.',
+      // Deferred features must not be advertised
+      'Historical borders for 1492 are coming soon.',
+      'Batch export is coming soon.',
+      // Arbitrary strings
+      'Something went wrong',
+      'OK',
+      'Click here now.',
+    ];
+
+    rejected.forEach((message): void => {
+      expect(renderToast(message, 'success')).toContain('Map updated.');
+      expect(renderToast(message, 'info')).toContain('Map updated.');
+      expect(renderToast(message, 'warning')).toContain(
+        'The operation completed with a warning.',
+      );
+      expect(renderToast(message, 'error')).toContain(
+        'The operation could not be completed. Please try again.',
+      );
+      expect(renderToast(message, 'error')).not.toContain(message);
+    });
+  });
+
+  it('keeps one polite status for information and one assertive alert for errors', (): void => {
+    const status = renderToast('Saved map loaded.', 'success');
+    expect(status).toContain('role="status"');
+    expect(status).toContain('aria-live="polite"');
+    expect(status).not.toContain('role="alert"');
+
+    const alert = renderToast(TOAST_MESSAGES.exportFailed, 'error');
+    expect(alert).toContain('role="alert"');
+    expect(alert).toContain('aria-live="assertive"');
+    expect(alert).not.toContain('role="status"');
+
+    // One toast, one dismiss control, exact label.
+    expect(status.match(/<section/gu)).toHaveLength(1);
+    expect(status.match(/Dismiss Message/gu)).toHaveLength(1);
   });
 
   it('allows singular color feedback through the approved-message guard', (): void => {

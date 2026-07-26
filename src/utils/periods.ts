@@ -123,13 +123,16 @@ export function getShowingPeriodMessage(periodLabel: string): string {
 
 /**
  * Every announcement the period control can produce, built from approved copy
- * so the toast allowlist stays fail-closed on manifest-supplied text.
+ * so the toast allowlist stays fail-closed on manifest-supplied text. Listing a
+ * deferred snapshot's copy here does not make it reachable - the selector is
+ * driven by `resolvePeriodOptions`, which never offers an unapproved entry.
  */
 export const APPROVED_PERIOD_ANNOUNCEMENTS: ReadonlyArray<string> = [
   PERIOD_COPY.viewReset,
-  ...SNAPSHOT_CATALOG.map((entry): string =>
+  ...SNAPSHOT_CATALOG.flatMap((entry): ReadonlyArray<string> => [
     getShowingPeriodMessage(entry.label),
-  ),
+    getPeriodFailureMessage(entry.label),
+  ]),
 ];
 
 export function getHistoricalCoverageStatus(

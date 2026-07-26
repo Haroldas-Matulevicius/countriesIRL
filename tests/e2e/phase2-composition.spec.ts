@@ -57,9 +57,9 @@ async function waitForApp(page: Page): Promise<void> {
   await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
     LOGICAL_CORE_COUNT,
   );
-  const startColoring = page.getByRole('button', { name: 'Start Coloring' });
-  if (await startColoring.isVisible()) {
-    await startColoring.click();
+  const startCreating = page.getByRole('button', { name: 'Start Creating' });
+  if (await startCreating.isVisible()) {
+    await startCreating.click();
   }
 }
 
@@ -779,7 +779,7 @@ test('real app export failure and frozen load both release without false success
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(
     page.getByText(
-      'The PNG could not be created. Refresh the page and try Export PNG again.',
+      'The PNG could not be created. Your map is unchanged. Try Export PNG again.',
     ),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Zoom In' }).click();
@@ -823,7 +823,7 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   );
   await expect(
     page.getByText(
-      'The PNG could not be created. Refresh the page and try Export PNG again.',
+      'The PNG could not be created. Your map is unchanged. Try Export PNG again.',
     ),
   ).toHaveCount(0);
   await expect(
@@ -844,7 +844,7 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   });
   await expect(
     page.getByText(
-      'The PNG could not be created. Refresh the page and try Export PNG again.',
+      'The PNG could not be created. Your map is unchanged. Try Export PNG again.',
     ),
   ).toHaveCount(0);
 });
