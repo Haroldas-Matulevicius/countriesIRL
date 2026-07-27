@@ -370,7 +370,7 @@ describe('App composition root', () => {
     expect(cameraIndex).toBeGreaterThan(svgStart);
   });
 
-  it('overlays map navigation on the square and never inside the export source', () => {
+  it('places map navigation after the square and never inside the export source', () => {
     stubWindow(true, createMemoryStorage());
     mocks.world.current = READY_WORLD;
 
@@ -383,9 +383,17 @@ describe('App composition root', () => {
     const navigationIndex = markup.indexOf('class="map-navigation"');
     const squareEnd = markup.indexOf('class="workspace__selection-color"');
 
-    // Inside the square (UI-SPEC 10) but after the export source closes: the
-    // clone starts at `svg.map-canvas`, so an overlay placed after it cannot
-    // reach the PNG. Moving it under MapCanvas would put chrome in the export.
+    /*
+     * After the export source closes: the clone starts at `svg.map-canvas`, so
+     * chrome placed after it cannot reach the PNG. Moving it under MapCanvas
+     * would put chrome in every export.
+     *
+     * It is no longer *inside* the square either. As a top-left overlay it sat
+     * on top of a `top-left` legend - the default legend position - and that
+     * collision has no fix on the legend side: the cluster is sized in screen
+     * pixels while the legend is placed in 1080-unit canvas space, so no fixed
+     * rectangle in the export's coordinate system can reserve room for it.
+     */
     expect(navigationIndex).toBeGreaterThan(exportSourceEnd);
     expect(exportSourceEnd).toBeGreaterThan(squareIndex);
     expect(navigationIndex).toBeLessThan(squareEnd);

@@ -183,15 +183,31 @@
 }
 
 /*
- * UI-SPEC 7.1: the inspector is one shell that scrolls independently, capped at
- * the viewport minus the app bar and 32px of bottom breathing room, so the map
+ * UI-SPEC 7.1: the inspector is one shell that scrolls independently, so the map
  * never scrolls out of view while the user works in the country list.
+ *
+ * Sticky, and capped below the app bar rather than below the viewport top. The
+ * cap used to be `100dvh - 64px` on a static element that starts ~105px down the
+ * page, so the shell ran roughly 48px past the fold AND scrolled away with the
+ * page - the independent scroll it promised only held until the creator scrolled
+ * the (much taller) map column. `--space-3xl + --space-2xl` clears the app bar;
+ * the extra `--space-lg` is the bottom breathing room.
+ *
+ * The offset is a sum of tokens rather than a literal so it moves with the
+ * spacing scale, and sticky is safe here because `.app` declares no `overflow`
+ * (a scroll container ancestor would silently kill it).
  */
 .workspace__control-column {
+  position: sticky;
+  top: calc(var(--space-3xl) + var(--space-2xl));
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - var(--space-3xl));
-  max-height: calc(100dvh - var(--space-3xl));
+  max-height: calc(
+    100vh - var(--space-3xl) - var(--space-2xl) - var(--space-lg)
+  );
+  max-height: calc(
+    100dvh - var(--space-3xl) - var(--space-2xl) - var(--space-lg)
+  );
   overflow-y: auto;
   overscroll-behavior: contain;
   gap: var(--space-lg);

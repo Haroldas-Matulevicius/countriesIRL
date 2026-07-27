@@ -167,31 +167,25 @@
 
 /*
  * UI-SPEC 10: one glass surface holding three 44x44 icon-only controls, not
- * three floating pills, positioned as an editor-only overlay at the top-left of
- * the square. The 44px targets themselves are set by the component and asserted
- * in MapNavigation.test.tsx.
+ * three floating pills. The 44px targets themselves are set by the component
+ * and asserted in MapNavigation.test.tsx.
  *
- * `pointer-events: none` on the wrapper with `auto` restored on the cluster and
- * popover: the wrapper is a positioning box that spans more than the controls it
- * holds, and an overlay that swallows pointer input over the square would take
- * hit area away from the map and from a top-left legend (UI-SPEC 12), which is
- * draggable.
+ * It is a toolbar row BELOW the square, not an overlay on it. As an overlay at
+ * the top-left it sat on top of a `top-left` legend, which is the default
+ * legend position, and the cluster is measured in screen pixels while the
+ * legend is placed in 1080-unit canvas space - so no fixed rectangle in the
+ * export's coordinate system can reserve room for it. The chrome moves; the
+ * legend keeps the whole safe area.
+ *
+ * `position: relative` only so the Move Map popover can be absolute and open
+ * without pushing the inspector down.
  */
 .map-navigation {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
+  position: relative;
   z-index: 3;
   display: flex;
   align-items: flex-start;
-  flex-direction: column;
-  gap: var(--space-sm);
-  pointer-events: none;
-}
-
-.map-navigation__cluster,
-.map-navigation__popover {
-  pointer-events: auto;
+  margin-top: var(--space-sm);
 }
 
 .map-navigation__cluster {
@@ -217,7 +211,17 @@
   place-items: center;
 }
 
+/*
+ * Absolute, opening downward from the toolbar: in flow it would push the whole
+ * inspector down every time Move Map is toggled. Downward rather than upward so
+ * it never lands back on the square, which is the collision this layout exists
+ * to remove.
+ */
 .map-navigation__popover {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  left: 0;
+  z-index: 4;
   display: grid;
   padding: var(--space-xs);
   border: var(--border-width) solid var(--border-default);

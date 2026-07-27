@@ -476,6 +476,48 @@ acceptance matrix; do not simulate it and label the result browser proof.
 the column; its sections are transparent panes separated by hairlines. Compact and mobile keep
 per-section cards because the sections are top-level workspace children there, not shell contents.
 
+**Every block in the inspector column obeys the shell rule, including the ones that are not
+`<section>`s.** `.locate-country` is a `div` inside the country-list wrapper, so it inherited
+neither the compact card nor the desktop flattening and rendered directly on the page background
+at compact — the only block in the column that did. When a new block joins the column, add it to
+both the card rule and the `.workspace--desktop .workspace__control-column …` flattening rule in
+the same change.
+
+**A row of full-phrase controls has no width at which it fits a 376px column.** `Countries |
+Search countries [input] | Select Visible | Clear Selection` as one flex row needed ~412px inside
+374px: both actions were clipped to their first letter and the column grew its own horizontal
+scrollbar. Stack labelled controls; reserve rows for icon-only or single-word controls.
+
+**`width: max-content` inside an `overflow: hidden` box converts "too narrow" into "silently
+clipped".** The preset tiles paired both, so `Magenta` was cut at the tile edge with nothing
+failing. Derive a grid's column count from a minimum track wide enough for the longest label
+(`repeat(auto-fit, minmax(76px, 1fr))`) instead of fixing the count and hoping the labels fit, and
+let overflow be visible so the next one is caught by eye.
+
+**A CSS contract test must assert the property that makes the defect impossible, not the
+declarations that happen to be there.** `themeTokens.test.ts` asserted
+`grid-template-columns: repeat(5, minmax(0, 1fr))` and `width: max-content` under the name "keeps
+preset labels complete" — it pinned the exact pair that clipped them. Before writing a contract
+assertion, name the failure it prevents and check the assertion would go red on it.
+
+**An "empty" value that the model normalizes away must read as empty.** `canonicalizeColorMap`
+deletes any entry equal to `DEFAULT_COLOR`, so white and uncoloured are one state; painting a
+filled chip on all 195 rows made an untouched map read as fully coloured, worst in dark mode where
+every row was a bright white square. Unset rows get an outline, coloured rows get a fill — and the
+accessible name stays `Current color #FFFFFF`, because the country really is white on the map and
+every row locator is keyed on that string.
+
+**Two search surfaces in one column each need a heading and a line saying what they do.** The list
+filter and Locate were an input each, stacked, with no headings; they read as the same control
+twice. Locate moves the camera and never touches the selection, and that sentence is the whole
+differentiator.
+
+**A `max-height` in `vh` on a panel that does not start at the viewport top overflows by exactly
+its own offset.** The inspector was capped at `100dvh - 64px` while starting ~105px down, so it ran
+past the fold *and* scrolled away with the taller map column — the independent scroll it promised
+held only until the creator scrolled. It is `position: sticky` with `top` and the cap both summed
+from tokens that clear the app bar. Sticky is only safe because `.app` declares no `overflow`.
+
 ---
 
 ## Map Chrome and Export Isolation (Phase 2)
@@ -493,6 +535,26 @@ than the browser paints them. Hover is a darker boundary, never `filter: brightn
 **A compact control cluster is one surface.** The map navigation is a single bordered, shadowed
 group holding three 44×44 icon buttons — not three floating pills. Pan directions are placed by
 `--up`/`--right`/`--down`/`--left` role classes, never by child index.
+
+**Screen-sized chrome may not overlay canvas-positioned content.** The map navigation cluster
+overlaid the square's top-left corner and the legend's default preset is `top-left`, so the two
+collided for every creator who added a colour — and nothing failed, because both elements were
+present, visible, and correctly placed by their own rules. The collision has no fix on the legend
+side: the cluster is measured in **screen pixels** while the legend is positioned in **1080-unit
+canvas space**, so the cluster's canvas-space footprint changes with the square's width (~173
+units at a 934px square, ~270 at 600px). No fixed rectangle in the export's coordinate system can
+reserve room for it, and reserving room would let editor chrome shape the exported PNG. The chrome
+moves off the square instead; the legend keeps the whole safe area.
+
+- **Below the square, never above it.** UI-SPEC 20 orders the compact focus sequence composition
+  bar → map → map navigation → inspector, so rendering the cluster ahead of the square puts the
+  camera controls before the map they control. Below preserves the order with no test churn.
+- **Assert non-intersection, not placement.** "The cluster is in the square's top-left quarter"
+  and "the legend is at its preset" were both true throughout the defect. Measure the two rects
+  against each other at *every* legend preset.
+- The wrapper's `pointer-events: none` / children `auto` split existed only because the wrapper
+  was a positioning box over the map. Off the square it is dead weight — remove it with the
+  overlay rather than leaving a rule whose stated reason is gone.
 
 **An overlay on the square is a sibling of the export source, never a descendant of it.** The
 export clones `svg.map-canvas`, so `MapWorkspace`'s `navigationSlot` renders after `MapCanvas`
@@ -745,7 +807,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-07-26 — the projection is fixed and the camera moves, replacing the Phase 1 `geoAzimuthalEquidistant` note (plan 02-25).*
 *Last updated: 2026-07-26 — wave789 review rules: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity.*
+*Last updated: 2026-07-26 — inspector redesign: screen-sized chrome may not overlay canvas-positioned content, stacked controls in the 376px column, derived grid tracks over fixed counts, empty-state chips, sticky inspector offset summed from tokens.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

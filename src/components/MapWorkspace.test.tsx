@@ -165,8 +165,52 @@ describe('MapWorkspace unavailable scene', (): void => {
   });
 });
 
-describe('MapWorkspace navigation overlay', (): void => {
-  it('overlays the navigation slot on the square, outside the export source', (): void => {
+/**
+ * Index of the `</div>` that closes the `<div>` opening at `openIndex`.
+ *
+ * The navigation slot's whole job is to be outside two things at once - outside
+ * the export source (or it lands in every PNG) and outside the square (or it
+ * lands on top of the legend). A bare "slot index is greater than square index"
+ * check proves only the first, and passed for the entire time the cluster sat on
+ * the square, so the second one is measured properly here.
+ */
+function findClosingDivIndex(markup: string, attributeIndex: number): number {
+  // `attributeIndex` points at the class attribute, which is inside the tag, so
+  // walk back to the `<div` that owns it before counting depth.
+  const openIndex = markup.lastIndexOf('<div', attributeIndex);
+  if (openIndex === -1) {
+    throw new Error('The square has no opening tag.');
+  }
+
+  let depth = 0;
+  let cursor = openIndex;
+
+  while (cursor < markup.length) {
+    const nextOpen = markup.indexOf('<div', cursor);
+    const nextClose = markup.indexOf('</div>', cursor);
+
+    if (nextClose === -1) {
+      throw new Error('The square is never closed.');
+    }
+
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth += 1;
+      cursor = nextOpen + '<div'.length;
+      continue;
+    }
+
+    depth -= 1;
+    if (depth === 0) {
+      return nextClose;
+    }
+    cursor = nextClose + '</div>'.length;
+  }
+
+  throw new Error('The square is never closed.');
+}
+
+describe('MapWorkspace navigation placement', (): void => {
+  it('renders the navigation slot after the square, outside the export source', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={READY_GEO_DATA}
@@ -195,6 +239,19 @@ describe('MapWorkspace navigation overlay', (): void => {
     expect(squareIndex).toBeGreaterThanOrEqual(0);
     expect(exportSourceEnd).toBeGreaterThan(squareIndex);
     expect(slotIndex).toBeGreaterThan(exportSourceEnd);
+
+    /*
+     * And outside the square itself. As an overlay at the square's top-left the
+     * cluster rendered on top of a `top-left` legend, which is the default
+     * legend position. That collision cannot be fixed by moving the legend: the
+     * cluster is measured in screen pixels and the legend is placed in
+     * 1080-unit canvas space, so its canvas-space footprint changes with the
+     * square's width and no fixed rectangle in the export's coordinate system
+     * can reserve room for it.
+     */
+    expect(slotIndex).toBeGreaterThan(
+      findClosingDivIndex(markup, squareIndex),
+    );
   });
 
   it('renders no navigation overlay while the scene is unavailable', (): void => {

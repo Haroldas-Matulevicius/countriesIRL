@@ -211,23 +211,30 @@
   margin-bottom: var(--space-sm);
 }
 
+/*
+ * `repeat(5, minmax(0, 1fr))` gave 65px tracks in the 376px inspector, and
+ * `Magenta` needs more than that - it was clipped at the tile's right edge by
+ * the `overflow: hidden` below. A fixed column count cannot know how wide the
+ * longest label is, so the count is derived from a minimum track instead: 76px
+ * fits every preset name at `--font-label`, which yields 4 columns in the
+ * inspector and 5 on a wider card, with no label ever cut.
+ */
 .color-picker__preset-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-xs) 0;
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+  gap: var(--space-xs);
 }
 
 .color-picker__preset {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   min-width: 0;
   min-height: var(--space-3xl);
-  padding: var(--space-xs) 0;
+  padding: var(--space-sm) var(--space-xs);
   flex-direction: column;
   gap: var(--space-xs);
-  overflow: hidden;
 }
 
 .color-picker__preset-swatch {
@@ -239,9 +246,15 @@
   border-radius: var(--radius-control);
 }
 
+/*
+ * `nowrap` + `overflow-wrap: normal` so a preset name is never hyphen-broken
+ * across two lines, but sized at `--font-label` and no longer `width:
+ * max-content` inside an `overflow: hidden` tile - that pair is what turned "too
+ * narrow" into "silently clipped" instead of "visibly overflowing".
+ */
 .color-picker__preset-name {
-  width: max-content;
-  max-width: none;
+  max-width: 100%;
+  font-size: var(--font-label);
   line-height: 1.4;
   overflow-wrap: normal;
   text-align: center;
@@ -320,27 +333,81 @@
   padding: var(--space-sm) var(--space-md);
 }
 
+/*
+ * A stack, never a row. `Countries | Search countries [input] | Select Visible |
+ * Clear Selection` laid out as a flex row needed roughly 412px inside the 376px
+ * inspector: the two actions were clipped to their first letter and the whole
+ * column grew a horizontal scrollbar. There is no width at which four
+ * full-phrase controls fit one line here, so they get their own lines.
+ */
 .country-list__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
   margin-bottom: var(--space-md);
   gap: var(--space-md);
+}
+
+.country-list__intro {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
 }
 
 .country-list__header h2 {
   margin-bottom: 0;
 }
 
+.country-list__search {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+/*
+ * The list filter and Locate are two different jobs sharing one column, so each
+ * carries a line saying which. Muted and small: it is orientation, not content.
+ */
+.country-list__hint,
+.locate-country__hint {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-label);
+  line-height: 1.4;
+}
+
+.country-list__search-label,
+.locate-country__label {
+  color: var(--text-secondary);
+  font-size: var(--font-label);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+
+.country-list__search input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+/*
+ * Equal-width tracks rather than `flex-wrap` + `justify-content: flex-end`:
+ * wrapping put one action per line at a ragged right edge, and the two actions
+ * are a pair.
+ */
 .country-list__bulk-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-sm);
 }
 
 .country-list__bulk-actions button {
   padding: var(--space-sm) var(--space-md);
+  overflow-wrap: anywhere;
 }
 
 .country-list__items,
@@ -350,8 +417,13 @@
   list-style: none;
 }
 
+/*
+ * Bounded in absolute terms, not in `vh`. At 48vh the 195-row list was the
+ * tallest thing in the inspector on every screen and pushed Locate off the
+ * bottom; a fixed cap keeps the list one element among several.
+ */
 .country-list__items {
-  max-height: 48vh;
+  max-height: calc(var(--space-3xl) * 5);
   overflow-y: auto;
   overscroll-behavior: contain;
   border: var(--border-width) solid var(--border-default);
@@ -368,7 +440,7 @@
   align-items: center;
   min-height: var(--space-2xl);
   padding: var(--space-sm);
-  grid-template-columns: var(--space-lg) minmax(0, 1fr) var(--space-xl);
+  grid-template-columns: var(--space-lg) minmax(0, 1fr) var(--space-lg);
   gap: var(--space-sm);
   cursor: pointer;
   transition: background-color var(--motion-fast) ease-out;
@@ -416,10 +488,23 @@
 
 .country-list__color-swatch {
   display: block;
-  width: var(--space-xl);
-  height: var(--space-xl);
+  width: var(--space-lg);
+  height: var(--space-lg);
   border: var(--border-width) solid var(--swatch-border);
   border-radius: var(--radius-control);
+}
+
+/*
+ * `canonicalizeColorMap` drops any entry equal to DEFAULT_COLOR, so white and
+ * "not coloured yet" are one state in this model. A filled chip on all 195 rows
+ * made an untouched map read as fully coloured - loudest in dark mode, where
+ * every row was a bright white square. Unset rows are an empty outline instead;
+ * only a real color fills.
+ */
+.country-list__color-swatch--unset {
+  border-style: dashed;
+  border-color: var(--border-default);
+  background: transparent;
 }
 
 .save-load-overlay {
@@ -701,9 +786,30 @@
   border-color: var(--border-strong);
 }
 
+/*
+ * The expanded panel carries the surface and the spacing, not the editor inside
+ * it. Left bare, the editor's controls rendered straight onto the page
+ * background at compact - the same defect `.locate-country` had, and for the
+ * same reason: a block in the inspector column that is not one of the named
+ * sections inherits neither the card nor the desktop flattening.
+ */
+.legend-disclosure__panel {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+}
+
+.workspace--desktop .workspace__control-column .legend-disclosure__panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .legend-editor {
   display: grid;
-  margin-top: var(--space-md);
   gap: var(--space-md);
 }
 
@@ -728,14 +834,21 @@
   gap: var(--space-sm);
 }
 
+/*
+ * A three-column grid, not `flex-wrap`. Wrapping left the character counter
+ * stranded beside the input and dropped the three reorder controls onto a
+ * ragged second line at whatever widths happened to be left over.
+ * `swatch | label + input | counter`, then the error and the actions each span
+ * the row.
+ */
 .legend-editor__entry {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   align-items: center;
-  padding: var(--space-sm);
+  padding: var(--space-md);
   border: var(--border-width) solid var(--border-default);
   border-radius: var(--radius-control);
-  gap: var(--space-sm);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
 }
 
 .legend-editor__swatch {
@@ -749,8 +862,27 @@
 
 .legend-editor__entry label {
   display: grid;
-  flex: 1 1 auto;
   min-width: 0;
+  gap: var(--space-xs);
+}
+
+.legend-editor__counter {
+  color: var(--text-secondary);
+  font-size: var(--font-label);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+/*
+ * Derived tracks again: at three fixed columns the 376px inspector gave each
+ * action a 92px track and broke `Move Down` across two lines. A minimum track
+ * that fits the longest label yields two columns here and three on a wider card,
+ * with no label wrapped.
+ */
+.legend-editor__row-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: var(--space-sm);
 }
 
@@ -776,7 +908,7 @@
 
 .legend-editor__entry p[role="alert"],
 .legend-editor > p[role="alert"] {
-  flex-basis: 100%;
+  grid-column: 1 / -1;
   margin-bottom: 0;
   padding: var(--space-sm);
   border-radius: var(--radius-control);
@@ -817,12 +949,45 @@
   accent-color: var(--accent);
 }
 
-/* UI-SPEC 10: Locate is a separate workflow that never changes selection. */
+/*
+ * UI-SPEC 10: Locate is a separate workflow that never changes selection, so it
+ * gets its own heading and its own surface rather than trailing the country list
+ * as a second, unexplained search box.
+ *
+ * It shares the country-list wrapper, so it follows the same surface rule as
+ * every other inspector section: a card at compact and mobile, where sections
+ * are top-level workspace children, and a transparent hairline-divided pane
+ * inside the desktop shell. Left as a bare block it rendered directly on the
+ * page background at compact - the only section in the column that did.
+ */
 .locate-country {
   position: relative;
   display: grid;
-  margin-top: var(--space-md);
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
   gap: var(--space-sm);
+}
+
+.workspace--desktop .workspace__control-column .locate-country {
+  padding: 0;
+  padding-top: var(--space-lg);
+  border: 0;
+  border-top: var(--border-width) solid var(--border-default);
+  border-radius: 0;
+  background: transparent;
+}
+
+.locate-country__intro {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.locate-country__heading {
+  margin-bottom: 0;
 }
 
 .locate-country input[type="text"] {
@@ -886,23 +1051,24 @@
   .workspace__actions > section,
   .selection-panel,
   .color-picker,
-  .country-list {
+  .country-list,
+  .locate-country {
     padding: var(--space-md);
   }
 }
 
 @media (max-width: 767px) {
-  .color-picker__preset-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .country-list__header,
   .saved-map-row {
     align-items: stretch;
     grid-template-columns: minmax(0, 1fr);
     flex-direction: column;
   }
 
+  /*
+   * `.country-list__header` is no longer listed here: it is a stack at every
+   * width now, so a mobile-only override restating that would be a second rule
+   * whose only job is to agree with the first.
+   */
   .country-list__bulk-actions,
   .saved-map-actions {
     display: grid;

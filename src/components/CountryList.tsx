@@ -1,6 +1,7 @@
 import { useCallback, useId, useMemo, useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
+import { DEFAULT_COLOR } from '../constants/colors';
 import type { WorldCountryMetadata } from '../hooks/useGeoData';
 import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
@@ -8,6 +9,13 @@ import { getEffectiveCountryColor } from '../utils/colors';
 
 const COUNTRY_SEARCH_MAX_LENGTH = 100;
 const COUNTRY_SEARCH_PLACEHOLDER = 'Type a country name';
+/**
+ * The inspector carries two search surfaces and they do different jobs, so each
+ * one says which. Without this line the list filter and Locate read as the same
+ * control twice and the creator has to guess.
+ */
+const COUNTRY_LIST_HINT =
+  'Tick a country to add it to your selection, then choose a color.';
 const COUNTRY_SEARCH_EMPTY_BODY = 'Try a different country name.';
 const COUNTRY_SEARCH_CLEAR_LABEL = 'Clear Country Search';
 export const COUNTRY_NOT_IN_SCENE_HINT = 'Not in this map';
@@ -165,10 +173,19 @@ export function CountryList({
 
   return (
     <section className="country-list" aria-labelledby={`${listId}-heading`}>
+      {/*
+        A stack, not a row. As `heading | search | two buttons` in one flex row
+        the buttons were clipped to their first letter inside the 376px
+        inspector and the column grew its own horizontal scrollbar - a row of
+        four full-phrase controls has no width at which it fits.
+      */}
       <div className="country-list__header">
-        <h2 id={`${listId}-heading`}>Countries</h2>
+        <div className="country-list__intro">
+          <h2 id={`${listId}-heading`}>Countries</h2>
+          <p className="country-list__hint">{COUNTRY_LIST_HINT}</p>
+        </div>
         <label className="country-list__search">
-          <span>Search countries</span>
+          <span className="country-list__search-label">Search countries</span>
           <input
             ref={searchInputRef}
             type="search"
@@ -215,6 +232,18 @@ export function CountryList({
           {filteredCountries.map((country) => {
             const countryColor = getEffectiveCountryColor(colors, country.id);
             const isInActiveScene = selectableCountryIds.has(country.id);
+            /*
+             * `canonicalizeColorMap` deletes any entry equal to DEFAULT_COLOR,
+             * so in this model "white" and "not coloured yet" are the same
+             * state. Painting all 195 rows with a filled chip made an untouched
+             * map read as fully coloured; an unset row now shows an empty
+             * outline instead.
+             *
+             * The accessible name is deliberately unchanged: the country really
+             * is rendered white on the map, so `Current color #FFFFFF` stays
+             * true, and every row locator keyed on it keeps working.
+             */
+            const hasColor = countryColor !== DEFAULT_COLOR;
 
             return (
               <li key={country.id} className="country-list__item">
@@ -235,8 +264,12 @@ export function CountryList({
                   />
                   <span className="country-list__name">{country.name}</span>
                   <span
-                    className="country-list__color-swatch"
-                    style={{ backgroundColor: countryColor }}
+                    className={
+                      hasColor
+                        ? 'country-list__color-swatch'
+                        : 'country-list__color-swatch country-list__color-swatch--unset'
+                    }
+                    style={hasColor ? { backgroundColor: countryColor } : undefined}
                     role="img"
                     aria-label={`Current color ${countryColor}`}
                   />

@@ -55,7 +55,11 @@ export function LegendDisclosure({
         <span>Legend</span>
         <span>{getLegendDisclosureSummary(entryCount, positionLabel)}</span>
       </button>
-      {isExpanded ? <div id={LEGEND_PANEL_ID}>{children}</div> : null}
+      {isExpanded ? (
+        <div id={LEGEND_PANEL_ID} className="legend-disclosure__panel">
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -854,10 +854,12 @@ export default function App(): JSX.Element {
     </div>
   );
 
-  // UI-SPEC 10: the cluster is an editor-only overlay at the top-left of the
-  // square, so it is handed to MapWorkspace's navigation slot rather than
-  // rendered in the inspector. It stays a sibling of the export source: the
-  // export clones `svg.map-canvas`, so the overlay cannot reach the PNG.
+  // UI-SPEC 10: the cluster is editor-only camera chrome handed to
+  // MapWorkspace's navigation slot rather than rendered in the inspector. It
+  // stays a sibling of the export source - the export clones `svg.map-canvas`,
+  // so it cannot reach the PNG - and it renders below the square rather than
+  // over it, because chrome on the square collides with the legend and the
+  // legend's coordinate system cannot reserve space for screen-sized chrome.
   const mapNavigation = (
     <MapNavigation
       currentZoom={compositionState.camera.zoom}

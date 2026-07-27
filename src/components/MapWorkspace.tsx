@@ -40,10 +40,23 @@ interface MapWorkspaceProps {
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
   /**
-   * The editor-only camera cluster (UI-SPEC 10). It is rendered inside the
-   * square but as a SIBLING of the export source, never inside it: the export
-   * clones `svg.map-canvas`, so anything placed in here can never reach the PNG,
-   * and nothing in here may be moved under `MapCanvas`.
+   * The editor-only camera cluster (UI-SPEC 10). It renders in the map column
+   * directly BELOW the square, never over it, and always as a SIBLING of the
+   * export source: the export clones `svg.map-canvas`, so nothing placed here
+   * can reach the PNG, and nothing here may be moved under `MapCanvas`.
+   *
+   * It used to overlay the square's top-left corner, which put it on top of a
+   * `top-left` legend - the default position. That collision is not fixable by
+   * reserving canvas space for the cluster: the cluster is sized in SCREEN
+   * pixels while the legend is positioned in 1080-unit CANVAS space, so the
+   * cluster's canvas-space footprint changes with the square's width (about 173
+   * units at a 934px square, about 270 at a 600px one). No fixed rectangle in
+   * the export's coordinate system can contain it, so the chrome moves off the
+   * square instead of the legend moving out of the corner.
+   *
+   * Below rather than above: UI-SPEC 20 orders the compact focus sequence
+   * composition bar -> map -> map navigation -> inspector, and rendering the
+   * cluster ahead of the square would put the camera controls before the map.
    */
   navigationSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
@@ -69,6 +82,7 @@ export function MapWorkspace({
   onReload,
 }: MapWorkspaceProps): JSX.Element {
   const [tooltipData, setTooltipData] = useState<MapTooltipData | null>(null);
+  const isSceneReady = geoData.status === 'ready' && features !== null;
 
   return (
     <section className="map-workspace" aria-labelledby={MAP_PREVIEW_LABEL_ID}>
@@ -109,7 +123,7 @@ export function MapWorkspace({
           <FatalErrorState onReload={onReload} />
         ) : null}
 
-        {geoData.status === 'ready' && features !== null ? (
+        {isSceneReady ? (
           <>
             {geoData.warnings.length > 0 ? (
               <p className="map-workspace__warning" role="status">
@@ -132,10 +146,11 @@ export function MapWorkspace({
               onCameraCommit={onCameraCommit}
             />
             <Tooltip data={tooltipData} />
-            {navigationSlot}
           </>
         ) : null}
       </div>
+
+      {isSceneReady ? navigationSlot : null}
     </section>
   );
 }

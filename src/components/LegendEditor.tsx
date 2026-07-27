@@ -379,12 +379,21 @@ export function LegendEditor({
                     onKeyDown={(event): void => handleLabelKeyDown(event, entry)}
                   />
                 </label>
-                <span aria-live="off">{draft.length}/32</span>
+                <span className="legend-editor__counter" aria-live="off">
+                  {draft.length}/32
+                </span>
                 {error === undefined ? null : (
                   <p id={errorId} role="alert">
                     {error}
                   </p>
                 )}
+                {/*
+                  Grouped so the three reorder controls can be laid out as one
+                  equal-width row. Positional selectors on interactive elements
+                  are banned, so the row needs a class of its own rather than a
+                  `:nth-child` reach from the entry.
+                */}
+                <div className="legend-editor__row-actions">
                 <button
                   type="button"
                   disabled={index === 0}
@@ -416,6 +425,7 @@ export function LegendEditor({
                 >
                   Drag
                 </button>
+                </div>
               </div>
             );
           })}

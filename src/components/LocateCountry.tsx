@@ -14,6 +14,15 @@ const LOCATE_DRAFT_MAX_LENGTH = 100;
 const LOCATE_SEARCH_PLACEHOLDER = 'Search by country name';
 const LOCATE_EMPTY_BODY = 'Try a different country name.';
 const LOCATE_CLEAR_LABEL = 'Clear Locate Search';
+const LOCATE_HEADING = 'Find on the map';
+/**
+ * Locate sat directly under the country list as an unlabelled input plus a
+ * button, so it read as a second, redundant "search countries". It is a
+ * different job - it moves the camera and never touches the selection - and the
+ * heading plus this line are what say so.
+ */
+const LOCATE_HINT =
+  'Centers the map on one country. Your selection stays as it is.';
 
 interface LocateCountryProps {
   countries: ReadonlyArray<WorldCountryMetadata>;
@@ -262,7 +271,13 @@ export function LocateCountry({
       className="locate-country"
       onBlur={handleContainerBlur}
     >
-      <label htmlFor={comboboxId}>Find a country</label>
+      <div className="locate-country__intro">
+        <h2 className="locate-country__heading">{LOCATE_HEADING}</h2>
+        <p className="locate-country__hint">{LOCATE_HINT}</p>
+      </div>
+      <label className="locate-country__label" htmlFor={comboboxId}>
+        Find a country
+      </label>
       <input
         ref={inputRef}
         id={comboboxId}

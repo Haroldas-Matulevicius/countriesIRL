@@ -388,16 +388,30 @@ test.describe('responsive world workspace', (): void => {
     }
   });
 
-  test('the map navigation cluster overlays the square outside the export source', async ({
+  test('the map navigation cluster sits below the square outside the export source', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
 
-    // UI-SPEC 10: an editor-only overlay at the top-left of the square.
+    /*
+     * UI-SPEC 10: editor-only camera chrome in the map column, below the square.
+     *
+     * It used to overlay the square's top-left corner, where it rendered on top
+     * of a `top-left` legend - the default legend position - hiding the first
+     * entry's swatch. That collision has no fix on the legend side: the cluster
+     * is sized in screen pixels while the legend is positioned in 1080-unit
+     * canvas space, so the cluster's canvas-space footprint changes with the
+     * square's width (about 173 units at a 934px square, about 270 at 600px).
+     * No fixed rectangle in the export's coordinate system can reserve room for
+     * it, so the chrome moved off the square instead.
+     */
+    await expect(page.locator('.map-workspace > .map-navigation')).toHaveCount(
+      1,
+    );
     await expect(
-      page.locator('.map-workspace__square > .map-navigation'),
-    ).toHaveCount(1);
+      page.locator('.map-workspace__square .map-navigation'),
+    ).toHaveCount(0);
     /*
      * The export clones `svg.map-canvas`, so this is the assertion that keeps
      * chrome out of every PNG. `data-editor-only` would strip the cluster from
@@ -418,34 +432,118 @@ test.describe('responsive world workspace', (): void => {
       .locator('.map-navigation__cluster')
       .boundingBox();
     if (square === null || cluster === null) {
-      throw new Error('The navigation overlay is not composed on the square.');
+      throw new Error('The navigation cluster is not composed in the map column.');
     }
+    // Below the square, aligned to its left edge - not over any part of it.
+    expect(cluster.y).toBeGreaterThanOrEqual(square.y + square.height);
     expect(cluster.x).toBeGreaterThanOrEqual(square.x);
-    expect(cluster.y).toBeGreaterThanOrEqual(square.y);
-    // Top-left, not merely inside: the cluster sits in the first quarter of the
-    // square on both axes at every supported square size.
-    expect(cluster.x - square.x).toBeLessThan(square.width / 4);
-    expect(cluster.y - square.y).toBeLessThan(square.height / 4);
+    expect(cluster.x + cluster.width).toBeLessThanOrEqual(
+      square.x + square.width + 1,
+    );
+  });
 
-    /*
-     * The wrapper is a positioning box wider than the buttons it holds. If it
-     * swallowed pointer input, the map paths and a top-left legend underneath it
-     * would stop being grabbable, and every existing test would still pass.
-     */
-    expect(
-      await page
-        .locator('.map-navigation')
-        .evaluate((element): string =>
-          globalThis.getComputedStyle(element).pointerEvents,
-        ),
-    ).toBe('none');
-    expect(
-      await page
-        .locator('.map-navigation__cluster')
-        .evaluate((element): string =>
-          globalThis.getComputedStyle(element).pointerEvents,
-        ),
-    ).toBe('auto');
+  /**
+   * The collision this layout exists to prevent, measured rather than assumed.
+   * `Top left` is the default legend position, so the overlay and the legend
+   * collided for every creator who added a colour, and no existing test noticed:
+   * both elements were present, visible, and correctly placed by their own
+   * rules.
+   */
+  test('the navigation cluster never overlaps the legend at any legend position', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+
+    await page
+      .getByRole('checkbox', { name: /^France Current color/ })
+      .check();
+    await page.getByRole('button', { name: 'Apply Red' }).click();
+
+    await page.getByRole('button', { name: /^Legend/ }).click();
+
+    for (const corner of ['Top left', 'Top right', 'Bottom left', 'Bottom right']) {
+      await page.getByRole('radio', { name: corner }).check();
+
+      const overlap = await page.evaluate((): boolean => {
+        const cluster = document.querySelector('.map-navigation__cluster');
+        const legend = document.querySelector(
+          'svg.map-canvas > [data-layer="legend"]',
+        );
+        if (cluster === null || legend === null) {
+          throw new Error('The cluster and the legend must both be rendered.');
+        }
+        const a = cluster.getBoundingClientRect();
+        const b = legend.getBoundingClientRect();
+        return (
+          a.left < b.right &&
+          b.left < a.right &&
+          a.top < b.bottom &&
+          b.top < a.bottom
+        );
+      });
+
+      expect(overlap, `the cluster overlaps the legend at "${corner}"`).toBe(
+        false,
+      );
+    }
+  });
+
+  /**
+   * The 376px inspector clipped `Magenta` at its tile edge and clipped both bulk
+   * actions to their first letter, and the column grew a horizontal scrollbar.
+   * Presence assertions cannot see any of that - every control was rendered and
+   * visible. Measure the content box against the container instead.
+   */
+  test('no inspector control is clipped by its container', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+
+    const clipped = await page.evaluate((): ReadonlyArray<string> => {
+      const failures: string[] = [];
+
+      const inspector = document.querySelector('.workspace__control-column');
+      if (inspector === null) {
+        throw new Error('The inspector is not composed.');
+      }
+      if (inspector.scrollWidth > inspector.clientWidth) {
+        failures.push(
+          `inspector scrolls horizontally: ${inspector.scrollWidth} > ${inspector.clientWidth}`,
+        );
+      }
+
+      document
+        .querySelectorAll('.color-picker__preset-name')
+        .forEach((label): void => {
+          const tile = label.closest('.color-picker__preset');
+          if (tile === null) {
+            return;
+          }
+          const labelBox = label.getBoundingClientRect();
+          const tileBox = tile.getBoundingClientRect();
+          if (
+            label.scrollWidth > Math.ceil(labelBox.width) ||
+            labelBox.right > tileBox.right + 0.5 ||
+            labelBox.left < tileBox.left - 0.5
+          ) {
+            failures.push(`preset label clipped: ${label.textContent ?? ''}`);
+          }
+        });
+
+      inspector.querySelectorAll('button').forEach((button): void => {
+        if (button.scrollWidth > Math.ceil(button.clientWidth)) {
+          failures.push(
+            `action clipped: ${button.textContent?.trim() ?? ''}`,
+          );
+        }
+      });
+
+      return failures;
+    });
+
+    expect(clipped).toStrictEqual([]);
   });
 
   test('the desktop app bar carries the global actions in the declared order', async ({
