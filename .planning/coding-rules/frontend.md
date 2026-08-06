@@ -500,6 +500,45 @@ tokens than Phase 2's rule was, and `03-04` closes it.
 
 ---
 
+## Vendored Animated Icons (Phase 3, D-28)
+
+**Authored in-repo, never installed and never copied byte-for-byte.** `src/components/icons/`
+holds 14 glyphs written from lucide path data in the shape of
+`themely/src/components/ui/search.tsx`. There is no registry install and **no network at build or
+run time** — the forbidden-pattern assertion in `iconContract.test.ts` is what keeps that true
+rather than merely intended.
+
+**Translate the recipe; never copy the `className`.** This repo has no Tailwind, so a copied
+`className` string produces an element that *looks* wired up and renders unstyled (P-5). The
+contract test rejects any Tailwind-shaped sizing token (`h-4`, `w-5`, `size-5`, `min-w-[…]`) in an
+icon file for exactly that reason. Sizing is the **`size` prop**, which feeds the svg's own
+`width`/`height`; colour is `currentColor`; everything else is a CSS custom property.
+
+**Every icon exports a `forwardRef` component AND a structurally identical `*IconHandle`** with
+exactly `{ startAnimation, stopAnimation }` via `useImperativeHandle`. Attaching a ref flips the
+internal `isControlledRef`, so the icon's own self-hover defers to the parent — ref-driven and
+hover-driven modes never fight. The **row** owns the ref and triggers from ROW hover, not icon
+hover (hooks cannot live in a `.map` loop, which is why the row component exists).
+`startAnimation()` is gated on reduced motion; `stopAnimation()` is unconditional.
+
+**`strokeWidth={1.5}` is a LOCAL PATCH — upstream ships `2`** — and every file carries the marker
+comment saying so. A registry re-add silently overwrites the patch, and a 2px glyph beside a 1.5px
+one is a difference nobody reads as a regression.
+
+**`PROVENANCE.md` is an input to a gate, not documentation beside one.** Every file in the
+directory carries a dated `read in full — {flags} — YYYY-MM-DD` line, and the test asserts the
+recorded set and the directory listing are equal in **both** directions — a file with no line
+fails, and a line with no file fails. A one-way subset check would let either side grow silently,
+which is the whole failure mode the evidence exists to prevent. **A file with no provenance line
+may not be vendored.**
+
+**Record what was scanned for, not just the verdict, and record a flag you decided was benign.**
+Every glyph file trips the `http://` scan on `xmlns="http://www.w3.org/2000/svg"`. Writing
+"no flags" there would have been false; the line names the hit and why it is inert. A blanket
+"no flags" is indistinguishable from a scan nobody ran.
+
+---
+
 ## Responsive Composition (Phase 2)
 
 **`overflow-x: hidden` belongs on `body`, never on `.app` or any other element.** On a
@@ -874,7 +913,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-08-06 — §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate; absorbed names are asserted equal and the one deliberate retime is asserted different; derive a duplicate rather than restate it; the three consumer-less new tokens are recorded as an interim weakness `03-04` closes (plan 03-02).*
+*Last updated: 2026-08-06 — §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate; absorbed names are asserted equal and the one deliberate retime is asserted different; derive a duplicate rather than restate it; the three consumer-less new tokens are recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef + a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input that records a benign flag rather than claiming none (plan 03-02).*
 *Last updated: 2026-07-26/27 + 2026-08-06 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
