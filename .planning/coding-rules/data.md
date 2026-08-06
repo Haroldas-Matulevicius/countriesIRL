@@ -280,6 +280,42 @@ after the approval evidence above exists.
 browser-only and localhost-only — no deployment target, no backend, and no runtime request to a
 third-party origin.
 
+**Binary assets the *bundle* carries live in `src/assets/`, not `public/data/`.** The two homes
+are not interchangeable — see § Vendored binary assets.
+
+---
+
+## Vendored binary assets (`src/assets/`)
+
+There are now **two** homes for a bundled, same-origin, hash-recorded asset, and they are chosen by
+who reads the bytes, not by taste:
+
+| Home | Read by | Integrity record | Checked by |
+|---|---|---|---|
+| `public/data/` | the app at runtime, via `fetch` | `world-manifest.json` / `snapshots/index.json` | `npm run data:world:check` |
+| `src/assets/` | the **bundler**, via `import` | `src/assets/README.md` | `shasum -a 256` against the README row |
+
+`public/data/` is for geometry the app fetches. `src/assets/` is for bytes Vite must inline or emit
+— today that is `inter-latin-variable.woff2` (D-09), which `03-11` base64-inlines so the typeface
+reaches the `data:image/svg+xml` export clone. A file under `src/assets/` cannot be fetched by
+path, and a file under `public/data/` cannot be `?inline`d; putting one in the other's home
+silently breaks the consumer.
+
+**Every vendored binary carries a row in `src/assets/README.md`** giving source URL, subset or
+variant, byte size, SHA-256, and licence. That is the same discipline `world-manifest.json` applies
+to the world asset, and the reason is stronger here: these bytes end up inside every exported PNG,
+so they are creator-visible output, not just input.
+
+**Never satisfy a font or icon with a network request.** No Google Fonts `@import`, no CDN `<link>`,
+no `@import url(http…)` in any stylesheet or in `index.html`. Vendor the bytes instead. This is the
+same forbidden pattern as the geometry rule above, and it is the one most likely to arrive by
+accident — a design system copied from a host project usually brings its font `@import` with it.
+
+**A subset is a decision with a price, so record both.** `inter-latin-variable.woff2` is latin-only;
+latin-ext (`U+0100-024F`) falls back mid-string in the exported PNG. The gap, the affected
+languages, and the measured cost of closing it are written down in `src/assets/README.md` rather
+than left for someone to rediscover from a rendering bug.
+
 ---
 
 ## Performance
@@ -338,10 +374,12 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
-*Last updated: 2026-07-26 — replaced the Phase 1 historical-borders sketch with the world asset
-and approved snapshot catalog: catalog-driven periods, evidence-not-inference approval, manual-trace
-records, effective entities, and the corrected file-path list (plan 02-25).*
-*Last updated: 2026-07-25 — added the filesystem-identity rule after a Windows inode-precision
-defect surfaced as an intermittent test failure.*
+*Last updated: 2026-08-06 — added § Vendored binary assets: `src/assets/` vs `public/data/` and
+which consumer picks which, the README-row integrity record, the no-network-font rule, and the
+requirement to record a subset's coverage gap with its price (plan 03-01, D-09).*
+*Last updated: 2026-07-26 — replaced the Phase 1 historical-borders sketch with the world asset and
+approved snapshot catalog (catalog-driven periods, evidence-not-inference approval, manual-trace
+records, effective entities, corrected file paths; plan 02-25); prior 2026-07-25 added the
+filesystem-identity rule after a Windows inode-precision defect surfaced as a flaky test.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/data.md`.*
