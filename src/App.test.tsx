@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App, { createSelectionAnnouncement } from './App';
+import { LAST_OPEN_TOOL_KEY } from './constants/config';
 import { CompositionStateProvider } from './providers/CompositionStateProvider';
 import { MapStateProvider } from './providers/MapStateProvider';
 import type { WorldGeoDataState } from './hooks/useGeoData';
@@ -610,6 +611,48 @@ describe('App composition root', () => {
 
     expect(markup).toContain('class="map-editor"');
     expect(markup).not.toContain('map-editor dark');
+  });
+
+  it('keeps Reset View, Reset All Colors, and the filled action singletons across every panel (assertion 15)', () => {
+    /*
+     * The completion of assertion 15, after the last panel migrated: exactly
+     * one `Reset View` (camera reset, canvas region), exactly one
+     * `Reset All Colors` (content reset, Colors panel - and NOWHERE else),
+     * and exactly one filled primary action, keyed on its role class rather
+     * than its container - in EVERY panel state, not only the default one.
+     */
+    (['colors', 'countries', 'legend', 'saved'] as const).forEach((tool) => {
+      const storage = createMemoryStorage();
+      storage.setItem(LAST_OPEN_TOOL_KEY, tool);
+      stubWindow(true, storage);
+      mocks.world.current = READY_WORLD;
+
+      const markup = renderApp();
+
+      expect(
+        countOccurrences(markup, `data-tool-panel="${tool}"`),
+        `${tool}: its panel body did not open from the stored preference`,
+      ).toBe(1);
+      expect(markup.match(/Reset View/gu), `${tool}: Reset View`).toHaveLength(
+        1,
+      );
+      expect(
+        countOccurrences(markup, 'data-action="reset-colors"'),
+        `${tool}: Reset All Colors exists exactly once, in the Colors panel`,
+      ).toBe(tool === 'colors' ? 1 : 0);
+      expect(
+        countOccurrences(markup, 'controls__action--primary'),
+        `${tool}: the one filled action`,
+      ).toBe(1);
+
+      // The two resets never sit together: content reset lives in the panel
+      // track, camera reset in the canvas region after it.
+      if (tool === 'colors') {
+        expect(markup.indexOf('data-action="reset-colors"')).toBeLessThan(
+          markup.indexOf('class="map-workspace"'),
+        );
+      }
+    });
   });
 
   it('renders the period surface from resolved options only, scoped to the period HUD (assertion 13)', () => {

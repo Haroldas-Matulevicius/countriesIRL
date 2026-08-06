@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { APPROVED_PERIOD_ANNOUNCEMENTS } from '../utils/periods';
+
 /**
  * The executable half of the Phase 3 UI contract (`03-UI-SPEC.md`, `Design.md`).
  *
@@ -703,6 +705,132 @@ describe('Phase 3 period surface source (assertion 13)', (): void => {
    */
   it('keeps the interactive select path reachable in code', (): void => {
     expect(periodHudSource()).toContain('<select');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 23 - the ToastRegion allowlist is pinned by hard numbers
+ * ------------------------------------------------------------------ */
+
+/**
+ * The counts are LITERALS, deliberately not derived from the tables they
+ * count: `03-06` and `03-07` both claim "this phase introduces no new toast,
+ * status, or live-region message", and the way that claim stays true is that
+ * growing the allowlist - or its positive-test file - fails a hard number
+ * here. If the allowlist grows, a message was introduced without a test.
+ */
+const APPROVED_STATIC_MESSAGE_SOURCE_ENTRIES = 25;
+const APPROVED_LOAD_WARNING_SOURCE_ENTRIES = 7;
+const APPROVED_PERIOD_ANNOUNCEMENT_COUNT = 11;
+const TOAST_REGION_POSITIVE_TEST_COUNT = 14;
+const TOAST_DYNAMIC_PATTERN_NAMES = [
+  'CENTERED_MESSAGE_PATTERN',
+  'COLOR_MESSAGE_PATTERN',
+  'LEGEND_REORDER_MESSAGE_PATTERN',
+  'SELECTION_MESSAGE_PATTERN',
+] as const;
+
+/**
+ * An allowlist ENTRY line: a quoted or template string literal, a spread, or
+ * a named constant.
+ */
+const ALLOWLIST_ENTRY_PATTERN =
+  /^\s*(?:'.*',|`.*`,|\.\.\.[A-Za-z_]\w*,|[A-Z][A-Z_]*,)$/u;
+
+function componentSource(name: string): string {
+  const entry = COMPONENT_SOURCES.find(([file]): boolean => file === name);
+  if (entry === undefined) {
+    throw new Error(`${name} is missing from the component sources.`);
+  }
+  return entry[1];
+}
+
+function countAllowlistEntries(source: string, setName: string): number {
+  const block = new RegExp(
+    `const ${setName} = (?:new Set<string>\\()?\\[(?<body>[\\s\\S]*?)\\]`,
+    'u',
+  ).exec(source)?.groups?.body;
+  if (block === undefined) {
+    throw new Error(`${setName} block not found.`);
+  }
+  return stripSourceComments(block)
+    .split('\n')
+    .filter((line): boolean => ALLOWLIST_ENTRY_PATTERN.test(line)).length;
+}
+
+describe('Phase 3 toast allowlist is unchanged (assertion 23)', (): void => {
+  it('pins the allowlist entry counts as hard numbers', (): void => {
+    const source = componentSource('components/ToastRegion.tsx');
+
+    expect(
+      countAllowlistEntries(source, 'APPROVED_STATIC_MESSAGES'),
+      'APPROVED_STATIC_MESSAGES grew or shrank. A new entry is a new ' +
+        'creator-facing message: it needs its own positive test, and this ' +
+        'phase claims to introduce none.',
+    ).toBe(APPROVED_STATIC_MESSAGE_SOURCE_ENTRIES);
+
+    expect(
+      countAllowlistEntries(source, 'APPROVED_LOAD_WARNING_MESSAGES'),
+    ).toBe(APPROVED_LOAD_WARNING_SOURCE_ENTRIES);
+
+    expect(APPROVED_PERIOD_ANNOUNCEMENTS).toHaveLength(
+      APPROVED_PERIOD_ANNOUNCEMENT_COUNT,
+    );
+  });
+
+  it('pins the dynamic patterns as an enumerated set', (): void => {
+    const source = componentSource('components/ToastRegion.tsx');
+    const declared = [
+      ...source.matchAll(/const ([A-Z_]+_MESSAGE_PATTERN)\s*=/gu),
+    ]
+      .map((match): string => match[1])
+      .sort();
+
+    expect(declared).toStrictEqual([...TOAST_DYNAMIC_PATTERN_NAMES]);
+
+    // The guard consults exactly the enumerated checks - a pattern declared
+    // but not consulted would be an allowlist entry that allows nothing.
+    const guard = /function getSafeMessage[\s\S]*?\n\}/u.exec(source)?.[0] ?? '';
+    expect(guard).toContain('APPROVED_STATIC_MESSAGES.has');
+    expect(guard).toContain('SELECTION_MESSAGE_PATTERN.test');
+    expect(guard).toContain('COLOR_MESSAGE_PATTERN.test');
+    expect(guard).toContain('CENTERED_MESSAGE_PATTERN.test');
+    expect(guard).toContain('isApprovedLegendReorderMessage');
+  });
+
+  it('pins the positive-test count of the allowlist suite', (): void => {
+    const testSource = componentSource('components/ToastRegion.test.tsx');
+    const testCount = [...testSource.matchAll(/^\s*it\(/gmu)].length;
+
+    expect(
+      testCount,
+      'ToastRegion.test.tsx changed size. If the allowlist grew, a message ' +
+        'was introduced without a test; if a test disappeared, an approved ' +
+        'message lost its evidence.',
+    ).toBe(TOAST_REGION_POSITIVE_TEST_COUNT);
+  });
+
+  /**
+   * The entry classifier exercised both ways in the same test, so the pinned
+   * counts are measurements rather than the only values the helper can
+   * return.
+   */
+  it('separates an allowlist entry line from a non-entry line', (): void => {
+    expect(ALLOWLIST_ENTRY_PATTERN.test("  'Saved map loaded.',")).toBe(true);
+    expect(
+      ALLOWLIST_ENTRY_PATTERN.test('  `template-composed warning entry`,'),
+    ).toBe(true);
+    expect(
+      ALLOWLIST_ENTRY_PATTERN.test('  ...APPROVED_PERIOD_ANNOUNCEMENTS,'),
+    ).toBe(true);
+    expect(ALLOWLIST_ENTRY_PATTERN.test('  EXPORT_FAILURE_MESSAGE,')).toBe(
+      true,
+    );
+    expect(ALLOWLIST_ENTRY_PATTERN.test('  // a comment about a message')).toBe(
+      false,
+    );
+    expect(ALLOWLIST_ENTRY_PATTERN.test('] as const;')).toBe(false);
+    expect(ALLOWLIST_ENTRY_PATTERN.test('')).toBe(false);
   });
 });
 
