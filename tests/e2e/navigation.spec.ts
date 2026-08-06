@@ -93,9 +93,10 @@ test.describe('camera controls browser interactions', (): void => {
         ),
       ),
     ).toBe(true);
-    // The map navigation cluster must not own Reset View: CompositionBar is its
-    // sole owner, and `tests/e2e/history.spec.ts` asserts exactly one in the
-    // composed workspace.
+    // The map navigation cluster must not own Reset View: the period HUD is
+    // its sole owner until 03-08 moves it into the cluster, and
+    // `tests/e2e/history.spec.ts` asserts exactly one in the composed
+    // workspace.
     await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(0);
   });
 });

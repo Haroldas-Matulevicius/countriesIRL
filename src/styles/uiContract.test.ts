@@ -650,6 +650,63 @@ describe('Phase 3 selector discipline (assertion 16)', (): void => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Assertion 13 (source half) - the period surface is manifest-driven
+ * ------------------------------------------------------------------ */
+
+describe('Phase 3 period surface source (assertion 13)', (): void => {
+  const periodHudSource = (): string => {
+    const entry = COMPONENT_SOURCES.find(
+      ([name]): boolean => name === 'components/editor/PeriodHud.tsx',
+    );
+    if (entry === undefined) {
+      throw new Error('PeriodHud.tsx is missing from the component sources.');
+    }
+    return entry[1];
+  };
+
+  /**
+   * `SNAPSHOT_CATALOG` is a five-entry LABEL registry, not an approval list.
+   * A period surface that read it directly would make four deferred snapshots
+   * nameable in the UI (Immutable Safety Constraint 3, Live Invariant 6). The
+   * surface renders `resolvePeriodOptions` output only, which its owner hands
+   * it through the `periods` prop.
+   */
+  it('never references the snapshot label registry', (): void => {
+    expect(
+      stripSourceComments(periodHudSource()).includes(
+        ['SNAPSHOT', 'CATALOG'].join('_'),
+      ),
+      'PeriodHud reads the five-entry label registry directly. The surface ' +
+        'renders resolved manifest options only; the registry would name ' +
+        'four deferred snapshots.',
+    ).toBe(false);
+  });
+
+  /**
+   * D-15: the ids are byte-identical to their Phase 2 values. The status id is
+   * an `aria-describedby` target as well as a live region, and the select id
+   * is queried by the e2e fixture's NFR3 diagnostics.
+   */
+  it('keeps both period ids byte-identical to their Phase 2 values', (): void => {
+    const source = periodHudSource();
+
+    expect(source).toContain("'composition-bar-period-status'");
+    expect(source).toContain("'composition-bar-period'");
+    expect(source).toContain('role="status"');
+    expect(source).toContain('aria-live="polite"');
+  });
+
+  /**
+   * D-14: the interactive `<select>` path must remain REACHABLE IN CODE, not
+   * deleted - a second approved manifest entry returns the surface to a
+   * select with no copy change and no component rewrite.
+   */
+  it('keeps the interactive select path reachable in code', (): void => {
+    expect(periodHudSource()).toContain('<select');
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Export isolation - carried forward from Phase 2 at high priority
  * ------------------------------------------------------------------ */
 

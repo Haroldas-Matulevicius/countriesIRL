@@ -154,20 +154,34 @@ function periodSelect(page: Page): ReturnType<Page['getByLabel']> {
   return page.getByLabel('Map period');
 }
 
-test.describe('world period selector', (): void => {
-  test('ships the live Modern-only catalog with no deferred teasers', async ({
+test.describe('world period surface', (): void => {
+  test('ships the live Modern-only catalog as an inert pill with no deferred teasers', async ({
     page,
   }): Promise<void> => {
     await waitForApp(page);
 
-    const select = periodSelect(page);
-    await expect(select).toHaveValue('modern');
-    await expect(select.locator('option')).toHaveCount(1);
-    await expect(select.locator('option')).toHaveText([MODERN_PERIOD_LABEL]);
+    /*
+     * Assertion 13, e2e half. D-14: with exactly one approved option the
+     * period surface is a visibly inert read-only pill, not a disabled
+     * select - no dropdown affordance, no chevron, no "coming soon", no count
+     * of hidden periods, and none of the four deferred historical labels
+     * appears within the surface.
+     */
+    const hud = page.locator('.period-hud');
+    await expect(hud).toHaveCount(1);
+    await expect(hud.locator('.period-hud__pill')).toHaveCount(1);
+    await expect(hud.locator('.period-hud__pill')).toContainText('Map period');
+    await expect(hud.locator('.period-hud__pill')).toContainText(
+      MODERN_PERIOD_LABEL,
+    );
+    await expect(hud.locator('select')).toHaveCount(0);
+    await expect(hud).not.toContainText('1492');
+    await expect(hud).not.toContainText('1700');
+    await expect(hud).not.toContainText('1815');
+    await expect(hud).not.toContainText('1914');
+    await expect(hud).not.toContainText(/coming soon/iu);
+
     await expect(page.getByText('Modern borders worldwide.')).toBeVisible();
-    await expect(
-      page.getByText('1080 × 1080 composition preview'),
-    ).toBeVisible();
     await expect(
       page.getByRole('listbox', {
         name: `Interactive world map, ${MODERN_PERIOD_LABEL}`,
@@ -199,7 +213,7 @@ test.describe('world period selector', (): void => {
     await expect(page.locator('svg.map-canvas')).toHaveCount(1);
   });
 
-  test('disables period and Reset View while the world map is loading', async ({
+  test('disables Reset View while the world map is loading, behind an inert pill', async ({
     page,
   }): Promise<void> => {
     let releaseWorld = (): void => undefined;
@@ -214,14 +228,19 @@ test.describe('world period selector', (): void => {
     await page.goto('/');
 
     await expect(page.getByText('Loading world map…')).toBeVisible();
-    await expect(periodSelect(page)).toBeDisabled();
+    // The Modern-only surface is an inert pill: there is no select to
+    // disable, so the loading state disables Reset View alone.
+    await expect(page.locator('.period-hud__pill')).toHaveCount(1);
+    await expect(page.locator('.period-hud select')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Reset View' })).toBeDisabled();
 
     releaseWorld();
     await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
       LOGICAL_CORE_COUNT,
     );
-    await expect(periodSelect(page)).toBeEnabled();
+    await expect(
+      page.getByRole('button', { name: 'Reset View' }),
+    ).toBeEnabled();
   });
 
   test('offers the exact world recovery state when the map cannot load', async ({

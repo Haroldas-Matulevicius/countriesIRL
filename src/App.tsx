@@ -20,7 +20,6 @@ import type {
 import type { ColorMap, CountryId, GeoFeature } from './types/map';
 import type { EditorThemeMode, ToastMessage, ToolId } from './types/ui';
 import { ColorPicker } from './components/ColorPicker';
-import { CompositionBar } from './components/CompositionBar';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -42,6 +41,7 @@ import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
 import { HudFooter } from './components/editor/HudFooter';
 import { HudHeader } from './components/editor/HudHeader';
+import { PeriodHud } from './components/editor/PeriodHud';
 import { ThemeToggle } from './components/editor/ThemeToggle';
 import { ToolPanel } from './components/editor/ToolPanel';
 import { ToolRail } from './components/editor/ToolRail';
@@ -962,8 +962,8 @@ export default function App(): JSX.Element {
           ? PERIOD_COPY.modernStatus
           : getHistoricalCoverageStatus(activeCatalogEntry.coverageRegions);
 
-  const compositionBar = (
-    <CompositionBar
+  const periodHud = (
+    <PeriodHud
       periods={snapshotCatalog.options}
       selectedPeriodId={compositionState.snapshotId}
       statusMessage={periodStatusMessage}
@@ -1018,7 +1018,7 @@ export default function App(): JSX.Element {
   const mapWorkspace = (
       <MapWorkspace
         geoData={geoData}
-        compositionBar={compositionBar}
+        periodHud={periodHud}
         helpSlot={helpSlot}
         snapshotId={compositionState.snapshotId}
         periodLabel={activePeriodLabel}

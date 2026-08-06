@@ -1,39 +1,53 @@
-.composition-bar {
+/*
+ * The `.period-hud` surface (UI-SPEC 4, D-14/D-15). CompositionBar's period
+ * surface and status live region, rehomed. With one approved option the
+ * surface is the inert pill below; the `__period` select rules stay because
+ * the interactive path stays reachable in code for the day a second approved
+ * entry reaches the manifest.
+ */
+.period-hud {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  margin-bottom: var(--space-sm);
-}
-
-.composition-bar__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-}
-
-.composition-bar__preview {
-  min-width: 0;
-  margin: 0;
-  color: var(--themely-slate-blue);
-  font-size: var(--text-body-sm);
-  font-weight: var(--text-subheading-weight);
-  line-height: var(--text-body-sm-line-height);
-}
-
-.composition-bar__period {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  min-width: 0;
+  margin-bottom: 0;
 }
 
 /*
- * The period surface's eyebrow. `03-07` rehomes this block into `.period-hud`;
- * the type role it carries is already the one the design contract assigns it.
+ * The workspace landmark's accessible name. Hidden visually, never with
+ * `display: none`, so the landmark keeps its name in the accessibility tree.
  */
-.composition-bar__period label {
+.period-hud__preview {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.period-hud__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * D-14: the one-option state is a visibly inert read-only pill - no dropdown
+ * affordance, no chevron, no deferred-feature copy.
+ */
+.period-hud__pill {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: var(--space-xs) var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-pill);
+  background: var(--themely-porcelain);
+}
+
+.period-hud__eyebrow {
   color: var(--themely-slate-blue);
   font-size: var(--text-eyebrow);
   font-weight: var(--text-eyebrow-weight);
@@ -42,7 +56,31 @@
   text-transform: uppercase;
 }
 
-.composition-bar__period select {
+.period-hud__value {
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-body-sm-weight);
+  line-height: var(--text-body-sm-line-height);
+  white-space: nowrap;
+}
+
+.period-hud__period {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.period-hud__period label {
+  color: var(--themely-slate-blue);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  line-height: var(--text-eyebrow-line-height);
+  text-transform: uppercase;
+}
+
+.period-hud__period select {
   min-height: var(--space-2xl);
   max-width: 100%;
   padding: 0 var(--space-sm);
@@ -53,23 +91,23 @@
   font: inherit;
 }
 
-.composition-bar__reset-view {
+.period-hud__reset-view {
   min-height: var(--space-2xl);
   padding: 0 var(--space-md);
   border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: transparent;
+  background: var(--themely-porcelain);
   color: var(--themely-midnight-ink);
   font: inherit;
   cursor: pointer;
 }
 
-.composition-bar__reset-view:disabled {
+.period-hud__reset-view:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.composition-bar__status {
+.period-hud__status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -80,7 +118,7 @@
   line-height: var(--text-caption-line-height);
 }
 
-.composition-bar__retry {
+.period-hud__retry {
   min-height: var(--space-2xl);
   padding: 0 var(--space-sm);
   border: var(--border-width) solid var(--hairline-color);

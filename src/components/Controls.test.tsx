@@ -302,7 +302,7 @@ describe('Controls global action strip', (): void => {
   it('owns no camera reset, no period control, and no region selector', (): void => {
     const markup = renderControls();
 
-    // Reset View belongs to CompositionBar (UI-SPEC section 9); the composed
+    // Reset View belongs to the period HUD (UI-SPEC section 4); the composed
     // DOM must contain exactly one visible Reset View action.
     expect(markup).not.toMatch(/Reset View/iu);
     expect(markup).not.toMatch(/Map period/iu);

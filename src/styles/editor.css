@@ -479,16 +479,15 @@
 
 /*
  * Editor-only chrome placed in the canvas region, never in the export source.
- * Interim homes: the period surface is rehomed properly by 03-07 and the
- * floating cluster is re-anchored to the letterbox gutter by 03-08. Both sit
- * outside `div.map-export-source`, which is what decides export membership.
+ * The period HUD is its `03-07` home (UI-SPEC 4); the floating cluster is
+ * re-anchored to the letterbox gutter by 03-08. Both sit outside
+ * `div.map-export-source`, which is what decides export membership.
  */
-.map-workspace > .composition-bar {
+.map-workspace > .period-hud {
   position: absolute;
   z-index: 3;
   inset-block-start: var(--space-lg);
   inset-inline-start: var(--space-lg);
-  margin-bottom: 0;
 }
 
 .map-workspace > .map-navigation {

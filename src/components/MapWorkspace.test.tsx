@@ -8,7 +8,7 @@ import {
   resolvePeriodOptions,
   type PeriodOption,
 } from '../utils/periods';
-import { CompositionBar } from './CompositionBar';
+import { PeriodHud } from './editor/PeriodHud';
 import { MapWorkspace } from './MapWorkspace';
 
 const READY_GEO_DATA = {
@@ -26,11 +26,11 @@ const MODERN_ONLY_PERIODS: ReadonlyArray<PeriodOption> = [
   MODERN_PERIOD_OPTION,
 ];
 
-function createCompositionBar(
+function createPeriodHud(
   periods: ReadonlyArray<PeriodOption> = MODERN_ONLY_PERIODS,
 ): JSX.Element {
   return (
-    <CompositionBar
+    <PeriodHud
       periods={periods}
       selectedPeriodId="modern"
       statusMessage="Modern borders worldwide."
@@ -89,7 +89,7 @@ describe('MapWorkspace loading state', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={{ status: 'loading' }}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
@@ -117,7 +117,7 @@ describe('MapWorkspace unavailable scene', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={READY_GEO_DATA}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
@@ -143,7 +143,7 @@ describe('MapWorkspace unavailable scene', (): void => {
           reason: 'fetch-failed',
           source: 'world-asset',
         }}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
@@ -214,7 +214,7 @@ describe('MapWorkspace navigation placement', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={READY_GEO_DATA}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={[]}
@@ -258,7 +258,7 @@ describe('MapWorkspace navigation placement', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={READY_GEO_DATA}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={null}
@@ -322,7 +322,7 @@ function renderReadyWorkspace(): string {
   return renderToStaticMarkup(
     <MapWorkspace
       geoData={READY_GEO_DATA}
-      compositionBar={createCompositionBar()}
+      periodHud={createPeriodHud()}
       helpSlot={<div data-testid="help-slot" />}
       snapshotId="modern"
       periodLabel={MODERN_PERIOD_OPTION.label}
@@ -522,12 +522,12 @@ describe('MapWorkspace slot contract regression guard (D-24)', (): void => {
   });
 });
 
-describe('composed workspace composition bar', (): void => {
+describe('composed workspace period HUD', (): void => {
   it('owns the only Reset View control and the exact preview and period copy', (): void => {
     const markup = renderToStaticMarkup(
       <MapWorkspace
         geoData={READY_GEO_DATA}
-        compositionBar={createCompositionBar()}
+        periodHud={createPeriodHud()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={[]}
@@ -543,25 +543,43 @@ describe('composed workspace composition bar', (): void => {
     expect(markup.match(/Reset View/gu)).toHaveLength(1);
     expect(markup).toContain('1080 × 1080 composition preview');
     expect(markup).not.toContain('1080 × 1080 PNG preview');
-    expect(markup).toContain('>Map period</label>');
+    expect(markup).toContain('Map period');
     expect(markup).toContain('id="map-preview-label"');
     expect(markup).toContain(
       'aria-label="Interactive world map, Modern — current borders"',
     );
   });
 
-  it('renders exactly the live catalog options and never a deferred teaser', (): void => {
-    const markup = renderToStaticMarkup(createCompositionBar());
+  /*
+   * D-14: one resolved option renders as a visibly inert read-only pill, not
+   * as a disabled select - no dropdown affordance, no chevron, no deferred
+   * label, no count of hidden periods.
+   */
+  it('renders one approved option as an inert pill and never a deferred teaser', (): void => {
+    const markup = renderToStaticMarkup(createPeriodHud());
 
-    expect(markup.match(/<option\b/gu)).toHaveLength(1);
+    expect(markup).not.toContain('<select');
+    expect(markup).not.toContain('<option');
+    expect(markup).toContain('period-hud__pill');
     expect(markup).toContain('Modern — current borders');
-    ['1492', '1700', '1815', '1914'].forEach((deferredId): void => {
-      expect(markup).not.toContain(`value="${deferredId}"`);
+    [
+      '1492 — Early modern Europe',
+      '1700 — Post-Westphalia Europe',
+      '1815 — Congress of Vienna',
+      '1914 — Before World War I',
+    ].forEach((deferredLabel): void => {
+      expect(markup).not.toContain(deferredLabel);
     });
     expect(markup).not.toContain('Coming soon');
+    expect(markup).not.toContain('chevron');
+    // The pill keeps the control's accessible description wired (D-15).
+    expect(markup).toContain(
+      'aria-describedby="composition-bar-period-status"',
+    );
+    expect(markup).toContain('id="composition-bar-period-status"');
   });
 
-  it('surfaces every approved catalog entry with no component change', (): void => {
+  it('surfaces every approved catalog entry through the select path with no component change', (): void => {
     const options = resolvePeriodOptions([
       MODERN_MANIFEST_ENTRY,
       createApprovedHistoricalEntry('1914'),
@@ -569,7 +587,7 @@ describe('composed workspace composition bar', (): void => {
       createApprovedHistoricalEntry('1700'),
       createApprovedHistoricalEntry('1815'),
     ]);
-    const markup = renderToStaticMarkup(createCompositionBar(options));
+    const markup = renderToStaticMarkup(createPeriodHud(options));
 
     expect(markup.match(/<option\b/gu)).toHaveLength(5);
     expect(
@@ -584,11 +602,14 @@ describe('composed workspace composition bar', (): void => {
       ['1914', '1914 — Before World War I'],
     ]);
     expect(markup).not.toContain('catalog supplied label');
+    // The select id is byte-identical to the Phase 2 value: the e2e fixture
+    // and NFR3 diagnostics query `#composition-bar-period`.
+    expect(markup).toContain('id="composition-bar-period"');
   });
 
   it('offers Try Period Again only while a period load has failed', (): void => {
     const failedMarkup = renderToStaticMarkup(
-      <CompositionBar
+      <PeriodHud
         periods={MODERN_ONLY_PERIODS}
         selectedPeriodId="modern"
         statusMessage="We couldn't load 1700 — Post-Westphalia Europe. The previous map period is still shown. Try again."
@@ -602,14 +623,16 @@ describe('composed workspace composition bar', (): void => {
 
     expect(failedMarkup).toContain('Try Period Again');
     expect(failedMarkup).toContain('The previous map period is still shown.');
-    expect(renderToStaticMarkup(createCompositionBar())).not.toContain(
+    expect(renderToStaticMarkup(createPeriodHud())).not.toContain(
       'Try Period Again',
     );
   });
 
-  it('disables the period control and Reset View while the world is loading', (): void => {
+  it('disables Reset View while the world is loading, with nothing else to disable', (): void => {
+    // The one-option surface is an inert pill: there is no select to disable,
+    // so the only disabled control in the loading state is Reset View.
     const markup = renderToStaticMarkup(
-      <CompositionBar
+      <PeriodHud
         periods={MODERN_ONLY_PERIODS}
         selectedPeriodId="modern"
         statusMessage="Modern borders worldwide."
@@ -620,6 +643,24 @@ describe('composed workspace composition bar', (): void => {
       />,
     );
 
-    expect(markup.match(/disabled=""/gu)).toHaveLength(2);
+    expect(markup.match(/disabled=""/gu)).toHaveLength(1);
+    expect(markup).not.toContain('<select');
+
+    // The select path still honours the disabled flag when it is reachable.
+    const selectMarkup = renderToStaticMarkup(
+      <PeriodHud
+        periods={[
+          MODERN_PERIOD_OPTION,
+          { id: '1700', label: '1700 — Post-Westphalia Europe' },
+        ]}
+        selectedPeriodId="modern"
+        statusMessage="Modern borders worldwide."
+        isPeriodDisabled
+        isResetViewDisabled
+        onPeriodChange={vi.fn()}
+        onResetView={vi.fn()}
+      />,
+    );
+    expect(selectMarkup.match(/disabled=""/gu)).toHaveLength(2);
   });
 });

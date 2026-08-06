@@ -14,7 +14,7 @@ import type {
 } from '../types/map';
 import type { WorldGeoDataState } from '../hooks/useGeoData';
 import { PERIOD_COPY } from '../utils/periods';
-import { MAP_PREVIEW_LABEL_ID } from './CompositionBar';
+import { MAP_PREVIEW_LABEL_ID } from './editor/PeriodHud';
 import { FatalErrorState } from './FatalErrorState';
 import { MapCanvas, type MapTooltipData } from './MapCanvas';
 import { Tooltip } from './Tooltip';
@@ -22,14 +22,15 @@ import { Tooltip } from './Tooltip';
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
   /**
-   * The composition bar owns the preview label, the period selector, and the
-   * only Reset View control; it sits above the square and outside the export
-   * subtree (UI-SPEC section 9).
+   * The period HUD owns the preview label, the period surface, the only Reset
+   * View control (interim, until `03-08` moves it into the floating cluster),
+   * and the period status live region; it sits in the canvas region and
+   * outside the export subtree (UI-SPEC section 4).
    */
-  compositionBar: ReactNode;
+  periodHud: ReactNode;
   /**
    * The onboarding card and `Show Help` (UI-SPEC 10). A SIBLING of the export
-   * source, exactly like `compositionBar` and `navigationSlot`: the export
+   * source, exactly like `periodHud` and `navigationSlot`: the export
    * clones `svg.map-canvas`, so nothing placed here can reach the PNG.
    *
    * It lives in the canvas region rather than in the tool panel because D-18
@@ -65,7 +66,7 @@ interface MapWorkspaceProps {
    * square instead of the legend moving out of the corner.
    *
    * Below rather than above: UI-SPEC 20 orders the compact focus sequence
-   * composition bar -> map -> map navigation -> inspector, and rendering the
+   * period HUD -> map -> map navigation -> tools, and rendering the
    * cluster ahead of the square would put the camera controls before the map.
    */
   navigationSlot?: ReactNode;
@@ -77,7 +78,7 @@ interface MapWorkspaceProps {
 
 export function MapWorkspace({
   geoData,
-  compositionBar,
+  periodHud,
   helpSlot,
   snapshotId,
   periodLabel,
@@ -97,7 +98,7 @@ export function MapWorkspace({
 
   return (
     <section className="map-workspace" aria-labelledby={MAP_PREVIEW_LABEL_ID}>
-      {compositionBar}
+      {periodHud}
 
       <div className="map-workspace__canvas">
         {geoData.status === 'loading' ? (

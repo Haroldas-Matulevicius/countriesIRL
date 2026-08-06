@@ -612,6 +612,74 @@ describe('App composition root', () => {
     expect(markup).not.toContain('map-editor dark');
   });
 
+  it('renders the period surface from resolved options only, scoped to the period HUD (assertion 13)', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    /*
+     * Scoped to `.period-hud`: `SNAPSHOT_CATALOG` legitimately holds five
+     * labels elsewhere in the module graph, so an unscoped absence assertion
+     * would be asserting something false. The HUD is the surface that must
+     * never name a deferred snapshot (Immutable Safety Constraint 3).
+     */
+    const hudStart = markup.indexOf('class="period-hud"');
+    const hudEnd = markup.indexOf('map-workspace__canvas');
+    expect(hudStart).toBeGreaterThan(-1);
+    expect(hudEnd).toBeGreaterThan(hudStart);
+    const hud = markup.slice(hudStart, hudEnd);
+
+    // A static render runs no effects, so the catalog fetch never fires and
+    // the resolved options are the Modern-only fallback - exactly one entry.
+    expect(hud).toContain('Modern — current borders');
+    [
+      '1492 — Early modern Europe',
+      '1700 — Post-Westphalia Europe',
+      '1815 — Congress of Vienna',
+      '1914 — Before World War I',
+    ].forEach((deferredLabel): void => {
+      expect(hud).not.toContain(deferredLabel);
+    });
+
+    // D-14: one resolved option is an inert read-only pill, not a disabled
+    // select - no dropdown affordance, no chevron, no deferred-feature copy.
+    expect(hud).not.toContain('<select');
+    expect(hud).not.toContain('Coming soon');
+    expect(hud).toContain('period-hud__pill');
+  });
+
+  it('keeps the rehomed period live region resolvable from the control (assertion 14)', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    // The exact live-region markup string, mirroring the selection-region
+    // idiom above: byte-identical id, role, and politeness (D-15).
+    expect(markup).toContain(
+      'id="composition-bar-period-status" role="status" aria-live="polite"',
+    );
+
+    /*
+     * The load-bearing half: the id named by `aria-describedby` must resolve
+     * to an element that EXISTS. The markup-string half alone would stay green
+     * against a described-by attribute that points at nothing - which is
+     * exactly what dropping the region during a rail migration produces, with
+     * no visual signal at all.
+     */
+    const describedByIds = [
+      ...markup.matchAll(/aria-describedby="([^"]+)"/gu),
+    ].flatMap((match): string[] => (match[1] ?? '').split(' '));
+    expect(describedByIds).toContain('composition-bar-period-status');
+    describedByIds.forEach((id): void => {
+      expect(
+        markup.includes(`id="${id}"`),
+        `aria-describedby names "${id}", which resolves to no element.`,
+      ).toBe(true);
+    });
+  });
+
   it('never constructs a camera controller of its own', () => {
     // Structural, because the defect is an import: a second controller would
     // paint a second camera and the visible SVG would stop following the

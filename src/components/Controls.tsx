@@ -171,7 +171,7 @@ export function Controls({
           Save or Load Maps
         </button>
         {/*
-          Content reset, not camera reset: never beside CompositionBar's
+          Content reset, not camera reset: never beside the period HUD's
           `Reset View`, so the two cannot be read as one pair (D-17, D-18). The
           desktop app bar omits it entirely - UI-SPEC 8 keeps it in the
           selection/color section there.

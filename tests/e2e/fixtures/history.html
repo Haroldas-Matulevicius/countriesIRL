@@ -36,7 +36,7 @@
     <script type="module">
       import { createElement as h, useCallback, useRef, useState } from 'react';
       import { createRoot } from 'react-dom/client';
-      import { CompositionBar } from '/src/components/CompositionBar.tsx';
+      import { PeriodHud } from '/src/components/editor/PeriodHud.tsx';
       import { MapWorkspace } from '/src/components/MapWorkspace.tsx';
       import { composeEffectiveScene, reconcileSelectionForScene } from '/src/utils/scene.ts';
       import { getPeriodLabel, PERIOD_COPY, getHistoricalCoverageStatus } from '/src/utils/periods.ts';
@@ -176,7 +176,7 @@
               countryMetadata: [],
               warnings: [],
             },
-            compositionBar: h(CompositionBar, {
+            periodHud: h(PeriodHud, {
               periods: PERIODS,
               selectedPeriodId: snapshotId,
               statusMessage:
