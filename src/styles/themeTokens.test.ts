@@ -302,10 +302,6 @@ const TOKEN_EXACT_NAMES = [
    */
   '--destructive-fill',
   '--destructive-tint',
-  '--success',
-  '--success-tint',
-  '--warning',
-  '--warning-tint',
   '--overlay',
 ] as const;
 

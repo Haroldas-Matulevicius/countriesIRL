@@ -11,7 +11,14 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
  * looks wired up and renders unstyled (P-5). Sizing comes from the `size` prop,
  * colour from `currentColor`, and everything else from CSS custom properties.
  *
- * Consumer: the floating map controls, Reset View / Locate. On hover the glyph sweeps a quarter turn and settles.
+ * Consumer: NONE. Vendored ahead of one and recorded as such - the floating
+ * camera cluster (D-21) draws its own inline glyphs, and wiring this component
+ * into `Reset View` would put entrance and hover animation on camera chrome
+ * that D-21 does not describe. `03-08` recorded that as churn and `03-10`
+ * corrected this line rather than doing it: a `Consumer:` naming a component
+ * that does not import this file is provenance making a false claim.
+ *
+ * On hover the glyph sweeps a quarter turn and settles.
  *
  * Attaching a ref flips `isControlledRef`, so the icon's own self-hover defers
  * to the parent row — ref-driven and hover-driven modes never fight. The rail

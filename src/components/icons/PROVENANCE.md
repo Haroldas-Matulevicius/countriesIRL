@@ -77,6 +77,23 @@ on 2026-08-06. No glyph was taken from it either — only its structure.
 
 ---
 
+## Three glyphs are vendored with no consumer
+
+`CrosshairIcon.tsx`, `PlusIcon.tsx`, and `MinusIcon.tsx` are imported by nothing. The floating
+camera cluster (D-21) draws its own inline glyphs, and wiring these components into it would put
+entrance and hover animation on camera chrome D-21 does not describe.
+
+Until `03-10` each of the three carried a `Consumer:` line naming *"the floating map controls"* —
+a claim the code did not support, in the file that exists to be evidence. `03-08` recorded the
+mismatch and deferred it; `03-10` **corrected the three lines** rather than wiring the glyphs, and
+the choice is written here so a later reader can tell an unconsumed glyph from a forgotten one.
+
+No gate requires an icon to have a consumer, and none was added: `iconContract.test.ts` asserts
+inventory, sizing, provenance, and forbidden constructs, and a consumer assertion here would have
+to be waived for exactly these three on its first run.
+
+---
+
 ## Re-vendoring rule
 
 The `strokeWidth` **2→1.5** local patch and its marker comment must be re-applied on any
@@ -85,5 +102,7 @@ patch, and a 2px glyph next to a 1.5px one is a difference nobody reads as a reg
 
 ---
 
-*Last updated: 2026-08-06 — created with the 14-glyph inventory; the three previously PENDING
-upstream rows closed with a dated `not vendored` disposition (plan 03-02).*
+*Last updated: 2026-08-06 — the three unconsumed glyphs' `Consumer:` lines corrected: they named
+the floating map controls, which import none of them; the choice to correct rather than wire is
+recorded above (plan 03-10). Earlier the same day: created with the 14-glyph inventory, and the
+three previously PENDING upstream rows closed with a dated `not vendored` disposition (plan 03-02).*

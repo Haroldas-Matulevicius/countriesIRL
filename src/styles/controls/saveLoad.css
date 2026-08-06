@@ -64,11 +64,20 @@
   padding: var(--space-sm) var(--space-md);
 }
 
+/*
+ * D-05 / CF-7: neutral, not amber. This note is bounded by the hairline rather
+ * than by a hue - the same flat-with-hairlines elevation every other block in
+ * the panel uses - because the warning family was a third status colour and the
+ * accent budget gives this panel one Apple Blue surface and no second hue.
+ * `--themely-powder` steps it off the Porcelain card so it still reads as a
+ * separate block.
+ */
 .save-load-warning {
   padding: var(--space-sm);
   border-radius: var(--radius-control);
-  background: var(--warning-tint);
-  color: var(--warning);
+  background: var(--themely-powder);
+  box-shadow: var(--hairline);
+  color: var(--themely-midnight-ink);
 }
 
 .save-load form {

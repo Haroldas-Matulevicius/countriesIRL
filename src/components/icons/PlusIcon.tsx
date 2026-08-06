@@ -11,7 +11,10 @@ import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
  * looks wired up and renders unstyled (P-5). Sizing comes from the `size` prop,
  * colour from `currentColor`, and everything else from CSS custom properties.
  *
- * Consumer: the floating map controls, zoom in. On hover the glyph pops outward.
+ * Consumer: NONE - see `CrosshairIcon.tsx` for the recorded reason. The zoom-in
+ * control in the floating camera cluster draws its own inline glyph.
+ *
+ * On hover the glyph pops outward.
  *
  * Attaching a ref flips `isControlledRef`, so the icon's own self-hover defers
  * to the parent row — ref-driven and hover-driven modes never fight. The rail

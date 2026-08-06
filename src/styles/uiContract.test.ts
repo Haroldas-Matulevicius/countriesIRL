@@ -1252,6 +1252,18 @@ const RETIRED_TOKENS = [
   '--motion-camera',
   '--easing-camera',
   '--easing-control',
+  /*
+   * CF-7 / D-05, retired by `03-10`. The toast severity surfaces that consumed
+   * them are neutral now and the partial-data banner is Porcelain chrome, so
+   * the product carries exactly two semantic colours: Apple Blue and the
+   * destructive family. Listed here rather than merely deleted from
+   * `theme.css`, because a deleted declaration and a stale `var()` reference
+   * look identical at run time - the reference just resolves to nothing.
+   */
+  '--success',
+  '--success-tint',
+  '--warning',
+  '--warning-tint',
 ] as const;
 
 /** Identical in both modes by contract, so parity is an equality, not a flip. */
@@ -1772,8 +1784,6 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['--destructive', '--themely-porcelain'],
   ['--destructive', '--themely-powder'],
   ['--destructive', '--destructive-tint'],
-  ['--success', '--success-tint'],
-  ['--warning', '--warning-tint'],
   // Mode-invariant by declaration; rated in BOTH modes anyway, so a `.dark`
   // redefinition would surface here as a failing ratio and not only as a
   // firewall violation.
@@ -1783,7 +1793,7 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * Six mode-by-preference combinations times eighteen pairs, written as a
+ * Six mode-by-preference combinations times sixteen pairs, written as a
  * LITERAL and deliberately not derived from the two tables above.
  *
  * `PREFERENCE_CASES.length * TEXT_ON_SURFACE_PAIRS.length` reads like the same
@@ -1793,7 +1803,7 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
  * against this matrix, run with the derived form, failed only on a secondary
  * table-length check while the row count itself stayed green at zero rows.
  */
-const EXPECTED_CONTRAST_ROWS = 108;
+const EXPECTED_CONTRAST_ROWS = 96;
 
 describe('Phase 3 contrast matrix (assertion 19)', (): void => {
   /**
@@ -1846,7 +1856,7 @@ describe('Phase 3 contrast matrix (assertion 19)', (): void => {
 
     expect(rows).toBe(EXPECTED_CONTRAST_ROWS);
     expect(PREFERENCE_CASES).toHaveLength(6);
-    expect(TEXT_ON_SURFACE_PAIRS).toHaveLength(18);
+    expect(TEXT_ON_SURFACE_PAIRS).toHaveLength(16);
   });
 
   /**

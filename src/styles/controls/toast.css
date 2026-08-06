@@ -60,18 +60,22 @@
   );
 }
 
-.map-editor > section[data-severity="success"] {
-  border-color: var(--success);
-  background: var(--success-tint);
-  color: var(--success);
-}
-
-.map-editor > section[data-severity="warning"] {
-  border-color: var(--warning);
-  background: var(--warning-tint);
-  color: var(--warning);
-}
-
+/*
+ * D-05 / CF-7: the toast region's accent budget is `none`, and its second
+ * semantic colour is the destructive family and nothing else. `success` and
+ * `warning` used to get a hue each - a green and an amber that existed nowhere
+ * else in the product - and both now fall through to the neutral base rule
+ * above: Midnight Ink on Porcelain, bounded by the hairline.
+ *
+ * There is no `[data-severity="success"]` or `[data-severity="warning"]` rule
+ * here on purpose. Writing one that restated the base rule's own values would
+ * look like a treatment and change nothing, and the next reader could not tell
+ * a deliberate neutral from a copy-paste. The attribute is still written by
+ * `ToastRegion` and still read by the allowlist; only the paint is gone.
+ *
+ * Severity was never carried by colour alone: the copy says what happened, and
+ * `role="alert"` versus `role="status"` is what a screen reader acts on.
+ */
 .map-editor > section[data-severity="error"] {
   border-color: var(--destructive);
   background: var(--destructive-tint);

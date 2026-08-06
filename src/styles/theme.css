@@ -217,8 +217,11 @@
    * second red.
    *
    * D-05 collapses status hues onto Apple Blue, Themely Red, or no colour at
-   * all; `--success` and `--warning` survive this plan because the toast
-   * severity surfaces that consume them are restyled in `03-10`.
+   * all. `03-04` let the success and warning families survive one more plan
+   * because the toast severity surfaces that consumed them had not been
+   * restyled yet; `03-10` restyled them and DELETED all four names rather than
+   * aliasing them onto a neutral. There is no third status hue: an error is
+   * this family, and a status or warning is neutral ink on Porcelain.
    */
   --destructive: #b42318;
   /*
@@ -230,10 +233,6 @@
    */
   --destructive-fill: #b42318;
   --destructive-tint: #fef3f2;
-  --success: #067647;
-  --success-tint: #ecfdf3;
-  --warning: #b54708;
-  --warning-tint: #fffaeb;
   --overlay: color-mix(in srgb, var(--themely-media-backdrop) 72%, transparent);
 
   /* ---- The mode-invariant (fixed) set - the export firewall -------------- */
@@ -319,10 +318,6 @@
 
   --destructive: var(--themely-red);
   --destructive-tint: #2b1513;
-  --success: #4ade80;
-  --success-tint: #0d1f16;
-  --warning: #fbbf24;
-  --warning-tint: #241a08;
 
   --popover-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.45);
 }

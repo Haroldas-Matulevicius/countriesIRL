@@ -425,6 +425,12 @@
  * banner takes the one free corner and is capped at a measure rather than run
  * full width, because a full-width bar at either edge lands under two of them.
  */
+/*
+ * D-05 / CF-7: neutral chrome, not amber. The canvas region's accent budget is
+ * literally `none` and the warning family was a third status hue; this banner
+ * now uses the same Porcelain-on-hairline surface as the floating cluster and
+ * the toast base. Its weight and its copy carry the urgency.
+ */
 .map-workspace__warning {
   position: absolute;
   z-index: 2;
@@ -433,10 +439,10 @@
   inset-inline-end: var(--space-md);
   margin-bottom: 0;
   padding: var(--space-sm) var(--space-md);
-  border: var(--border-width) solid var(--warning);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: var(--warning-tint);
-  color: var(--warning);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
   font-size: var(--text-caption);
   font-weight: var(--text-subheading-weight);
   line-height: var(--text-caption-line-height);
