@@ -203,6 +203,126 @@ async function measureTargets(page: Page): Promise<ElementBox[]> {
   );
 }
 
+/**
+ * The theme axis (D-30 / D-35).
+ *
+ * `.dark` on the editor mount root is what drives the palette, and the rail
+ * footer's toggle is its ONLY writer. Every theme flip in this file goes
+ * through that control, so the gate exercises the shipped path; nothing here
+ * sets the class directly and nothing emulates an operating-system preference,
+ * which this app deliberately never reads.
+ *
+ * The labels name the DESTINATION, matching `ThemeToggle.tsx`.
+ */
+const THEME_TOGGLE_LABELS = {
+  dark: 'Switch to dark theme',
+  light: 'Switch to light theme',
+} as const;
+
+const DARK_MOUNT_ROOT = /(?:^|\s)dark(?:\s|$)/u;
+
+type EditorTheme = keyof typeof THEME_TOGGLE_LABELS;
+
+async function setEditorTheme(page: Page, mode: EditorTheme): Promise<void> {
+  const toggle = page.getByRole('button', {
+    name: THEME_TOGGLE_LABELS[mode],
+  });
+  // The control names where it GOES, so its label is absent once the editor is
+  // already in the requested mode. Idempotent on purpose: callers say what they
+  // want, not what to press.
+  if ((await toggle.count()) > 0) {
+    await toggle.click();
+  }
+
+  const mount = page.locator('.map-editor');
+  if (mode === 'dark') {
+    await expect(mount).toHaveClass(DARK_MOUNT_ROOT);
+  } else {
+    await expect(mount).not.toHaveClass(DARK_MOUNT_ROOT);
+  }
+}
+
+interface ThemeSurfaces {
+  /** Mount-root wall and ink: chrome, and it MUST follow the theme. */
+  readonly wall: string;
+  readonly ink: string;
+  /** The export-bound surfaces: they must NOT follow it (Live Invariant 9). */
+  readonly region: string;
+  readonly canvas: string;
+  readonly border: string;
+}
+
+/**
+ * Waits for the theme crossfade to be OVER, deterministically.
+ *
+ * The obvious "poll to two equal consecutive reads" is unsound here and was
+ * measured to be: the mount root crossfades its wall over 360ms and the class
+ * change registers the transition on the next style flush, so two samples taken
+ * before that flush are equal and the loop declares a crossfade settled at its
+ * starting colour. That reports the dark wall as still white - a flake that
+ * fails an honest assertion for a dishonest reason.
+ *
+ * Two frames let any pending transition register; `getAnimations()` then names
+ * exactly the transitions in flight and their `finished` promises say when they
+ * are not. Scoped to the two elements under test rather than the document, so
+ * an unrelated animation elsewhere can never hang this.
+ */
+async function settleThemeSurfaces(page: Page): Promise<void> {
+  await page.evaluate(async (): Promise<void> => {
+    const targets = [
+      document.querySelector('.map-editor'),
+      document.querySelector('path.country-path[data-country-id="FRA"]'),
+    ].filter((element): element is Element => element !== null);
+    if (targets.length !== 2) {
+      throw new Error('The editor shell is not rendered.');
+    }
+
+    await new Promise<void>((resolve): void => {
+      requestAnimationFrame((): void => {
+        requestAnimationFrame((): void => resolve());
+      });
+    });
+
+    await Promise.all(
+      targets
+        .flatMap((element): ReadonlyArray<Animation> => element.getAnimations())
+        .map((animation): Promise<void> =>
+          animation.finished.then(
+            (): void => undefined,
+            (): void => undefined,
+          ),
+        ),
+    );
+  });
+}
+
+async function readThemeSurfaces(page: Page): Promise<ThemeSurfaces> {
+  return page.evaluate((): ThemeSurfaces => {
+    const mount = document.querySelector('.map-editor');
+    const region = document.querySelector('.map-workspace__canvas');
+    const canvas = document.querySelector('svg.map-canvas');
+    const border = document.querySelector(
+      'path.country-path[data-country-id="FRA"]',
+    );
+    if (
+      mount === null ||
+      region === null ||
+      canvas === null ||
+      border === null
+    ) {
+      throw new Error('The editor shell is not rendered.');
+    }
+    const mountStyle = getComputedStyle(mount);
+    return {
+      wall: mountStyle.backgroundColor,
+      ink: mountStyle.color,
+      region: getComputedStyle(region).backgroundColor,
+      canvas: getComputedStyle(canvas).backgroundColor,
+      border: getComputedStyle(border).stroke,
+    };
+  });
+}
+
 test.describe('responsive world workspace', (): void => {
   test('the desktop workspace is map-first with one camera owner and exact landmarks', async ({
     page,
@@ -730,62 +850,73 @@ test.describe('responsive world workspace', (): void => {
   });
 });
 
-test.describe('preference emulation', (): void => {
-  test('dark preference restyles chrome and leaves the composition square white', async ({
+test.describe('theme and preference behaviour', (): void => {
+  /**
+   * REWRITTEN by `03-09` (D-35, CF-6), not repaired.
+   *
+   * The old version flipped the OS colour-scheme through `page.emulateMedia`
+   * and read `.map-workspace__square`. Neither is a live claim: `03-03`
+   * renamed the region to `.map-workspace__canvas`, and D-30 moved the dark
+   * flip onto a `.dark` class on the editor mount root with NO stylesheet
+   * reading the operating-system query at all. Emulating the OS preference
+   * therefore changes nothing in the page - the assertion would have gone on
+   * passing while proving nothing, which is this repo's recorded worst failure
+   * mode for a gate.
+   *
+   * The theme axis is driven through the SHIPPED control instead, so the gate
+   * exercises the path a creator uses rather than a test-only backdoor.
+   */
+  test('the dark theme class restyles chrome and leaves the composition surface fixed', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
-    await page.emulateMedia({ colorScheme: 'light' });
     await waitForApp(page);
 
-    const probe = async (): Promise<Record<string, string>> =>
-      page.evaluate((): Record<string, string> => {
-        const square = document.querySelector('.map-workspace__square');
-        const canvas = document.querySelector('svg.map-canvas');
-        const border = document.querySelector(
-          'path.country-path[data-country-id="FRA"]',
-        );
-        if (square === null || canvas === null || border === null) {
-          throw new Error('The composition square is not rendered.');
-        }
-        return {
-          page: getComputedStyle(document.body).backgroundColor,
-          square: getComputedStyle(square).backgroundColor,
-          canvas: getComputedStyle(canvas).backgroundColor,
-          border: getComputedStyle(border).stroke,
-        };
-      });
-
     /*
-     * Country paths carry a 150ms stroke transition, so an immediate read after
-     * a preference flip samples a colour that is on its way somewhere. Poll to a
-     * settled value instead of asserting a frame that happens to be in flight.
+     * Country paths carry a 150ms stroke transition and the mount root
+     * crossfades its wall on `--motion-duration-slow`, so an immediate read
+     * after a theme flip samples a colour that is on its way somewhere.
      */
-    const readSurfaces = async (): Promise<Record<string, string>> => {
-      let previous = await probe();
-      await expect
-        .poll(async (): Promise<boolean> => {
-          const current = await probe();
-          const isSettled =
-            JSON.stringify(current) === JSON.stringify(previous);
-          previous = current;
-          return isSettled;
-        })
-        .toBe(true);
-      return previous;
+    const readSurfaces = async (): Promise<ThemeSurfaces> => {
+      await settleThemeSurfaces(page);
+      return readThemeSurfaces(page);
     };
 
     const light = await readSurfaces();
-    await page.emulateMedia({ colorScheme: 'dark' });
+    await setEditorTheme(page, 'dark');
     const dark = await readSurfaces();
 
-    // Chrome follows the preference...
-    expect(dark.page).not.toBe(light.page);
-    // ...and the exportable composition does not.
-    expect(dark.square).toBe(light.square);
-    expect(dark.square).toBe('rgb(255, 255, 255)');
+    // Chrome follows the creator's choice...
+    expect(dark.wall).not.toBe(light.wall);
+    expect(dark.ink).not.toBe(light.ink);
+    // ...and the exportable composition does not (Live Invariant 9).
+    expect(dark.region).toBe(light.region);
+    expect(dark.region).toBe('rgb(255, 255, 255)');
     expect(dark.canvas).toBe(light.canvas);
     expect(dark.border).toBe(light.border);
+
+    // And back: a one-way check would pass against a toggle that latches.
+    await setEditorTheme(page, 'light');
+    const relit = await readSurfaces();
+    expect(relit.wall).toBe(light.wall);
+    expect(relit.region).toBe(light.region);
+  });
+
+  /**
+   * D (task 1): the emulation is genuinely gone, asserted rather than assumed.
+   * A leftover `colorScheme` call is harmless on its own and deeply misleading
+   * - the next reader takes it as evidence the theme axis is covered.
+   */
+  test('drives the theme by class and never by an operating-system query', async (): Promise<void> => {
+    const source = await readFile(resolve('tests/e2e/responsive.spec.ts'), 'utf8');
+
+    expect(
+      /emulateMedia\(\s*\{[^}]*colorScheme/u.test(source),
+      'D-30 forbids the colour-scheme query; emulating it changes nothing in ' +
+        'this app, so a theme axis built on it is a gate that cannot fail.',
+    ).toBe(false);
+    expect(source).toContain(THEME_TOGGLE_LABELS.dark);
+    expect(source).toContain(THEME_TOGGLE_LABELS.light);
   });
 
   test('reduced-motion preference removes every authored transition', async ({
@@ -942,9 +1073,19 @@ const MIN_NON_WHITE_PIXELS = 10_000;
 /** France at the whole-world fit is small, but it is not a dozen pixels. */
 const MIN_APPLIED_RED_PIXELS = 200;
 
+/**
+ * REWRITTEN by `03-09` (D-35). The theme axis was `colorScheme` on the browser
+ * context; after D-30 that emulation changes nothing in this app, so the three
+ * exports became trivially identical and Live Invariant 9's only browser-level
+ * guard silently stopped guarding. `theme` now drives the shipped toggle.
+ *
+ * The other two axes are unchanged and are still REAL emulations: forced
+ * colors and device pixel ratio both genuinely alter what the browser paints.
+ */
 async function probeExportedPng(
   browser: Browser,
   options: BrowserContextOptions,
+  theme: EditorTheme,
 ): Promise<PngProbe> {
   const context = await browser.newContext({
     ...options,
@@ -956,6 +1097,7 @@ async function probeExportedPng(
     const page = await context.newPage();
     await waitForApp(page);
     await clearSavedMaps(page);
+    await setEditorTheme(page, theme);
 
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
@@ -1047,10 +1189,11 @@ test.describe('preference-independent export', (): void => {
     // The single most fragile invariant in a styling change: a theme token that
     // leaks into the export makes dark-mode creators silently ship a different
     // PNG, and no rendering test notices.
-    const baseline = await probeExportedPng(browser, {
-      colorScheme: 'light',
-      deviceScaleFactor: 1,
-    });
+    const baseline = await probeExportedPng(
+      browser,
+      { deviceScaleFactor: 1 },
+      'light',
+    );
     expect(baseline.width).toBe(EXPORT_SIZE);
     expect(baseline.height).toBe(EXPORT_SIZE);
 
@@ -1070,15 +1213,16 @@ test.describe('preference-independent export', (): void => {
       'the applied #DC2626 fill did not reach the PNG.',
     ).toBeGreaterThan(MIN_APPLIED_RED_PIXELS);
 
-    const dark = await probeExportedPng(browser, {
-      colorScheme: 'dark',
-      deviceScaleFactor: 3,
-    });
-    const forced = await probeExportedPng(browser, {
-      colorScheme: 'light',
-      forcedColors: 'active',
-      deviceScaleFactor: 2,
-    });
+    const dark = await probeExportedPng(
+      browser,
+      { deviceScaleFactor: 3 },
+      'dark',
+    );
+    const forced = await probeExportedPng(
+      browser,
+      { forcedColors: 'active', deviceScaleFactor: 2 },
+      'light',
+    );
 
     expect(dark.width).toBe(EXPORT_SIZE);
     expect(dark.height).toBe(EXPORT_SIZE);

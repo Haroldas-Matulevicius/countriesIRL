@@ -320,6 +320,44 @@ const canvas = await html2canvas(clone, {
 called** — see the clone contract above. A legend that is a *sibling* of `svg.map-canvas` is a
 hard `invalid-composition` refusal, never a silently legend-less PNG.
 
+### Theme independence is held by PLACEMENT and hard-setting, not by the token contract (Phase 3, D-35)
+
+**Measured in `03-09`, and it corrects the approved plan.** `03-09` was told to RED-prove
+assertion 24 by giving `.dark` a `--map-surface` override, on the stated grounds that
+`--map-surface` is "the clearest" export token. **It does not work, and the reason matters more
+than the probe.** The exported PNG is immune to *every* CSS custom property today, through three
+independent mechanisms:
+
+1. `createExportFrame` appends the frame to `document.body`, which is **outside** `.map-editor` —
+   and D-30 scopes `.dark` to that mount root, so the clone is never in the theme's scope at all;
+2. the frame and the cloned `svg` both hard-set `background` / `background-color` **inline** to
+   `EXPORT_BACKGROUND_COLOR`, and `html2canvas` is passed the same colour a third time;
+3. `sanitizeExportClone` hard-sets `stroke` / `stroke-width` inline from `DEFAULT_BORDER_COLOR`,
+   and the legend paints from the `THEME_COLORS` TS literals rather than from `var()`.
+
+Both `exportFrame` and the clone also pin `style.colorScheme = 'light'`.
+
+**Consequences, stated rather than left to be rediscovered.**
+
+- A `.dark` override of a `--map-*` token changes **nothing** in the PNG right now. Live
+  Invariant 9 is therefore enforced *only* by assertion 4 in `uiContract.test.ts` at the CSS
+  level; assertion 24 does not currently back it up on the token axis. That is defence in depth
+  working, not a redundant gate — but do not describe assertion 24 as the token contract's
+  browser-level guard, because it is not one.
+- **The defect assertion 24 can still catch is a COMPOSITE one**, and it takes two halves:
+  the theme class escaping above the mount root (`document.documentElement`, the hazard
+  `App.tsx` records verbatim) **plus** a theme-conditional paint on map geometry that the clone
+  does not hard-set. Committing both makes the exported PNG diverge, and assertion 24 goes red on
+  it — RED-proven in `03-09` with the sampled pixel moving `255,255,255 → 16,16,16`.
+- **Do not "simplify" any of the three mechanisms away**, and do not read a green assertion 24 as
+  permission to. Each one alone would still leave the PNG theme-independent, which is exactly why
+  removing one is invisible.
+- **`03-11` replaces the rasterisation path (D-34) and this analysis expires with it.** A test
+  that passed against html2canvas and still passes has not been shown to test the new code, so
+  `03-11` re-runs the composite probe above against the replacement — and if the new path resolves
+  CSS in the clone's own scope, the single-token probe becomes valid again and assertion 24
+  becomes the token contract's browser-level guard for the first time.
+
 ---
 
 ## Performance & Timeouts
@@ -542,7 +580,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-08-06 — `EXPORT_BORDER_WIDTH` lowered to 0.75 alongside the toned-down screen weights (0.75/1.5/2); the normalization and `non-scaling-stroke` contract are unchanged.*
-*Last updated: 2026-07-26/27 — the clone keeps `vector-effect="non-scaling-stroke"` (removing it let camera zoom multiply border widths in the PNG); cross-domain journey rules from plan 02-27: region-disjoint colour counting, discrimination controls beside cross-export equalities, exported bytes follow the history position; no-refresh copy enforced, Phase 1 `alert()` handling superseded, and the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
+*Last updated: 2026-08-06 — §Background Color Contract gains "Theme independence is held by PLACEMENT and hard-setting, not by the token contract" (D-35): the export frame is appended outside the `.dark` mount root and hard-sets background, stroke, and `color-scheme` inline, so a `.dark` override of a `--map-*` token changes nothing in the PNG and the plan's suggested `--map-surface` probe cannot redden assertion 24; the composite two-half defect that CAN redden it, RED-proven; and the note that `03-11`'s replacement rasterisation path expires the whole analysis (plan 03-09).*
+*Last updated: 2026-08-06 + 2026-07-26/27 — `EXPORT_BORDER_WIDTH` lowered to 0.75 alongside the toned-down screen weights (0.75/1.5/2), with the normalization and `non-scaling-stroke` contract unchanged; earlier, the clone keeps `vector-effect="non-scaling-stroke"` (removing it let camera zoom multiply border widths in the PNG); cross-domain journey rules from plan 02-27: region-disjoint colour counting, discrimination controls beside cross-export equalities, exported bytes follow the history position; no-refresh copy enforced, Phase 1 `alert()` handling superseded, and the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*
