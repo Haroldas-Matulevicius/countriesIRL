@@ -758,14 +758,31 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           path.kind === 'logical' && path.entityId === activeCountryId ? 0 : -1,
         );
 
-      paths.selectAll('title').remove();
-      paths
-        .filter((path): boolean => path.isAccessible)
-        .append('title')
-        .text((path): string => {
-          const color = getSceneFeatureColor(path.feature, colors);
-          return `${path.feature.properties.name}, ${color}`;
-        });
+      // Updated in place rather than removed and re-appended: this runs on
+      // every color, selection, and history change across ~750 wrapped paths,
+      // and rebuilding the nodes made it the hottest effect in the app.
+      paths.each(function (this: SVGPathElement, path): void {
+        const existingTitle = this.querySelector('title');
+        if (!path.isAccessible) {
+          existingTitle?.remove();
+          return;
+        }
+
+        const label = `${path.feature.properties.name}, ${getSceneFeatureColor(
+          path.feature,
+          colors,
+        )}`;
+        if (existingTitle === null) {
+          const title = document.createElementNS(
+            'http://www.w3.org/2000/svg',
+            'title',
+          );
+          title.textContent = label;
+          this.append(title);
+        } else if (existingTitle.textContent !== label) {
+          existingTitle.textContent = label;
+        }
+      });
 
       return runAfterPaint((): void => {
         INTERACTION_MEASURES.forEach(
