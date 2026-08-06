@@ -3,48 +3,65 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 3 is PLANNED and ready to execute: 12 plans (03-01..03-12), all gates clean -- decision coverage 36/36, all 28 UI-SPEC assertions bound, 0 unplanned source items. Four roadmap amendments landed by hand at 62b9f18. Phase 2's two owner gates are UNTOUCHED and still OPEN (02-25 documentation approval, blanket/sight-unseen/not hash-bound; 02-28 human acceptance matrix, bound to fe5f946 with every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: /gsd:execute-phase 3 -- OR hand 02-28 to the owner first if you want the matrix performed before the restyle. Phase 3 does not wait on either gate; D-31's tag on fe5f946 keeps the pre-restyle build reachable."
-last_updated: "2026-08-06T12:00:00.000Z"
-last_activity: "2026-08-06 -- Phase 3 PLANNED (docs only; no source, test, or script file touched). Ran research -> ui-phase -> plan-phase end to end. Artifacts: 03-RESEARCH.md (2f3f80d), 03-UI-SPEC.md approved with 28 RED-provable assertions (aeb951b, revised aa3e146), 12 PLAN.md files (5a3370b), and the four roadmap amendments landed BY HAND at 62b9f18. Six decisions were added during the run: D-30 rail-footer dark toggle with NO prefers-color-scheme read anywhere; D-31 annotated tag on fe5f946 so 02-28's build stays reachable; D-32 full-bleed surface with a centred 1:1 export frame; D-33 Chrome-only certification; D-34/D-34a html2canvas REMOVED and Phase 3 owns the SVG->PNG path with a generalised inline-font-embedding seam; D-35 re-arm the export-independence gate the dark-mode switch would otherwise silently disarm. Plan-checker found 2 blockers, both fixed: assertion 24 would have shipped RED-proven only against the retired html2canvas path, and two verify commands could never pass. Prior: 02-27 gate PASS at fe5f946; 02-28 PREPARED, not completed. Per-plan Phase 2 narrative lives in phases/02-.../02-ACTIVITY-LOG.md."
+stopped_at: "Phase 3 SHIPPED (code level) 2026-08-06 -- 12/12 plans, 637/637 unit, Chrome e2e 103/103, build+lint clean. ENGINEERING COMPLETE AND PHYSICALLY UNVERIFIED: nobody has looked at the restyled editor, either theme, the rail, the flyout, the tooltips, or a single exported PNG. Verification status is human_needed at 18/19 must-haves. Next action: work 03-UAT.md (12 items). TWO of those are DECISIONS, not checks: (1) F-1, the legend-label export ceiling -- labels over 20/14/12 chars are now export-blocked and the default medium ceiling fell from effectively unreachable to 14; (2) what happens to already-saved compositions that now load cleanly but refuse to export. If F-1 is rejected the phase moves to gaps_found and needs a closure plan. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25 documentation approval, blanket/sight-unseen/not hash-bound; 02-28 human acceptance matrix, bound to fe5f946 with every physical cell PENDING). Phase 3 execution left phases/02-.../ byte-unchanged. Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them."
+last_updated: "2026-08-06T23:00:00.000Z"
+last_activity: "2026-08-06 -- Phase 3 EXECUTED end to end and closed at code level. 12 sequential waves, one executor per plan, 94 commits, 181 files, +39,234/-6,832 against tag acceptance-02-28. Shipped: full-bleed canvas + 56px icon rail with one-at-a-time 280px flyout; Themely token system with an explicit .dark toggle and ZERO prefers-color-scheme reads (D-30); Design.md authored at repo root; 14 in-repo icons; MapEditor mountable behind an explicit props boundary (storage as a factory, asset base path as a prop) for the future Themely transition -- seam only, NOTHING embedded, embedding still needs new owner authorization; Controls.css 1438 lines split into 8 per-surface sheets; html2canvas REMOVED and the SVG->PNG path owned outright (D-34/D-34a), bundle 689,445 -> 555,717 B. phase2CssContract.test.ts retired into uiContract.test.ts. SEVEN assertions that could not fail were caught and fixed during the phase, plus two in 03-12-PLAN.md's own verify block; the approved 03-UI-SPEC.md was also found to carry a WRONG placement formula, RED-proved by 03-08. Every blocking gate answered under a BLANKET, IN-ADVANCE, SIGHT-UNSEEN PROCEED-AUTHORIZATION dated 2026-08-06 -- NOT a content review, NOT hash-bound (Immutable Safety Constraint 8). Independent non-author review (03-12-REVIEW.md) and goal-backward verification (03-VERIFICATION.md) both re-ran every gate rather than copying numbers; honesty audit found ZERO overclaims. Chrome 151.0.7922.75 only -- Edge is NOT installed and no Edge result was produced."
 progress:
-  total_phases: 3
+  total_phases: 6
   completed_phases: 1
   total_plans: 70
-  completed_plans: 48
-  percent: 83
+  completed_plans: 60
+  percent: 86
 ---
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-07-26):** Phase 2 — **all engineering complete and gate-verified at
-> `fe5f946`; two owner gates OPEN.** Historical snapshots are **deferred** because the
-> rights-cleared archival source material does not exist — that is missing *material*, not
-> missing approval, and no sign-off can unblock it. The historical *engine* ships and is
-> tested. ▶ **Next: hand `02-28` (the physical acceptance matrix) to the owner.**
+> **Status (2026-08-06):** Phase 3 — **SHIPPED (code level); engineering complete and
+> PHYSICALLY UNVERIFIED.** Nobody has looked at the restyled editor, either theme, the rail,
+> the flyout, the tooltips, or a single exported PNG. Every result in the phase is automated.
+> ▶ **Next: work [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) — 12 items,
+> two of which are owner *decisions*, not checks.**
+> Phase 2 remains engineering-complete at `fe5f946` with **two owner gates still OPEN**;
+> Phase 3 execution left its directory byte-unchanged. Historical snapshots stay **deferred**
+> because the rights-cleared archival source material does not exist — missing *material*, not
+> missing approval, and no sign-off can unblock it. The historical *engine* ships and is tested.
 > **Pointers:** [`ROADMAP.md`](ROADMAP.md) (**Progress table is canonical for status and
 > counts**) · [`coding-rules/general.md`](coding-rules/general.md) (**live invariants +
-> immutable safety constraints**) · [`MILESTONES.md`](MILESTONES.md) ·
-> [`ARCHIVES.md`](ARCHIVES.md) ·
-> [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
-> (session resumption).
+> immutable safety constraints**) · [`../Design.md`](../Design.md) (design contract) ·
+> [`MILESTONES.md`](MILESTONES.md) · [`ARCHIVES.md`](ARCHIVES.md).
 
 ## Project Reference
 
 - **Core value:** help non-technical Instagram creators produce accurate, polished choropleth
   maps quickly.
 - **PROJECT.md last touched:** 2026-07-21.
-- **Stack:** React 18 + strict TypeScript + Vite; D3 v7 SVG; html2canvas; localStorage.
-  Vitest (node environment, no DOM) + Playwright (installed Chrome + Edge).
+- **Stack:** React 18 + strict TypeScript + Vite; D3 v7 SVG; `motion` 12.40.0 exact-pinned;
+  **no third-party export library** — `src/utils/export.ts` owns the SVG→PNG path (`html2canvas`
+  removed by 03-11, D-34); localStorage behind a storage-adapter interface.
+  Vitest (node environment, no DOM) + Playwright (**installed Chrome only — Edge is NOT installed
+  on this machine and is NOT certified**).
   **Browser-only, localhost-only — no backend, auth, or deployment exists or is claimed.**
+  The editor is **mountable** behind an explicit props boundary for a future Themely transition:
+  seam only, **nothing embedded**, and embedding requires new explicit owner authorization.
 
 ## Current Position
 
-Phase: **03** (Clean UI Overhaul) — **PLANNED, ready to execute.** 12 plans (`03-01`…`03-12`),
-decision coverage 36/36, all 28 UI-SPEC assertions bound, 0 unplanned source items. Four roadmap
-amendments landed by hand (`62b9f18`). ▶ **Next: `/gsd:execute-phase 3`.**
-Phase 3 does **not** wait on the Phase 2 owner gates — it must only avoid disturbing their
-evidence, which D-31's annotated tag on `fe5f946` handles. Execute `03-01` and `03-11` in a
-**fresh context** (largest plans, low estimate confidence).
+Phase: **03** (Clean UI Overhaul) — **SHIPPED (code level) 2026-08-06 · 12/12 plans ·
+verification `human_needed` at 18/19 must-haves.**
+Gate at close: lint clean · **637/637** unit · build clean · **Chrome e2e 103/103** ·
+`data:world:check` PASS. **Chrome 151.0.7922.75 only; Edge not installed, not certified.**
+▶ **Next: work [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) — 12 items.**
+
+**Two of those are owner DECISIONS, not checks:**
+
+| # | Decision | Why it is open |
+|---|---|---|
+| **F-1** | The legend-label export ceiling | Labels over 20/14/12 chars (small/medium/large) are now export-blocked. At the **default** `medium` the effective ceiling fell from *effectively unreachable* (36, against a 32-char input cap) to **14**. The bound derives from worst-case-uniform glyph width and over-estimates line count ~1.8×. **If rejected, this phase moves to `gaps_found`.** |
+| **F-1b** | Already-saved compositions that can no longer export | `storage.ts:57` still caps at 32 (OPEN ITEM 4, deliberately untouched), so a Phase-2-era saved map with a 15–32 char label **loads cleanly then refuses to export**. Untested, and cuts against Live Invariant 8's repair-and-report philosophy. |
+
+Full detail: [`03-VERIFICATION.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-VERIFICATION.md) ·
+[`03-12-REVIEW.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-12-REVIEW.md) ·
+[v1.1 archive](milestones/v1.1/ROADMAP-ARCHIVE.md).
 
 Phase: **02** (Region Variants & Advanced Features) — EXECUTING; engineering done, owner-gated.
 Plans: **26 of 36 complete · 8 deferred · 0 engineering remaining · 2 owner gates open.**
@@ -97,6 +114,12 @@ Per-plan chronology →
 [`02-ACTIVITY-LOG.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md)
 and the `02-NN-SUMMARY.md` files. One line per event here.
 
+- 2026-08-06 — **Phase 3 SHIPPED (code level)** — 12/12 plans; 94 commits, 181 files,
+  +39,234/−6,832. `html2canvas` removed and the SVG→PNG path owned outright; Themely token system
+  with an explicit `.dark` toggle; editor made mountable behind a props boundary (seam only).
+  **Carry-forward: physically unverified — 12 items in `03-UAT.md`, two of them owner decisions
+  (F-1 label ceiling, saved-composition export break).**
+  → [archive](milestones/v1.1/ROADMAP-ARCHIVE.md#phase-3-clean-ui-overhaul-11-5-weeks)
 - 2026-08-06 — **Pipeline restructured toward the classed-choropleth product vision.** The old
   Phase 3 "Polish & Launch" stub was replaced by Phases 3–6 (Clean UI Overhaul → Visual &
   Cartographic System → Data-Driven Maps → Polish & Launch), grouped as milestone **v1.1**;
@@ -126,6 +149,32 @@ and the `02-NN-SUMMARY.md` files. One line per event here.
   self-reported checkpoints had called resolved (stuck export gate, phantom cross-scene selection,
   deleted inspector landmark, legend overflow clipping the PNG).
 
+### Decisions (Phase 3, closed)
+
+**[Phase 3] (closed)** — per-plan decision detail (tokens, dark toggle, icon rail + flyout, motion
+contract, mountable boundary, CSS split, owned SVG→PNG export, legend typography) collapsed →
+[03 SUMMARYs](phases/03-clean-ui-overhaul-1-1-5-weeks/) +
+[archive](milestones/v1.1/ROADMAP-ARCHIVE.md#phase-3-clean-ui-overhaul-11-5-weeks). Decisions that
+became durable engineering contracts were promoted into `coding-rules/` (`export.md` rewritten for
+the owned path; `frontend.md`, `storage.md`, `data.md` amended) and are not repeated here.
+
+Kept as separate lines **only** because later phases depend on them:
+
+- **D-34/D-34a — Phase 3 owns the SVG→PNG export path.** No third-party export library exists.
+  Phase 4's gradient/text work must prove PNG bytes against *this* rasteriser, not html2canvas.
+- **D-30 — dark mode is an explicit toggle.** **No `prefers-color-scheme` read anywhere**, not even
+  to seed a first-run default. Enforced by a production-source gate.
+- **Mountable boundary (03-05)** — `<MapEditor dataBasePath? storage? initialThemeMode? />`; storage
+  is a *factory*, `MapEditor` names no host global (asserted as an empty set). All later phases must
+  preserve this. **Embedding still requires new explicit owner authorization.**
+- **A selector ceiling is a gate** (326 at close of 03-10); stylesheets are discovered by directory
+  walk, and a new sheet must join both the directory and `main.tsx`'s asserted import order.
+- **The vendored Inter subset is latin-only** — latin-ext diacritics fall back inside exported PNGs.
+  Kept deliberately for Phase 3; widening is a v1.1 owner follow-up (~+113 KB base64 per export).
+- **Assertion 24 can no longer fail on the single-token defect it advertises.** The export sandbox
+  cuts every CSS route to exported pixels, so theme independence holds **by construction**. Documented
+  in `coding-rules/export.md`; assertion 4 is the token contract's remaining guard.
+
 ### Decisions (Phase 2, recent)
 
 Phase 1 decisions → [`milestones/v1.0/DECISIONS-ARCHIVE.md`](milestones/v1.0/DECISIONS-ARCHIVE.md)
@@ -153,6 +202,30 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ### Pending Todos
 
+- **Work `03-UAT.md` (12 items).** Phase 3 is physically unverified. Two items are decisions, not
+  checks — see § Current Position.
+- **Decide F-1: the legend-label export ceiling.** If rejected, Phase 3 moves to `gaps_found` and
+  needs a closure plan. Evidence that the bound is too tight: the repo's own fixture was shortened
+  `'Imperial lands'` → `'Empire lands'` (`fdd1714`) to keep the suite green.
+- **Decide what happens to already-saved compositions that now load but cannot export** (F-1b).
+  No test covers this path.
+- **Two todos filed by `03-12` that it could not write itself** (STATE.md is orchestrator-held):
+  the Phase 2 Edge-record contradiction (below — **annotate, never rewrite**), and the OPEN ITEM 4
+  residual (the storage validator still admits all five snapshot ids; **only presentation is
+  filtered** — also below).
+- **v1.1 milestone entry.** The v1.1 archive now exists
+  ([`milestones/v1.1/ROADMAP-ARCHIVE.md`](milestones/v1.1/ROADMAP-ARCHIVE.md)); add the **v1.1 —
+  Clean Studio & Data-Driven Maps** entry to `MILESTONES.md` with its "Phases:" line and
+  "Last phase number" footer when v1.0 closes.
+- **`Design.md` § 7 is `[FOR REVIEW]` and has never been reviewed** — 11 discretion items tabled in
+  `03-02-SUMMARY.md`, plus 03-04's edits to §§ 2, 6, 7.5, 7.6, 7.10.
+- **The approved `03-UI-SPEC.md` carries a wrong placement formula.** `inset-inline-end:
+  max(--space-lg, gutter + --space-sm)` lands the floating cluster *inside* the frame corner at
+  every aspect ratio — RED-proved by 03-08, which shipped a corner anchor instead and recorded the
+  reason in `coding-rules/frontend.md`. **The approved spec doc itself was not edited** — decide
+  whether to annotate it.
+- **D-5 is not closed at ≥1200px** — the desktop rail needs ~492px of height with no scroll
+  container. Closed below 1200px (`640×400` is back in `GUTTER_VIEWPORTS`, assertion 12 green).
 - Hand `02-28` to the owner, bound to `fe5f946`.
 - ~~**Land the three Phase 3 roadmap amendments**~~ **DONE 2026-08-06 (`62b9f18`), and there are
   now FOUR.** All landed by hand in `ROADMAP.md` § Phase 3: (1) dark mode in scope, `.dark`
@@ -207,7 +280,10 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 - **`02-28` cannot be delegated, automated, or blanket-approved.** A human must perform the touch,
   screen-reader, and visual checks.
 - **Firefox, Safari, and previous-version certification are unverified and must never be reported
-  as passed.** Acceptance is scoped to installed Chrome 150 + Edge 150.
+  as passed.** **Edge is NOT installed on this machine**, so no Edge result can be produced. Phase 3
+  acceptance is scoped to **installed Chrome 151.0.7922.75** and says so (D-33). Phase 1/2 evidence
+  recording "Chrome 150 + Edge 150" is **immutable — annotate, never rewrite** — and until the
+  contradiction below is explained, **no phase may cite it**.
 - **Browser versions are not machine-recorded.** The `02-27` evidence JSON captures Node, npm,
   platform, and arch only; Chrome 150.0.7871.182 and Edge 150.0.4078.83 are recorded by hand in
   `02-27-SUMMARY.md` and must not be presented as machine evidence.
@@ -220,21 +296,17 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ## Session Continuity
 
-- **Last session:** 2026-08-06 — **Phase 3 planned end to end** (research → ui-phase →
-  plan-phase; planning docs only, no source/test/script file touched). See
-  [`03-RESEARCH.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-RESEARCH.md),
-  [`03-UI-SPEC.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UI-SPEC.md), and
-  `03-01-PLAN.md`…`03-12-PLAN.md`.
-- **Previous session:** 2026-08-06 — Phase 3 context gathering. See
-  [`03-CONTEXT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-CONTEXT.md) and its
-  [discussion log](phases/03-clean-ui-overhaul-1-1-5-weeks/03-DISCUSSION-LOG.md), committed at
-  `d3d9a35`.
-- **Previous session:** 2026-07-26 — documentation reorganization pass (planning docs only; no
-  source, test, or script file touched).
-- **Stopped at:** Phase 3 **planned and gate-clean**; `/gsd:execute-phase 3` is the next step.
-  Phase 2 remains engineering-complete and gate-verified at `fe5f946` with `02-28` prepared and
-  waiting on the owner. Both Phase 2 owner gates are untouched and still OPEN.
-- **Resume file:**
-  [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
-  — the only session-resumption artifact. `HANDOFF.json` was deleted on 2026-07-26; it was a
-  one-shot handoff, already consumed, and had become a stale third copy of the contracts.
+- **Last session:** 2026-08-06 — **Phase 3 executed end to end and closed at code level.** Twelve
+  sequential waves, one executor per plan, run autonomously under a blanket proceed-authorization
+  while the owner slept. Then independent non-author review
+  ([`03-12-REVIEW.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-12-REVIEW.md)) and goal-backward
+  verification ([`03-VERIFICATION.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-VERIFICATION.md)),
+  both of which **re-ran every gate rather than copying numbers**, then this close-out.
+- **Previous session:** 2026-08-06 — Phase 3 planned end to end (research → ui-phase → plan-phase;
+  planning docs only). Before that: Phase 3 context gathering (`d3d9a35`), and the 2026-07-26
+  documentation reorganization pass.
+- **Stopped at:** Phase 3 **SHIPPED (code level), physically unverified.**
+  ▶ `03-UAT.md` (12 items, two of them owner decisions) is the next step. Phase 2 remains
+  engineering-complete at `fe5f946` with both owner gates untouched and still OPEN.
+- **Resume file:** none for Phase 3 — this file plus `03-UAT.md` carry the position. The Phase 2
+  `.continue-here.md` remains for Phase 2 resumption only. `HANDOFF.json` was deleted on 2026-07-26.

@@ -6,11 +6,12 @@ Guidance for Claude Code when working in this repository.
 
 ## Orientation
 
-- **CountriesIRL** = Web-based choropleth map generator for Instagram creators. Auto-colors maps with flexible framing, legend generation, and instant exports. **Current phase:** Phase 2 — one full-world canvas, free camera, legend, bounded persistence, and the historical *engine*.
-- **Phase 2 is browser-only and localhost-only.** No deployment, backend, auth, cloud, or environment secrets.
+- **CountriesIRL** = Web-based choropleth map generator for Instagram creators. Auto-colors maps with flexible framing, legend generation, and instant exports. **Current phase:** Phase 3 — **SHIPPED (code level) 2026-08-06, physically unverified.** Full-bleed canvas, 56px icon rail + flyout panel, Themely token system with an explicit dark toggle, and the owned SVG→PNG export path.
+- **Phase 3 is engineering complete and PHYSICALLY UNVERIFIED.** Nobody has looked at the restyled editor, either theme, the rail, the flyout, the tooltips, or an exported PNG. 12 human items wait in `.planning/phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md`, two of which are **decisions** (the F-1 legend-label export ceiling, and what happens to already-saved compositions that can no longer export). Never present an automated result as a physical check.
+- **The project is browser-only and localhost-only.** No deployment, backend, auth, cloud, or environment secrets. The editor is now **mountable** behind an explicit props boundary for a future Themely transition — the seam exists, **nothing is embedded, and embedding requires new explicit owner authorization.**
 - **Historical geometry does not ship.** The snapshot engine is built and tested, but the 1492/1700/1815/1914 packets are **deferred for missing rights-cleared archival source material** — not pending a signature. The approved catalog holds exactly `Modern`. Never describe a historical snapshot as available, and never promote geometry into `public/data/` without the full approval chain (see `.planning/coding-rules/data.md`).
 - **Phase 1 is complete and its release evidence is immutable.** Do not rewrite it; annotate instead.
-- **Workflow engine:** GSD (`/gsd:*` commands) — see §GSD Integration. Live status: `.planning/STATE.md`; current phase handoff: `.planning/phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md`.
+- **Workflow engine:** GSD (`/gsd:*` commands) — see §GSD Integration. Live status: `.planning/STATE.md`; canonical status and counts: `.planning/ROADMAP.md` § Progress.
 - **Before touching code**, load the matching `.planning/coding-rules/*.md` (via **`themely-coding-rules` skill adapted for CountriesIRL** or the index at `.planning/CODING_RULES.md`).
 - This file is a **routing table** — find the right doc below instead of expecting answers inline.
 
@@ -18,16 +19,18 @@ Guidance for Claude Code when working in this repository.
 
 ## Stack & Architecture (one screen)
 
-**Stack** — React 18 + TypeScript (strict) + Vite; D3 v7 (one fixed Mercator projection + SVG rendering); html2canvas (PNG export); localStorage (save/load); Vitest (unit, **`node` environment — no DOM**) + Playwright (Chrome/Edge E2E). **No deployment target.**
+**Stack** — React 18 + TypeScript (strict) + Vite; D3 v7 (one fixed Mercator projection + SVG rendering); `motion` 12.40.0 exact-pinned; **no third-party export library** — Phase 3 owns the SVG→PNG path in `src/utils/export.ts` (`html2canvas` was removed by 03-11, D-34); localStorage behind a storage-adapter interface; Vitest (unit, **`node` environment — no DOM**) + Playwright (**installed Chrome only — Edge is NOT installed on this machine and is NOT certified**). **No deployment target.**
 
 **Core wiring:**
-- `App` — composition root: owns durable state, hands accessors down, re-implements nothing
+- `MapEditor` — **the mountable boundary** (03-05): `<MapEditor dataBasePath? storage? initialThemeMode? />`. Names **no host global** (asserted as an empty set); storage arrives as a *factory*, not an instance
+- `App` — composition root inside that boundary: owns durable state, hands accessors down, re-implements nothing. Sole writer of `.dark` on the mount root and of `data-panel-open`
 - `useMapState` — reducer-based **colors-only** history (undo/redo); selection is never in a snapshot
 - `useGeoData` — loads and validates the same-origin world asset, builds O(1) entity/core lookups
 - `MapCanvas` — D3 SVG render + the camera controller; owns the one `MapCanvasHandle`
 - `MapWorkspace` — typed `legendSlot` / `navigationSlot`; placement decides export membership
+- `ToolRail` / `ToolRailRow` / `ToolPanel` / `HudHeader` / `HudFooter` / `ThemeToggle` — the 56px rail, its one-at-a-time 280px flyout, and the pinned header/footer
 - `useComposition{Save,Load,Export}Transaction` — locks, camera lease, outcomes
-- `Controls` — one component with a declared `variant` (`app-bar` | `strip`), never two copies
+- `Controls` — one component with a declared `variant` (`rail` | `strip`), never two copies
 - `ToastRegion` — allowlist boundary for every creator-facing message
 - `exportMapPng` — pure: clones an already-frozen composition → exactly 1080×1080 PNG
 
@@ -38,7 +41,13 @@ Guidance for Claude Code when working in this repository.
 - `public/data/europe-modern.geojson` — Phase 1 European boundaries, retained
 - `src/constants/snapshots.ts` — `SNAPSHOT_CATALOG`; reachability is decided here, not by a manifest
 - `src/utils/mapProjection.ts` — the single world projection; centering is a camera transform
-- `src/utils/export.ts` — PNG export chokepoint (clone contract, sanitization, refusal reasons)
+- `src/utils/export.ts` — PNG export chokepoint, **owned outright since 03-11**: serialise → SVG-as-image → `drawImage` → `toBlob`. Clone contract, sanitization, refusal reasons. **The most safety-critical file in the repo**
+- `src/styles/interFontFace.ts` — inlines the vendored Inter woff2 as base64 at build time; this is what puts type inside the PNG
+- `src/assets/inter-latin-variable.woff2` — same-origin font bytes, **latin-only subset** (48,432 B, SHA-256 in `src/assets/README.md`). latin-ext diacritics fall back mid-string inside exports
+- `src/components/editor/` — the mountable editor: `MapEditor`, rail, panel, HUD, theme toggle
+- `src/config/editorConfig.ts` — the props boundary's defaults; `createStorage()` factory lives here
+- `Design.md` (repo root) — **the design contract every Phase 3 surface implements against**. § 7 is still `[FOR REVIEW]`
+- `src/styles/controls/` — eight per-surface sheets that replaced the 1438-line `Controls.css` (03-10); import order is asserted with `editor.css` last
 - `src/utils/legend.ts` — `resolveLegendPosition` / `resolveLegendRender`; nothing reads `legend.position` raw
 - `src/utils/storage.ts` — bounded V2 records; limits checked **before** `JSON.parse`
 - `src/styles/uiContract.test.ts` — the **only** CSS contract test; machine-enforced token, contrast, export-firewall, and selector rules (`phase2CssContract.test.ts` was retired by plan 03-04)
@@ -69,7 +78,7 @@ npm run build            # tsc -b && vite build
 npm run preview          # Preview built bundle locally
 npm run lint             # eslint .
 npm test                 # vitest run (unit; node environment, no DOM)
-npm run test:e2e         # playwright test (Chrome + Edge)
+npm run test:e2e         # playwright test — use `--project=chrome`; Edge is NOT installed here
 npm run data:world:check # Verify the bundled world asset against its manifest hash
 ```
 
@@ -97,6 +106,19 @@ reminders, not the source of truth.
 
 **PNG export size contract** — always export exactly 1080×1080. Test before shipping.
 
+**The export path is ours now.** `html2canvas` was removed by 03-11 (D-34). `src/utils/export.ts`
+owns serialise → SVG-as-image → `drawImage` → `toBlob`, with the font inlined as base64 from
+same-origin bundled bytes. **No network request may enter the export path** — no Google Fonts
+`@import`, no `@import url(http`, no third-party fetch. A consequence worth knowing: the export
+sandbox now cuts every CSS route to exported pixels, so theme independence holds **by construction**
+rather than by enforcement — which is why assertion 24 can no longer fail on the single-token defect
+it advertises. That is documented, not a defect; see `coding-rules/export.md`.
+
+**A selector ceiling is a gate.** `uiContract.test.ts` pins the total selector count (326 at the
+close of 03-10). Adding a rule fails it. Lower it on deletion; raise it only with a stated reason in
+the same commit. Stylesheets are discovered by **directory walk**, not an allowlist — a new sheet
+must join both the directory and `main.tsx`'s asserted import order (`editor.css` last).
+
 **Approval is evidence, never inference.** Never infer, fabricate, or self-approve a rights,
 factual, or topology approval. A BLOCKED packet is not a delivered snapshot and is never counted
 as one. **Deferred is not done** — nothing may read as though a historical snapshot shipped. The
@@ -105,12 +127,29 @@ authorizes proceeding; it is **not** a content review and it is **not** hash-bou
 one you have.
 
 **Firefox, Safari, and previous-version certification have never been run here** and must never be
-reported as passed. Acceptance is scoped to installed Chrome 150 + Edge 150.
+reported as passed. **Microsoft Edge is NOT installed on this machine** — the `msedge` Playwright
+project cannot launch, so no Edge result may be produced or cited. Phase 3 acceptance is scoped to
+**installed Chrome 151.0.7922.75** and says so. Phase 1/2 evidence recording "Edge 150" is
+**immutable — annotate it, never rewrite it** — and until that contradiction is explained, no phase
+may cite it (see `STATE.md` § Filed for owner attention).
 
-**A gate must be able to fail on the bug it covers.** Before landing an assertion, break its
-subject and watch it go red. This phase shipped three tests that could not fail — a self-comparing
-performance gate, a fixture asserting wiring it re-implemented, and a pixel probe that only checked
-cross-context equality (which three blank canvases satisfy). Each read as proof.
+**A gate must be able to fail on the bug it covers — on its own subject.** Before landing an
+assertion, break its subject and watch it go red, then restore by **scratchpad copy-back**. Phase 2
+shipped three tests that could not fail (a self-comparing performance gate, a fixture asserting
+wiring it re-implemented, and a pixel probe that only checked cross-context equality — which three
+blank canvases satisfy). **Phase 3 caught seven more before landing**, plus two in a plan's own
+verify block. The recurring shapes, all real:
+
+- a `<= 1px` tolerance that passes against its own 1px-inset probe (derive tolerances from a
+  *measurement*: the real disagreement was 6e-14 px)
+- a row count written as `a.length * b.length` — green at zero rows (use a literal)
+- a probe that throws at *import*, so the assertion never ran at all
+- a probe that reddens a **different** gate than the one being proven
+- a gate whose subject the browser neutralises anyway (Chrome strips `box-shadow` in forced-colors)
+- a `git diff --quiet HEAD` evidence check that passes silently on a *committed* change — the exact
+  threat it existed to catch
+
+If you cannot make an assertion go red, **say so plainly instead of claiming it passes.**
 
 **Never `git checkout --` a file with uncommitted work.** Copy it to a scratchpad first and restore
 by copying back. Two agents lost edits this way in one session. See `coding-rules/general.md`.
@@ -217,7 +256,7 @@ Every subsystem owns a rules file, and the rule lands with the code:
 
 ---
 
-*Last updated: 2026-08-06 — routing: `phase2CssContract.test.ts` was retired by plan 03-04, so the non-obvious-paths table now points at `uiContract.test.ts` (the only CSS contract test) and `themeTokens.test.ts` (exact palette values plus the token namespace allowlist).*
-*Last updated: 2026-08-06 + 2026-07-26 — `Design.md` exists: its routing row moved out of the load-gated table (where it read "**Does not exist yet**") into the always-relevant engine docs as the normative design contract, with the precedence rule stated - `03-UI-SPEC.md` outranks it, and it outranks a component file - and the Phase 3 planning docs joined the load-gated table at 90-140KB each (plan 03-02). Earlier: Phase 2 routing plus the documentation pass: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, documentation-as-you-build (plan 02-25); removal of the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), the guardrails re-pointed at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, the destructive gsd-sdk verbs, the unverified-browser rule, and the load-gating of the spent Phase 1 inputs.*
+*Last updated: 2026-08-06 — **Phase 3 close-out.** Orientation now reads Phase 3 SHIPPED (code level) and physically unverified, with the 12-item `03-UAT.md` gate named. Stack line corrected: `html2canvas` is gone (03-11 owns the SVG→PNG path), `motion` 12.40.0 is in, and Playwright is scoped to **installed Chrome only — Edge is NOT installed here**, which also corrects the browser-certification guardrail. Core wiring gained `MapEditor`'s mountable boundary and the rail/panel/HUD components, and `Controls`' variants were corrected `app-bar | strip` → **`rail | strip`**. Paths gained `Design.md`, `src/components/editor/`, `src/config/editorConfig.ts`, `src/styles/controls/`, `interFontFace.ts`, and the latin-only font asset. Added the owned-export-path and selector-ceiling guardrails, and rewrote "a gate must be able to fail" with the six real shapes Phase 3 caught.*
+*Last updated: 2026-08-06 + 2026-07-26 — during-Phase-3 and Phase-2-era routing, merged per the two-entry rule: `phase2CssContract.test.ts` retired by 03-04 so the paths table points at `uiContract.test.ts` and `themeTokens.test.ts`; `Design.md`'s row moved out of the load-gated table (where it read "does not exist yet") into the always-relevant engine docs with its precedence rule — `03-UI-SPEC.md` outranks it, it outranks a component file — and the Phase 3 planning docs joined the load-gated table at 90–140KB each (03-02). Earlier: Phase 2 routing and the documentation pass — scope, world/catalog paths, the real command set with no deploy target, the evidence-not-inference guardrail, `/gsd:*` command form, owner gates, documentation-as-you-build (02-25); removal of the two routing rows pointing at files that never existed; guardrails re-pointed at `coding-rules/general.md` as canonical for the live invariants and immutable safety constraints; the destructive gsd-sdk verbs; and the load-gating of the spent Phase 1 inputs.*
 
 *Full edit history: `git log -p -- CLAUDE.md`.*

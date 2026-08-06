@@ -221,6 +221,17 @@ The following performance values remain useful diagnostic targets, but Phase 1 r
 - Phase 2: Historical periods + centering
 - Phase 3: Polish + deploy
 
+> **Superseded 2026-08-06 — original text above retained, not rewritten.** The three-phase timeline
+> no longer describes the project. **Phase 2** shipped the world canvas and camera but its
+> *historical periods* are **DEFERRED** for missing rights-cleared archival source material — the
+> engine ships, the geometry does not, and no sign-off can unblock it (the approved catalog holds
+> exactly `Modern`). **Phase 3** is **not** "Polish + deploy": it was replaced on 2026-08-06 by
+> Phases 3–6 under milestone **v1.1** (Clean UI Overhaul → Visual & Cartographic System →
+> Data-Driven Maps → Polish & Launch), and Phase 3 shipped at code level on 2026-08-06 as the Clean
+> UI Overhaul. **`deploy` was never in scope and still is not** — there is no deployment target,
+> backend, auth, or production URL, and hosting would require new explicit owner authorization.
+> Canonical status and counts: [`ROADMAP.md`](ROADMAP.md) § Progress.
+
 ---
 
 ## Phase 1 Release Acceptance

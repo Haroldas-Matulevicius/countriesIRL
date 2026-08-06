@@ -36,6 +36,7 @@ Bulk-reading a whole archive without grepping first is a context-bloat anti-patt
 | Milestone | Closed | ROADMAP | REQUIREMENTS | DECISIONS | Capsule |
 |---|---|---|---|---|---|
 | v1.0 — MVP | *in-flight* | [IN-FLIGHT ARCHIVE](milestones/v1.0/ROADMAP-ARCHIVE.md) | — | — | [`milestones/v1.0/`](milestones/v1.0/) |
+| v1.1 — Clean Studio & Data-Driven Maps | *in-flight* | [IN-FLIGHT ARCHIVE](milestones/v1.1/ROADMAP-ARCHIVE.md) | — | — | [`milestones/v1.1/`](milestones/v1.1/) |
 
 When a new milestone closes, add one row.
 
