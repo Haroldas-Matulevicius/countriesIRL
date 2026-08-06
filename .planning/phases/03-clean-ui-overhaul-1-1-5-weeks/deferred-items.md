@@ -4,7 +4,43 @@ Out-of-scope discoveries recorded rather than fixed, with the plan that owns eac
 
 ---
 
-## D-1 — `tests/e2e/responsive.spec.ts` is RED after `03-03` (12 tests)
+## D-1 — `tests/e2e/responsive.spec.ts` is RED after `03-03` (12 tests) — **CLOSED by `03-09`**
+
+**Closed 2026-08-06.** `responsive.spec.ts` is **fully green: 17 of 17 on Chrome 151**, and the
+file has been red since `03-03`. Nine of the twelve were REWRITTEN and three were DELETED against
+a landed replacement; nothing was skipped, and no assertion was weakened to reach green.
+
+| Failing test | Disposition |
+|---|---|
+| the desktop workspace is map-first with one camera owner and exact landmarks | **rewritten** → *the desktop shell is map-first…*: measured against `.map-workspace__square` (renamed) and `.workspace__control-column` (dissolved), so it now measures the three tracks and the export frame |
+| the app bar stays pinned while the responsive workspace scrolls | **rewritten** → *the shell never scrolls and the pinned HUD blocks never move*: the successor claim D-12/D-13 actually make, and it first asserts the panel body HAS something to scroll |
+| the compact sub-layouts respond at 1024 and 768 without a second DOM | **rewritten** → *the narrow layout collapses to a bottom bar without a second DOM* (D-20), asserting no gap and no overlap between the bar and the region |
+| the complete UI contains at 360px with no overflow and full-size targets | **rewritten**. Its overflow helper named eleven retired selectors, so it measured NOTHING and passed at every viewport — the worst state a containment check can be in |
+| the map navigation cluster sits below the square outside the export source | **rewritten** → *…is a sibling of the export source, never inside it*: the export-membership half kept and asserted as DOM ORDER; the "below" half dropped, since D-21 moved the cluster into the gutter |
+| the navigation cluster never overlaps the legend at any legend position | **deleted**, superseded by `navigation.spec.ts` assertion 12 (non-intersection with `.map-frame` at five viewports × five presets, which implies this) |
+| the desktop app bar carries the global actions in the declared order | **deleted**, replaced by `rail.spec.ts` *assertion 15: one Reset View, one Reset All Colors, one filled action* |
+| the desktop focus order runs bar, composition bar, map, navigation, inspector | **deleted**, replaced by `rail.spec.ts` *runs the spec’d focus order, with disabled controls removed* |
+| the responsive focus order follows the declared workflow | **rewritten** → *the narrow focus order is the desktop order, unchanged by the bar*: the load-bearing D-20 claim, since the bar paints last through `grid-row` and must still focus first |
+| dark preference restyles chrome and leaves the composition square white | **rewritten** for D-35 — the theme axis drives the shipped toggle, not an OS query |
+| increased-contrast preference strengthens boundaries and focus rings | **rewritten**, now checked in BOTH modes. The old one read a renamed selector and threw inside `page.evaluate`, so the two assertions that would have passed never ran either |
+| forced-colors preference drops every glass surface to opaque | **rewritten**. D-06 deleted the glass family outright, so there was no glass left to assert; it now covers the weights, the shadow tokens, and the `backdrop-filter` ban |
+
+Two tests were ADDED: *a tapped tool raises a bottom sheet over the map, above the bar* (D-20) and
+*drives the theme by class and never by an operating-system query* (the source scan D-35 asks for).
+18 − 3 + 2 = **17**.
+
+**One assertion was written and then deleted for being unfailable**, and it is recorded here rather
+than quietly dropped: the forced-colors rewrite first swept the mount root for any painted
+`box-shadow`. Chrome removes every `box-shadow` in forced-colors mode itself, so the sweep was
+guaranteed green by the user agent and stayed green against a rule that hard-coded a shadow. It
+read as proof of the three token assertions above it and proved nothing about them. It was replaced
+by the painted boundary WIDTHS, which forced colors does not touch and which RED-prove.
+
+The original record follows, unchanged.
+
+---
+
+## D-1 (original record) — `tests/e2e/responsive.spec.ts` is RED after `03-03` (12 tests)
 
 **Found during:** `03-03`, running the full Chrome suite after the shell landed.
 **Status:** 66 of 79 Chrome e2e tests pass. All 13 failures were in two files; the
@@ -160,7 +196,35 @@ close — and the `.save-load-dialog` stopgap scoping was removed from every spe
 
 ---
 
-## D-5 — the rail has no scroll container, so a very short viewport overflows — **owner `03-09`**
+## D-5 — the rail has no scroll container, so a very short viewport overflows — **CLOSED below 1200px by `03-09`; the desktop residue stays open**
+
+**Closed 2026-08-06 for every viewport the suite gates, and NOT closed above 1200px.** Both halves
+are stated because "D-5 closed" on its own would be a claim the code does not support.
+
+**What closed.** D-20 replaces the 56px side rail below 1200px with a bottom bar, so there is no
+48px column left to overflow at any narrow viewport. The observable evidence this deferred item
+itself named is landed: **`640 × 400` is back in `GUTTER_VIEWPORTS` in
+`tests/e2e/navigation.spec.ts` and assertion 12 is green there.** The canvas region measures
+`640 × 343` — the shape the viewport implies — instead of the stretched `584 × 500` the rail
+overflow used to produce, and the inline gutter is 148px against the 62px the cluster needs.
+Two more viewports moved with it and the measurement table is written beside the list.
+
+**What did not close.** At **1200px or wider** the desktop rail still has no scroll container. It
+needs about 492px of height (64 header + 6 × 48 rows + gaps + 112 footer + padding); below that the
+rows still overflow instead of scrolling. The original trade stands: every row is icon-only and
+carries a tooltip that has to escape the 48px column, and `overflow-y: auto` computes
+`overflow-x: auto` and clips it.
+
+No fix was shipped for the desktop residue and none was attempted beyond analysis. No gate viewport
+is that shape, so nothing observes it today — which is exactly why it is written down here rather
+than left to be rediscovered. The candidate fixes considered and rejected: `overflow-clip-margin`
+(unverified interaction with a scroll container, and it would have to be measured in a browser
+before it could be believed), and a negative-margin clip-box widening (it makes the tools column
+248px wide, which steals hit area from the panel track).
+
+---
+
+## D-5 (original record) — the rail has no scroll container, so a very short viewport overflows
 
 **Found during:** `03-06`. `.tool-rail__tools` was authored with `overflow-y: auto` by `03-03`;
 `03-06` removed it, because every rail row is icon-only and carries a tooltip that has to escape the

@@ -12,7 +12,9 @@ import {
 
 import {
   clearSavedMaps,
+  collectTabOrder,
   expectOneCameraOwner,
+  legendDisclosure,
   openRailTool,
   stampCameraOwnerSentinel,
   waitForApp,
@@ -43,7 +45,23 @@ const ZOOM_200_EQUIVALENT_VIEWPORT = { width: 640, height: 400 };
 
 const STANDARD_TARGET_HEIGHT = 48;
 const COMPACT_TARGET_SIZE = 44;
+/**
+ * The rail's spec'd tab sequence with no colour history yet, exactly as
+ * `rail.spec.ts` pins it at desktop. Undo and Redo are absent because a
+ * natively `disabled` button is removed from the tab order, which is the half
+ * of the contract a documented deviation would have skipped.
+ */
+const RAIL_TAB_STOPS = [
+  'Colors',
+  'Countries',
+  'Legend',
+  'Saved Maps',
+  'Export PNG',
+  'Switch to dark theme',
+] as const;
 const ICON_ONLY_LABELS = new Set([
+  // Every one of these spells its label only in `aria-label` + `title`.
+  'Reset View',
   'Zoom In',
   'Zoom Out',
   'Move Map',
@@ -108,22 +126,46 @@ async function expectLandmarks(page: Page): Promise<void> {
 async function findHorizontalOverflow(page: Page): Promise<ElementBox[]> {
   return page.evaluate((): ElementBox[] => {
     const limit = document.documentElement.clientWidth;
+    /*
+     * REWRITTEN by `03-09`. Every selector this used to name was retired
+     * between `03-03` and `03-07` - `.app > header`, `main.workspace`, the four
+     * `.workspace__*` sections, `.map-workspace__square`, `.composition-bar__row`
+     * - so the helper measured NOTHING and returned an empty list at every
+     * viewport. That is the worst possible state for a containment check: it
+     * reads exactly like a pass.
+     *
+     * The list below names the shell that exists, and it is paired with a sweep
+     * of every visible control, so a clipped button is caught even if its
+     * container is not on the list.
+     */
     const selectors = [
-      '.app > header',
-      'main.workspace',
-      '.workspace__actions',
-      '.workspace__map',
-      '.workspace__control-column',
-      '.workspace__selection-color',
-      '.workspace__country-list',
-      '.workspace__legend',
-      '.map-workspace__square',
-      '.controls__action',
-      '.composition-bar__row',
+      '.map-editor',
+      '.tool-rail',
+      '.tool-rail__header',
+      '.tool-rail__tools',
+      '.tool-rail__footer',
+      '.tool-panel',
+      '.tool-panel__body',
+      '.tool-panel__content',
+      '.tool-panel__title-row',
+      '.map-workspace',
+      '.map-workspace__canvas',
+      '.map-frame',
+      '.map-navigation__cluster',
+      '.period-hud',
+      '.editor-help',
+      'button',
+      'input',
+      'select',
     ];
 
     return selectors
       .flatMap((selector): Element[] => [...document.querySelectorAll(selector)])
+      .filter((element): boolean => {
+        const style = getComputedStyle(element);
+        // Visually hidden landmarks are 1px clipped boxes, not layout.
+        return style.visibility !== 'hidden' && style.display !== 'none';
+      })
       .map((element): ElementBox => {
         const rect = element.getBoundingClientRect();
         return {
@@ -142,34 +184,26 @@ async function findHorizontalOverflow(page: Page): Promise<ElementBox[]> {
 }
 
 /**
- * Walks the sequential focus order from the current starting point.
+ * The elements inside the panel column that actually scroll.
  *
- * The caller must move the starting point first (click the product title):
- * blurring leaves it wherever focus last was, so `Tab` resumes from the middle
- * of the document and "proves" an order that begins at an arbitrary control.
+ * Asserted as an OWNERSHIP SET rather than as "the body scrolls": a second
+ * scroll container inside the panel is invisible until a creator reaches the
+ * bottom of one and finds the other, and it passes any presence check.
  */
-async function collectTabOrder(
+async function findPanelScrollContainers(
   page: Page,
-  steps: number,
 ): Promise<ReadonlyArray<string>> {
-  const order: string[] = [];
-  for (let step = 0; step < steps; step += 1) {
-    await page.keyboard.press('Tab');
-    order.push(
-      await page.evaluate((): string => {
-        const active = document.activeElement;
-        if (active === null) {
-          return '';
-        }
-        return (
-          active.getAttribute('aria-label') ??
-          active.textContent?.trim().slice(0, 40) ??
-          ''
+  return page.evaluate((): ReadonlyArray<string> =>
+    [...document.querySelectorAll('.tool-panel, .tool-panel *')]
+      .filter((element): boolean => {
+        const style = getComputedStyle(element);
+        const scrolls = /(auto|scroll)/u.test(
+          `${style.overflowY} ${style.overflowX}`,
         );
-      }),
-    );
-  }
-  return order;
+        return scrolls && element.scrollHeight > element.clientHeight;
+      })
+      .map((element): string => `${element.tagName.toLowerCase()}.${element.className}`),
+  );
 }
 
 function positionIn(
@@ -296,6 +330,79 @@ async function settleThemeSurfaces(page: Page): Promise<void> {
   });
 }
 
+interface ShellRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface ShellGeometry {
+  readonly rail: ShellRect;
+  readonly panel: ShellRect;
+  readonly region: ShellRect;
+  readonly frame: ShellRect;
+}
+
+/**
+ * The four boxes the shell contract is written in, read in one round trip so
+ * they cannot be sampled at different moments of a transition.
+ */
+async function readShellGeometry(page: Page): Promise<ShellGeometry> {
+  return page.evaluate((): ShellGeometry => {
+    const read = (selector: string): ShellRect => {
+      const element = document.querySelector(selector);
+      if (element === null) {
+        throw new Error(`"${selector}" is not rendered.`);
+      }
+      const box = element.getBoundingClientRect();
+      return {
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+      };
+    };
+    return {
+      rail: read('.tool-rail'),
+      panel: read('.tool-panel'),
+      region: read('.map-workspace'),
+      frame: read('.map-frame'),
+    };
+  });
+}
+
+/**
+ * The panel track and the bottom sheet are both registered custom properties,
+ * so they INTERPOLATE (D-19/D-20) - `aria-expanded="true"` is true a quarter of
+ * a second before the shell has finished moving. Measuring geometry on that
+ * frame reads a mid-transition shape, which is how `03-08` once failed an
+ * assertion on the animation rather than on the placement.
+ */
+async function settleShell(page: Page): Promise<void> {
+  await page.evaluate(async (): Promise<void> => {
+    const shell = document.querySelector('.map-editor');
+    if (shell === null) {
+      throw new Error('The editor mount root is not rendered.');
+    }
+    await new Promise<void>((resolve): void => {
+      requestAnimationFrame((): void => {
+        requestAnimationFrame((): void => resolve());
+      });
+    });
+    await Promise.all(
+      shell
+        .getAnimations()
+        .map((animation): Promise<void> =>
+          animation.finished.then(
+            (): void => undefined,
+            (): void => undefined,
+          ),
+        ),
+    );
+  });
+}
+
 async function readThemeSurfaces(page: Page): Promise<ThemeSurfaces> {
   return page.evaluate((): ThemeSurfaces => {
     const mount = document.querySelector('.map-editor');
@@ -324,7 +431,14 @@ async function readThemeSurfaces(page: Page): Promise<ThemeSurfaces> {
 }
 
 test.describe('responsive world workspace', (): void => {
-  test('the desktop workspace is map-first with one camera owner and exact landmarks', async ({
+  /**
+   * REWRITTEN by `03-09`, not repaired. The claim was measured against
+   * `.map-workspace__square` (renamed by `03-03`) and `.workspace__control-column`
+   * (dissolved by `03-05`), so every selector in it resolved to nothing. What
+   * survives is the claim itself, re-pointed at the shell that exists: the
+   * canvas region dominates, and the export frame inside it is square.
+   */
+  test('the desktop shell is map-first with one camera owner and exact landmarks', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
@@ -336,64 +450,96 @@ test.describe('responsive world workspace', (): void => {
     await expectLandmarks(page);
     await expectOneCameraOwner(page);
 
-    const square = await page
-      .locator('.map-workspace__square')
-      .boundingBox();
-    const inspector = await page
-      .locator('.workspace__control-column')
-      .boundingBox();
-    if (square === null || inspector === null) {
-      throw new Error('The workspace columns are not laid out.');
-    }
+    await openRailTool(page, 'Colors');
+    const chrome = await readShellGeometry(page);
 
-    // UI-SPEC 3: the white square is the dominant element, and it is square.
-    expect(square.width).toBeCloseTo(square.height, 0);
-    expect(square.width).toBeGreaterThan(inspector.width);
-    expect(square.width * square.height).toBeGreaterThan(
-      inspector.width * inspector.height,
+    // UI-SPEC 3: the map is the dominant element, even with a tool open.
+    expect(chrome.region.width).toBeGreaterThan(chrome.rail.width + chrome.panel.width);
+    expect(chrome.region.width * chrome.region.height).toBeGreaterThan(
+      (chrome.rail.width + chrome.panel.width) * chrome.rail.height,
     );
-    // UI-SPEC 7.1: DOM/focus order is map column first, inspector second.
-    expect(square.x).toBeLessThan(inspector.x);
-    // UI-SPEC 7.1: the inspector column is exactly 376px.
-    expect(Math.round(inspector.width)).toBe(376);
-
-    // UI-SPEC 6: one shell, not a stack of cards - the shell owns the only
-    // border-and-shadow in the column.
-    const shadowedSections = await page.evaluate((): number =>
-      [
-        ...document.querySelectorAll(
-          '.workspace__control-column .controls, .workspace__control-column .selection-panel, .workspace__control-column .color-picker, .workspace__control-column .country-list',
-        ),
-      ].filter((element): boolean => {
-        const style = getComputedStyle(element);
-        return style.boxShadow !== 'none' || style.borderTopWidth !== '0px';
-      }).length,
+    // D-11: three tracks in one row, in that order, with no gap between them.
+    expect(Math.round(chrome.rail.x)).toBe(0);
+    expect(Math.round(chrome.panel.x)).toBe(Math.round(chrome.rail.x + chrome.rail.width));
+    expect(Math.round(chrome.region.x)).toBe(
+      Math.round(chrome.panel.x + chrome.panel.width),
     );
-    expect(shadowedSections).toBe(0);
+    // D-32: `aspect-ratio: 1` moved from the region to the frame, so the
+    // squareness claim moved with it rather than being dropped on the rename.
+    expect(chrome.frame.width).toBeCloseTo(chrome.frame.height, 0);
+    expect(chrome.frame.width).toBeGreaterThan(100);
   });
 
-  test('the app bar stays pinned while the responsive workspace scrolls', async ({
+  /**
+   * REWRITTEN by `03-09`. The original asserted `.app > header` stayed at y=0
+   * while the page scrolled; `03-05` retired the bar as a container, so "stays
+   * pinned" became a claim about something that does not exist.
+   *
+   * The successor claim is the one D-12/D-13 actually make, and it is stronger:
+   * the shell itself never scrolls, the panel body is the ONE scroll container,
+   * and the HUD blocks are its siblings - so identity and Export cannot scroll
+   * away no matter how far the panel's content runs.
+   */
+  test('the shell never scrolls and the pinned HUD blocks never move', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
+    // The country browser is the longest panel content in the app.
+    await openRailTool(page, 'Countries');
 
-    const header = page.locator('.app > header');
-    const before = await header.boundingBox();
+    const body = page.locator('.tool-panel__body');
+    const header = page.locator('.tool-rail__header');
+    const footer = page.locator('.tool-rail__footer');
+    const before = {
+      header: await header.boundingBox(),
+      footer: await footer.boundingBox(),
+    };
+    if (before.header === null || before.footer === null) {
+      throw new Error('The pinned HUD blocks are not rendered.');
+    }
+
+    // There has to be something to scroll, or "it did not move" proves nothing.
+    const overflow = await body.evaluate(
+      (element): number => element.scrollHeight - element.clientHeight,
+    );
+    expect(
+      overflow,
+      'the panel body does not overflow, so this test cannot observe a scroll.',
+    ).toBeGreaterThan(100);
+
+    await body.hover();
     await page.mouse.wheel(0, 600);
     await expect
-      .poll(async (): Promise<number> => page.evaluate((): number => window.scrollY))
+      .poll(async (): Promise<number> =>
+        body.evaluate((element): number => element.scrollTop),
+      )
       .toBeGreaterThan(0);
-    const after = await header.boundingBox();
 
-    if (before === null || after === null) {
-      throw new Error('The app bar is not rendered.');
+    const after = {
+      header: await header.boundingBox(),
+      footer: await footer.boundingBox(),
+    };
+    if (after.header === null || after.footer === null) {
+      throw new Error('The pinned HUD blocks are not rendered.');
     }
-    expect(Math.round(before.y)).toBe(0);
-    expect(Math.round(after.y)).toBe(0);
+    expect(Math.round(after.header.y)).toBe(Math.round(before.header.y));
+    expect(Math.round(after.footer.y)).toBe(Math.round(before.footer.y));
+    // The shell is 100dvh and declares no overflow: the window never scrolls.
+    expect(await page.evaluate((): number => window.scrollY)).toBe(0);
   });
 
-  test('the compact sub-layouts respond at 1024 and 768 without a second DOM', async ({
+  /**
+   * REWRITTEN by `03-09` for D-20. The original asserted a two-column and then
+   * a single-column arrangement of `.workspace__*` sections that `03-05` and
+   * `03-06` dissolved into the rail and its panel.
+   *
+   * What replaces it is D-20's actual contract: below 1200px the three-track
+   * row becomes one column with the rail lying down as a bottom bar under the
+   * canvas region - and the canvas is MOVED, never remounted, which is what
+   * keeps Live Invariant 4 true across the transition.
+   */
+  test('the narrow layout collapses to a bottom bar without a second DOM', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
@@ -401,51 +547,104 @@ test.describe('responsive world workspace', (): void => {
     await stampCameraOwnerSentinel(page);
     await expectOneCameraOwner(page);
 
-    await page.setViewportSize(COMPACT_TWO_COLUMN_VIEWPORT);
-    await expectLayout(page, 'compact');
-    await expectLandmarks(page);
-    // The same DOM node moved; it was not remounted as a second camera owner.
+    for (const viewport of [
+      COMPACT_TWO_COLUMN_VIEWPORT,
+      COMPACT_SINGLE_COLUMN_VIEWPORT,
+    ]) {
+      await page.setViewportSize(viewport);
+      await expectLayout(page, 'compact');
+      await expectLandmarks(page);
+      // The same DOM node moved; it was not remounted as a second camera owner.
+      await expectOneCameraOwner(page);
+      await expect(page.locator('.map-editor')).toHaveAttribute(
+        'data-layout',
+        'compact',
+      );
+
+      const { rail, region } = await readShellGeometry(page);
+      const label = `${viewport.width}x${viewport.height}`;
+
+      // The rail is a full-width bar at the thumb end...
+      expect(Math.round(rail.x), label).toBe(0);
+      expect(Math.round(rail.width), label).toBe(viewport.width);
+      expect(Math.round(rail.y + rail.height), label).toBe(viewport.height);
+      // ...and the canvas region takes everything above it, with no gap and no
+      // overlap: a bar drawn OVER the map would satisfy "the bar is at the
+      // bottom" perfectly.
+      expect(Math.round(region.x), label).toBe(0);
+      expect(Math.round(region.y), label).toBe(0);
+      expect(Math.round(region.y + region.height), label).toBe(
+        Math.round(rail.y),
+      );
+    }
+
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await expectLayout(page, 'desktop');
     await expectOneCameraOwner(page);
-
-    const twoColumn = await page.evaluate((): ReadonlyArray<number> =>
-      [
-        '.workspace__actions',
-        '.workspace__map',
-        '.workspace__selection-color',
-        '.workspace__country-list',
-        '.workspace__legend',
-      ].map((selector): number =>
-        Math.round(
-          document.querySelector(selector)?.getBoundingClientRect().width ?? -1,
-        ),
-      ),
+    await expect(page.locator('.map-editor')).toHaveAttribute(
+      'data-layout',
+      'desktop',
     );
-    const [actions, map, selection, countries, legend] = twoColumn;
-    // UI-SPEC 7.2: actions, map, and legend span both columns; selection/color
-    // and the country browser share a row at equal width.
-    expect(actions).toBe(map);
-    expect(legend).toBe(map);
-    expect(selection).toBe(countries);
-    expect(selection).toBeLessThan(map);
-
-    await page.setViewportSize(COMPACT_SINGLE_COLUMN_VIEWPORT);
-    await expectLayout(page, 'compact');
-    await expectLandmarks(page);
-    await expectOneCameraOwner(page);
-
-    const singleColumn = await page.evaluate((): ReadonlyArray<number> =>
-      ['.workspace__map', '.workspace__selection-color'].map(
-        (selector): number =>
-          Math.round(
-            document.querySelector(selector)?.getBoundingClientRect().width ??
-              -1,
-          ),
-      ),
-    );
-    // UI-SPEC 7.3: one page column - every section is the same width.
-    expect(singleColumn[0]).toBe(singleColumn[1]);
   });
 
+  /**
+   * D-20's bottom sheet: the ONE surface allowed to overlay the canvas. It
+   * rises from just above the bar, it does not push the map, and its body stays
+   * the single scroll container.
+   */
+  test('a tapped tool raises a bottom sheet over the map, above the bar', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await waitForApp(page);
+
+    const closed = await readShellGeometry(page);
+    /*
+     * The closed sheet is its own 1px top hairline and nothing else: the
+     * registered height is 0 and the BODY is unmounted, which is the claim that
+     * matters - a clipped 0px surface still holds live tab stops otherwise, and
+     * that is a keyboard trap with nothing visible in it.
+     */
+    expect(closed.panel.height).toBeLessThanOrEqual(2);
+    await expect(page.locator('.tool-panel__body')).toHaveCount(0);
+
+    await openRailTool(page, 'Countries');
+    await settleShell(page);
+    const open = await readShellGeometry(page);
+
+    // It OVERLAYS: the canvas region is exactly where it was.
+    expect(Math.round(open.region.height)).toBe(Math.round(closed.region.height));
+    expect(Math.round(open.region.y)).toBe(Math.round(closed.region.y));
+    // It is a sheet: full width, real height, ending exactly at the bar.
+    expect(Math.round(open.panel.width)).toBe(MOBILE_VIEWPORT.width);
+    expect(open.panel.height).toBeGreaterThan(100);
+    expect(Math.round(open.panel.y + open.panel.height)).toBe(
+      Math.round(open.rail.y),
+    );
+    // And it is over the map, not beside it.
+    expect(open.panel.y).toBeGreaterThan(open.region.y);
+    expect(open.panel.y).toBeLessThan(open.region.y + open.region.height);
+
+    const body = page.locator('.tool-panel__body');
+    expect(
+      await body.evaluate(
+        (element): number => element.scrollHeight - element.clientHeight,
+      ),
+    ).toBeGreaterThan(0);
+    expect(
+      await body.evaluate(
+        (element): string => getComputedStyle(element).overscrollBehavior,
+      ),
+    ).toBe('contain');
+  });
+
+  /**
+   * REWRITTEN by `03-09`. Its overflow helper named eleven selectors, ALL of
+   * which had been retired by `03-07`, so it measured an empty list and passed
+   * at every viewport - and it asserted a three-row action strip that no longer
+   * exists. The claim is re-pointed at the D-20 chrome and, more importantly,
+   * the helper now measures elements that are actually on screen.
+   */
   test('the complete UI contains at 360px with no overflow and full-size targets', async ({
     page,
   }): Promise<void> => {
@@ -456,12 +655,14 @@ test.describe('responsive world workspace', (): void => {
 
     expect(await findHorizontalOverflow(page)).toStrictEqual([]);
 
-    const square = await page.locator('.map-workspace__square').boundingBox();
-    if (square === null) {
-      throw new Error('The composition square is not rendered.');
+    // D-32: the export frame is the square, and it fits.
+    const frame = await page.locator('.map-frame').boundingBox();
+    if (frame === null) {
+      throw new Error('The export frame is not rendered.');
     }
-    expect(square.width).toBeCloseTo(square.height, 0);
-    expect(square.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    expect(frame.width).toBeCloseTo(frame.height, 0);
+    expect(frame.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    expect(frame.width).toBeGreaterThan(100);
 
     const undersized = (await measureTargets(page)).filter(
       (target): boolean =>
@@ -472,18 +673,47 @@ test.describe('responsive world workspace', (): void => {
     );
     expect(undersized).toStrictEqual([]);
 
-    // UI-SPEC 8: the compact strip is three rows, and Export spans the width.
+    /*
+     * D-20: `Export PNG` stays PINNED and visible in the bar. "Visible" is not
+     * enough on its own - a control pushed under the fold is still `visible` to
+     * a locator - so its rect is measured against the viewport too.
+     */
     const exportButton = await page
       .getByRole('button', { name: 'Export PNG' })
       .boundingBox();
-    const undoButton = await page
-      .getByRole('button', { name: 'Undo Color Change' })
-      .boundingBox();
-    if (exportButton === null || undoButton === null) {
-      throw new Error('The action strip is not rendered.');
+    if (exportButton === null) {
+      throw new Error('Export is not composed in the bottom bar.');
     }
-    expect(exportButton.width).toBeGreaterThan(undoButton.width);
-    expect(exportButton.y).toBeGreaterThan(undoButton.y);
+    expect(exportButton.width).toBeGreaterThanOrEqual(COMPACT_TARGET_SIZE);
+    expect(exportButton.x).toBeGreaterThanOrEqual(0);
+    expect(exportButton.x + exportButton.width).toBeLessThanOrEqual(
+      MOBILE_VIEWPORT.width + 1,
+    );
+    expect(exportButton.y + exportButton.height).toBeLessThanOrEqual(
+      MOBILE_VIEWPORT.height + 1,
+    );
+
+    /*
+     * Every tool is still reachable at this width, and each one's landmark
+     * control is measured rather than merely present. The country browser is
+     * checked last because it is the longest content and therefore the one that
+     * proves the panel body is the SINGLE scroll container.
+     */
+    await openRailTool(page, 'Saved Maps');
+    await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
+    await openRailTool(page, 'Legend');
+    await expect(legendDisclosure(page)).toBeVisible();
+    await openRailTool(page, 'Colors');
+    await expect(
+      page.getByRole('button', { name: 'Reset All Colors' }),
+    ).toBeVisible();
+    await openRailTool(page, 'Countries');
+    await settleShell(page);
+
+    expect(await findHorizontalOverflow(page)).toStrictEqual([]);
+    expect(await findPanelScrollContainers(page)).toStrictEqual([
+      'div.tool-panel__body',
+    ]);
   });
 
   test('core controls stay usable at the 200% zoom equivalent viewport', async ({
@@ -521,107 +751,80 @@ test.describe('responsive world workspace', (): void => {
     ).toBeVisible();
   });
 
-  test('the map navigation cluster sits below the square outside the export source', async ({
+  /**
+   * REWRITTEN by `03-09`, and the rewrite drops half the claim on purpose.
+   *
+   * "Below the square" stopped being true when D-21 moved the cluster into the
+   * letterbox gutter INSIDE `.map-workspace__canvas`, and repairing the
+   * measurement here would have re-asserted a placement no decision supports.
+   * `navigation.spec.ts`'s assertion 12 is the replacement for the geometry -
+   * non-intersection with `.map-frame` at every gate viewport x every legend
+   * preset, which is strictly stronger than "below".
+   *
+   * What stays here is the EXPORT-MEMBERSHIP half, which assertion 12 does not
+   * make: placement, not `data-editor-only`, is what keeps chrome out of every
+   * PNG, and the export clones `svg.map-canvas`.
+   */
+  test('the map navigation cluster is a sibling of the export source, never inside it', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
 
-    /*
-     * UI-SPEC 10: editor-only camera chrome in the map column, below the square.
-     *
-     * It used to overlay the square's top-left corner, where it rendered on top
-     * of a `top-left` legend - the default legend position - hiding the first
-     * entry's swatch. That collision has no fix on the legend side: the cluster
-     * is sized in screen pixels while the legend is positioned in 1080-unit
-     * canvas space, so the cluster's canvas-space footprint changes with the
-     * square's width (about 173 units at a 934px square, about 270 at 600px).
-     * No fixed rectangle in the export's coordinate system can reserve room for
-     * it, so the chrome moved off the square instead.
-     */
-    await expect(page.locator('.map-workspace > .map-navigation')).toHaveCount(
-      1,
-    );
     await expect(
-      page.locator('.map-workspace__square .map-navigation'),
-    ).toHaveCount(0);
-    /*
-     * The export clones `svg.map-canvas`, so this is the assertion that keeps
-     * chrome out of every PNG. `data-editor-only` would strip the cluster from
-     * the clone, but only if it were in the clone at all - placement is the
-     * primary guard and the attribute is the second one. This is the mirror of
-     * the legend containment assertion: the legend must be inside that SVG, the
-     * overlay must be outside it.
-     */
+      page.locator('.map-workspace__canvas > .map-navigation'),
+    ).toHaveCount(1);
     await expect(page.locator('.map-export-source .map-navigation')).toHaveCount(
       0,
     );
+    await expect(page.locator('svg.map-canvas .map-navigation')).toHaveCount(0);
+    // The mirror image of the same rule: the legend must be INSIDE that SVG.
     await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(
       1,
     );
 
-    const square = await page.locator('.map-workspace__square').boundingBox();
-    const cluster = await page
-      .locator('.map-navigation__cluster')
-      .boundingBox();
-    if (square === null || cluster === null) {
-      throw new Error('The navigation cluster is not composed in the map column.');
-    }
-    // Below the square, aligned to its left edge - not over any part of it.
-    expect(cluster.y).toBeGreaterThanOrEqual(square.y + square.height);
-    expect(cluster.x).toBeGreaterThanOrEqual(square.x);
-    expect(cluster.x + cluster.width).toBeLessThanOrEqual(
-      square.x + square.width + 1,
+    /*
+     * Placement is the primary guard, so it is asserted as an ORDER rather
+     * than as an attribute: the cluster renders after `div.map-export-source`
+     * in the region. `data-editor-only` is the second line of defence and
+     * would only help if the cluster were in the clone at all.
+     */
+    const order = await page.evaluate((): ReadonlyArray<string> => {
+      const region = document.querySelector('.map-workspace__canvas');
+      if (region === null) {
+        throw new Error('The canvas region is not rendered.');
+      }
+      return [...region.children].map((child): string =>
+        child.classList.contains('map-export-source')
+          ? 'export-source'
+          : child.classList.contains('map-navigation')
+            ? 'navigation'
+            : 'other',
+      );
+    });
+    expect(order.indexOf('navigation')).toBeGreaterThan(
+      order.indexOf('export-source'),
+    );
+    expect(order.indexOf('export-source')).toBeGreaterThanOrEqual(0);
+
+    await expect(page.locator('.map-navigation')).toHaveAttribute(
+      'data-editor-only',
+      'true',
     );
   });
 
-  /**
-   * The collision this layout exists to prevent, measured rather than assumed.
-   * `Top left` is the default legend position, so the overlay and the legend
-   * collided for every creator who added a colour, and no existing test noticed:
-   * both elements were present, visible, and correctly placed by their own
-   * rules.
+  /*
+   * DELETED by `03-09`: "the navigation cluster never overlaps the legend at
+   * any legend position".
+   *
+   * Superseded in substance, not dropped. The legend lives inside the export
+   * frame, so `navigation.spec.ts`'s assertion 12 - non-intersection with
+   * `.map-frame` at every gate viewport x every legend preset, enumerated
+   * two-way from `LEGEND_CORNER_OPTIONS` - implies non-intersection with the
+   * legend at every preset and covers four more viewports than this ever did.
+   * Keeping a weaker second copy here would have meant maintaining the
+   * `openRailTool` + disclosure flow and the panel-settle poll twice.
    */
-  test('the navigation cluster never overlaps the legend at any legend position', async ({
-    page,
-  }): Promise<void> => {
-    await page.setViewportSize(DESKTOP_VIEWPORT);
-    await waitForApp(page);
-
-    await page
-      .getByRole('checkbox', { name: /^France Current color/ })
-      .check();
-    await page.getByRole('button', { name: 'Apply Red' }).click();
-
-    await page.getByRole('button', { name: /^Legend/ }).click();
-
-    for (const corner of ['Top left', 'Top right', 'Bottom left', 'Bottom right']) {
-      await page.getByRole('radio', { name: corner }).check();
-
-      const overlap = await page.evaluate((): boolean => {
-        const cluster = document.querySelector('.map-navigation__cluster');
-        const legend = document.querySelector(
-          'svg.map-canvas > [data-layer="legend"]',
-        );
-        if (cluster === null || legend === null) {
-          throw new Error('The cluster and the legend must both be rendered.');
-        }
-        const a = cluster.getBoundingClientRect();
-        const b = legend.getBoundingClientRect();
-        return (
-          a.left < b.right &&
-          b.left < a.right &&
-          a.top < b.bottom &&
-          b.top < a.bottom
-        );
-      });
-
-      expect(overlap, `the cluster overlaps the legend at "${corner}"`).toBe(
-        false,
-      );
-    }
-  });
-
   /**
    * The 376px inspector clipped `Magenta` at its tile edge and clipped both bulk
    * actions to their first letter, and the column grew a horizontal scrollbar.
@@ -682,150 +885,109 @@ test.describe('responsive world workspace', (): void => {
     expect(clipped).toStrictEqual([]);
   });
 
-  test('the desktop app bar carries the global actions in the declared order', async ({
+  /*
+   * DELETED by `03-09`: "the desktop app bar carries the global actions in the
+   * declared order" and "the desktop focus order runs bar, composition bar,
+   * map, navigation, inspector".
+   *
+   * Both were claims about `.app > header`, which `03-05` retired as a
+   * container - not assertions that broke, assertions whose SUBJECT stopped
+   * existing. Repairing them would have meant inventing a bar to assert.
+   *
+   * Their replacements are landed and passing in `tests/e2e/rail.spec.ts`:
+   * `runs the spec'd focus order, with disabled controls removed` (which also
+   * covers the half a documented deviation would skip - the controls a
+   * `disabled` state removes from the sequence) and `assertion 15: one Reset
+   * View, one Reset All Colors, one filled action`. Deleting rather than
+   * skipping, because a skipped gate is a gate that cannot fail wearing a
+   * different hat.
+   */
+
+  /**
+   * REWRITTEN by `03-09` for D-20, and the claim is now the LOAD-BEARING half
+   * of the bottom bar: the rail paints at the thumb end through `grid-row: 2`
+   * and keeps its DOM position, so the focus order is layout-INVARIANT.
+   *
+   * That is worth its own gate. Moving the bar with `order` or by reordering
+   * the composition root would look identical on screen and would silently put
+   * the camera controls, the map, and the help card ahead of the tools at every
+   * narrow width - which is precisely the class of regression UI-SPEC 20 exists
+   * to pin, and one that no visual check catches.
+   */
+  test('the narrow focus order is the desktop order, unchanged by the bar', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
-    await expectLayout(page, 'desktop');
-    await expectLandmarks(page);
-
-    // UI-SPEC 8: Undo, Redo, Save or Load Maps, Export PNG - on the bar, in
-    // that order, and nowhere else in the composed DOM.
-    const barActions = page.locator('.app > header [data-action]');
-    expect(
-      await barActions.evaluateAll((elements): ReadonlyArray<string> =>
-        elements.map((element): string =>
-          element.getAttribute('data-action') ?? '',
-        ),
-      ),
-    ).toStrictEqual(['undo', 'redo', 'save-load', 'export']);
-    await expect(page.locator('[data-action="export"]')).toHaveCount(1);
-    await expect(page.locator('.workspace__actions')).toHaveCount(0);
-
-    // UI-SPEC 11: content reset stays in the selection/color section, never on
-    // the bar and never beside Reset View.
-    await expect(
-      page.locator('.workspace__selection-color [data-action="reset-colors"]'),
-    ).toHaveCount(1);
-    await expect(page.locator('[data-action="reset-colors"]')).toHaveCount(1);
-    await expect(
-      page.locator('.app > header [data-action="reset-colors"]'),
-    ).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(1);
-
-    expect(await findHorizontalOverflow(page)).toStrictEqual([]);
-
-    const undersized = (await measureTargets(page)).filter(
-      (target): boolean =>
-        ICON_ONLY_LABELS.has(target.label)
-          ? target.height < COMPACT_TARGET_SIZE ||
-            target.width < COMPACT_TARGET_SIZE
-          : target.height < STANDARD_TARGET_HEIGHT,
-    );
-    expect(undersized).toStrictEqual([]);
-  });
-
-  test('the desktop focus order runs bar, composition bar, map, navigation, inspector', async ({
-    page,
-  }): Promise<void> => {
-    await page.setViewportSize(DESKTOP_VIEWPORT);
-    await waitForApp(page);
-    await page.locator('.app > header h1').click();
-
-    const order = await collectTabOrder(page, 32);
-    const at = positionIn(order);
 
     /*
-     * UI-SPEC 20, desktop: app/global actions, map composition bar, map
-     * countries, map navigation, inspector controls.
-     *
-     * Undo, Redo, and Reset All Colors are absent because they are natively
-     * disabled with no color history yet.
+     * `waitForApp` dismisses onboarding, and App then moves focus to the map
+     * from a `requestAnimationFrame` callback. Resetting the sequential
+     * starting point before that callback runs lets the map take it straight
+     * back, and the walk silently begins at the camera cluster instead of at
+     * the rail - an order that looks plausible and is not the spec'd one.
+     * Waiting for the app's own focus to land first is what makes the reset
+     * deterministic.
      */
-    expect(order[0]).toBe('Save or Load Maps');
-    expect(at('Save or Load Maps')).toBeLessThan(at('Export PNG'));
-    expect(at('Export PNG')).toBeLessThan(at('Show Help'));
-    expect(at('Show Help')).toBeLessThan(at('Reset View'));
-    expect(at('Reset View')).toBeLessThan(at('Zoom In'));
+    await expect
+      .poll(async (): Promise<string> =>
+        page.evaluate((): string => document.activeElement?.tagName ?? ''),
+      )
+      .toBe('path');
+
+    // `collectTabOrder` resets the sequential starting point itself; see the
+    // helper for why blurring is not enough.
+    const restart = async (): Promise<ReadonlyArray<string>> =>
+      collectTabOrder(page, 24);
+
+    const desktop = await restart();
+    expect(desktop.slice(0, RAIL_TAB_STOPS.length)).toEqual([
+      ...RAIL_TAB_STOPS,
+    ]);
+
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await expectLayout(page, 'compact');
+    const compact = await restart();
+    const at = positionIn(compact);
+
+    // The bar paints last and focuses first: byte-identical to the desktop
+    // sequence, which is the whole point of placing it with `grid-row`.
+    expect(compact.slice(0, RAIL_TAB_STOPS.length)).toEqual([
+      ...RAIL_TAB_STOPS,
+    ]);
+
+    /*
+     * And the canvas region still follows the rail. UI-SPEC 20 orders the map
+     * before its camera controls, so a cluster that drifted ahead of the map it
+     * controls fails here rather than reading as a placement preference.
+     */
+    const country = compact.findIndex((label): boolean =>
+      label.startsWith('Afghanistan, current color'),
+    );
+    expect(country, `no country in the tab order: ${compact.join(' > ')}`)
+      .toBeGreaterThanOrEqual(0);
+    expect(country).toBeGreaterThan(at('Switch to dark theme'));
+    expect(country).toBeLessThan(at('Zoom In'));
     expect(at('Zoom In')).toBeLessThan(at('Move Map'));
 
-    const country = order.findIndex((label): boolean =>
-      label.startsWith('Afghanistan, current color'),
-    );
-    expect(country, `no country in the tab order: ${order.join(' > ')}`)
-      .toBeGreaterThanOrEqual(0);
-    // The map comes before its navigation overlay, and both come before the
-    // inspector - the overlay is part of the map column, not the inspector.
-    expect(at('Reset View')).toBeLessThan(country);
-    expect(country).toBeLessThan(at('Zoom In'));
-    expect(at('Move Map')).toBeLessThan(at('Search countries'));
+    /*
+     * Natively disabled controls are ABSENT rather than reachable no-ops
+     * (UI-SPEC 8). `Zoom Out` is disabled at the whole-world fit and Undo,
+     * Redo, and Reset All Colors are disabled with no colour history yet -
+     * asserting their absence is the difference between knowing why a label is
+     * missing and not noticing.
+     */
+    [
+      'Zoom Out',
+      'Undo Color Change',
+      'Redo Color Change',
+      'Reset All Colors',
+    ].forEach((label): void => {
+      expect(compact).not.toContain(label);
+    });
   });
 
-  test('the responsive focus order follows the declared workflow', async ({
-    page,
-  }): Promise<void> => {
-    await page.setViewportSize(MOBILE_VIEWPORT);
-    await waitForApp(page);
-
-    /*
-     * `waitForApp` dismisses onboarding, which parks focus on the map. Blurring
-     * is not enough - the sequential navigation starting point stays where
-     * focus was, so tabbing would begin halfway down the order and "prove" a
-     * sequence starting wherever focus happened to land. Clicking the product
-     * title moves the starting point to the top of the document.
-     */
-    await page.locator('.app > header h1').click();
-
-    const order = await collectTabOrder(page, 32);
-    const positionOf = positionIn(order);
-
-    /*
-     * UI-SPEC 20, compact/mobile: action strip, composition bar, map, map
-     * navigation, selection/color, countries/Locate, legend.
-     *
-     * This asserts the SPEC'd order, not the order that happens to exist. Until
-     * `MapNavigation` became an overlay on the square it rendered inside
-     * `workspace__actions`, which put the camera cluster ahead of the
-     * composition bar and the map; this file previously named that deviation
-     * instead of failing on it.
-     *
-     * Undo, Redo, and Reset All Colors are absent because they are natively
-     * disabled with no color history yet (UI-SPEC 8: disabled states are
-     * truthful and native, not `aria-disabled` on a reachable control).
-     */
-    expect(order[0]).toBe('Show Help');
-    ['Undo Color Change', 'Redo Color Change', 'Reset All Colors'].forEach(
-      (label): void => {
-        expect(order).not.toContain(label);
-      },
-    );
-
-    const saveLoad = positionOf('Save or Load Maps');
-    const exportPng = positionOf('Export PNG');
-    const resetView = positionOf('Reset View');
-    const zoomIn = positionOf('Zoom In');
-    const moveMap = positionOf('Move Map');
-    const country = order.findIndex((label): boolean =>
-      label.startsWith('Afghanistan, current color'),
-    );
-    const countrySearch = positionOf('Search countries');
-
-    expect(country, `no country in the tab order: ${order.join(' > ')}`)
-      .toBeGreaterThanOrEqual(0);
-    expect(saveLoad).toBeLessThan(exportPng);
-    expect(exportPng).toBeLessThan(resetView);
-    expect(resetView).toBeLessThan(country);
-    // The map navigation follows the map and precedes the inspector.
-    expect(country).toBeLessThan(zoomIn);
-    expect(zoomIn).toBeLessThan(moveMap);
-    expect(moveMap).toBeLessThan(countrySearch);
-    // Zoom Out is natively disabled at the whole-world fit, so it is correctly
-    // absent from the sequence rather than a reachable no-op.
-    expect(order).not.toContain('Zoom Out');
-  });
-
-  test('every disabled action in the responsive strip is natively disabled', async ({
+  test('every disabled action in the narrow bar is natively disabled', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(MOBILE_VIEWPORT);
@@ -917,6 +1079,18 @@ test.describe('theme and preference behaviour', (): void => {
     ).toBe(false);
     expect(source).toContain(THEME_TOGGLE_LABELS.dark);
     expect(source).toContain(THEME_TOGGLE_LABELS.light);
+
+    /*
+     * And the other half of the same rule: Playwright cannot emulate
+     * `prefers-reduced-transparency`, so simulating it here and reporting the
+     * result would be labelling a fiction as browser evidence. The real
+     * assertion is static, in `uiContract.test.ts`, and the physical cell
+     * belongs to the owner acceptance matrix.
+     */
+    expect(
+      /emulateMedia\(\s*\{[^}]*[Rr]educedTransparency/u.test(source),
+      'emulation a browser does not support is not evidence.',
+    ).toBe(false);
   });
 
   test('reduced-motion preference removes every authored transition', async ({
@@ -993,50 +1167,151 @@ test.describe('theme and preference behaviour', (): void => {
     expect(motion.easing).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
   });
 
-  test('increased-contrast preference strengthens boundaries and focus rings', async ({
+  /**
+   * REWRITTEN by `03-09`. The token half was fine; the third assertion read
+   * `.map-workspace__square`, renamed by `03-03`, and `querySelector(...) as
+   * Element` on a missing node made the whole `page.evaluate` throw - so the
+   * two assertions that WOULD have passed never ran either. A probe that
+   * throws before its assertions is a gate that cannot fail, wearing an error
+   * message.
+   *
+   * The observable half is re-pointed at boundaries that still exist, and it
+   * is checked in BOTH modes: D-30 authors the preference block after the
+   * palette at equal specificity, so a literal written for one mode silently
+   * wins in the other - the defect that once painted a light bar under light
+   * text at 1.0:1 for the user who asked for MORE contrast.
+   */
+  test('increased-contrast preference strengthens boundaries and focus rings in both modes', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.emulateMedia({ contrast: 'more' });
     await waitForApp(page);
+    await openRailTool(page, 'Colors');
 
-    const widths = await page.evaluate((): Record<string, string> => {
-      const root = getComputedStyle(document.documentElement);
-      return {
-        border: root.getPropertyValue('--border-width').trim(),
-        focus: root.getPropertyValue('--focus-width').trim(),
-        square: getComputedStyle(
-          document.querySelector('.map-workspace__square') as Element,
-        ).borderTopWidth,
-      };
-    });
+    const probe = async (): Promise<Record<string, string>> =>
+      page.evaluate((): Record<string, string> => {
+        const mount = document.querySelector('.map-editor');
+        const rail = document.querySelector('.tool-rail');
+        const panel = document.querySelector('.tool-panel');
+        const swatch = document.querySelector('.color-picker__preset-swatch');
+        if (
+          mount === null ||
+          rail === null ||
+          panel === null ||
+          swatch === null
+        ) {
+          throw new Error('The editor shell is not rendered.');
+        }
+        const tokens = getComputedStyle(mount);
+        return {
+          border: tokens.getPropertyValue('--border-width').trim(),
+          focus: tokens.getPropertyValue('--focus-width').trim(),
+          // The declared weight is only real if a painted boundary reads it.
+          rail: getComputedStyle(rail).borderInlineEndWidth,
+          panel: getComputedStyle(panel).borderInlineEndWidth,
+          swatch: getComputedStyle(swatch).borderTopWidth,
+        };
+      });
 
-    expect(widths.border).toBe('2px');
-    expect(widths.focus).toBe('3px');
-    expect(widths.square).toBe('2px');
+    const light = await probe();
+    expect(light.border).toBe('2px');
+    expect(light.focus).toBe('3px');
+    expect(light.rail).toBe('2px');
+    expect(light.panel).toBe('2px');
+    expect(light.swatch).toBe('2px');
+
+    await setEditorTheme(page, 'dark');
+    const dark = await probe();
+    expect(dark, 'the preference block answers for only one mode').toStrictEqual(
+      light,
+    );
   });
 
-  test('forced-colors preference drops every glass surface to opaque', async ({
+  /**
+   * REWRITTEN by `03-09`. Its subject was the `--glass-*` family, which D-06
+   * DELETED outright - there is no glass surface left to drop to opaque, and
+   * the two selectors it read (`.app > header`, `.workspace__control-column`)
+   * were both retired, so it asserted a length of 2 against an empty list.
+   *
+   * What forced colors actually has to do here now: hand every paint decision
+   * to the user agent by removing the effects a forced palette cannot express,
+   * and strengthen the two weights. `backdrop-filter` is asserted absent
+   * everywhere rather than "0 on two surfaces", because D-06 banned it
+   * outright and a ban is an ownership claim, not a per-surface one.
+   */
+  test('forced-colors preference removes the effects a forced palette cannot express', async ({
     page,
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.emulateMedia({ forcedColors: 'active' });
     await waitForApp(page);
+    await openRailTool(page, 'Colors');
 
-    const backdrops = await page.evaluate((): ReadonlyArray<string> =>
-      ['.app > header', '.workspace__control-column']
-        .map((selector): Element | null => document.querySelector(selector))
-        .filter((element): element is Element => element !== null)
-        .map((element): string => {
-          const style = getComputedStyle(element);
-          return style.backdropFilter === '' ? 'none' : style.backdropFilter;
-        }),
-    );
+    const forced = await page.evaluate((): {
+      readonly border: string;
+      readonly focus: string;
+      readonly hairline: string;
+      readonly popover: string;
+      readonly dialog: string;
+      readonly backdrops: ReadonlyArray<string>;
+      readonly railEdge: string;
+      readonly panelEdge: string;
+    } => {
+      const mount = document.querySelector('.map-editor');
+      const rail = document.querySelector('.tool-rail');
+      const panel = document.querySelector('.tool-panel');
+      if (mount === null || rail === null || panel === null) {
+        throw new Error('The editor shell is not rendered.');
+      }
+      const tokens = getComputedStyle(mount);
+      const backdrops: string[] = [];
 
-    expect(backdrops.length).toBe(2);
-    backdrops.forEach((backdrop): void => {
-      expect(backdrop).toMatch(/^(?:none|blur\(0(?:px)?\))$/u);
+      document.querySelectorAll('.map-editor, .map-editor *').forEach(
+        (element): void => {
+          const backdrop = getComputedStyle(element).backdropFilter;
+          if (backdrop !== '' && !/^(?:none|blur\(0(?:px)?\))$/u.test(backdrop)) {
+            backdrops.push(`${element.className}: ${backdrop}`);
+          }
+        },
+      );
+
+      return {
+        border: tokens.getPropertyValue('--border-width').trim(),
+        focus: tokens.getPropertyValue('--focus-width').trim(),
+        hairline: tokens.getPropertyValue('--hairline').trim(),
+        popover: tokens.getPropertyValue('--popover-shadow').trim(),
+        dialog: tokens.getPropertyValue('--dialog-shadow').trim(),
+        backdrops,
+        railEdge: getComputedStyle(rail).borderInlineEndWidth,
+        panelEdge: getComputedStyle(panel).borderInlineEndWidth,
+      };
     });
+
+    expect(forced.hairline).toBe('none');
+    expect(forced.popover).toBe('none');
+    expect(forced.dialog).toBe('none');
+    // D-06 banned `backdrop-filter` outright; forced colors is where a
+    // surviving one would be most obviously wrong.
+    expect(forced.backdrops).toStrictEqual([]);
+
+    /*
+     * The weights are the OBSERVABLE half, and they are observable precisely
+     * because forced colors does not touch them: the user agent overrides
+     * colour, so a boundary that survives has to survive at the width the
+     * token asks for. A `1px solid` literal opts out here with nothing else
+     * failing.
+     *
+     * A shadow sweep was written here first and DELETED after it was probed:
+     * Chrome removes every `box-shadow` in forced-colors mode itself, so
+     * "nothing paints a shadow" is guaranteed by the user agent and stays
+     * green against a rule that hard-codes one. It read as proof of the three
+     * token assertions above and proved nothing about them.
+     */
+    expect(forced.border).toBe('2px');
+    expect(forced.focus).toBe('3px');
+    expect(forced.railEdge).toBe('2px');
+    expect(forced.panelEdge).toBe('2px');
   });
 
   /*

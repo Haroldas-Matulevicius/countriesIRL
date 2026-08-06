@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { LAST_OPEN_TOOL_KEY, THEME_MODE_KEY } from '../../src/constants/config';
 import {
   clearSavedMaps,
+  collectTabOrder,
   openRailTool,
   waitForApp,
 } from './support/appHarness';
@@ -35,61 +36,10 @@ async function clearPreferences(page: Page): Promise<void> {
   );
 }
 
-/**
- * The sequential focus order from the top of the document.
- *
- * The starting point is moved explicitly first. Blurring leaves focus wherever
- * it last was, so `Tab` would resume from the middle of the document and
- * "prove" an order that begins at an arbitrary control.
+/*
+ * `collectTabOrder` moved to `support/appHarness.ts` in `03-09`, which needed
+ * the same walk for the narrow layout. It is imported, never re-declared.
  */
-async function collectTabOrder(
-  page: Page,
-  steps: number,
-): Promise<ReadonlyArray<string>> {
-  await page.evaluate((): void => {
-    // `body.focus()` is a no-op unless the element is focusable, and blurring
-    // alone leaves the browser resuming Tab from wherever focus last was. A
-    // temporary `tabindex="-1"` makes the reset real without adding a tab stop.
-    document.body.setAttribute('tabindex', '-1');
-    document.body.focus();
-    document.body.removeAttribute('tabindex');
-  });
-
-  const order: string[] = [];
-  for (let step = 0; step < steps; step += 1) {
-    await page.keyboard.press('Tab');
-    order.push(
-      await page.evaluate((): string => {
-        const active = document.activeElement;
-        if (active === null) {
-          return '';
-        }
-        if (active.hasAttribute('aria-label')) {
-          return active.getAttribute('aria-label') ?? '';
-        }
-        /*
-         * `aria-hidden` children are excluded, because every rail control
-         * carries its label twice - once for the accessible name and once in
-         * the hidden tooltip chip - and a raw `textContent` reads
-         * "Export PNGExport PNG".
-         */
-        return [...active.childNodes]
-          .filter(
-            (node): boolean =>
-              !(
-                node instanceof Element &&
-                node.getAttribute('aria-hidden') === 'true'
-              ),
-          )
-          .map((node): string => node.textContent ?? '')
-          .join('')
-          .trim()
-          .slice(0, 32);
-      }),
-    );
-  }
-  return order;
-}
 
 test.describe('the tool rail', (): void => {
   test.beforeEach(async ({ page }): Promise<void> => {

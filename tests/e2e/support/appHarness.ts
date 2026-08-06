@@ -62,6 +62,62 @@ export function legendDisclosure(page: Page): ReturnType<Page['getByRole']> {
     .getByRole('button', { name: /^Legend/ });
 }
 
+/**
+ * Walks the sequential focus order from the top of the document.
+ *
+ * Promoted here from `rail.spec.ts` by `03-09`, which needed the same walk for
+ * the narrow layout. A second copy would have drifted on the two things this
+ * helper gets right and a naive one does not:
+ *
+ * - the STARTING POINT is reset for real. Blurring leaves the browser resuming
+ *   `Tab` from wherever focus last was, so the walk "proves" an order that
+ *   begins in the middle of the document. A temporary `tabindex="-1"` on `body`
+ *   makes `focus()` take effect without adding a tab stop.
+ * - `aria-hidden` children are EXCLUDED. Every rail control carries its label
+ *   twice - once as the accessible name and once in the hidden tooltip chip -
+ *   so a raw `textContent` reads `Export PNGExport PNG`, and an assertion
+ *   written against that string pins the duplication as if it were the label.
+ */
+export async function collectTabOrder(
+  page: Page,
+  steps: number,
+): Promise<ReadonlyArray<string>> {
+  await page.evaluate((): void => {
+    document.body.setAttribute('tabindex', '-1');
+    document.body.focus();
+    document.body.removeAttribute('tabindex');
+  });
+
+  const order: string[] = [];
+  for (let step = 0; step < steps; step += 1) {
+    await page.keyboard.press('Tab');
+    order.push(
+      await page.evaluate((): string => {
+        const active = document.activeElement;
+        if (active === null) {
+          return '';
+        }
+        if (active.hasAttribute('aria-label')) {
+          return active.getAttribute('aria-label') ?? '';
+        }
+        return [...active.childNodes]
+          .filter(
+            (node): boolean =>
+              !(
+                node instanceof Element &&
+                node.getAttribute('aria-hidden') === 'true'
+              ),
+          )
+          .map((node): string => node.textContent ?? '')
+          .join('')
+          .trim()
+          .slice(0, 40);
+      }),
+    );
+  }
+  return order;
+}
+
 export async function clearSavedMaps(page: Page): Promise<void> {
   await page.evaluate(
     (storageKey): void => localStorage.removeItem(storageKey),
