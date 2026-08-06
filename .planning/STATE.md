@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 3 COMPLETE 2026-08-06 -- 12/12 plans; 637/637 unit, Chrome e2e 103/103, lint+build clean (Chrome 151 only; Edge not installed). CLOSED BY THE OWNER on a free exploration of the running dev server: they looked at it, exercised it, and judged it good enough to ship, explicitly SKIPPING the structured UAT. READ THIS CAREFULLY BEFORE CITING THE PHASE: nine of the twelve UAT cells were NOT PERFORMED and are recorded as skipped, not passed -- there is NO screen-reader pass, NO touch-target check, NO physical 200% zoom, NO latin-ext diacritic export, and NO dedicated dark-theme review anywhere in this phase, and none may be reported as verified or cited by a later phase. THREE OPEN FOLLOW-UPS, all deferred by owner choice, not resolved: G-3 the colors flyout (2nd column) needs heavy work -- owner: 'too squished, not organized well, hate the multi boxes within' -- a DESIGN REWORK and the largest open item, likely deserving its own plan; G-1 the legend sits too high ( fixing it moves exported pixels, so it is D-25 territory and needs deliberate fixture re-baselining), and G-2 the saved-composition export break is still untested by human or machine (owner had no pre-restyle saved map with a 15-32 char label). F-1, the 14-char default legend-label export ceiling, ships ACCEPTED-AS-DEFERRED -- the verifier's three grounds against it stand unrebutted. Next action: Phase 4, or pick up G-3/G-1/G-2. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25, 02-28). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them."
-last_updated: "2026-08-06T23:00:00.000Z"
-last_activity: "2026-08-06 -- Phase 3 EXECUTED end to end and closed at code level. 12 sequential waves, one executor per plan, 94 commits, 181 files, +39,234/-6,832 against tag acceptance-02-28. Shipped: full-bleed canvas + 56px icon rail with one-at-a-time 280px flyout; Themely token system with an explicit .dark toggle and ZERO prefers-color-scheme reads (D-30); Design.md authored at repo root; 14 in-repo icons; MapEditor mountable behind an explicit props boundary (storage as a factory, asset base path as a prop) for the future Themely transition -- seam only, NOTHING embedded, embedding still needs new owner authorization; Controls.css 1438 lines split into 8 per-surface sheets; html2canvas REMOVED and the SVG->PNG path owned outright (D-34/D-34a), bundle 689,445 -> 555,717 B. phase2CssContract.test.ts retired into uiContract.test.ts. SEVEN assertions that could not fail were caught and fixed during the phase, plus two in 03-12-PLAN.md's own verify block; the approved 03-UI-SPEC.md was also found to carry a WRONG placement formula, RED-proved by 03-08. Every blocking gate answered under a BLANKET, IN-ADVANCE, SIGHT-UNSEEN PROCEED-AUTHORIZATION dated 2026-08-06 -- NOT a content review, NOT hash-bound (Immutable Safety Constraint 8). Independent non-author review (03-12-REVIEW.md) and goal-backward verification (03-VERIFICATION.md) both re-ran every gate rather than copying numbers; honesty audit found ZERO overclaims. Chrome 151.0.7922.75 only -- Edge is NOT installed and no Edge result was produced."
+stopped_at: "Phase 4 CONTEXT GATHERED 2026-08-06 -- .planning/phases/04-visual-cartographic-system-1-5-2-weeks/04-CONTEXT.md written, 18 decisions (D4-01..D4-18) across all eight gray areas. Next step is /gsd-plan-phase 4. THREE THINGS FROM THAT SESSION NEED CARRYING, none of them optional: (1) D4-10 makes all TWELVE colorPolicy 'neutral' units colorable (ATA COK CYN FLK GIB IOT KAS KOS NIU SAH SOL TWN) -- an owner policy reversal that CONTRADICTS the Phase 5 roadmap line at 05-02 and needs an explicit ROADMAP.md amendment, re-derives the world-manifest hash, and moves the selectable-core-state count 195 -> 207. No geometry is promoted and NO approval is implicated -- do not let this later read as a bypassed approval. (2) D4-05 widens every flyout 280 -> 360px, which AMENDS the approved 03-UI-SPEC.md -- annotate the spec in the same commit, never resolve the divergence silently. (3) D4-11 and D4-17 are one-way: legend box chrome (theme/backgroundOpacity/borderStyle) is deleted from LegendState and V2 maps adopt the new look, so saved compositions change appearance on load. Prior position unchanged: Phase 3 COMPLETE 2026-08-06 -- 12/12 plans; 637/637 unit, Chrome e2e 103/103, lint+build clean (Chrome 151 only; Edge not installed). CLOSED BY THE OWNER on a free exploration of the running dev server: they looked at it, exercised it, and judged it good enough to ship, explicitly SKIPPING the structured UAT. READ THIS CAREFULLY BEFORE CITING THE PHASE: nine of the twelve UAT cells were NOT PERFORMED and are recorded as skipped, not passed -- there is NO screen-reader pass, NO touch-target check, NO physical 200% zoom, NO latin-ext diacritic export, and NO dedicated dark-theme review anywhere in this phase, and none may be reported as verified or cited by a later phase. THREE OPEN FOLLOW-UPS, all deferred by owner choice, not resolved: G-3 the colors flyout (2nd column) needs heavy work -- owner: 'too squished, not organized well, hate the multi boxes within' -- a DESIGN REWORK and the largest open item, likely deserving its own plan; G-1 the legend sits too high ( fixing it moves exported pixels, so it is D-25 territory and needs deliberate fixture re-baselining), and G-2 the saved-composition export break is still untested by human or machine (owner had no pre-restyle saved map with a 15-32 char label). F-1, the 14-char default legend-label export ceiling, ships ACCEPTED-AS-DEFERRED -- the verifier's three grounds against it stand unrebutted. Next action: Phase 4, or pick up G-3/G-1/G-2. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25, 02-28). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them."
+last_updated: "2026-08-06T23:59:00.000Z"
+last_activity: "2026-08-06 -- Phase 4 context gathered (04-CONTEXT.md + 04-DISCUSSION-LOG.md). All eight offered gray areas discussed; 18 decisions recorded. Ramps are FIXED-STEP and a painted country stores {rampId, t} rather than hex, so Phase 5's CSV drives the identical pipeline. 04-02 absorbs the G-3 colors-panel rework redesign-first; every flyout widens to 360px (amends the approved 03-UI-SPEC.md). Legend box chrome is DELETED and two legend forms ship, defaulting off the coloring technique. Export gating is per-property with NO whole-image baselines, because five of eleven plans move exported pixels and a re-baseline diff cannot fail on its own subject. Font widens to latin-ext. A new 'Map style' rail tool holds water/uncolored-fill/border controls -- which worsens the unclosed D-5 rail-height item. 04-09 folds in G-2. The owner supplied a Eurostat choropleth as the visual reference; it is characterized in 04-CONTEXT.md <specifics> and drove the legend, water, and uncolored-land decisions. Four loose ends recorded as OPEN QUESTIONS rather than decided. Prior activity: 2026-08-06 -- Phase 3 EXECUTED end to end and closed at code level. 12 sequential waves, one executor per plan, 94 commits, 181 files, +39,234/-6,832 against tag acceptance-02-28. Shipped: full-bleed canvas + 56px icon rail with one-at-a-time 280px flyout; Themely token system with an explicit .dark toggle and ZERO prefers-color-scheme reads (D-30); Design.md authored at repo root; 14 in-repo icons; MapEditor mountable behind an explicit props boundary (storage as a factory, asset base path as a prop) for the future Themely transition -- seam only, NOTHING embedded, embedding still needs new owner authorization; Controls.css 1438 lines split into 8 per-surface sheets; html2canvas REMOVED and the SVG->PNG path owned outright (D-34/D-34a), bundle 689,445 -> 555,717 B. phase2CssContract.test.ts retired into uiContract.test.ts. SEVEN assertions that could not fail were caught and fixed during the phase, plus two in 03-12-PLAN.md's own verify block; the approved 03-UI-SPEC.md was also found to carry a WRONG placement formula, RED-proved by 03-08. Every blocking gate answered under a BLANKET, IN-ADVANCE, SIGHT-UNSEEN PROCEED-AUTHORIZATION dated 2026-08-06 -- NOT a content review, NOT hash-bound (Immutable Safety Constraint 8). Independent non-author review (03-12-REVIEW.md) and goal-backward verification (03-VERIFICATION.md) both re-ran every gate rather than copying numbers; honesty audit found ZERO overclaims. Chrome 151.0.7922.75 only -- Edge is NOT installed and no Edge result was produced."
 progress:
   total_phases: 6
   completed_phases: 1
@@ -224,6 +224,26 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ### Pending Todos
 
+**Filed by the Phase 4 context session (2026-08-06) — these three escape Phase 4's own boundary
+and will not be fixed by executing it:**
+
+- ⚠ **`ROADMAP.md` § Phase 5 `05-02` contradicts `D4-10`.** The roadmap says *"neutral units
+  (Kosovo et al.) are reported as 'not colorable', not matched"*; the owner has decided all
+  twelve `colorPolicy: "neutral"` units become colorable. **Amend the roadmap explicitly** —
+  do not leave the two standing in silent disagreement. Also re-derives the
+  `world-manifest.json` hash and moves the selectable-core-state count **195 → 207**.
+  **No geometry is promoted and no rights/factual/topology approval is implicated** — this is a
+  product-policy change on already-shipped, hash-verified Modern geometry, and must never later
+  read as a bypassed approval.
+- ⚠ **`03-UI-SPEC.md` needs annotating for `D4-05`.** Every flyout widens 280 → 360px. The spec
+  is **approved and outranks `Design.md`**, so the amendment lands in the same commit as the
+  width. This is the *second* known divergence in that doc — the wrong placement formula 03-08
+  RED-proved is still unannotated (see below).
+- ⚠ **Two one-way decisions land in Phase 4.** `D4-11` deletes `theme` / `backgroundOpacity` /
+  `borderStyle` from `LegendState`, and `D4-17` has V2 maps adopt the new look — so **a saved
+  composition changes appearance when reopened**, and its export will differ from a PNG the
+  creator already posted. Accepted knowingly; recorded here because it is creator-visible.
+
 - **`G-3` — the colors panel needs heavy work.** *"Too squished, not organized well, hate the multi
   boxes within."* **The biggest open item — a design rework, not a tweak**, and a strong candidate
   for its own plan rather than a drive-by fix. The nested-box complaint may already be off-contract
@@ -325,7 +345,14 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ## Session Continuity
 
-- **Last session:** 2026-08-06 — **Phase 3 executed end to end and closed at code level.** Twelve
+- **Last session:** 2026-08-06 — **Phase 4 context gathered.**
+  [`04-CONTEXT.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-CONTEXT.md) +
+  [`04-DISCUSSION-LOG.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-DISCUSSION-LOG.md).
+  All eight offered gray areas discussed; **18 decisions (`D4-01`–`D4-18`)**, four loose ends
+  deliberately left as open questions. **Three items escape Phase 4's own boundary and are
+  listed under Pending Todos: the `05-02` roadmap contradiction (D4-10), the `03-UI-SPEC.md`
+  flyout-width amendment (D4-05), and the two one-way persistence decisions (D4-11, D4-17).**
+- **Previous session:** 2026-08-06 — **Phase 3 executed end to end and closed at code level.** Twelve
   sequential waves, one executor per plan, run autonomously under a blanket proceed-authorization
   while the owner slept. Then independent non-author review
   ([`03-12-REVIEW.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-12-REVIEW.md)) and goal-backward
@@ -334,8 +361,11 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 - **Previous session:** 2026-08-06 — Phase 3 planned end to end (research → ui-phase → plan-phase;
   planning docs only). Before that: Phase 3 context gathering (`d3d9a35`), and the 2026-07-26
   documentation reorganization pass.
-- **Stopped at:** Phase 3 **SHIPPED (code level), physically unverified.**
-  ▶ `03-UAT.md` (12 items, two of them owner decisions) is the next step. Phase 2 remains
+- **Stopped at:** Phase 4 **context gathered, not planned.** ▶ `/gsd-plan-phase 4` is the next
+  step. Phase 3 remains **SHIPPED (code level), physically unverified** — `03-UAT.md`'s nine
+  unperformed cells are still unperformed and cannot be inherited. Phase 2 remains
   engineering-complete at `fe5f946` with both owner gates untouched and still OPEN.
-- **Resume file:** none for Phase 3 — this file plus `03-UAT.md` carry the position. The Phase 2
-  `.continue-here.md` remains for Phase 2 resumption only. `HANDOFF.json` was deleted on 2026-07-26.
+- **Resume file:**
+  [`04-CONTEXT.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-CONTEXT.md) for Phase 4.
+  This file plus `03-UAT.md` still carry the Phase 3 position. The Phase 2 `.continue-here.md`
+  remains for Phase 2 resumption only. `HANDOFF.json` was deleted on 2026-07-26.
