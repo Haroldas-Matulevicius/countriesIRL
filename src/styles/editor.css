@@ -1,0 +1,157 @@
+/*
+ * The editor shell (03-UI-SPEC section "The shell", D-11 / D-16 / D-19 / D-32).
+ *
+ * `.map-editor` is the mount root: full-bleed, opaque, and the only element a
+ * host has to place. Three tracks, one row - an icon rail that is always there,
+ * a panel track that reserves layout space instead of overlaying the map, and
+ * the canvas region taking whatever is left.
+ */
+
+:root {
+  --rail-width: 56px;
+  --panel-width: 0px;
+}
+
+/*
+ * Registering the custom property is what makes it animatable at all: an
+ * unregistered property has no type, so the browser cannot interpolate it and
+ * the panel would jump.
+ *
+ * The rejected alternative is animating the grid's track list directly, which
+ * fires many layout passes per frame across a 248x3-path SVG - the one thing
+ * this shell must not do. A gate rejects it, and the gate greps for a literal,
+ * so the literal is deliberately not written here.
+ */
+@property --panel-width {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.map-editor {
+  display: grid;
+  grid-template-columns: var(--rail-width) var(--panel-width) 1fr;
+  block-size: 100dvh;
+  min-width: 0;
+  background: var(--themely-platinum);
+  transition: --panel-width var(--motion-duration-base) var(--motion-ease-out);
+}
+
+.map-editor[data-panel-open='true'] {
+  --panel-width: 280px;
+}
+
+.tool-rail {
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: var(--space-xs);
+  border-inline-end: var(--border-width) solid var(--border-default);
+  gap: var(--space-xs);
+}
+
+.tool-rail__tools {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  gap: var(--space-xs);
+}
+
+.tool-rail__row {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  place-items: center;
+}
+
+/*
+ * The track is the width; the panel itself never sets one. `overflow: hidden`
+ * is what keeps the body from painting outside a 0px track mid-transition, and
+ * the body is the one scroll container in this column.
+ */
+.tool-panel {
+  min-width: 0;
+  overflow: hidden;
+  border-inline-end: var(--border-width) solid var(--border-default);
+}
+
+.tool-panel__body {
+  display: flex;
+  width: 280px;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex-direction: column;
+}
+
+/*
+ * Transitional, and deliberately narrow. The app bar and the inspector column
+ * are dissolved as containers by 03-05; until then their existing rules are
+ * authored for a 1440px page and would overflow a 280px track. These four
+ * declarations neutralise that measure inside the panel and nothing else - they
+ * are removed with the containers, not carried forward.
+ */
+.tool-panel__body > .workspace {
+  max-width: none;
+  padding: var(--space-md);
+}
+
+.tool-panel__body > .workspace,
+.tool-panel__body > .workspace .workspace__control-column {
+  display: flex;
+  position: static;
+  max-height: none;
+  flex-direction: column;
+}
+
+.tool-panel__body > header {
+  padding: var(--space-md);
+  border-bottom: var(--border-width) solid var(--border-default);
+}
+
+/*
+ * The canvas region. `position: relative` is the containing block for the
+ * absolutely placed canvas and its editor-only chrome; `overflow: hidden` keeps
+ * the map's letterbox gutters from ever producing a scrollbar on the shell.
+ */
+.map-workspace {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * Editor-only chrome placed in the canvas region, never in the export source.
+ * Interim homes: the period surface is rehomed properly by 03-07 and the
+ * floating cluster is re-anchored to the letterbox gutter by 03-08. Both sit
+ * outside `div.map-export-source`, which is what decides export membership.
+ */
+.map-workspace > .composition-bar {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: var(--space-lg);
+  inset-inline-start: var(--space-lg);
+  margin-bottom: 0;
+}
+
+.map-workspace > .map-navigation {
+  position: absolute;
+  z-index: 3;
+  inset-block-end: var(--space-lg);
+  inset-inline-end: var(--space-lg);
+  margin-top: 0;
+}
+
+/*
+ * The pan popover opened downward when the cluster sat above the inspector. In
+ * the canvas region the cluster is at the bottom edge, so downward puts the pad
+ * outside the clipped region and `Move Map` - the only keyboard pan affordance
+ * in the app - becomes unreachable. It opens upward here for as long as the
+ * cluster lives at the bottom.
+ */
+.map-workspace > .map-navigation .map-navigation__popover {
+  inset-block: auto calc(100% + var(--space-xs));
+}

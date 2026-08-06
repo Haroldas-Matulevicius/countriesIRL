@@ -87,6 +87,10 @@ type PeriodLoadState =
 const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
 
+/** `aria-controls` target for the rail trigger; 03-06 keeps the id, not the trigger. */
+const TOOL_PANEL_ID = 'map-editor-tool-panel';
+const TOOL_PANEL_TRIGGER_LABEL = 'Map tools';
+
 function getLegendPositionLabel(position: LegendPosition): string {
   switch (position.preset) {
     case 'top-left':
@@ -194,6 +198,15 @@ export default function App(): JSX.Element {
     () => !onboardingDismissed,
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
+  /**
+   * D-19: the panel RESERVES a layout track, it never overlays the map, so this
+   * is the single source of the track's width. `[data-panel-open]` is written
+   * from it as exactly `'true' | 'false'` - never absent, never a third value -
+   * and nothing else may write that attribute. 03-06 replaces the one rail
+   * trigger below with the real tool rows; that is a trigger change, not an
+   * architectural one, because the state and the attribute stay here.
+   */
+  const [isToolPanelOpen, setIsToolPanelOpen] = useState(true);
   const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
     () => colors,
   );
@@ -640,6 +653,10 @@ export default function App(): JSX.Element {
     setIsHelpVisible(true);
   }, []);
 
+  const handleToggleToolPanel = useCallback((): void => {
+    setIsToolPanelOpen((isOpen): boolean => !isOpen);
+  }, []);
+
   const handleSelectCountry = useCallback(
     (countryId: CountryId): void => {
       if (effectiveCountryLookup.has(countryId)) {
@@ -900,8 +917,15 @@ export default function App(): JSX.Element {
     />
   );
 
+  /*
+   * D-11/D-32: the canvas region is the grid's third track, not a section
+   * inside a measured page column. It is rendered outside `workspaceSections`
+   * on purpose - the 1200px layout switch reorders that list, and the map is
+   * now structurally incapable of being remounted by it, which is a stronger
+   * guarantee for the single-camera-owner invariant than the keyed sibling it
+   * replaces.
+   */
   const mapWorkspace = (
-    <div key="map" className="workspace__map">
       <MapWorkspace
         geoData={geoData}
         compositionBar={compositionBar}
@@ -917,8 +941,7 @@ export default function App(): JSX.Element {
         onSelectCountry={handleSelectCountry}
         onClearSelection={clearSelection}
         onReload={handleReload}
-      />
-    </div>
+    />
   );
 
   const selectionAndColorControls = (
@@ -985,9 +1008,8 @@ export default function App(): JSX.Element {
     </div>
   );
   // UI-SPEC 7.1: on desktop the inspector is one scrolling shell (a
-  // `complementary` landmark), not a stack of cards. It is a keyed sibling of
-  // the keyed map, so switching layouts moves both nodes instead of remounting
-  // the map - the camera keeps exactly one owner across the 1200px transition.
+  // `complementary` landmark), not a stack of cards. It stays a keyed sibling
+  // so the 1200px layout switch moves nodes rather than remounting them.
   const inspectorShell = (
     <aside
       key="inspector"
@@ -1001,40 +1023,79 @@ export default function App(): JSX.Element {
   );
   const workspaceSections =
     layout === 'desktop'
-      ? [mapWorkspace, inspectorShell]
+      ? [inspectorShell]
       : [
           actionControls,
-          mapWorkspace,
           selectionAndColorControls,
           countryList,
           legendControls,
         ];
 
   return (
-    <div className="app">
-      <AppHeader
-        isHelpVisible={isHelpRendered}
-        isHelpAvailable={isHelpAvailable}
-        globalActions={layout === 'desktop' ? globalActions : null}
-        onShowHelp={handleShowHelp}
-      />
+    <div
+      className="map-editor"
+      data-panel-open={isToolPanelOpen ? 'true' : 'false'}
+    >
+      {/*
+        D-16: the rail is always present. It carries one trigger in this slice
+        and the four tool rows plus the HUD header and footer from 03-06; the
+        panel state it writes does not change when the trigger does.
+      */}
+      <div className="tool-rail" data-editor-only="true">
+        <div className="tool-rail__tools">
+          <button
+            type="button"
+            className="tool-rail__row"
+            data-tool="tools"
+            aria-expanded={isToolPanelOpen}
+            aria-controls={TOOL_PANEL_ID}
+            aria-label={TOOL_PANEL_TRIGGER_LABEL}
+            onClick={handleToggleToolPanel}
+          >
+            <span aria-hidden="true">☰</span>
+          </button>
+        </div>
+      </div>
 
-      <OnboardingBanner
-        isVisible={isHelpRendered}
-        onDismiss={dismissHelpAndFocusMap}
-        onStartCreating={dismissHelpAndFocusMap}
-      />
+      {/*
+        D-19: the panel reserves its track, so the canvas reflows instead of
+        being covered. The body is unmounted while the track is 0px - a clipped
+        0px column still holds live tab stops otherwise, which is a keyboard
+        trap with nothing visible in it.
+      */}
+      <div className="tool-panel" id={TOOL_PANEL_ID} data-editor-only="true">
+        {isToolPanelOpen ? (
+          <div className="tool-panel__body">
+            <AppHeader
+              isHelpVisible={isHelpRendered}
+              isHelpAvailable={isHelpAvailable}
+              globalActions={layout === 'desktop' ? globalActions : null}
+              onShowHelp={handleShowHelp}
+            />
 
-      <main
-        className={`workspace workspace--${layout}`}
-        aria-label="Map creator workspace"
-      >
-        <ErrorBoundary
-          fallback={<FatalErrorState onReload={handleReload} />}
-        >
-          {workspaceSections}
-        </ErrorBoundary>
-      </main>
+            <OnboardingBanner
+              isVisible={isHelpRendered}
+              onDismiss={dismissHelpAndFocusMap}
+              onStartCreating={dismissHelpAndFocusMap}
+            />
+
+            <main
+              className={`workspace workspace--${layout}`}
+              aria-label="Map creator workspace"
+            >
+              <ErrorBoundary
+                fallback={<FatalErrorState onReload={handleReload} />}
+              >
+                {workspaceSections}
+              </ErrorBoundary>
+            </main>
+          </div>
+        ) : null}
+      </div>
+
+      <ErrorBoundary fallback={<FatalErrorState onReload={handleReload} />}>
+        {mapWorkspace}
+      </ErrorBoundary>
 
       {isSaveLoadOpen && isMapReady ? (
         <SaveLoad

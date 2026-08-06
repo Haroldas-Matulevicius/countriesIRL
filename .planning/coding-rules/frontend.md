@@ -913,7 +913,68 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-08-06 — §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate; absorbed names are asserted equal and the one deliberate retime is asserted different; derive a duplicate rather than restate it; the three consumer-less new tokens are recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef + a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input that records a benign flag rather than claiming none (plan 03-02).*
-*Last updated: 2026-07-26/27 + 2026-08-06 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip.*
+## The Editor Shell (Phase 3, D-11 / D-16 / D-19 / D-32)
+
+`.map-editor` is the **mount root**: the outermost element App returns, full-bleed, opaque, and
+the only element a future host has to place. `html` and `body` are layout-only and carry **no
+themed background** — everything the editor paints lives inside its own subtree. `overflow-x:
+hidden` stays on `body` and nowhere else; on a non-viewport element it computes `overflow-y:
+auto` and silently kills sticky positioning inside it.
+
+**One grid, three tracks, one row.**
+
+```css
+.map-editor {
+  display: grid;
+  grid-template-columns: var(--rail-width) var(--panel-width) 1fr;
+  block-size: 100dvh;
+}
+:root { --rail-width: 56px; --panel-width: 0px; }
+.map-editor[data-panel-open='true'] { --panel-width: 280px; }
+```
+
+- **`[data-panel-open]` is exactly `'true' | 'false'`** — never absent, never a third value — and
+  it has **exactly one writer**. Both halves are gated: `uiContract.test.ts` counts the writers
+  across `src/**/*.tsx` and enumerates the values styled in CSS; `shell.spec.ts` measures the
+  resolved track at 0px and 280px. A second writer is how two surfaces come to disagree about
+  which panel is open.
+- **The panel reserves its track; it never overlays the map.** The e2e asserts the canvas
+  region's left edge *moves* by exactly 280px, because "the panel is visible" is equally true of
+  an overlay.
+- **Animate the registered `--panel-width` custom property, never the grid's track list.** The
+  property is declared with `@property` (`<length>`, `inherits: true`, `initial-value: 0px`) —
+  an unregistered custom property has no type, so it cannot interpolate and the panel snaps.
+  Animating the track list instead fires many layout passes per frame across a 248 × 3-path SVG.
+- **A 0px track still holds live tab stops.** Unmount the panel body (or make it `inert`) when
+  the track is closed, or the creator tabs into a keyboard trap with nothing visible in it.
+
+**No `ResizeObserver` may enter the projection, camera, or export path, and none is needed.**
+`MapCanvas.tsx:839-840` fixes the `viewBox` at `0 0 1080 1080` and `useCameraController.ts:310-313`
+pins d3-zoom's `extent` to `[[0,0],[1080,1080]]` rather than the element rect, so a rail or panel
+reflow cannot disturb any of the three. The rule is an **ownership set**, not a ban: `Tooltip.tsx`
+has observed its own element since Phase 2 and that is fine. `uiContract.test.ts` asserts the set
+of files under `src/` that mention `ResizeObserver` is exactly the tooltip pair — a bare
+"grep returns nothing" gate would be red on arrival and would get deleted rather than obeyed.
+
+**The export frame is placed, not attributed.** `.map-frame` renders as a structural **sibling**
+of `div.map-export-source` and never as a descendant of `svg.map-canvas`; `data-editor-only="true"`
+is the second line of defence, not the first. It is deliberately **not** a slot — `legendSlot` and
+`navigationSlot` are a composition contract (D-24) and stay byte-unchanged, while the frame is
+structural chrome marking what the PNG will crop to. Its geometry is an **equality** with the
+viewBox projection, not an approximation: `preserveAspectRatio="xMidYMid meet"` centres the square
+at side `min(w, h)` of the canvas region, and `--frame-side: min(100cqw, 100cqh)` with `inset: 0;
+margin: auto` centres a square of exactly that side. Assert it by projecting the viewBox corners
+through `getScreenCTM()`, at more than one viewport shape — a rule that only lines up at the
+default size passes a single-viewport check.
+
+**`.map-workspace__square` is `.map-workspace__canvas`, and `aspect-ratio: 1` moved to
+`.map-frame`.** A class named `__square` that is no longer square is a stale name. The Phase 2
+squareness assertion was **relocated, not retired** — asserting only the renamed region would have
+dropped the claim on the rename, which is how a contract test quietly gets weaker.
+
+---
+
+*Last updated: 2026-08-06 — §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root with an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` as a two-valued attribute with exactly one writer; animate the registered `--panel-width`, never the grid's track list; a 0px track still holds tab stops; `ResizeObserver` gated as an ownership set rather than a ban that is red on arrival; the export frame placed as a sibling of the export source with its geometry asserted as an equality against the viewBox projection; and the relocated - not retired - squareness assertion (plan 03-03).*
+*Last updated: 2026-07-26/27 + 2026-08-06 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate, absorbed names asserted equal and the one deliberate retime asserted different, with the three consumer-less tokens recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef plus a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

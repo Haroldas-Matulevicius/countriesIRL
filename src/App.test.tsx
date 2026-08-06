@@ -378,10 +378,12 @@ describe('App composition root', () => {
 
     expect(countOccurrences(markup, 'class="map-navigation"')).toBe(1);
 
-    const squareIndex = markup.indexOf('class="map-workspace__square"');
+    const squareIndex = markup.indexOf('class="map-workspace__canvas"');
     const exportSourceEnd = markup.indexOf('</svg></div>');
     const navigationIndex = markup.indexOf('class="map-navigation"');
-    const squareEnd = markup.indexOf('class="workspace__selection-color"');
+    // The canvas region closes the map workspace section, so the cluster has
+    // to land before that - inside the region, outside the export source.
+    const squareEnd = markup.indexOf('</section>', squareIndex);
 
     /*
      * After the export source closes: the clone starts at `svg.map-canvas`, so
@@ -484,9 +486,21 @@ describe('App composition root', () => {
     // the documented order.
     expect(countOccurrences(markup, 'aria-label="Map inspector"')).toBe(0);
 
+    /*
+     * D-11/D-16: the canvas region left the section list for the shell's third
+     * grid track, so the documented order is rail, then the panel's sections,
+     * then the canvas - and the map is no longer reordered by the 1200px
+     * switch at all.
+     */
+    expect(markup.indexOf('class="tool-rail"')).toBeLessThan(
+      markup.indexOf('class="tool-panel"'),
+    );
+    expect(markup.indexOf('class="map-workspace"')).toBeGreaterThan(
+      markup.indexOf('class="workspace__legend"'),
+    );
+
     const order = [
       'workspace__actions',
-      'workspace__map',
       'workspace__selection-color',
       'workspace__country-list',
       'workspace__legend',

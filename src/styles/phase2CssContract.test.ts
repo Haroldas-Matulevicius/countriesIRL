@@ -1028,15 +1028,26 @@ describe('Phase 2 export isolation contract', (): void => {
     ).toBe('none');
   });
 
+  /**
+   * Phase 3 D-32 relocates this assertion rather than retiring it. The canvas
+   * region went full-bleed, so it is no longer the square - it keeps the opaque
+   * map surface and the clip - and `aspect-ratio: 1` moved to `.map-frame`,
+   * which is the element that now marks the exported square. Asserting only the
+   * region would have quietly dropped the squareness claim on the rename.
+   */
   it('keeps the composition square exactly square and opaque', (): void => {
-    const square = new Map(
-      declarationsOf(
-        findRule(parseRules(MAP_CANVAS_CSS), '.map-workspace__square').body,
-      ),
+    const mapCanvasRules = parseRules(MAP_CANVAS_CSS);
+    const canvasRegion = new Map(
+      declarationsOf(findRule(mapCanvasRules, '.map-workspace__canvas').body),
     );
-    expect(square.get('aspect-ratio')).toBe('1');
-    expect(square.get('background')).toBe('var(--map-surface)');
-    expect(square.get('overflow')).toBe('hidden');
+    const frame = new Map(
+      declarationsOf(findRule(mapCanvasRules, '.map-frame').body),
+    );
+
+    expect(canvasRegion.get('background')).toBe('var(--map-surface)');
+    expect(canvasRegion.get('overflow')).toBe('hidden');
+    expect(canvasRegion.has('aspect-ratio')).toBe(false);
+    expect(frame.get('aspect-ratio')).toBe('1');
   });
 });
 

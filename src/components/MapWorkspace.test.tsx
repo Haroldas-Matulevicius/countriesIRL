@@ -228,7 +228,7 @@ describe('MapWorkspace navigation placement', (): void => {
       />,
     );
 
-    const squareIndex = markup.indexOf('class="map-workspace__square"');
+    const squareIndex = markup.indexOf('class="map-workspace__canvas"');
     const slotIndex = markup.indexOf('data-navigation-slot="true"');
     // The export source holds exactly one child, the canonical SVG, so
     // `</svg></div>` is where it closes. Anything after that point cannot be

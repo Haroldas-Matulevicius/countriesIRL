@@ -118,7 +118,15 @@
   --map-fixed-text: #111827;
   --map-skeleton-fill: #e5e7eb;
   --map-skeleton-stroke: #d1d5db;
-  --map-shadow: 0 12px 36px rgba(15, 23, 42, 0.12);
+  /*
+   * D-32 export frame. New members of the mode-invariant set: declared in the
+   * unconditioned root and in no conditional block, for the same reason every
+   * other `--map-*` token is. The frame marks where the 1080 viewBox square
+   * lands once the canvas region stops being square, so a viewer-theme-
+   * dependent edge would move the creator's only WYSIWYG signal.
+   */
+  --map-frame-edge: rgba(6, 27, 49, 0.55);
+  --map-frame-scrim: rgba(6, 27, 49, 0.06);
   --tooltip-border: #cbd5e1;
   --tooltip-surface: #111827;
   --tooltip-text: #f8fafc;
@@ -251,18 +259,27 @@
   box-sizing: border-box;
 }
 
+/*
+ * Layout only, and deliberately unpainted (OQ-3). Everything the editor shows
+ * is painted inside the `.map-editor` subtree, so a host that places that one
+ * element gets the whole editor without inheriting a page background it never
+ * asked for. This is the transition-readiness sub-gate in its smallest form.
+ */
 html {
   min-width: 0;
   min-height: 100%;
-  background: var(--surface-page);
 }
 
 body {
   min-width: 0;
   min-height: 100%;
   margin: 0;
+  /*
+   * `overflow-x: hidden` lives here and nowhere else. On a non-viewport element
+   * it computes `overflow-y: auto`, which makes that element its own scroll
+   * container and silently kills sticky positioning inside it.
+   */
   overflow-x: hidden;
-  background: var(--surface-page);
   color: var(--text-primary);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;

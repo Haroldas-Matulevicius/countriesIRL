@@ -12,6 +12,13 @@ import './styles/theme.css';
 import './styles/App.css';
 import './styles/MapCanvas.css';
 import './styles/Controls.css';
+/*
+ * Last, so the shell's structural rules win over the page-measure rules the
+ * app bar and inspector still carry. Note for 03-10: the successor contract
+ * test globs `src/styles/**` and its assertion 20 compares that count with the
+ * imports here - a stylesheet added to one and not the other is the defect.
+ */
+import './styles/editor.css';
 
 function reloadPage(): void {
   window.location.reload();

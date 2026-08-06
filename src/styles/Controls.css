@@ -719,8 +719,8 @@
   text-align: right;
 }
 
-.app > section[role="status"],
-.app > section[role="alert"] {
+.map-editor > section[role="status"],
+.map-editor > section[role="alert"] {
   position: fixed;
   right: max(var(--space-md), env(safe-area-inset-right));
   bottom: max(var(--space-md), env(safe-area-inset-bottom));
@@ -737,34 +737,34 @@
   box-shadow: var(--toast-shadow);
 }
 
-.app > section[data-severity="success"] {
+.map-editor > section[data-severity="success"] {
   border-color: var(--success);
   background: var(--success-tint);
   color: var(--success);
 }
 
-.app > section[data-severity="warning"] {
+.map-editor > section[data-severity="warning"] {
   border-color: var(--warning);
   background: var(--warning-tint);
   color: var(--warning);
 }
 
-.app > section[data-severity="error"] {
+.map-editor > section[data-severity="error"] {
   border-color: var(--destructive);
   background: var(--destructive-tint);
   color: var(--destructive);
 }
 
-.app > section[role="status"] > div,
-.app > section[role="alert"] > div {
+.map-editor > section[role="status"] > div,
+.map-editor > section[role="alert"] > div {
   display: flex;
   flex-wrap: wrap;
   margin-top: var(--space-sm);
   gap: var(--space-sm);
 }
 
-.app > section[role="status"] button,
-.app > section[role="alert"] button {
+.map-editor > section[role="status"] button,
+.map-editor > section[role="alert"] button {
   padding: var(--space-sm) var(--space-md);
 }
 
@@ -1113,8 +1113,8 @@
     width: 100%;
   }
 
-  .app > section[role="status"],
-  .app > section[role="alert"] {
+  .map-editor > section[role="status"],
+  .map-editor > section[role="alert"] {
     width: auto;
     max-width: none;
   }

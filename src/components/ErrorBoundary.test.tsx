@@ -152,8 +152,22 @@ describe('fatal error boundary wiring', (): void => {
     expect(markup.indexOf('aria-label="Map creator workspace"')).toBeLessThan(
       boundaryIndex,
     );
-    expect(markup.indexOf('class="workspace__map"')).toBeGreaterThan(
+    expect(markup.indexOf('class="workspace__selection-color"')).toBeGreaterThan(
       boundaryIndex,
+    );
+
+    /*
+     * D-11 moved the canvas region out of the workspace landmark and into the
+     * shell's third grid track, so the boundary that used to cover it by
+     * covering the section list no longer reaches it. A second boundary wraps
+     * it there. Without this assertion the map could lose its boundary while
+     * the one above stayed green - the exact silent regression these two tests
+     * exist to catch.
+     */
+    const canvasBoundaryIndex = markup.lastIndexOf('data-error-boundary="true"');
+    expect(canvasBoundaryIndex).toBeGreaterThan(boundaryIndex);
+    expect(markup.indexOf('class="map-workspace"')).toBeGreaterThan(
+      canvasBoundaryIndex,
     );
   });
 

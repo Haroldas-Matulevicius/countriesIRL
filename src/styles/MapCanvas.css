@@ -1,7 +1,3 @@
-.map-workspace {
-  min-width: 0;
-}
-
 .composition-bar {
   display: flex;
   flex-direction: column;
@@ -88,18 +84,51 @@
   cursor: pointer;
 }
 
-.map-workspace__square {
-  position: relative;
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: 1;
+/*
+ * D-32: the map surface is edge to edge. The region is no longer square, so it
+ * is no longer called one - `aspect-ratio: 1` moves to `.map-frame` below and
+ * the relocation is the visible form of the decision. The border, the radius,
+ * and `--map-shadow` do not carry over: a full-bleed canvas has nothing to
+ * elevate and nothing to inset.
+ *
+ * `container-type: size` is what makes `min(width, height)` expressible in pure
+ * CSS, which is how the frame lands exactly where `xMidYMid meet` puts the
+ * viewBox square without a single measurement in JS.
+ */
+.map-workspace__canvas {
+  position: absolute;
+  inset: 0;
+  container-type: size;
   overflow: hidden;
-  border: var(--border-width) solid var(--border-default);
-  border-radius: var(--radius-large);
   background: var(--map-surface);
-  box-shadow: var(--map-shadow);
   color: var(--map-fixed-text);
   isolation: isolate;
+}
+
+/*
+ * The export frame (D-32). Editor-only chrome: a sibling of
+ * `div.map-export-source`, never a descendant of `svg.map-canvas`, so placement
+ * - not an attribute - is what keeps it out of the PNG.
+ *
+ * The geometry is an equality, not an approximation. `preserveAspectRatio`
+ * centres the viewBox square at side min(width, height) of the same box, and
+ * `inset: 0` with `margin: auto` centres a square of exactly that side. The
+ * spread ring dims everything outside it rather than drawing a mask, so the
+ * creator can still see the geometry that will be cropped.
+ */
+.map-frame {
+  --frame-side: min(100cqw, 100cqh);
+
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  inline-size: var(--frame-side);
+  block-size: var(--frame-side);
+  margin: auto;
+  border: var(--border-width) solid var(--map-frame-edge);
+  aspect-ratio: 1;
+  pointer-events: none;
+  box-shadow: 0 0 0 100vmax var(--map-frame-scrim);
 }
 
 .map-export-source,

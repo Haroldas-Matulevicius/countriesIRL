@@ -88,7 +88,7 @@ export function MapWorkspace({
     <section className="map-workspace" aria-labelledby={MAP_PREVIEW_LABEL_ID}>
       {compositionBar}
 
-      <div className="map-workspace__square">
+      <div className="map-workspace__canvas">
         {geoData.status === 'loading' ? (
           <div
             className="map-workspace__loading"
@@ -144,6 +144,23 @@ export function MapWorkspace({
               onTooltipChange={setTooltipData}
               legendSlot={legendSlot}
               onCameraCommit={onCameraCommit}
+            />
+            {/*
+              D-32: the export frame. A structural SIBLING of
+              `div.map-export-source`, never a descendant of `svg.map-canvas` -
+              the export clones the canonical SVG, so placement is what keeps
+              the frame out of the PNG and `data-editor-only` is the second line
+              of defence, not the first.
+
+              It is deliberately NOT a slot. `legendSlot` and `navigationSlot`
+              are a composition contract; the frame is structural chrome that
+              marks what the 1080 square will crop to, and a caller that could
+              replace it could remove the creator's only WYSIWYG signal.
+            */}
+            <div
+              className="map-frame"
+              data-editor-only="true"
+              aria-hidden="true"
             />
             <Tooltip data={tooltipData} />
           </>
