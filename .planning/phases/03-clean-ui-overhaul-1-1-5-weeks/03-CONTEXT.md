@@ -237,6 +237,73 @@ bands and text tools (Phase 4); any data features (Phase 5).
   filled from a restyled build. This is a safeguard on evidence, not a resolution of the gate —
   `02-28` remains OPEN until the owner physically performs it.
 
+### Resolved after research (2026-08-06, owner-decided)
+
+These three answer open questions raised by `03-RESEARCH.md`. Each finding below was
+independently re-verified against the tree before the decision was taken.
+
+- **D-32: full-bleed map *surface*, centred 1:1 export frame.** Resolves OQ-2. The map surface
+  fills the viewport edge to edge and pans/zooms in the Google-Maps idiom (D-11 stands — no top
+  chrome), but a visible square export frame sits centred on it marking exactly what lands in
+  the PNG. WYSIWYG is preserved: what is inside the frame is what exports. The SVG `viewBox`
+  stays fixed at `0 0 1080 1080` and `preserveAspectRatio="xMidYMid meet"` is unchanged
+  (`export.ts:16-17`), so the 1080×1080 contract is untouched. The frame is chrome and carries
+  `data-editor-only="true"` so it never enters the export clone.
+  - *Verified:* `useCameraController.ts:310-313` pins d3-zoom's `extent` to `[[0,0],[1080,1080]]`
+    rather than the element rect, and `MapCanvas.tsx:839-840` fixes the `viewBox` — so a rail/panel
+    reflow (D-19) cannot disturb the projection, the camera lease, or the export. **No
+    `ResizeObserver` is required.**
+
+- **D-33: the `03-10` gate runs Chrome-only and says so plainly.** Microsoft Edge is **not
+  installed** on this machine (`/Applications` holds no `Microsoft*.app`;
+  `~/Library/Caches/ms-playwright` holds only `ffmpeg-1011`), so `npm run test:e2e`'s `msedge`
+  project cannot launch. Per the browser-certification guardrail, `03-10`'s evidence must state
+  **"Edge not certified — not installed"** rather than omit it or infer a pass.
+  - ⚠ **This contradicts `STATE.md`, which records "Edge 150 — 71/71" at `fe5f946`.** That record
+    is **Phase 2 evidence and is immutable** — it must be *annotated*, never rewritten. Resolving
+    how an Edge result was recorded on a machine with no Edge is **out of Phase 3 scope** and is
+    filed as a pending todo against Phase 2's evidence, not as Phase 3 work. Phase 3 must not
+    cite the Edge record and must not repeat it.
+
+- **D-34: Phase 3 owns the SVG→PNG export path; `html2canvas` is removed.** The entire
+  composition — camera layer *and* legend layer — is a **single SVG** (`export.ts:21-22`
+  `[data-layer="camera"]` / `[data-layer="legend"]`), and `html2canvas@1.4.1` never descends into
+  an `<svg>`: it serialises the element with `XMLSerializer` into a `data:image/svg+xml` URL and
+  rasterises it as an `<img>`. An SVG rendered as an image is an isolated document that sees none
+  of the host page's `@font-face` rules — which is why `LegendOverlay.tsx:167` names Inter while
+  `grep '@font-face' src/ public/ index.html` returns **zero hits**: the legend already exports in
+  a system fallback today. The dependency is therefore ~200KB doing a job we can do directly, in
+  the one way that also fixes the font.
+  - **Replacement:** serialise the frozen clone → embed the required fonts inline as base64
+    `@font-face` inside the SVG's `<defs><style>` → `Image` → `drawImage` onto a 1080×1080 canvas
+    → `toBlob`. An inline data-URI font is **not** an external fetch, which is why it resolves
+    inside SVG-as-image. **The exported PNG does not grow** — it is raster; the font bytes exist
+    only in a throwaway in-memory SVG string.
+  - **D-34a — build the font-embedding seam generalised, use it only for Inter.** The step is
+    "collect the fonts this composition uses → embed each inline", not a hard-coded Inter branch,
+    so Phase 4's custom text tools plug in without re-opening the export chokepoint. Only Inter is
+    in play in Phase 3.
+  - **Non-negotiables carried verbatim:** the 1080×1080 size contract; the clone contract; every
+    existing refusal reason (disconnected / multi-SVG / sibling-legend); `sanitizeExportClone`'s
+    strip list; `data-editor-only` exclusion; placement decides export membership.
+  - **This makes D-25 feasible by construction rather than by luck — but it is still not
+    proven.** OQ-1 survives in amended form and stays **blocking**: a throwaway Playwright spike
+    must confirm that an inline base64 `@font-face` actually renders inside SVG-as-image in
+    installed Chrome, **before** legend typography is locked. Prove it RED by removing the
+    embedded font and watching the assertion fail.
+  - ⚠ **`export.ts` is the most safety-critical file in the repo.** This is the largest single
+    risk in Phase 3. It earns the independent non-author review of `03-10` on its own, and the
+    export e2e slice must be RED-proven against the new path, not merely observed green.
+  - — **Reversibility:** one-way once export baselines are re-cut.
+
+- **D-35: the dark-mode switch silently disarms an existing gate — it must be re-armed.**
+  `tests/e2e/responsive.spec.ts:1025,1048` ("the PNG is identical across theme, forced colors, and
+  DPR") flips theme with `page.emulateMedia({ colorScheme })`. Once D-08/D-30 move the flip to a
+  `.dark` class, that emulation changes nothing, both exports become trivially identical, and
+  **Live Invariant 9 loses its only browser-level guard** — this repo's fourth "gate that cannot
+  fail." The rewritten assertion must toggle the `.dark` class and be **RED-proven** by making the
+  export theme-sensitive on purpose.
+
 ### Roadmap Amendments
 
 `/gsd:plan-phase 3` **must** land these as explicit `ROADMAP.md` edits in the same commit
@@ -247,6 +314,7 @@ series, not leave them as undocumented divergence:
 | 1 | Dark mode is **in** scope, class-based (D-08) | "Out of scope (Phase 3): … dark mode" |
 | 2 | HUD is an **icon rail + flyout**, not a collapsible column (D-16) | `03-02` "left HUD column (collapsible sections, one scroll container)" |
 | 3 | Two runtime deps + vendored icons enter the phase (D-27, D-28); legend restyle changes exported pixels (D-25) | "this is chrome, layout, and tokens only" / "Nothing about map *content* rendering changes in this phase" |
+| 4 | **`html2canvas` is removed and Phase 3 owns the SVG→PNG export path**, with a generalised inline-font-embedding seam (D-34, D-34a) | Phase 3 § Plans has no export-pipeline plan at all; `03-06` covers only "export migration" into the HUD. A new plan is required, and § Out of scope must no longer read as though `src/utils/export.ts` internals are untouched. |
 
 ### Claude's Discretion
 
