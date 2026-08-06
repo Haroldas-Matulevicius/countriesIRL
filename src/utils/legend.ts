@@ -66,10 +66,29 @@ export const LEGEND_CORNERS: ReadonlySet<LegendCorner> = new Set([
   'bottom-right',
 ]);
 
-const LABEL_CHARACTERS_PER_LINE: Readonly<Record<LegendTextSize, number>> = {
-  small: 24,
-  medium: 18,
-  large: 14,
+/**
+ * The ONE characters-per-line table (OQ-5) — `LegendOverlay` imports this;
+ * a second copy under another name is the drift hazard that clips the PNG.
+ *
+ * Re-derived for Inter at weight 600 (D-25) from the WORST-CASE advance width,
+ * measured in installed Chrome 151 from the vendored
+ * `src/assets/inter-latin-variable.woff2` via canvas `measureText`:
+ * the widest common character is `W` at 1.0202em (24.484px @ 24px,
+ * 32.645px @ 32px, 40.806px @ 40px). The label column offers
+ * 288 (column) − 24 (swatch) − 16 (gap) = 248px, so each value is
+ * `floor(248 / advance)`: 10 / 7 / 6. A full line of the widest common
+ * character therefore CANNOT overflow the legend box — overflow clipping the
+ * exported PNG is a defect this project has already shipped once, and these
+ * deliberately conservative values make it unrepresentable rather than
+ * merely unlikely. The old table ({ 24, 18, 14 }) was derived against a
+ * system fallback's average advance and let a wide line clip.
+ */
+export const LEGEND_CHARACTERS_PER_LINE: Readonly<
+  Record<LegendTextSize, number>
+> = {
+  small: 10,
+  medium: 7,
+  large: 6,
 };
 
 export interface LegendBounds {
@@ -174,7 +193,7 @@ function getEffectiveTextSize(
 }
 
 function getLabelLineCount(label: string, textSize: LegendTextSize): number {
-  return Math.ceil(label.length / LABEL_CHARACTERS_PER_LINE[textSize]);
+  return Math.ceil(label.length / LEGEND_CHARACTERS_PER_LINE[textSize]);
 }
 
 function isLabelValid(label: string): boolean {

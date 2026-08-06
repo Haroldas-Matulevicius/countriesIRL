@@ -6,6 +6,7 @@ import type {
 } from '../types/composition';
 import type { SceneFeature } from '../types/map';
 import {
+  LEGEND_CHARACTERS_PER_LINE,
   createDefaultLegendState,
   createLegendLayout,
   getActiveLegendEntries,
@@ -435,10 +436,16 @@ describe('validateLegend', (): void => {
         `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
     );
     expect(new Set(uniqueColors).size).toBe(17);
-    // 30 chars: 3 lines at 'large' (14/line) but 2 at 'small' (24/line), so it
-    // discriminates between the requested and the effective size.
-    const label = 'Thirty characters exactly here';
-    expect(label).toHaveLength(30);
+    // Derived from the collapsed table so the discriminator survives a
+    // re-derivation: the label must fit two 'small' lines but overflow two
+    // 'large' lines, which is exactly what separates the requested size from
+    // the effective one. The preconditions are asserted so a future value
+    // change that breaks the discrimination fails HERE, not silently.
+    const label = 'x'.repeat(LEGEND_CHARACTERS_PER_LINE.large * 2 + 1);
+    expect(label.length).toBeLessThanOrEqual(
+      LEGEND_CHARACTERS_PER_LINE.small * 2,
+    );
+    expect(label.length).toBeGreaterThan(LEGEND_CHARACTERS_PER_LINE.large * 2);
 
     const manyEntries: LegendState = {
       ...createDefaultLegendState(),
@@ -454,7 +461,8 @@ describe('validateLegend', (): void => {
     );
     expect(layout.effectiveTextSize).toBe('small');
 
-    // 24 chars fits one 'small' line (24 chars/line) but overflows 'large'.
+    // The label fits two effective-'small' lines but overflows two 'large'
+    // ones, so an ok here proves fit was measured at the effective size.
     expect(
       validateLegend(manyEntries, uniqueColors, {
         width: layout.width,

@@ -10,7 +10,9 @@ import type {
   LegendState,
   LegendTextSize,
 } from '../types/composition';
+import { EXPORT_FONT_FAMILY } from '../styles/interFontFace';
 import {
+  LEGEND_CHARACTERS_PER_LINE,
   clampLegendPosition,
   nudgeLegendPosition,
   resolveLegendRender,
@@ -36,11 +38,13 @@ const LEGEND_TEXT_SIZE: Readonly<Record<LegendTextSize, number>> = {
   medium: 32,
   large: 40,
 };
-const LEGEND_CHARACTERS_PER_LINE: Readonly<Record<LegendTextSize, number>> = {
-  small: 24,
-  medium: 18,
-  large: 14,
-};
+/**
+ * The legend names the SAME family the export path embeds
+ * (`EXPORT_FONT_FAMILY`), so the editor and the exported PNG resolve the same
+ * typeface — the chrome via `theme.css`'s `@font-face`, the export via the
+ * `@font-face` `injectExportFontFace` rides into the serialised clone (D-25).
+ */
+const LEGEND_FONT_FAMILY = `${EXPORT_FONT_FAMILY}, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
 
 interface LegendOverlayProps {
   legend: LegendState;
@@ -164,7 +168,7 @@ function renderLegendText(
       y={firstBaseline}
       fill={textColor}
       fontSize={fontSize}
-      fontFamily="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+      fontFamily={LEGEND_FONT_FAMILY}
       fontWeight="600"
       aria-hidden="true"
     >

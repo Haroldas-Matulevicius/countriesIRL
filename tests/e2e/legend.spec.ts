@@ -218,7 +218,10 @@ test.describe('legend browser interactions', (): void => {
     await expect(page.getByText('Shorten this label so it fits in the exported legend.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export PNG' })).toBeDisabled();
 
-    await redLabel.fill('Readable label');
+    // 10 characters: within two 'large' lines under the Inter-derived wrap
+    // (6/line). 'Readable label' (14) is now blocked at 'large' by design;
+    // re-baselined deliberately by 03-11 (D-25/OQ-5).
+    await redLabel.fill('Neat label');
     await redLabel.press('Enter');
     await expect(page.getByRole('button', { name: 'Export PNG' })).toBeEnabled();
 

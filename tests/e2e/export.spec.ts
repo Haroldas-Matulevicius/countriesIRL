@@ -3,6 +3,12 @@ import { resolve } from 'node:path';
 
 import { expect, test, type Download, type Page } from '@playwright/test';
 
+import {
+  LEGEND_CHARACTERS_PER_LINE,
+  resolveLegendRender,
+} from '../../src/utils/legend';
+import type { LegendState } from '../../src/types/composition';
+
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
 const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
 const EXPORT_SIZE = 1080;
@@ -53,8 +59,12 @@ declare global {
       readonly lastClone: CloneSummary | null;
       readonly bodyFrameCount: number;
       readonly anchorCount: number;
+      readonly legendState: LegendState;
+      setLegendLabel(label: string): void;
+      setLegendTextSize(textSize: LegendState['textSize']): void;
       selectCountry(countryId: string): void;
       showDateLine(): boolean;
+      showOcean(): boolean;
       run(mapName?: string): Promise<ExportOutcome>;
       moveLegendOutsideCanvas(): boolean;
       failBlobEncoding(): void;
@@ -150,6 +160,87 @@ async function saveDownload(download: Download, name: string): Promise<Buffer> {
   const target = resolve(EXPORT_ARTIFACT_ROOT, name);
   await download.saveAs(target);
   return readFile(target);
+}
+
+const LEGEND_ENTRY_COLOR = '#DC2626';
+/** Any channel below this is ink; above it is white or anti-alias halo. */
+const INK_CHANNEL_THRESHOLD = 240;
+
+interface RegionInkCounts {
+  readonly inside: number;
+  readonly outside: number;
+}
+
+interface LegendRegion {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Count ink pixels inside vs outside a region (with a small margin for the
+ * centered border stroke and anti-aliasing). Used by the overflow backstop:
+ * with only ocean in frame, ALL ink belongs to the legend, so `outside`
+ * measures exactly the overflow that would clip a real composition.
+ */
+async function countInkAroundRegion(
+  page: Page,
+  bytes: Buffer,
+  region: LegendRegion,
+): Promise<RegionInkCounts> {
+  return page.evaluate(
+    async ({ base64, box, threshold }): Promise<RegionInkCounts> => {
+      const binary = atob(base64);
+      const buffer = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        buffer[index] = binary.charCodeAt(index);
+      }
+      const bitmap = await createImageBitmap(
+        new Blob([buffer], { type: 'image/png' }),
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d');
+      if (context === null) {
+        throw new Error('2D context is unavailable for PNG inspection.');
+      }
+      context.drawImage(bitmap, 0, 0);
+      const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
+
+      const margin = 4;
+      const counts = { inside: 0, outside: 0 };
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        const isInk =
+          pixels[offset] < threshold ||
+          pixels[offset + 1] < threshold ||
+          pixels[offset + 2] < threshold;
+        if (!isInk) {
+          continue;
+        }
+        const pixelIndex = offset / 4;
+        const x = pixelIndex % bitmap.width;
+        const y = (pixelIndex - x) / bitmap.width;
+        const inRegion =
+          x >= box.x - margin &&
+          x <= box.x + box.width + margin &&
+          y >= box.y - margin &&
+          y <= box.y + box.height + margin;
+        if (inRegion) {
+          counts.inside += 1;
+        } else {
+          counts.outside += 1;
+        }
+      }
+      return counts;
+    },
+    {
+      base64: bytes.toString('base64'),
+      box: region,
+      threshold: INK_CHANNEL_THRESHOLD,
+    },
+  );
 }
 
 test.describe('PNG export', (): void => {
@@ -365,6 +456,74 @@ test.describe('PNG export', (): void => {
 
     expect(await page.evaluate((): number => window.__exportFixture.bodyFrameCount)).toBe(0);
     expect(await page.evaluate((): number => window.__exportFixture.anchorCount)).toBe(0);
+  });
+
+  test('a maximum-length large label stays inside the legend region in the rendered export', async ({
+    page,
+  }): Promise<void> => {
+    /*
+     * The OQ-5 backstop, asserted on the RASTER: the string-length check is
+     * what the old constants already encoded, and it is what passed while the
+     * PNG clipped. The camera is parked over empty ocean so the frame is
+     * white except the legend — every ink pixel outside the legend region is
+     * overflow that would clip a real composition.
+     */
+    await openExportFixture(page);
+    expect(
+      await page.evaluate((): boolean => window.__exportFixture.showOcean()),
+    ).toBe(true);
+    await page.evaluate((): void => {
+      window.__exportFixture.setLegendTextSize('large');
+    });
+    // The maximum label the wrap supports at 'large': two full lines of the
+    // measured widest common character. Derived from the SAME collapsed
+    // constant the renderer uses, so a re-derivation moves this test with it.
+    const maxLengthLabel = 'W'.repeat(LEGEND_CHARACTERS_PER_LINE.large * 2);
+    await page.evaluate((label: string): void => {
+      window.__exportFixture.setLegendLabel(label);
+    }, maxLengthLabel);
+    await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+      maxLengthLabel,
+    );
+
+    // Crop bounds derive from resolveLegendRender applied to the LIVE legend
+    // state — never a hard-coded rectangle.
+    const legendState = await page.evaluate(
+      (): LegendState => window.__exportFixture.legendState,
+    );
+    const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
+    const region: LegendRegion = {
+      x: render.position.x,
+      y: render.position.y,
+      width: render.bounds.width,
+      height: render.bounds.height,
+    };
+    expect(region.width).toBeGreaterThan(0);
+    expect(region.height).toBeGreaterThan(0);
+
+    const downloadPromise = page.waitForEvent('download');
+    const result = await runExport(page);
+    expect(result.ok).toBe(true);
+    const bytes = await saveDownload(
+      await downloadPromise,
+      `max-length-label-${UNNAMED_FILENAME}`,
+    );
+    expect(readPngDimensions(bytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+
+    const counts = await countInkAroundRegion(page, bytes, region);
+    // Content floor first: a blank frame satisfies "no overflow" perfectly.
+    expect(
+      counts.inside,
+      'the legend did not rasterize: the region is blank.',
+    ).toBeGreaterThan(500);
+    expect(
+      counts.outside,
+      'legend ink rendered OUTSIDE the resolved legend region — the ' +
+        'characters-per-line constant lets a line overflow the box.',
+    ).toBe(0);
   });
 
   test('a renewed fixture exports again after a failure', async ({

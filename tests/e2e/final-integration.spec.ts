@@ -291,9 +291,12 @@ test('a full creator session survives a browser reload and exports what the scre
 
   await openRailTool(page, 'Legend');
   await legendDisclosure(page).click();
+  // 14 characters each — the maximum two 'medium' lines hold under the
+  // Inter-derived wrap (7/line). 'Visited Germany' (15) is now export-blocked
+  // by design; re-baselined deliberately by 03-11 (D-25/OQ-5).
   await labelLegendEntry(page, RED, 'Visited France');
-  await labelLegendEntry(page, BLUE, 'Visited Germany');
-  await expect(legendTexts).toHaveText(['Visited France', 'Visited Germany']);
+  await labelLegendEntry(page, BLUE, 'Visited Berlin');
+  await expect(legendTexts).toHaveText(['Visited France', 'Visited Berlin']);
 
   await page.getByRole('button', { name: 'Zoom In' }).click();
   const authoredCamera = await waitForSettledCamera(page);
@@ -365,7 +368,7 @@ test('a full creator session survives a browser reload and exports what the scre
   // was never lost while its color was undone.
   await redo.click();
   await expect(germany).toHaveAttribute('fill', BLUE);
-  await expect(legendTexts).toHaveText(['Visited France', 'Visited Germany']);
+  await expect(legendTexts).toHaveText(['Visited France', 'Visited Berlin']);
 
   await page.reload();
   await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
@@ -409,7 +412,7 @@ test('a full creator session survives a browser reload and exports what the scre
 
   await expect(france).toHaveAttribute('fill', RED);
   await expect(germany).toHaveAttribute('fill', BLUE);
-  await expect(legendTexts).toHaveText(['Visited France', 'Visited Germany']);
+  await expect(legendTexts).toHaveText(['Visited France', 'Visited Berlin']);
   expectCamerasEqual(await readCameraTransform(page), authoredCamera);
   // A load replaces history rather than appending to it, so there is nothing
   // behind the restored composition to undo back into.

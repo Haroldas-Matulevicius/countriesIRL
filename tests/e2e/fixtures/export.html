@@ -137,7 +137,7 @@
       }).observe(document.body, { childList: true });
 
       function ExportFixture() {
-        const { state, setLegendEntry } = useCompositionState();
+        const { state, setLegendEntry, setLegendStyle } = useCompositionState();
         const mapRef = useRef(null);
         const [selectedIds, setSelectedIds] = useState(new Set());
         const colors = { FRA: LEGEND_COLOR };
@@ -163,12 +163,35 @@
           get anchorCount() {
             return document.querySelectorAll('body > a[download]').length;
           },
+          // The live legend state, so the spec can derive crop bounds through
+          // the real resolveLegendRender instead of hard-coding a rectangle.
+          get legendState() {
+            return state.legend;
+          },
+          setLegendLabel: (label) =>
+            setLegendEntry({ color: LEGEND_COLOR, label, order: 0 }),
+          setLegendTextSize: (textSize) =>
+            setLegendStyle({
+              theme: state.legend.theme,
+              textSize,
+              backgroundOpacity: state.legend.backgroundOpacity,
+              borderStyle: state.legend.borderStyle,
+            }),
           selectCountry,
           showDateLine: () =>
             mapRef.current?.restore({
               zoom: 3,
               centerLongitude: 179,
               centerLatitude: 0,
+            }) ?? false,
+          // Deep south-east Pacific at high zoom: nothing but ocean is in
+          // frame, so in the exported PNG every non-white pixel is legend ink
+          // and containment is assertable absolutely.
+          showOcean: () =>
+            mapRef.current?.restore({
+              zoom: 12,
+              centerLongitude: -130,
+              centerLatitude: -45,
             }) ?? false,
           // Mirrors App's export transaction shape without owning it: freeze,
           // finalize, export, then release in the outermost finally.
