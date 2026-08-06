@@ -4,8 +4,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
-import { NEUTRAL_UNIT_COLOR } from '../constants/colors';
+import { DEFAULT_COLOR, NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { GeoFeature, SceneFeature } from '../types/map';
+import { getEffectiveFeatureColor } from '../utils/scene';
 import {
   createCameraController,
   type CameraControllerDriver,
@@ -431,6 +432,35 @@ describe('wrapped effective scene model', (): void => {
     expect(getSceneFeatureColor(historical, colors)).toBe('#AA0000');
     expect(getSceneFeatureColor(dependency, colors)).toBe('#0000AA');
     expect(getSceneFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);
+  });
+
+  /*
+   * D-23, and the "BOTH resolvers" half of it in ONE place. There are two
+   * independent colour resolvers - `getEffectiveFeatureColor` in `utils/scene`
+   * and `getSceneFeatureColor` here - and each already had a test in its own
+   * file. Two passing tests in two files is not the claim that matters: fixing
+   * one resolver and not the other leaves the render-side copy silently
+   * painting a non-colourable unit as colourable, which is how this surfaced
+   * before. The claim is that they AGREE.
+   */
+  it('returns the neutral fill from BOTH colour resolvers, and they agree', (): void => {
+    const neutral = createSceneFeature('NEUTRAL', 'neutral');
+    const colorable = createSceneFeature('FRA', 'modern-core');
+    const colors = { FRA: '#0000AA' };
+
+    expect(getSceneFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);
+    expect(getEffectiveFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);
+    expect(getSceneFeatureColor(neutral, colors)).toBe(
+      getEffectiveFeatureColor(neutral, colors),
+    );
+
+    // And the neutral fill is not the uncoloured white a colourable country
+    // starts with, or the two states are one indistinguishable pixel value -
+    // the rendering half of the original defect.
+    expect(NEUTRAL_UNIT_COLOR).not.toBe(DEFAULT_COLOR);
+    expect(getSceneFeatureColor(colorable, colors)).toBe(
+      getEffectiveFeatureColor(colorable, colors),
+    );
   });
 
   it('models the reviewed modern world as 195 logical options and 248 units', (): void => {

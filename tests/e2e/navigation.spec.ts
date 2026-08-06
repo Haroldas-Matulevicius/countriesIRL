@@ -4,6 +4,8 @@ import {
   LEGEND_CORNER_OPTIONS,
   LEGEND_CUSTOM_POSITION_LABEL,
 } from '../../src/components/LegendEditor';
+import { NEUTRAL_UNIT_COLOR } from '../../src/constants/colors';
+import { TOOLTIP_NOT_COLORABLE_REASON } from '../../src/components/Tooltip';
 import { LEGEND_CORNERS } from '../../src/utils/legend';
 import {
   legendDisclosure,
@@ -458,5 +460,174 @@ test.describe('the floating cluster stays in the letterbox gutter', (): void => 
     await zoomIn.click();
     await expect(zoomOut).toBeEnabled();
     expect(await reachable()).toContain('Zoom Out');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * D-23 - cursor and copy discipline for non-colourable units
+ * ------------------------------------------------------------------ */
+
+/**
+ * The units nobody can colour: `colorOwnerId === null`, which the world
+ * manifest records as disputed or neutral territory (Kosovo, Western Sahara,
+ * Antarctica among them). The classification is DATA and this plan does not
+ * touch it - the count is pinned so a silent reclassification is visible.
+ */
+const NON_COLORABLE_UNIT_COUNT = 12;
+/** The unit the defect was reported against. */
+const NON_COLORABLE_UNIT_ID = 'KOS';
+/**
+ * The unit the tooltip half hovers. Kosovo is enclaved and, at the whole-world
+ * fit, its bounding-box centre lands on Serbia - Playwright's hit test resolves
+ * to the neighbour and the hover never reaches the unit under test. Western
+ * Sahara is in the same null-owner bucket, resolved through the same two
+ * resolvers, and is large enough for a real pointer to land on it.
+ */
+const NON_COLORABLE_HOVER_ID = 'SAH';
+/** Compact enough that its bounding-box centre is inside its own polygon. */
+const COLORABLE_UNIT_ID = 'POL';
+
+/**
+ * A REAL pointer hover on a map path, aimed at a point the browser's own hit
+ * test resolves to that path.
+ *
+ * `locator.hover()` aims at the bounding-box centre, and on a world map that is
+ * routinely a different country: France's box centre lands on Mali, Kosovo's on
+ * Serbia, Western Sahara's on Morocco. Playwright then reports "intercepts
+ * pointer events" and the hover never reaches the unit under test. Sampling the
+ * outline and asking `elementFromPoint` keeps this a genuine pointer event
+ * rather than a dispatched one - the browser still decides what was hovered.
+ */
+async function hoverUnit(page: Page, selector: string): Promise<void> {
+  const point = await page.evaluate((pathSelector): {
+    x: number;
+    y: number;
+  } => {
+    const element = document.querySelector<SVGPathElement>(pathSelector);
+    if (element === null) {
+      throw new Error(`"${pathSelector}" is not rendered.`);
+    }
+    const box = element.getBoundingClientRect();
+    const centreX = box.left + box.width / 2;
+    const centreY = box.top + box.height / 2;
+    const total = element.getTotalLength();
+    const candidates: Array<{ x: number; y: number }> = [
+      { x: centreX, y: centreY },
+    ];
+
+    for (let step = 0; step < 64; step += 1) {
+      const onOutline = element.getPointAtLength((total * step) / 64);
+      const screen = onOutline.matrixTransform(element.getScreenCTM() ?? undefined);
+      // Pull each sample a little toward the centre so it lands inside the
+      // polygon rather than on its own stroke.
+      for (const pull of [0.12, 0.25, 0.4]) {
+        candidates.push({
+          x: screen.x + (centreX - screen.x) * pull,
+          y: screen.y + (centreY - screen.y) * pull,
+        });
+      }
+    }
+
+    for (const candidate of candidates) {
+      if (document.elementFromPoint(candidate.x, candidate.y) === element) {
+        return candidate;
+      }
+    }
+    throw new Error(`no point on "${pathSelector}" resolves to it.`);
+  }, selector);
+
+  await page.mouse.move(point.x, point.y);
+}
+
+async function computedCursor(page: Page, selector: string): Promise<string> {
+  return page
+    .locator(selector)
+    .first()
+    .evaluate((element): string => getComputedStyle(element).cursor);
+}
+
+test.describe('non-colourable units stay honest (D-23)', (): void => {
+  test('promises an interaction only where the map can perform one', async ({
+    page,
+  }): Promise<void> => {
+    await waitForApp(page);
+
+    const colorable = `path.country-path[data-country-id="${COLORABLE_UNIT_ID}"]`;
+    const neutral = `path.map-unit-path[data-scene-unit-id="${NON_COLORABLE_UNIT_ID}"]`;
+
+    await expect(page.locator(neutral)).toHaveCount(1);
+
+    /*
+     * `.map-unit-path` is every NON-SELECTABLE unit, which includes inherited
+     * dependencies that do have a colour owner (53 of them at the primary
+     * visual). The set D-23 is about is narrower: the NULL-owner units, and the
+     * only thing that distinguishes them in the rendered DOM is the neutral
+     * fill both resolvers return for them. Counting by fill is therefore also
+     * the browser-side proof that both resolvers agree - a resolver that
+     * regressed to DEFAULT_COLOR drops this count rather than changing a colour
+     * nobody measures.
+     */
+    await expect(
+      page.locator(
+        `path.scene-path[data-primary-unit="true"][fill="${NEUTRAL_UNIT_COLOR}"]`,
+      ),
+      'the non-colourable set changed, or a colour resolver stopped returning ' +
+        'the neutral fill. Reclassifying a unit is a DATA decision and needs ' +
+        'the approval chain in coding-rules/data.md, not a chrome plan.',
+    ).toHaveCount(NON_COLORABLE_UNIT_COUNT);
+
+    /*
+     * A. The cursor is the honest signal: it promises an interaction the map
+     * can actually perform. `pointer` over a unit whose click is swallowed by
+     * design is a false affordance, and it is what made Kosovo read as a
+     * broken country rather than as a recorded policy.
+     */
+    expect(await computedCursor(page, colorable)).toBe('pointer');
+    expect(await computedCursor(page, neutral)).toBe('default');
+
+    /*
+     * B. The fill is a SOLID colour, never a CSS `filter`. Under D-34 the
+     * export clone is rasterised inside an SVG-as-image isolated document that
+     * sees none of the host page's stylesheets, so an externally styled effect
+     * renders NOT AT ALL - the PNG quietly loses it while the editor looks
+     * correct.
+     */
+    await expect(page.locator(neutral)).toHaveAttribute(
+      'fill',
+      NEUTRAL_UNIT_COLOR,
+    );
+    expect(
+      await page
+        .locator(neutral)
+        .first()
+        .evaluate((element): string => getComputedStyle(element).filter),
+    ).toBe('none');
+
+    // C. The colourable unit's tooltip announces its colour.
+    await hoverUnit(page, colorable);
+    const tooltip = page.locator('.map-tooltip');
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip.locator('.map-tooltip__color')).toHaveCount(1);
+    await expect(tooltip).toContainText('Current color:');
+    await expect(tooltip).not.toContainText(TOOLTIP_NOT_COLORABLE_REASON);
+
+    /*
+     * D. The non-colourable unit's tooltip states the honest reason AND
+     * announces no colour. The NEGATIVE half is the load-bearing one: a
+     * tooltip that showed the reason and a readout would pass a
+     * presence-only check, which is exactly the spoof this gate exists for.
+     */
+    const neutralHoverTarget = `path.map-unit-path[data-scene-unit-id="${NON_COLORABLE_HOVER_ID}"]`;
+    await expect(page.locator(neutralHoverTarget)).toHaveAttribute(
+      'fill',
+      NEUTRAL_UNIT_COLOR,
+    );
+    expect(await computedCursor(page, neutralHoverTarget)).toBe('default');
+    await hoverUnit(page, neutralHoverTarget);
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText(TOOLTIP_NOT_COLORABLE_REASON);
+    await expect(tooltip.locator('.map-tooltip__color')).toHaveCount(0);
+    await expect(tooltip).not.toContainText('Current color');
+    expect(await tooltip.innerText()).not.toMatch(/#[0-9a-f]{6}/iu);
   });
 });
