@@ -404,6 +404,62 @@ both modes, and the matrix asserts its own row count so it cannot silently resol
 - The export frame is `1px solid var(--map-frame-edge)` with everything outside dimmed by
   `--map-frame-scrim`. No accent, no radius, no label.
 
+#### OQ-2 resolved — full-bleed surface, framed square (D-32)
+
+**The decision, stated as D-32 states it.** The map **surface** is full-bleed and pans and zooms
+in the Google-Maps idiom, and a visible square **export frame** sits centred on it marking exactly
+what lands in the PNG. The two are not in tension: the frame is what buys the full-bleed surface
+its WYSIWYG back.
+
+Everything below is unchanged by the decision, which is why it is safe:
+
+- The SVG `viewBox` stays `0 0 1080 1080` and `preserveAspectRatio="xMidYMid meet"` is untouched,
+  so the composition square lands centred at side `min(width, height)` of the canvas region.
+- Geometry beyond that square paints into the letterbox gutters. That is the full-bleed feel, and
+  it is also why the frame is not decoration: without it a creator cannot tell which of the
+  visible countries will survive the crop.
+- The export clone re-asserts the square (`export.ts:277-284`, `overflow: hidden`), so gutter
+  geometry is clipped and the PNG is untouched. **The 1080×1080 contract does not move.**
+
+**Two verified facts make this safe. Cited so nobody re-derives them:**
+
+| Fact | Consequence |
+|---|---|
+| `useCameraController.ts:310-313` pins d3-zoom's `extent` to `[[0,0],[1080,1080]]` — the 1080 square, **not** the element rect | a rail or panel reflow cannot change the camera's input space |
+| `MapCanvas.tsx:839-840` fixes the `viewBox` at `0 0 1080 1080` | a reflow cannot change the projection or what the export clone carries |
+
+**Therefore no `ResizeObserver` is required, and none may be added** to the projection, camera, or
+export path. `Tooltip.tsx` has observed its own element since Phase 2 for viewport clamping and
+that is unrelated and untouched; `uiContract.test.ts` states the rule as an **ownership set** over
+`src/` rather than a blanket ban, because a ban that is red on arrival gets deleted instead of
+obeyed. If something here appears to need an observer, that is the signal that the geometry was
+re-derived somewhere it should not have been.
+
+**Measured, not assumed.** `tests/e2e/shell.spec.ts` projects the viewBox corners `(0,0)` and
+`(1080,1080)` through `svg.map-canvas`'s `getScreenCTM()` and compares them to `.map-frame`'s
+client rect at a wide, a tall, and a near-square viewport. The largest disagreement on any edge in
+installed Chrome is **6e-14 px**. It is an equality rather than an approximation because both are
+literally "the centred `min(w, h)` square of the same box".
+
+#### Narrow width (D-20) — specification for `03-09`, not implementation
+
+Recorded here so `03-09` implements a decision rather than inventing one. **Nothing in this
+subsection is built yet**; `03-03` landed the desktop shell only.
+
+Below the existing **1200px** breakpoint the grid collapses:
+
+| Element | Narrow behaviour |
+|---|---|
+| Rail | becomes a **bottom bar**, icons thumb-reachable, `--target-compact` (44px) targets, `data-editor-only="true"` |
+| Panel | a tapped tool raises a **bottom sheet** over the map — the one surface that overlays the canvas — entering on `--motion-duration-base` / `--motion-ease-out` and exiting on `--motion-ease-in` |
+| Floating cluster | sits directly above the bottom bar, still **outside** the export frame |
+| HUD header / footer | fold into the bottom bar: the composition name truncates to one line and `Export PNG` stays pinned and visible |
+
+360px containment and the 200 %-equivalent check still apply, and the halved CSS viewport is
+**labelled as the equivalent, never as physical zoom**. `prefers-reduced-transparency` is asserted
+**statically**, because Playwright cannot emulate it and emulation a browser does not support is
+not evidence.
+
 ### 7.2 Rail row — the signature component (D-16, D-29)
 
 36px tall, full width, `--radius-row` (10px), `--text-body-sm`, `--themely-nav-ink`. Icon slot
@@ -690,6 +746,7 @@ source — `.map-unit-path` was once omitted from that pattern for a whole phase
 
 ---
 
+*Last updated: 2026-08-06 — § 7.1 gained the OQ-2 resolution (full-bleed surface, framed square) with the two verified citations that make it safe — `useCameraController.ts:310-313` and `MapCanvas.tsx:839-840` — the resulting "no `ResizeObserver` may be added, and the rule is an ownership set" statement, the measured 6e-14 px frame↔viewBox agreement, and the D-20 narrow-width contract recorded as specification for `03-09` to implement against rather than invent (plan 03-03).*
 *Last updated: 2026-08-06 — created by plan 03-02 as the design contract 03-03 onward implements against: upstream attribution with no cross-repo test dependency, the verbatim light and dark token tables, the mode-invariant export firewall, the ten type roles with a closed two-token consumer exemption, spacing/radii/elevation/motion, the accent budget with its `:focus-visible`-only exemption, the CountriesIRL-only anatomy marked [FOR REVIEW], the post-D-34 export-unsafe reason, and the translated Do's and Don'ts.*
 
 *Full edit history: `git log -p -- Design.md`.*

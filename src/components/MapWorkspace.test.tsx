@@ -277,6 +277,130 @@ describe('MapWorkspace navigation placement', (): void => {
   });
 });
 
+/**
+ * The declarations, byte for byte. D-24 preserves the typed slot contract
+ * VERBATIM through the D-32 restructure, and "verbatim" is a claim about the
+ * text - a slot quietly widened to `ReactNode | ((props) => ReactNode)` would
+ * satisfy every behavioural assertion in this file.
+ */
+const SLOT_DECLARATIONS = [
+  'legendSlot?: ReactNode;',
+  'navigationSlot?: ReactNode;',
+] as const;
+
+function readWorkspaceSource(): string {
+  const nodeProcess = Reflect.get(globalThis, 'process') as
+    | {
+        getBuiltinModule: (name: 'fs') => {
+          readFileSync: (path: URL, encoding: 'utf8') => string;
+        };
+      }
+    | undefined;
+
+  if (nodeProcess === undefined) {
+    throw new Error('Expected the Vitest Node process.');
+  }
+
+  return nodeProcess
+    .getBuiltinModule('fs')
+    .readFileSync(new URL('./MapWorkspace.tsx', import.meta.url), 'utf8');
+}
+
+function renderReadyWorkspace(): string {
+  return renderToStaticMarkup(
+    <MapWorkspace
+      geoData={READY_GEO_DATA}
+      compositionBar={createCompositionBar()}
+      snapshotId="modern"
+      periodLabel={MODERN_PERIOD_OPTION.label}
+      features={[]}
+      colors={{}}
+      selectedIds={new Set()}
+      exportSourceRef={{ current: null }}
+      legendSlot={<g data-legend-slot="true" />}
+      navigationSlot={<div data-navigation-slot="true" />}
+      onSelectCountry={vi.fn()}
+      onClearSelection={vi.fn()}
+      onReload={vi.fn()}
+    />,
+  );
+}
+
+describe('MapWorkspace export frame (D-32)', (): void => {
+  it('renders the frame as a sibling of the export source, never inside it', (): void => {
+    const markup = renderReadyWorkspace();
+
+    expect(markup.match(/class="map-frame"/gu)).toHaveLength(1);
+
+    const canvasRegionIndex = markup.indexOf('class="map-workspace__canvas"');
+    const exportSourceIndex = markup.indexOf('class="map-export-source"');
+    const frameIndex = markup.indexOf('class="map-frame"');
+
+    /*
+     * Depth-walked rather than keyed on `</svg></div>`. That marker only works
+     * while the export source holds exactly one child, so moving the frame
+     * *into* the export source would make the marker vanish and the assertion
+     * fail for the wrong reason - or, with a second child, not fail at all.
+     * The clone starts at `svg.map-canvas`, so where the frame sits relative to
+     * this closing tag is the whole contract.
+     */
+    const exportSourceEnd = findClosingDivIndex(markup, exportSourceIndex);
+    const canvasRegionEnd = findClosingDivIndex(markup, canvasRegionIndex);
+
+    expect(canvasRegionIndex).toBeGreaterThanOrEqual(0);
+    expect(exportSourceIndex).toBeGreaterThan(canvasRegionIndex);
+    expect(frameIndex).toBeGreaterThan(exportSourceEnd);
+    expect(frameIndex).toBeLessThan(canvasRegionEnd);
+    expect(markup.indexOf('class="map-canvas"')).toBeLessThan(exportSourceEnd);
+  });
+
+  it('marks the frame editor-only and hides it from assistive technology', (): void => {
+    const markup = renderReadyWorkspace();
+    const frameTag = /<div class="map-frame"[^>]*>/u.exec(markup)?.[0] ?? '';
+
+    expect(frameTag).toContain('data-editor-only="true"');
+    expect(frameTag).toContain('aria-hidden="true"');
+  });
+
+  it('keeps the typed slot contract byte-unchanged and adds no third slot', (): void => {
+    const source = readWorkspaceSource();
+
+    SLOT_DECLARATIONS.forEach((declaration): void => {
+      expect(source).toContain(declaration);
+    });
+
+    /*
+     * The frame is structural chrome, not composable content. A caller that
+     * could replace it could remove the creator's only signal of what the PNG
+     * crops to, so it is not a slot and the slot set stays at two.
+     */
+    expect(
+      [...source.matchAll(/^\s{2}(\w+Slot)\??:/gmu)].map(
+        (match): string => match[1],
+      ),
+    ).toStrictEqual(['legendSlot', 'navigationSlot']);
+    expect(source).not.toContain('frameSlot');
+  });
+
+  it('still renders both slots into their documented positions', (): void => {
+    const markup = renderReadyWorkspace();
+    const svgStart = markup.indexOf('class="map-canvas"');
+    const svgEnd = markup.indexOf('</svg>', svgStart);
+
+    // The legend renders INSIDE the canonical SVG (D-24) - a sibling is
+    // silently dropped by the export clone with nothing failing.
+    const legendIndex = markup.indexOf('data-legend-slot="true"');
+    expect(legendIndex).toBeGreaterThan(svgStart);
+    expect(legendIndex).toBeLessThan(svgEnd);
+
+    // The navigation cluster renders outside the export source, after the
+    // canvas region, so it can never reach the PNG.
+    expect(markup.indexOf('data-navigation-slot="true"')).toBeGreaterThan(
+      findClosingDivIndex(markup, markup.indexOf('class="map-workspace__canvas"')),
+    );
+  });
+});
+
 describe('composed workspace composition bar', (): void => {
   it('owns the only Reset View control and the exact preview and period copy', (): void => {
     const markup = renderToStaticMarkup(
