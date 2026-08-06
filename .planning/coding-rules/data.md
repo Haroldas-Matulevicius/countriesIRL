@@ -283,6 +283,37 @@ third-party origin.
 **Binary assets the *bundle* carries live in `src/assets/`, not `public/data/`.** The two homes
 are not interchangeable — see § Vendored binary assets.
 
+### The base path has one home, and two predicates are deliberately not in it
+
+`src/config/editorConfig.ts` is the **single production home** for the data asset base path.
+`useGeoData.ts`, `constants/snapshots.ts`, and `useSnapshotCatalog.ts` derive their URLs from it;
+none of them holds a path literal. The base path arrives through `MapEditor`'s props boundary with
+the standalone app's value as its default, so a future host can serve the same bundled assets from
+its own directory without editing a fetch site. `src/config/editorConfig.test.ts` enforces this by
+scanning every non-test file under `src/`.
+
+**Two literals are exempt, and the exemption is the important part of the rule.**
+`src/utils/historicalValidation.ts` holds them — at the time of writing, line 1098
+(`!input.assetPath.startsWith('/data/')`) and line 1190
+(`entry.assetPath.startsWith('/data/snapshots/')`).
+
+They are **safety predicates on manifest-declared asset paths, not fetch URLs.** Parameterising
+them alongside the fetch paths would let a host-configured base path widen what counts as an
+acceptable asset path — a loosening of the approval chain wearing a refactor's clothes. A manifest
+that could nominate any base would be a manifest that decides its own reviewed boundary.
+
+**The condition under which they would have to change.** If the base path ever becomes genuinely
+host-configurable *for approved historical geometry* — which it is not today, because the approved
+catalog holds exactly `Modern` — the predicate must validate against the **configured** base, resolved
+once at the mount boundary and passed in as a value. It must never become a wildcard, an
+`endsWith`, or a check that any non-empty prefix satisfies. Widening it is a change to the approval
+chain and needs the approval chain's evidence, not a code review.
+
+The gate's exemption set is **closed** and keyed on the predicate's own source text, with the line
+numbers carried alongside for a reader. Text, not line number, because a line number drifts the
+moment anything above it moves and a gate that is red on arrival gets loosened rather than obeyed.
+A third match anywhere fails.
+
 ---
 
 ## Vendored binary assets (`src/assets/`)
@@ -374,12 +405,17 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
-*Last updated: 2026-08-06 — added § Vendored binary assets: `src/assets/` vs `public/data/` and
-which consumer picks which, the README-row integrity record, the no-network-font rule, and the
-requirement to record a subset's coverage gap with its price (plan 03-01, D-09).*
-*Last updated: 2026-07-26 — replaced the Phase 1 historical-borders sketch with the world asset and
-approved snapshot catalog (catalog-driven periods, evidence-not-inference approval, manual-trace
-records, effective entities, corrected file paths; plan 02-25); prior 2026-07-25 added the
-filesystem-identity rule after a Windows inode-precision defect surfaced as a flaky test.*
+*Last updated: 2026-08-06 — § File Paths gained "The base path has one home, and two predicates are
+deliberately not in it": `src/config/editorConfig.ts` as the single production home reached through
+`MapEditor`'s props boundary, the two `historicalValidation.ts` safety predicates exempted with
+their reason, and the condition under which the predicate would have to validate against the
+configured base rather than a wildcard (plan 03-05, transition-readiness c).*
+*Last updated: 2026-08-06 — added § Vendored binary assets: `src/assets/` vs `public/data/`, which
+consumer picks which, the README-row integrity record, the no-network-font rule, and the requirement
+to record a subset's coverage gap with its price (plan 03-01, D-09). Earlier, 2026-07-26: replaced
+the Phase 1 historical-borders sketch with the world asset and approved snapshot catalog
+(catalog-driven periods, evidence-not-inference approval, manual-trace records, effective entities,
+corrected file paths; plan 02-25); prior 2026-07-25 added the filesystem-identity rule after a
+Windows inode-precision defect surfaced as a flaky test.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/data.md`.*

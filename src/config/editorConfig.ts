@@ -2,9 +2,13 @@
  * The single production home for the data asset base path.
  *
  * Transition-readiness (c): a host that mounts `MapEditor` may serve the
- * bundled world asset from somewhere other than `/data/`, so the base path is a
- * parameter rather than a literal scattered across the fetch sites. Every
- * production fetch URL in the app is derived here.
+ * bundled world asset from somewhere other than the standalone app's directory,
+ * so the base path is a parameter rather than a literal scattered across the
+ * fetch sites. Every production fetch URL in the app is derived here.
+ *
+ * Comment discipline: the gate in `editorConfig.test.ts` asserts this file
+ * holds exactly ONE quoted base-path literal, and it is a plain text scan with
+ * no parser between the rule and the file. Do not quote the path in prose here.
  *
  * Two literals under `src/` are deliberately NOT routed through this module,
  * and that exemption is enforced by `editorConfig.test.ts` rather than merely

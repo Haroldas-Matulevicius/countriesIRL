@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { SNAPSHOT_MANIFEST_URL } from '../constants/snapshots';
+import { useEditorConfig } from '../providers/EditorConfigProvider';
 import type { SnapshotManifestEntry } from '../types/composition';
 import { validateSnapshotManifest } from '../utils/historicalValidation';
 import {
@@ -29,9 +29,10 @@ function defaultCatalogFetch(
 
 async function loadCatalogEntries(
   fetcher: SnapshotFetch,
+  manifestUrl: string,
   signal: AbortSignal,
 ): Promise<ReadonlyArray<SnapshotManifestEntry>> {
-  const response = await fetcher(SNAPSHOT_MANIFEST_URL, { signal });
+  const response = await fetcher(manifestUrl, { signal });
   if (!response.ok) {
     throw new Error('The snapshot catalog could not be read.');
   }
@@ -51,13 +52,18 @@ async function loadCatalogEntries(
 export function useSnapshotCatalog(
   fetcher: SnapshotFetch = defaultCatalogFetch,
 ): SnapshotCatalog {
+  const { assetUrls } = useEditorConfig();
   const [entries, setEntries] =
     useState<ReadonlyArray<SnapshotManifestEntry>>(NO_ENTRIES);
 
   useEffect((): (() => void) => {
     const controller = new AbortController();
 
-    void loadCatalogEntries(fetcher, controller.signal)
+    void loadCatalogEntries(
+      fetcher,
+      assetUrls.snapshotManifestUrl,
+      controller.signal,
+    )
       .then((loadedEntries): void => {
         if (!controller.signal.aborted) {
           setEntries(loadedEntries);
@@ -73,7 +79,7 @@ export function useSnapshotCatalog(
       });
 
     return (): void => controller.abort();
-  }, [fetcher]);
+  }, [assetUrls, fetcher]);
 
   return useMemo<SnapshotCatalog>(
     (): SnapshotCatalog => ({

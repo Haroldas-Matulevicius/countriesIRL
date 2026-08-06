@@ -5,11 +5,22 @@ import type {
   GeoJsonWarning,
   SceneFeature,
 } from '../types/map';
+import {
+  DEFAULT_EDITOR_ASSET_URLS,
+  type EditorAssetUrls,
+} from '../config/editorConfig';
+import { useEditorConfig } from '../providers/EditorConfigProvider';
 import { normalizeSceneGeoJson } from '../utils/geojson';
 import { normalizeStableCountryId } from '../utils/countryIds';
 
-export const WORLD_MANIFEST_URL = '/data/world-manifest.json';
-export const WORLD_DATA_URL = '/data/world-modern.geojson';
+/**
+ * The standalone app's asset URLs, derived in `config/editorConfig.ts` - the
+ * single production home for the base path. These two exports stay for the
+ * callers that name them; the loader below takes the URLs as a parameter, so a
+ * host that mounts `MapEditor` with its own base path is fetched from there.
+ */
+export const WORLD_MANIFEST_URL = DEFAULT_EDITOR_ASSET_URLS.worldManifestUrl;
+export const WORLD_DATA_URL = DEFAULT_EDITOR_ASSET_URLS.worldDataUrl;
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const EXPECTED_MANIFEST_SCHEMA_VERSION = 1;
@@ -411,11 +422,12 @@ async function fetchPayload(
 
 export async function loadWorldGeoData(
   signal: AbortSignal,
+  assetUrls: EditorAssetUrls = DEFAULT_EDITOR_ASSET_URLS,
 ): Promise<WorldGeoDataState> {
   globalThis.performance.mark(MAP_LOAD_START_MARK);
   const [manifestPayload, worldPayload] = await Promise.all([
-    fetchPayload(WORLD_MANIFEST_URL, signal, 'manifest'),
-    fetchPayload(WORLD_DATA_URL, signal, 'world-asset'),
+    fetchPayload(assetUrls.worldManifestUrl, signal, 'manifest'),
+    fetchPayload(assetUrls.worldDataUrl, signal, 'world-asset'),
   ]);
 
   if (!manifestPayload.ok) {
@@ -469,22 +481,28 @@ export async function loadWorldGeoData(
   };
 }
 
-export function startWorldGeoDataLoad(): WorldGeoDataRequest {
+export function startWorldGeoDataLoad(
+  assetUrls: EditorAssetUrls = DEFAULT_EDITOR_ASSET_URLS,
+): WorldGeoDataRequest {
   const controller = new AbortController();
   return {
     signal: controller.signal,
-    promise: loadWorldGeoData(controller.signal),
+    promise: loadWorldGeoData(controller.signal, assetUrls),
     abort: (): void => controller.abort(),
   };
 }
 
 export function useGeoData(): WorldGeoDataState {
+  // Transition-readiness (c): where the world asset lives arrives through
+  // `MapEditor`'s props boundary. The default is the standalone app's path, so
+  // nothing changes for the app that shipped.
+  const { assetUrls } = useEditorConfig();
   const [loadState, setLoadState] = useState<WorldGeoDataState>({
     status: 'loading',
   });
 
   useEffect((): (() => void) => {
-    const request = startWorldGeoDataLoad();
+    const request = startWorldGeoDataLoad(assetUrls);
 
     void request.promise
       .then((nextState): void => {
@@ -503,7 +521,7 @@ export function useGeoData(): WorldGeoDataState {
       });
 
     return request.abort;
-  }, []);
+  }, [assetUrls]);
 
   return loadState;
 }

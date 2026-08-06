@@ -1,10 +1,19 @@
+import { DEFAULT_EDITOR_ASSET_URLS } from '../config/editorConfig';
 import type {
   HistoricalRegionId,
   SnapshotId,
   SnapshotReviewStatus,
 } from '../types/composition';
 
-export const SNAPSHOT_MANIFEST_URL = '/data/snapshots/index.json';
+/**
+ * Derived in `config/editorConfig.ts`, the single production home for the base
+ * path. Moving the URL there changes WHERE the catalog is read from and
+ * nothing else: `SNAPSHOT_CATALOG` below is a five-entry LABEL registry, and
+ * reachability is still decided by the approved manifest, which holds exactly
+ * one entry. No snapshot became nameable or reachable here.
+ */
+export const SNAPSHOT_MANIFEST_URL =
+  DEFAULT_EDITOR_ASSET_URLS.snapshotManifestUrl;
 export const MODERN_SNAPSHOT_ID: SnapshotId = 'modern';
 
 export const SNAPSHOT_CATALOG = [
