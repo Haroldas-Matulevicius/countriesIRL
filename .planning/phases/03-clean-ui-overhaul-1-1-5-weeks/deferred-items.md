@@ -107,24 +107,37 @@ at all, and the replacements are landed in **`tests/e2e/rail.spec.ts`** (the spe
 including the controls whose disabled state removes them, RED-proven against the arrangement it
 replaced). `03-09` deletes or rewrites the two originals rather than repairing them.
 
+### Re-measured after `03-07` — still exactly these 12, against 90 tests
+
+`03-07` dissolved the Save/Load dialog and `CompositionBar`, which touched five specs that reach
+those surfaces. Re-measured, not assumed: **78 of 90 Chrome e2e tests pass, and the 12 failures
+are the same 12 listed above** (`npx playwright test --project=chrome`, Chrome 151.0.7922.75).
+The denominator moved from 89 to 90: `persistence.spec.ts` adds the planted-`1914` row test.
+
+Three tests were briefly made red by `03-07` and were **repaired in the same plan** (the rule
+`03-04`/`03-05`/`03-06` applied): the legend option pills hid their radios with a 1px clip, so
+the label intercepted the pointer events that `.check()` — and a real click — aims at the input.
+The inputs are click-bearing now (full-cover, opacity 0). Two rows above still reference the
+retired opener/dialog copy (`the desktop app bar carries the global actions…`, `the desktop focus
+order runs bar, composition bar…`) — both are claims about surfaces that no longer exist, and
+`03-09` deletes or rewrites them rather than repairing them. The row `the responsive focus order
+follows the declared workflow` now also crosses the retired `Save or Load Maps` opener; same
+disposition.
+
 ---
 
-## D-4 — two controls share the accessible name `Close Saved Maps` — **owner `03-07`**
+## D-4 — two controls share the accessible name `Close Saved Maps` — **CLOSED by `03-07`**
 
 **Found during:** `03-06`, wiring the `saved` tool panel.
 
-`SaveLoad.tsx` already renders **two** `Close Saved Maps` buttons (dialog header and footer), and
-UI-SPEC's new-strings table gives the `saved` TOOL PANEL a close control with the same label
-(`Close <Tool>`). With the panel open behind the dialog there are three controls sharing one name.
+`SaveLoad.tsx` rendered **two** `Close Saved Maps` buttons (dialog header and footer) beside the
+`saved` tool panel's close control of the same name — three controls sharing one accessible name,
+mitigated by scoping every e2e dialog-close locator to `.save-load-dialog`.
 
-**Not fixed here, and the reason is that both strings are approved copy.** Renaming either is a
-copy decision, not an implementation detail. The mitigation in place: the dialog is modal
-(`aria-modal`, with `inert` applied to its own body under the nested confirmation), and every e2e
-locator that reaches a dialog close is now **scoped to `.save-load-dialog`** rather than using
-`.first()` — an ordinal there would have started closing the panel instead.
-
-**`03-07` closes this** when it migrates the save form and the saved-map list into the `saved`
-panel: the dialog goes away and one of the two names goes with it.
+**Closed 2026-08-06 by `03-07`.** The Save/Load dialog dissolved into the `saved` panel and both
+dialog close buttons retired with it: `Close Saved Maps` is **one control** now — the panel's own
+close — and the `.save-load-dialog` stopgap scoping was removed from every spec.
+`tests/e2e/persistence.spec.ts` asserts the accessible name resolves to exactly one control.
 
 ---
 
