@@ -13,12 +13,9 @@ import type {
   StorageResult,
   StorageWarning,
 } from '../types/ui';
+import { useEditorConfig } from '../providers/EditorConfigProvider';
 import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
-import {
-  createStorageAdapter,
-  type SaveMapValue,
-  type StorageAdapter,
-} from '../utils/storage';
+import type { SaveMapValue, StorageAdapter } from '../utils/storage';
 
 export interface UseLocalStorageValue {
   savedMapSummaries: ReadonlyArray<SavedMapSummary>;
@@ -57,7 +54,11 @@ export function createLegacyCompatibleSnapshot(
 }
 
 export function useLocalStorage(): UseLocalStorageValue {
-  const [adapter] = useState<StorageAdapter>(() => createStorageAdapter());
+  // Transition-readiness (b): persistence arrives through `MapEditor`'s props
+  // boundary as an adapter. The default factory builds the browser-backed one,
+  // so the standalone app is unchanged, but nothing here knows that.
+  const { createStorage } = useEditorConfig();
+  const [adapter] = useState<StorageAdapter>(() => createStorage());
   const [initialOnboardingResult] = useState(() =>
     adapter.getOnboardingDismissed(),
   );

@@ -50,6 +50,7 @@ import type {
 } from './hooks/useCompositionLoadTransaction';
 import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
 import type { CompositionSaveTransactionOutcome } from './hooks/useCompositionSaveTransaction';
+import { useEditorConfig } from './providers/EditorConfigProvider';
 import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
 import { useInspectorUiState } from './hooks/useInspectorUiState';
@@ -167,6 +168,7 @@ export default function App(): JSX.Element {
     markSaved,
     restoreState: restoreCompositionState,
   } = useCompositionState();
+  const { initialThemeMode } = useEditorConfig();
   const geoData = useGeoData();
   const {
     onboardingDismissed,
@@ -1031,9 +1033,19 @@ export default function App(): JSX.Element {
           legendControls,
         ];
 
+  /*
+   * Transition-readiness (e): the theme class lands on the editor mount root
+   * and nowhere above it. Written to the host page's root element instead, a
+   * host could not override it and would have two writers of one theme. The
+   * value arrives through `MapEditor`'s props boundary; `03-06` adds the
+   * control that changes it and the storage-adapter persistence that remembers
+   * it, with light as the absent-key default.
+   */
   return (
     <div
-      className="map-editor"
+      className={
+        initialThemeMode === 'dark' ? 'map-editor dark' : 'map-editor'
+      }
       data-panel-open={isToolPanelOpen ? 'true' : 'false'}
     >
       {/*

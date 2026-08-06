@@ -112,23 +112,14 @@
 }
 
 /*
- * Transitional, and deliberately narrow. The app bar and the inspector column
- * are dissolved as containers by 03-05; until then their existing rules are
- * authored for a 1440px page and would overflow a 280px track. These four
- * declarations neutralise that measure inside the panel and nothing else - they
- * are removed with the containers, not carried forward.
+ * The neutralisers that used to live here are gone with the containers they
+ * fought: 03-05 retired the 1440px page measure, the 376px inspector track, and
+ * the sticky card, so there is no page-scale rule left inside a 280px column to
+ * cancel. What remains is the panel's own inner spacing, which is the panel's
+ * to own.
  */
 .tool-panel__body > .workspace {
-  max-width: none;
   padding: var(--space-md);
-}
-
-.tool-panel__body > .workspace,
-.tool-panel__body > .workspace .workspace__control-column {
-  display: flex;
-  position: static;
-  max-height: none;
-  flex-direction: column;
 }
 
 .tool-panel__body > header {
