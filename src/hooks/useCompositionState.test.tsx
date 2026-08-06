@@ -319,7 +319,6 @@ describe('useCompositionState', () => {
         setSnapshot: expect.any(Function),
         setLegendEntry: expect.any(Function),
         reconcileLegendEntries: expect.any(Function),
-        removeLegendEntry: expect.any(Function),
         setLegendStyle: expect.any(Function),
         setLegendOrder: expect.any(Function),
         setLegendPosition: expect.any(Function),

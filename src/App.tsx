@@ -56,7 +56,7 @@ import { useInspectorUiState } from './hooks/useInspectorUiState';
 import type { WorldCountryMetadata } from './hooks/useGeoData';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useMapState } from './hooks/useMapState';
-import { resolveEffectiveSnapshotScene } from './hooks/useSnapshotData';
+import { resolveEffectiveSnapshotScene } from './utils/snapshotScene';
 import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { areColorMapsEqual } from './utils/colors';

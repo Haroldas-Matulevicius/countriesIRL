@@ -8,7 +8,7 @@ import {
   resolvePeriodOptions,
   type PeriodOption,
 } from '../utils/periods';
-import type { SnapshotFetch } from './useSnapshotData';
+import type { SnapshotFetch } from '../utils/snapshotScene';
 
 const MODERN_ONLY_OPTIONS: ReadonlyArray<PeriodOption> = [
   MODERN_PERIOD_OPTION,

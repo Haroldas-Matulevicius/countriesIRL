@@ -1,6 +1,5 @@
 import { DEFAULT_COLOR } from '../constants/colors';
 import type {
-  EffectiveScene,
   LegendBorderStyle,
   LegendCorner,
   LegendEntryState,
@@ -9,9 +8,7 @@ import type {
   LegendTextSize,
   LegendTheme,
 } from '../types/composition';
-import type { ColorMap } from '../types/map';
 import { normalizeColor } from './colors';
-import { getEffectiveSceneColors } from './scene';
 
 const LEGEND_CANVAS_SIZE = 1080;
 const LEGEND_SAFE_INSET = 32;
@@ -296,14 +293,6 @@ export function reconcileLegend(
     entries: nextEntries,
     position: { ...previous.position },
   };
-}
-
-export function reconcileLegendForScene(
-  scene: EffectiveScene,
-  colors: ColorMap,
-  previous: LegendState,
-): LegendState {
-  return reconcileLegend(getEffectiveSceneColors(scene, colors), previous);
 }
 
 export function getActiveLegendEntries(
@@ -658,17 +647,4 @@ export function getLegendBlockingMessage(
     return LEGEND_LABEL_FIT_MESSAGE;
   }
   return null;
-}
-
-export function validateLegendForScene(
-  legend: LegendState,
-  scene: EffectiveScene,
-  colors: ColorMap,
-  bounds: LegendBounds,
-): LegendValidationResult {
-  return validateLegend(
-    legend,
-    getEffectiveSceneColors(scene, colors),
-    bounds,
-  );
 }

@@ -65,7 +65,6 @@ export type CompositionAction =
       type: 'RECONCILE_LEGEND';
       payload: { effectiveColors: ReadonlyArray<string> };
     }
-  | { type: 'REMOVE_LEGEND_ENTRY'; payload: { color: string } }
   | { type: 'SET_LEGEND_STYLE'; payload: { style: LegendStyleState } }
   | { type: 'SET_LEGEND_ORDER'; payload: { colors: ReadonlyArray<string> } }
   | { type: 'SET_LEGEND_POSITION'; payload: { position: LegendPosition } }
@@ -84,7 +83,6 @@ export interface CompositionStateContextValue {
   setSnapshot: (snapshotId: SnapshotId) => void;
   setLegendEntry: (entry: LegendEntryState) => void;
   reconcileLegendEntries: (effectiveColors: ReadonlyArray<string>) => void;
-  removeLegendEntry: (color: string) => void;
   setLegendStyle: (style: LegendStyleState) => void;
   setLegendOrder: (colors: ReadonlyArray<string>) => void;
   setLegendPosition: (position: LegendPosition) => void;
@@ -367,25 +365,6 @@ export function compositionStateReducer(
       );
     }
 
-    case 'REMOVE_LEGEND_ENTRY': {
-      const colorResult = normalizeColor(action.payload.color);
-      if (!colorResult.ok) {
-        return state;
-      }
-
-      const entries = state.legend.entries.filter(
-        (entry): boolean => entry.color !== colorResult.value,
-      );
-      if (entries.length === state.legend.entries.length) {
-        return state;
-      }
-
-      return replaceLegend(state, {
-        ...state.legend,
-        entries: canonicalizeLegendEntries(entries),
-      });
-    }
-
     case 'SET_LEGEND_STYLE': {
       const style = canonicalizeLegendStyle(action.payload.style);
       return replaceLegend(state, { ...state.legend, ...style });
@@ -503,10 +482,6 @@ export function CompositionStateProvider({
     [],
   );
 
-  const removeLegendEntry = useCallback((color: string): void => {
-    dispatch({ type: 'REMOVE_LEGEND_ENTRY', payload: { color } });
-  }, []);
-
   const setLegendStyle = useCallback((style: LegendStyleState): void => {
     dispatch({ type: 'SET_LEGEND_STYLE', payload: { style } });
   }, []);
@@ -557,7 +532,6 @@ export function CompositionStateProvider({
       setSnapshot,
       setLegendEntry,
       reconcileLegendEntries,
-      removeLegendEntry,
       setLegendStyle,
       setLegendOrder,
       setLegendPosition,
@@ -573,7 +547,6 @@ export function CompositionStateProvider({
       setSnapshot,
       setLegendEntry,
       reconcileLegendEntries,
-      removeLegendEntry,
       setLegendStyle,
       setLegendOrder,
       setLegendPosition,

@@ -32,11 +32,6 @@ export interface UseLocalStorageValue {
     snapshot: CompositionSnapshot,
   ) => StorageResult<SaveMapValue>;
   loadComposition: (name: string) => StorageResult<CompositionLoadOutcome>;
-  saveMap: (name: string, colors: ColorMap) => StorageResult<SaveMapValue>;
-  loadMap: (
-    name: string,
-    validCountryIds: ReadonlySet<string>,
-  ) => StorageResult<ColorMap>;
   deleteMap: (name: string) => StorageResult<ReadonlyArray<SavedMap>>;
   dismissOnboarding: () => StorageResult<boolean>;
 }
@@ -131,25 +126,6 @@ export function useLocalStorage(): UseLocalStorageValue {
     [adapter, recordResult],
   );
 
-  const saveMap = useCallback(
-    (name: string, colors: ColorMap): StorageResult<SaveMapValue> => {
-      return saveComposition(name, createLegacyCompatibleSnapshot(colors));
-    },
-    [saveComposition],
-  );
-
-  const loadMap = useCallback(
-    (
-      name: string,
-      validCountryIds: ReadonlySet<string>,
-    ): StorageResult<ColorMap> => {
-      const result = adapter.load(name, validCountryIds);
-      recordResult(result);
-      return result;
-    },
-    [adapter, recordResult],
-  );
-
   const deleteMap = useCallback(
     (name: string): StorageResult<ReadonlyArray<SavedMap>> => {
       const result = adapter.delete(name);
@@ -184,8 +160,6 @@ export function useLocalStorage(): UseLocalStorageValue {
     refreshSavedMaps,
     saveComposition,
     loadComposition,
-    saveMap,
-    loadMap,
     deleteMap,
     dismissOnboarding,
   };

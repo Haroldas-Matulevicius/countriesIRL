@@ -7,7 +7,6 @@ import {
   createInitialMapState,
   mapStateReducer,
   prepareColorInteraction,
-  recordColorInteractionIfChanged,
 } from '../providers/MapStateProvider';
 import { useMapState } from './useMapState';
 
@@ -183,7 +182,6 @@ describe('mapStateReducer color history', (): void => {
     expect(
       performance.getEntriesByName('countriesirl-color-start', 'mark'),
     ).toHaveLength(1);
-    expect(recordColorInteractionIfChanged({}, ['FR'], '#010203')).toBe(true);
 
     performance.clearMarks('countriesirl-color-start');
   });

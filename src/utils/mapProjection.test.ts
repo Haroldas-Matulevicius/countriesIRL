@@ -7,7 +7,6 @@ import { WORLD_SIZE } from '../constants/camera';
 import type { GeoFeature } from '../types/map';
 import { normalizeGeoJson } from './geojson';
 import {
-  createFixedEuropeProjection,
   createSafeMapPath,
   createWorldProjection,
   hasFiniteProjectedBounds,
@@ -113,16 +112,6 @@ describe('createWorldProjection', (): void => {
     expect(northWest?.[1]).toBeCloseTo(0, NUMBER_TOLERANCE);
     expect(southEast?.[0]).toBeCloseTo(WORLD_SIZE, NUMBER_TOLERANCE);
     expect(southEast?.[1]).toBeCloseTo(WORLD_SIZE, NUMBER_TOLERANCE);
-  });
-
-  it('keeps the temporary Phase 1 projection entry point on the same fixed world', (): void => {
-    const features = loadEuropeFeatures();
-    const worldProjection = createWorldProjection();
-    const compatibilityProjection = createFixedEuropeProjection(features);
-
-    expect(compatibilityProjection.scale()).toBe(worldProjection.scale());
-    expect(compatibilityProjection.translate()).toEqual(worldProjection.translate());
-    expect(compatibilityProjection.clipExtent()).toEqual(worldProjection.clipExtent());
   });
 
   it('renders every accepted feature with finite path data in the fixed projection', (): void => {

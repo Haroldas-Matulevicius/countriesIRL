@@ -41,7 +41,3 @@ export function createWorldProjection(): ReturnType<typeof geoMercator> {
       [WORLD_SIZE, WORLD_SIZE],
     ]);
 }
-
-export const createFixedEuropeProjection: (
-  features: ReadonlyArray<GeoFeature>,
-) => ReturnType<typeof geoMercator> = createWorldProjection;

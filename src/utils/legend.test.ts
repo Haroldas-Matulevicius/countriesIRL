@@ -13,12 +13,10 @@ import {
   moveLegendEntry,
   nudgeLegendPosition,
   reconcileLegend,
-  reconcileLegendForScene,
   resolveLegendPosition,
   resolveLegendRender,
   validateActiveLegend,
   validateLegend,
-  validateLegendForScene,
 } from './legend';
 import {
   composeEffectiveScene,
@@ -133,9 +131,8 @@ describe('reconcileLegend', (): void => {
       'HIST-SAXONY': 'rgb(220, 38, 38)',
     };
     const effectiveColors = getEffectiveSceneColors(scene, colors);
-    const reconciled = reconcileLegendForScene(
-      scene,
-      colors,
+    const reconciled = reconcileLegend(
+      effectiveColors,
       createDefaultLegendState(),
     );
 
@@ -146,7 +143,7 @@ describe('reconcileLegend', (): void => {
       reconciled.entries,
     );
     expect(
-      validateLegendForScene(reconciled, scene, colors, TEST_LEGEND_BOUNDS),
+      validateLegend(reconciled, effectiveColors, TEST_LEGEND_BOUNDS),
     ).toEqual({
       ok: true,
       activeEntries: reconciled.entries,

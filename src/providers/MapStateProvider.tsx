@@ -73,14 +73,6 @@ export function prepareColorInteraction(
   return colorResult.value;
 }
 
-export function recordColorInteractionIfChanged(
-  colors: ColorMap,
-  countryIds: ReadonlyArray<CountryId>,
-  color: string,
-): boolean {
-  return prepareColorInteraction(colors, countryIds, color) !== null;
-}
-
 function areSelectionsEqual(
   first: SelectedCountryIds,
   second: SelectedCountryIds,
