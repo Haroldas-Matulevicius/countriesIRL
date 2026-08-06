@@ -155,11 +155,26 @@ async function readWorkspaceOrder(page: Page): Promise<string[]> {
     );
 }
 
+/**
+ * D-11/D-32 moved the canvas region out of the workspace landmark and into the
+ * shell's third grid track, so it is no longer a workspace section at either
+ * layout. It is asserted here as a singleton OUTSIDE the workspace instead of
+ * dropped: "the map is not in this list" has to be paired with "the map is
+ * still exactly once in the document", or the pair passes with no map at all.
+ */
+async function expectOneCanvasRegionOutsideTheWorkspace(
+  page: Page,
+): Promise<void> {
+  await expect(page.locator('.map-editor > section.map-workspace')).toHaveCount(
+    1,
+  );
+  await expect(page.locator('main.workspace .map-workspace')).toHaveCount(0);
+  await expect(page.locator('svg.map-canvas')).toHaveCount(1);
+}
+
 async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
-  expect(await readWorkspaceOrder(page)).toEqual([
-    'workspace__map',
-    'workspace__control-column',
-  ]);
+  expect(await readWorkspaceOrder(page)).toEqual(['workspace__control-column']);
+  await expectOneCanvasRegionOutsideTheWorkspace(page);
   const inspector = page.getByRole('complementary', { name: 'Map inspector' });
   await expect(inspector).toHaveCount(1);
   expect(
@@ -175,7 +190,9 @@ async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
     'workspace__legend',
     'workspace__country-list',
   ]);
-  await expect(page.locator('.app > header .controls--app-bar')).toHaveCount(1);
+  await expect(
+    page.locator('.tool-panel__body > header .controls--app-bar'),
+  ).toHaveCount(1);
   await expect(page.locator('.workspace__actions')).toHaveCount(0);
   expect(
     await inspector.evaluate((element): string =>
@@ -188,7 +205,6 @@ async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
 async function expectCompactWorkspaceOrder(page: Page): Promise<void> {
   expect(await readWorkspaceOrder(page)).toEqual([
     'workspace__actions',
-    'workspace__map',
     'workspace__selection-color',
     'workspace__country-list',
     'workspace__legend',
@@ -196,7 +212,7 @@ async function expectCompactWorkspaceOrder(page: Page): Promise<void> {
   await expect(
     page.getByRole('complementary', { name: 'Map inspector' }),
   ).toHaveCount(0);
-  await expect(page.locator('svg.map-canvas')).toHaveCount(1);
+  await expectOneCanvasRegionOutsideTheWorkspace(page);
 }
 
 /**
