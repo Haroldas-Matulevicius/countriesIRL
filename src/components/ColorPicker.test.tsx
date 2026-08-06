@@ -88,7 +88,7 @@ describe('ColorPicker', () => {
       /<input\b[^>]*placeholder="#RRGGBB or rgb\(0, 0, 0\)"[^>]*>/,
     )?.[0];
     const customApplyButton = markup.match(
-      /<button\b[^>]*type="submit"[^>]*>Apply Custom Color<\/button>/,
+      /<button\b[^>]*type="submit"[^>]*>Apply Color<\/button>/,
     )?.[0];
 
     expect(customInput).toMatch(NATIVE_DISABLED_ATTRIBUTE);

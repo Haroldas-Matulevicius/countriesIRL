@@ -6,6 +6,7 @@ import type {
 } from 'react';
 
 import { COLOR_PRESETS, CUSTOM_COLOR_PLACEHOLDER } from '../constants/colors';
+import { CheckIcon } from './icons/CheckIcon';
 import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
 import {
@@ -16,6 +17,9 @@ import {
 import { TOAST_MESSAGES } from './ToastRegion';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
+const APPLY_COLOR_LABEL = 'Apply Color';
+/** UI-SPEC 6: 16px, on the TILE background rather than on the swatch. */
+const SELECTED_CHECK_SIZE = 16;
 const CUSTOM_COLOR_ERROR =
   'Enter #RGB, #RRGGBB, or rgb values from 0 to 255.';
 
@@ -167,9 +171,16 @@ export function ColorPicker({
                   aria-hidden="true"
                 />
                 <span className="color-picker__preset-name">{preset.name}</span>
+                {/*
+                  On the tile background, never on the swatch: the swatch
+                  carries a creator-chosen colour, and a glyph drawn on it is
+                  invisible against roughly half of them. This replaces the
+                  deleted `--active-check-*` trio, whose fixed
+                  `#111827`-on-white values went invisible under `.dark`.
+                */}
                 {isActive ? (
                   <span className="color-picker__active-check" aria-hidden="true">
-                    ✓
+                    <CheckIcon size={SELECTED_CHECK_SIZE} />
                   </span>
                 ) : null}
               </button>
@@ -210,11 +221,18 @@ export function ColorPicker({
           </div>
         ) : null}
 
+        {/*
+          The Colors panel's ONE accent surface (D-05: Apple Blue is one thing
+          per surface). Filled from the mode-invariant `--accent-fill` rather
+          than `--themely-apple-blue`, which would give white-on-blue at 3.02:1
+          in dark mode. Keyed on a role class, never on position.
+        */}
         <button
           type="submit"
+          className="color-picker__submit"
           disabled={controlsDisabled || !hasCustomColorChange}
         >
-          Apply Custom Color
+          {APPLY_COLOR_LABEL}
         </button>
       </form>
     </section>

@@ -1128,6 +1128,30 @@ it rewrites the responsive layout.
 disclosure — so scope, never `.first()`: an ordinal starts clicking the rail row the moment the
 rail's order changes.
 
+**Hover must be written as an EXCLUSION where a state rule follows it.** `:hover` alone outranks a
+plain attribute selector, so `.tool-rail__row:hover` repainted the *open* tool from Powder back to
+Porcelain under the pointer — the active row silently losing its only state signal. The landed rule
+is `.tool-rail__row:not([aria-expanded="true"]):hover`. The e2e that caught it compares the three
+states for **inequality** as well as asserting the ink is constant: three identical backgrounds
+satisfy "the colour never changes" perfectly.
+
+**The colour swatch grid derives its columns and clips nothing.**
+`repeat(auto-fit, minmax(76px, 1fr))`, never a fixed count — a fixed count plus `width: max-content`
+inside `overflow: hidden` is what once cut `Magenta` off at the tile edge with nothing failing, and
+overflow stays visible so the next one is caught by eye. The selected tile carries
+`--themely-powder` plus a 16px `check` glyph at its trailing-top corner **on the tile background,
+never on the swatch**: the swatch holds a creator-chosen colour and a glyph drawn over it is
+invisible against roughly half of them. The swatch's own `1px solid var(--swatch-border)` is
+mode-invariant and is the same value the exported legend swatch uses — it is what keeps a **white**
+preset visible on a Platinum tile in either theme.
+
+**One Apple Blue per SURFACE, not per document.** The rail spends its accent on `Export PNG`; the
+Colors panel spends its own on `Apply Color`. Both are filled from `--accent-fill`, never from
+`--themely-apple-blue`, and both are keyed on a role class — `button:first-child` once meant
+reordering would have moved an accent onto a `Dismiss` button with nothing failing. "Exactly one
+filled primary action in the composed DOM" is a claim about `controls__action--primary`
+specifically, which is why that class lives in one component.
+
 ---
 
 *Last updated: 2026-08-06 — §The Tool Rail and its Panel (D-12/D-13/D-16/D-17/D-18/D-29): 48px rows as a translation of Themely's `h-9` rather than a copy, because the 48px target gate outranks a desktop-sidebar utility; background-only state with instant paint declared apart from the transition so a gate can read either; row-hover glyph animation, gated on start and unconditional on stop; rows as plain tab stops with no second roving-tabindex writer; no scroll container in the rail so tooltips can escape 48px; HUD header and footer as siblings of the scrolling element with fixed heights the panel body reserves; hide by truncation or visual hiding, never `display: none`; the panel track as the persistent `main` landmark with only its body unmounting; the title row sticky inside the one scroll container; `Controls` as one component with a three-value declared variant and exactly one mounted instance; and `openRailTool`/`legendDisclosure` in the shared e2e harness (plan 03-06).*

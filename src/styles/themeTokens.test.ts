@@ -407,7 +407,13 @@ describe('component theme tokens', (): void => {
       /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(\d+px,\s*1fr\)\);/u,
     );
     expect(gridRule).not.toContain('repeat(5,');
-    expect(presetRule).toContain('min-height: var(--space-3xl);');
+    /*
+     * `03-06` brought the tile to the SPEC'd 48px minimum (UI-SPEC 6) from the
+     * 64px it carried in the 376px inspector. It is asserted as the 48px token
+     * rather than as "some token", because the tile is a touch target and 48px
+     * is the floor the contract test enforces for every standard control.
+     */
+    expect(presetRule).toContain('min-height: var(--space-2xl);');
     expect(presetRule).not.toContain('overflow: hidden;');
     expect(nameRule).not.toContain('width: max-content;');
     expect(nameRule).toContain('max-width: 100%;');

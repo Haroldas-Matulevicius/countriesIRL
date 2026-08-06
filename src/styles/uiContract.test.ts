@@ -519,6 +519,97 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Assertion 27 - exactly one roving-tabindex writer
+ * ------------------------------------------------------------------ */
+
+/**
+ * A tabindex WRITE, wherever it is spelled: the JSX attribute, d3's `.attr`,
+ * and the raw DOM setter. Line-scoped because every one of these is written on
+ * one line in this codebase, and a multi-line window would have to guess where
+ * the value ends.
+ */
+const TAB_INDEX_WRITE_PATTERN =
+  /(?:\.attr\(\s*['"]tabindex['"]\s*,|setAttribute\(\s*['"]tabindex['"]\s*,|tabIndex=\{)(?<value>.*)$/u;
+
+/**
+ * A STATIC tab stop writes a bare literal `0` or `-1` and nothing else.
+ * Anything that computes the value per element - a callback, a ternary, a
+ * variable - is a roving writer.
+ */
+const STATIC_TAB_INDEX_PATTERN = /^\s*['"]?-?[01]['"]?\s*[),}]/u;
+
+function rovingTabIndexWriters(): ReadonlyArray<string> {
+  const writers = new Set<string>();
+
+  productionComponentSources().forEach(([file, source]): void => {
+    stripSourceComments(source)
+      .split('\n')
+      .forEach((line): void => {
+        const match = TAB_INDEX_WRITE_PATTERN.exec(line);
+        if (match === null) {
+          return;
+        }
+        if (STATIC_TAB_INDEX_PATTERN.test(match.groups?.value ?? '')) {
+          return;
+        }
+        writers.add(file);
+      });
+  });
+
+  return [...writers].sort();
+}
+
+describe('Phase 3 one roving-tabindex writer (assertion 27)', (): void => {
+  /**
+   * There is exactly one, restored in commit `074173e`
+   * (`applyRovingTabStop` in `MapCanvas.tsx`), and a second is the regression
+   * class that commit fixed: two writers disagree about which element holds
+   * the single tab stop, so the creator tabs into a control that then hands
+   * focus somewhere else, and every individual control still "works".
+   *
+   * The rail is the obvious place for a second one to appear - six
+   * near-identical icon rows look like a roving group - so its rows are plain
+   * tab stops instead. This is asserted as the SET of files, not as a count:
+   * a count is satisfied by moving the writer, and the point is which file
+   * owns it.
+   */
+  it('has exactly one, and it is the map canvas', (): void => {
+    expect(
+      rovingTabIndexWriters(),
+      'a second production file computes a tabindex per element. The rail ' +
+        'rows are plain tab stops; a roving group there is the regression ' +
+        'commit 074173e fixed.',
+    ).toStrictEqual(['components/MapCanvas.tsx']);
+  });
+
+  /**
+   * The classifier has to be able to tell the two apart, or the assertion
+   * above passes by never recognising anything. Both halves are exercised
+   * against strings in the same test, so `['components/MapCanvas.tsx']` is a
+   * measurement rather than a value the helper can only ever return.
+   */
+  it('separates a computed tabindex from a literal one', (): void => {
+    const classify = (line: string): boolean => {
+      const match = TAB_INDEX_WRITE_PATTERN.exec(line);
+      return (
+        match !== null &&
+        !STATIC_TAB_INDEX_PATTERN.test(match.groups?.value ?? '')
+      );
+    };
+
+    expect(classify('        tabIndex={0}')).toBe(false);
+    expect(classify('        tabIndex={-1}')).toBe(false);
+    expect(classify("    element.setAttribute('tabindex', '-1');")).toBe(false);
+    expect(classify('      tabIndex={isActive ? 0 : -1}')).toBe(true);
+    expect(
+      classify("  paths.attr('tabindex', (candidate): number =>"),
+    ).toBe(true);
+    expect(classify("  row.setAttribute('tabindex', String(next));")).toBe(true);
+    expect(classify('        aria-expanded={isOpen}')).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Assertion 16 - no positional selector on an interactive element
  * ------------------------------------------------------------------ */
 

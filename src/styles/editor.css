@@ -134,7 +134,14 @@
   place-items: center;
 }
 
-.tool-rail__row:hover:not(:disabled) {
+/*
+ * Hover applies to the rows that are NOT open. Written as an exclusion rather
+ * than left to the cascade: `:hover` alone outranks the attribute rule below,
+ * so hovering the open tool used to repaint it from Powder back to Porcelain -
+ * the active row silently losing its only state signal under the pointer.
+ * Caught by the e2e that compares the three states for inequality.
+ */
+.tool-rail__row:not([aria-expanded="true"]):hover:not(:disabled) {
   background: var(--themely-porcelain);
 }
 

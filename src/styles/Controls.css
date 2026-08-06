@@ -214,32 +214,51 @@
  * `Magenta` needs more than that - it was clipped at the tile's right edge by
  * the `overflow: hidden` below. A fixed column count cannot know how wide the
  * longest label is, so the count is derived from a minimum track instead: 76px
- * fits every preset name at the workhorse body size, which yields 4 columns in the
- * inspector and 5 on a wider card, with no label ever cut.
+ * fits every preset name at the workhorse body size, which yields 3 columns in
+ * the 280px tool panel and more on a wider surface, with no label ever cut.
  */
 .color-picker__preset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
-  gap: var(--space-xs);
+  gap: var(--space-sm);
 }
 
+/*
+ * UI-SPEC 6. Platinum tile on the panel's Porcelain card, hairline edge, and
+ * an instant hover - the rail's no-transition rule applies to every hoverable
+ * row and tile in the editor, and the shared declaration lives in `editor.css`.
+ */
 .color-picker__preset {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: var(--space-3xl);
+  min-height: var(--space-2xl);
   padding: var(--space-sm) var(--space-xs);
+  border-color: transparent;
+  border-radius: var(--radius-control);
+  background: var(--themely-platinum);
+  box-shadow: var(--hairline);
   flex-direction: column;
   gap: var(--space-xs);
 }
 
+.color-picker__preset:hover:not(:disabled) {
+  background: var(--themely-porcelain);
+}
+
+/*
+ * 24x24 at 8px radius with a FIXED hairline edge. `--swatch-border` is
+ * mode-invariant on purpose and is the same value the exported legend swatch
+ * uses: it is what keeps a WHITE preset visible on a Platinum tile, in either
+ * theme, and a flipping border would lose that in one of the two.
+ */
 .color-picker__preset-swatch {
   display: block;
   flex: 0 0 auto;
-  width: var(--space-xl);
-  height: var(--space-xl);
+  width: var(--space-lg);
+  height: var(--space-lg);
   border: var(--border-width) solid var(--swatch-border);
   border-radius: var(--radius-control);
 }
@@ -260,20 +279,19 @@
 }
 
 .color-picker__preset--active {
-  border-color: var(--themely-slate-blue);
-  box-shadow: inset 0 0 0 var(--border-width) var(--themely-slate-blue);
+  background: var(--themely-powder);
 }
 
+/*
+ * The check sits at the tile's trailing-top corner ON THE TILE BACKGROUND, not
+ * on the swatch: the swatch carries a creator-chosen colour and a glyph drawn
+ * over it is invisible against roughly half of them.
+ */
 .color-picker__active-check {
   position: absolute;
   top: var(--space-xs);
   right: var(--space-xs);
   display: grid;
-  width: var(--space-lg);
-  height: var(--space-lg);
-  border: var(--border-width) solid var(--hairline-color);
-  border-radius: var(--radius-control);
-  background: var(--themely-powder);
   color: var(--themely-midnight-ink);
   place-items: center;
 }
@@ -326,9 +344,31 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * `Apply Color` - the Colors panel's ONE Apple Blue surface (D-05). Filled from
+ * the mode-invariant `--accent-fill`, not `--themely-apple-blue`: white on
+ * `#2997ff` measures 3.02:1 in dark mode, and the contrast matrix rates
+ * `--themely-on-accent` only against the fixed pair.
+ *
+ * Keyed on its own role class. The exact selector `button:first-child` once
+ * meant reordering would have moved an accent onto a `Dismiss` button with
+ * nothing failing.
+ */
 .color-picker__custom button {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
+}
+
+.color-picker__submit:not(:disabled) {
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--themely-on-accent);
+  font-weight: var(--text-subheading-weight);
+}
+
+.color-picker__submit:not(:disabled):hover {
+  border-color: var(--accent-fill-hover);
+  background: var(--accent-fill-hover);
 }
 
 /*
