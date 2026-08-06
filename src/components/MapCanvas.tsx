@@ -8,7 +8,7 @@ import {
   useRef,
 } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-import { geoPath, select } from 'd3';
+import { geoPath, select, type Selection } from 'd3';
 
 import type {
   CameraState,
@@ -202,6 +202,19 @@ function makeOutgoingSceneInert(group: SVGGElement): void {
     element.setAttribute('tabindex', '-1');
     element.setAttribute('class', 'outgoing-scene-path');
   });
+}
+
+// The one writer of the roving tab stop: exactly one logical path (the active
+// country's) carries tabindex 0, every other path -1.
+function applyRovingTabStop(
+  paths: Selection<SVGPathElement, WrappedScenePath, SVGGElement, unknown>,
+  activeEntityId: CountryId | null,
+): void {
+  paths.attr('tabindex', (candidate): number =>
+    candidate.kind === 'logical' && candidate.entityId === activeEntityId
+      ? 0
+      : -1,
+  );
 }
 
 function isSvgPathElement(
@@ -550,18 +563,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         .attr('focusable', (path): string =>
           path.isFocusable ? 'true' : 'false',
         )
-        .attr('tabindex', -1)
         .on('click.map', (event: MouseEvent, path): void => {
           if (!path.feature.isSelectable) {
             return;
           }
           event.stopPropagation();
           activeCountryIdRef.current = path.entityId;
-          paths.attr('tabindex', (candidate): number =>
-            candidate.kind === 'logical' && candidate.entityId === path.entityId
-              ? 0
-              : -1,
-          );
+          applyRovingTabStop(paths, path.entityId);
           callbacksRef.current.onSelectCountry(path.entityId);
           if (path.kind === 'decorative') {
             focusCountry(path.entityId);
@@ -614,11 +622,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
             return;
           }
           activeCountryIdRef.current = path.entityId;
-          paths.attr('tabindex', (candidate): number =>
-            candidate.kind === 'logical' && candidate.entityId === path.entityId
-              ? 0
-              : -1,
-          );
+          applyRovingTabStop(paths, path.entityId);
           event.currentTarget.classList.add(FOCUSED_CLASS);
           callbacksRef.current.onTooltipChange(
             keyboardTooltipData(
@@ -680,14 +684,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
             return;
           }
           activeCountryIdRef.current = nextFeature.entityId;
-          paths.attr('tabindex', (candidate): number =>
-            candidate.kind === 'logical' &&
-            candidate.entityId === nextFeature.entityId
-              ? 0
-              : -1,
-          );
+          applyRovingTabStop(paths, nextFeature.entityId);
           focusCountry(nextFeature.entityId);
         });
+
+      // Applied in the same layout effect as the join: leaving every rebuilt
+      // path at -1 until the later color effect ran opened a one-frame window
+      // with no tabbable country. A stale active id (not in this scene) keeps
+      // every path at -1 exactly as before; the color effect repairs it.
+      applyRovingTabStop(paths, activeCountryIdRef.current);
 
       if (!mapReadyMeasuredRef.current) {
         const cancelPaintMeasurement = runAfterPaint((): void => {
@@ -753,10 +758,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           }
           const color = getSceneFeatureColor(path.feature, colors);
           return `${path.feature.properties.name}, current color ${color}`;
-        })
-        .attr('tabindex', (path): number =>
-          path.kind === 'logical' && path.entityId === activeCountryId ? 0 : -1,
-        );
+        });
+
+      applyRovingTabStop(paths, activeCountryId);
 
       // Updated in place rather than removed and re-appended: this runs on
       // every color, selection, and history change across ~750 wrapped paths,
