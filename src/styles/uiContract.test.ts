@@ -378,6 +378,95 @@ describe('Phase 3 UI contract parser', (): void => {
 });
 
 /* ------------------------------------------------------------------ *
+ * Assertion 20 - the globbed stylesheet set equals the imported set
+ * ------------------------------------------------------------------ */
+
+/**
+ * The entry module is the ONLY place a stylesheet enters the bundle, so it is
+ * the only list worth comparing against. Parsed rather than restated: a second
+ * hand-maintained list would need the same gate this one is.
+ */
+const ENTRY_MODULE = 'main.tsx';
+const STYLES_IMPORT_PREFIX = './styles/';
+
+function entrySource(): string {
+  const found = COMPONENT_SOURCES.find(
+    ([name]): boolean => name === ENTRY_MODULE,
+  );
+  if (found === undefined) {
+    throw new Error(`"${ENTRY_MODULE}" is not in the discovered source set.`);
+  }
+  return found[1];
+}
+
+/** Every `.css` specifier `main.tsx` imports, verbatim and in source order. */
+function rawStyleSheetImports(): string[] {
+  return [
+    ...entrySource().matchAll(
+      /import\s+['"](?<specifier>[^'"]+\.css)['"]/gu,
+    ),
+  ].map((match): string => match.groups?.specifier ?? '');
+}
+
+describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)', (): void => {
+  /**
+   * The Phase 2 contract test hard-coded four filenames, so a fifth stylesheet
+   * was invisible to every assertion in it while still shipping to a creator.
+   * `03-03` replaced that with the directory walk above, which fixes discovery.
+   *
+   * This fixes the other direction. A file that is globbed and asserted but
+   * never imported is dead weight that LOOKS covered: every rule in it passes
+   * every gate here, and none of it reaches a browser. `03-10` split one
+   * stylesheet into eight, which is exactly the moment one of the eight gets
+   * left out of the entry module.
+   */
+  it('imports every discovered stylesheet, and discovers every imported one', (): void => {
+    const raw = rawStyleSheetImports();
+
+    // A regex that matched nothing would make both sets empty and the
+    // comparison below vacuously true, so the parse is checked first.
+    expect(raw.length).toBeGreaterThan(3);
+
+    raw.forEach((specifier): void => {
+      expect(
+        specifier.startsWith(STYLES_IMPORT_PREFIX),
+        `${ENTRY_MODULE} imports "${specifier}" from outside ` +
+          `${STYLES_IMPORT_PREFIX}, where nothing in this file can see it.`,
+      ).toBe(true);
+    });
+
+    const imported = raw
+      .map((specifier): string => specifier.slice(STYLES_IMPORT_PREFIX.length))
+      .sort();
+
+    /*
+     * Compared as SETS of paths, not as counts. A count equality is satisfied
+     * by any rename that swaps one file for another - which is precisely what a
+     * split like this one does file by file - and it would report the swap as
+     * covered.
+     */
+    expect(
+      imported,
+      'The stylesheets under src/styles and the stylesheets main.tsx imports ' +
+        'must be the same set. A globbed file that nothing imports ships no ' +
+        'CSS while passing every assertion here; an imported file that the ' +
+        'walk cannot see ships CSS that no assertion here has read.',
+    ).toStrictEqual([...STYLE_SHEET_NAMES]);
+  });
+
+  /**
+   * The import list is also a cascade decision. `editor.css` must be last, so
+   * the shell's structural rules win over the surface rules of equal
+   * specificity, and an alphabetised list would move it into the middle.
+   */
+  it('imports the shell sheet last', (): void => {
+    const raw = rawStyleSheetImports();
+
+    expect(raw[raw.length - 1]).toBe(`${STYLES_IMPORT_PREFIX}editor.css`);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Assertion 10 - the panel track (D-19)
  * ------------------------------------------------------------------ */
 
