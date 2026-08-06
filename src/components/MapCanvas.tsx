@@ -34,6 +34,7 @@ import {
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
 import { getEffectiveCountryColor } from '../utils/colors';
+import { assertUniqueSceneIdentities } from '../utils/scene';
 import { getBoundaryLine, getMapAccessibleLabel } from '../utils/periods';
 import {
   createSafeMapPath,
@@ -213,30 +214,16 @@ function getInteractionId(feature: SceneFeature): CountryId {
   return feature.entityId;
 }
 
+// Keyed on `isSelectable` deliberately: that is the key logical interactive
+// paths are built from below, so it is the key a duplicate `data-country-id`
+// would come in through. See `assertUniqueSceneIdentities` in `utils/scene`.
 function assertUniqueMapSceneIdentities(
   features: ReadonlyArray<SceneFeature>,
 ): void {
-  const featureIds = new Set<CountryId>();
-  const sourceFeatureIds = new Set<string>();
-  const selectableEntityIds = new Set<CountryId>();
-
-  for (const feature of features) {
-    if (featureIds.has(feature.id)) {
-      throw new Error('duplicate-scene-feature-id');
-    }
-    if (sourceFeatureIds.has(feature.sourceFeatureId)) {
-      throw new Error('duplicate-scene-source-feature-id');
-    }
-    if (feature.isSelectable && selectableEntityIds.has(feature.entityId)) {
-      throw new Error('duplicate-scene-selectable-entity-id');
-    }
-
-    featureIds.add(feature.id);
-    sourceFeatureIds.add(feature.sourceFeatureId);
-    if (feature.isSelectable) {
-      selectableEntityIds.add(feature.entityId);
-    }
-  }
+  assertUniqueSceneIdentities(
+    features,
+    (feature): boolean => feature.isSelectable,
+  );
 }
 
 export function getSelectableSceneFeatures(

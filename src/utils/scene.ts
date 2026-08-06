@@ -36,8 +36,17 @@ function withBoundaryMode(
   };
 }
 
-function assertUniqueSceneIdentities(
+/**
+ * One mechanism, two callers with two deliberate keys. Scene composition
+ * asserts with the strict `hasSelectableIdentity` (its selectable-set
+ * contract); `MapCanvas` asserts with plain `isSelectable`, because that is
+ * the key it builds logical interactive paths from - a duplicate there means
+ * a duplicate `data-country-id` in the DOM even when the strict identity
+ * check would not fire.
+ */
+export function assertUniqueSceneIdentities(
   features: ReadonlyArray<SceneFeature>,
+  isInteractive: (feature: SceneFeature) => boolean = hasSelectableIdentity,
 ): void {
   const featureIds = new Set<string>();
   const sourceFeatureIds = new Set<string>();
@@ -50,16 +59,13 @@ function assertUniqueSceneIdentities(
     if (sourceFeatureIds.has(feature.sourceFeatureId)) {
       throw new Error('duplicate-scene-source-feature-id');
     }
-    if (
-      hasSelectableIdentity(feature) &&
-      selectableEntityIds.has(feature.entityId)
-    ) {
+    if (isInteractive(feature) && selectableEntityIds.has(feature.entityId)) {
       throw new Error('duplicate-scene-selectable-entity-id');
     }
 
     featureIds.add(feature.id);
     sourceFeatureIds.add(feature.sourceFeatureId);
-    if (hasSelectableIdentity(feature)) {
+    if (isInteractive(feature)) {
       selectableEntityIds.add(feature.entityId);
     }
   }
