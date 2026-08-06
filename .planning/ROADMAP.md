@@ -222,6 +222,19 @@ to be *closed*, but must not disturb their evidence: the acceptance matrix binds
 so if `02-28` is still pending when Phase 3 lands, the owner performs the matrix against the
 preserved tag/commit, not against the restyled HEAD.
 
+**Transition-readiness constraint (binding for every Phase 3 plan):** the restyled editor is
+built **embed-ready** for the planned Themely transition (~1–2 months out) without doing any
+integration now. Concretely: the canvas + HUD assemble into one mountable editor component
+behind an explicit props boundary — it never assumes it owns `document`/`window` chrome beyond
+its mount point; persistence is consumed through a storage-adapter interface (the localStorage
+implementation stays the only one shipped); the data asset base path is a parameter, not a
+hard-coded literal scattered through fetch calls; new design tokens are namespaced so they can
+coexist with a host app's stylesheet. No auth/entitlement awareness is added — that belongs to
+the future host. Plans `03-02`/`03-04` carry the boundary; `/gsd:plan-phase 3` turns each point
+into a RED-provable gate (e.g. a grep gate on hard-coded `/data/` literals outside the config
+home). Embedding itself remains outside scope and needs new explicit authorization
+(§ Beyond v1.1).
+
 **Plans (excruciating breakdown — final wording at `/gsd:plan-phase 3`):**
 
 1. `03-01` **Design.md + design-token specification.** Create `Design.md` (CLAUDE.md already
