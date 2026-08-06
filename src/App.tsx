@@ -18,7 +18,7 @@ import type {
   SnapshotId,
 } from './types/composition';
 import type { ColorMap, CountryId, GeoFeature } from './types/map';
-import type { ToastMessage, ToolId } from './types/ui';
+import type { EditorThemeMode, ToastMessage, ToolId } from './types/ui';
 import { ColorPicker } from './components/ColorPicker';
 import { CompositionBar } from './components/CompositionBar';
 import { Controls } from './components/Controls';
@@ -42,6 +42,7 @@ import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
 import { HudFooter } from './components/editor/HudFooter';
 import { HudHeader } from './components/editor/HudHeader';
+import { ThemeToggle } from './components/editor/ThemeToggle';
 import { ToolPanel } from './components/editor/ToolPanel';
 import { ToolRail } from './components/editor/ToolRail';
 import { useCompositionExportTransaction } from './hooks/useCompositionExportTransaction';
@@ -215,6 +216,13 @@ export default function App(): JSX.Element {
   const [openTool, setOpenTool] = useState<ToolId | null>(null);
   const toolRowsRef = useRef(new Map<ToolId, HTMLButtonElement | null>());
   const openedByToolRef = useRef<ToolId | null>(null);
+  /**
+   * D-30: the creator's explicit theme choice, and the only writer of the
+   * mount root's `.dark` class. It is SEEDED from the boundary prop rather
+   * than from an operating-system query - there is no OS listener anywhere in
+   * the dark path, so a host that owns `.dark` has nothing here to fight.
+   */
+  const [themeMode, setThemeMode] = useState<EditorThemeMode>(initialThemeMode);
   const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
     () => colors,
   );
@@ -686,6 +694,10 @@ export default function App(): JSX.Element {
     });
   }, []);
 
+  const handleToggleTheme = useCallback((): void => {
+    setThemeMode((mode): EditorThemeMode => (mode === 'dark' ? 'light' : 'dark'));
+  }, []);
+
   const handleCloseToolPanel = useCallback((): void => {
     const openedBy = openedByToolRef.current;
     openedByToolRef.current = null;
@@ -868,8 +880,8 @@ export default function App(): JSX.Element {
   /*
    * UI-SPEC 3: exactly ONE `Controls` instance is mounted, and it is the rail
    * footer's. That is what keeps `Export PNG` the only filled action in the
-   * composed DOM by construction: `controls__action--primary` exists in one
-   * component, and one instance of it is on screen. Undo and Redo are rail
+   * composed DOM by construction: the filled primary role class is rendered by
+   * one component, and one instance of it is on screen. Undo and Redo are rail
    * rows, `Save or Load Maps` is the `saved` tool, and `Reset All Colors` lives
    * in the Colors panel - so the rail variant carries the primary action alone.
    */
@@ -1123,9 +1135,7 @@ export default function App(): JSX.Element {
    */
   return (
     <div
-      className={
-        initialThemeMode === 'dark' ? 'map-editor dark' : 'map-editor'
-      }
+      className={themeMode === 'dark' ? 'map-editor dark' : 'map-editor'}
       data-panel-open={openTool !== null ? 'true' : 'false'}
     >
       {/*
@@ -1146,7 +1156,14 @@ export default function App(): JSX.Element {
         header={
           <HudHeader compositionName={compositionName} isDirty={isDirty} />
         }
-        footer={<HudFooter exportAction={globalActions} />}
+        footer={
+          <HudFooter
+            exportAction={globalActions}
+            themeToggle={
+              <ThemeToggle mode={themeMode} onToggle={handleToggleTheme} />
+            }
+          />
+        }
       />
 
       {/*

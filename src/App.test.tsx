@@ -560,6 +560,58 @@ describe('App composition root', () => {
     );
   });
 
+  it('puts a neutral theme toggle in the footer that names its destination', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    /*
+     * D-30. The accessible name states the DESTINATION - "dark theme" on the
+     * control that switches TO dark reads, to a screen-reader user, as a label
+     * for where they already are - and `aria-pressed` carries the current mode.
+     */
+    const toggle =
+      /<button[^>]*data-theme-toggle="true"[^>]*>/u.exec(markup)?.[0] ?? '';
+
+    expect(toggle).toContain('aria-label="Switch to dark theme"');
+    expect(toggle).toContain('aria-pressed="false"');
+    expect(markup).not.toContain('Switch to light theme');
+
+    // D-05: the rail's ONE Apple Blue surface is Export. The toggle is neutral,
+    // so it must not carry the primary role class.
+    const toggleIndex = markup.indexOf('data-theme-toggle="true"');
+    const footerIndex = markup.indexOf('class="tool-rail__footer"');
+    expect(toggleIndex).toBeGreaterThan(footerIndex);
+    expect(markup.match(/controls__action--primary/gu)).toHaveLength(1);
+    expect(
+      /<button[^>]*data-theme-toggle="true"[^>]*controls__action--primary/u.test(
+        markup,
+      ),
+    ).toBe(false);
+  });
+
+  it('seeds the mount root class from the boundary prop, never from the OS', () => {
+    /*
+     * The theme is state now, and its INITIAL value comes from the props
+     * boundary. Asserted as a source scan as well as a render, because the
+     * defect this forbids - `matchMedia('(prefers-color-scheme: dark)')` - is
+     * one line and would read as a helpful default.
+     */
+    const source = readFileSync(APP_SOURCE_URL, 'utf8');
+
+    expect(source).toContain('useState<EditorThemeMode>(initialThemeMode)');
+    expect(source).not.toContain('prefers-color-scheme');
+    expect(source).not.toContain('documentElement');
+
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+    const markup = renderApp();
+
+    expect(markup).toContain('class="map-editor"');
+    expect(markup).not.toContain('map-editor dark');
+  });
+
   it('never constructs a camera controller of its own', () => {
     // Structural, because the defect is an import: a second controller would
     // paint a second camera and the visible SVG would stop following the

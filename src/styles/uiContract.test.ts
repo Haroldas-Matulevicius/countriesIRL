@@ -970,6 +970,38 @@ describe('Phase 3 dark mode is a class, not a preference (assertion 1)', (): voi
     });
   });
 
+  /**
+   * The other half of the same rule. `03-06` puts the theme in React state and
+   * gives it a control, so from here on the cheapest way to reintroduce the
+   * defect is a one-line `matchMedia('(prefers-color-scheme: dark)')` in a
+   * hook - which reads as a helpful default and is invisible to the stylesheet
+   * scan above.
+   *
+   * Production source only: the assertions that FORBID the query have to be
+   * able to name it, and counting a test as a violation is how a gate goes red
+   * the first time anyone covers the rule it enforces.
+   */
+  it('reads no operating-system colour preference in any production module', (): void => {
+    const offenders = [
+      ...collectFiles(SOURCE_DIRECTORY, '.ts'),
+      ...collectFiles(SOURCE_DIRECTORY, '.tsx'),
+    ]
+      .filter((name): boolean => !/\.test\.tsx?$/u.test(name))
+      .filter((name): boolean =>
+        stripSourceComments(
+          fileSystem().readFileSync(new URL(name, SOURCE_DIRECTORY), 'utf8'),
+        ).includes(OS_COLOR_SCHEME_FEATURE),
+      )
+      .sort();
+
+    expect(
+      offenders,
+      'D-30: the theme is an explicit creator choice persisted through the ' +
+        'storage adapter, and light is the absent-key default. An OS query ' +
+        'here is a second writer no control and no host can override.',
+    ).toStrictEqual([]);
+  });
+
   it('keeps the four legitimate preference queries', (): void => {
     const source = allStyleSheetSource();
 
