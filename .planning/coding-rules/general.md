@@ -221,7 +221,11 @@ result for one of those, and do not accept a manual checklist where a gate would
 
 **Color updates instantly** — no re-render delays. Use React.memo on MapCanvas if needed.
 
-**PNG export in <3 seconds** — html2canvas timeout should never fire.
+**PNG export in <3 seconds.** ~~html2canvas timeout should never fire.~~ **Corrected 2026-08-06 —
+there is no third-party rasteriser.** `html2canvas` was removed by plan `03-11` (D-34); the export
+path is owned in `src/utils/export.ts` — sanitized clone → `data:image/svg+xml` URL → `drawImage`
+→ `toBlob`. There is no rasteriser timeout to fire. The budget still stands; it is now bounded by
+image decode and PNG encode. See [`export.md`](export.md).
 
 **Undo/redo instant.** Reducer dispatch → state update → re-render all within <100ms.
 
@@ -453,7 +457,7 @@ if a browser is not in the project's Playwright configuration, no document may s
 
 ---
 
-*Last updated: 2026-08-06 — Live Invariant 9 extended to the class-based dark mode: the mode-invariant set now names `--tooltip-*`, `--swatch-border`, and `--accent-fill*` alongside `--map-*`, `.dark` is called out as the likeliest hiding place, and enforcement moved to `src/styles/uiContract.test.ts` after the Phase 2 contract test was retired (plan 03-04).*
-*Last updated: 2026-07-26 — became the canonical home for the Live Invariants and the Immutable Safety Constraints (previously triplicated across `STATE.md`, `HANDOFF.json`, and the phase `.continue-here.md`); added the destructive gsd-sdk planning-file verbs to §Git safety. Earlier the same day, Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
+*Last updated: 2026-08-06 (later) — §Performance Constraints corrected by the `03-12` independent review: the PNG-export budget no longer cites an html2canvas timeout, because `html2canvas` was removed by plan `03-11` (D-34) and the export path is owned in `src/utils/export.ts`. The rule stands; only its retired reason changed. Filed as finding F-3 in `03-12-REVIEW.md`.*
+*Last updated: 2026-08-06 + earlier, condensed — Live Invariant 9 extended to the class-based dark mode: the mode-invariant set now names `--tooltip-*`, `--swatch-border`, and `--accent-fill*` alongside `--map-*`, `.dark` is called out as the likeliest hiding place, and enforcement moved to `src/styles/uiContract.test.ts` after the Phase 2 contract test was retired (plan 03-04). 2026-07-26: became the canonical home for the Live Invariants and the Immutable Safety Constraints (previously triplicated across `STATE.md`, `HANDOFF.json`, and the phase `.continue-here.md`); added the destructive gsd-sdk planning-file verbs to §Git safety. Earlier the same day, Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/general.md`.*
