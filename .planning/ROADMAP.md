@@ -332,6 +332,38 @@ exempted, not parameterised** — parameterising them would quietly widen the ap
       **immutable Phase 2 evidence — annotate, never rewrite**; resolving it is filed against
       Phase 2 and is **not** Phase 3 work. Phase 3 must not cite or repeat it.
 
+**Plan files (written 2026-08-06; execution ledger — tick by hand, never with a gsd-sdk verb):**
+
+The numbered breakdown above has eleven items; the plan set has **twelve files**, because item 1
+was split into `03-01` (commitments, spike, supply chain) and `03-02` (the authored contract) on
+plan-checker advice — 8 tasks with no shared subject was over budget. **Every roadmap item *n* ≥ 2
+is plan `03-{n+1}`.** This table is the authoritative mapping.
+
+| Wave | Plan | Roadmap item | Objective | Autonomous |
+|---|---|---|---|---|
+| 1 | [ ] `03-01-PLAN.md` | 1a | Tag `fe5f946` (D-31) · OQ-1 spike · D-01 one-way gate · R-V1 owner gate · `motion@12.40.0` + Inter bytes | **no** — D-01 + R-V1 |
+| 2 | [ ] `03-02-PLAN.md` | 1b | Motion lockstep · vendored icons + provenance (R-V2) · `Design.md` | yes |
+| 3 | [ ] `03-03-PLAN.md` | 2 | Shell: `.map-editor` grid, rail/panel tracks, D-32 export frame; `uiContract.test.ts` created | yes |
+| 4 | [ ] `03-04-PLAN.md` | 3 | Token replacement: Themely cool `:root` + Lights Out `.dark`, delete-never-alias, assertions 1-9/17/19/26 | yes |
+| 5 | [ ] `03-05-PLAN.md` | 4 | `MapEditor` props boundary, app-bar/inspector dissolve, `editorConfig.ts`, transition-readiness gates | yes |
+| 6 | [ ] `03-06-PLAN.md` | 5 | Icon rail + flyout, HUD header/footer, theme toggle, colours panel; assertions 15 (rail) / 27 | yes |
+| 7 | [ ] `03-07-PLAN.md` | 6 | Period HUD + rehomed live region, saved maps, legend/countries panels; assertions 13/14/15/23 | yes |
+| 8 | [ ] `03-08-PLAN.md` | 7 | Floating cluster, tooltip ink chip, Kosovo cursor discipline; assertion 12 | yes |
+| 9 | [ ] `03-09-PLAN.md` | 8 | Narrow width + preference pass; **re-arms assertion 24 (D-35)**; assertion 18 | yes |
+| 10 | [ ] `03-10-PLAN.md` | 9 | `Controls.css` split + dead-style sweep; assertions 20/21 | yes |
+| 11 | [ ] `03-11-PLAN.md` | 10 | Own the SVG→PNG path, remove `html2canvas`, legend typography; assertion 25 + **assertion 24 re-proven against the new path** | **no** — D-34 + D-25 one-way gates |
+| 12 | [ ] `03-12-PLAN.md` | 11 | Independent non-author review of the aggregate diff + full Chrome gate | **no** — reviewer-independence gate |
+
+Waves are strictly sequential: every plan shares `files_modified` with its predecessor, and
+`src/utils/export.ts` was deliberately not parallelised with the responsive gate that tests it.
+
+**Two notes for whoever executes this.** `03-11` deliberately was **not** split despite its size:
+its two one-way checkpoints and the non-negotiable probe battery must sit in one commitment chain,
+because a plan boundary between the `export.ts` rewrite and its proof would let a partially-proven
+export path land at a commit boundary. And every plan carries `estimate.confidence: low` — fewer
+than three completed phases carry actuals here, so **weigh the task and file counts above the
+token figures.**
+
 **Key decisions — all resolved before planning** (`03-CONTEXT.md` D-01…D-35): the app bar
 **dissolves entirely** (D-11); the narrow-width treatment is a **bottom sheet** over a bottom
 bar (D-20); the accent is **Apple Blue `#0071e3`**, reserved for one element per surface
@@ -663,7 +695,7 @@ reversals (insets, LLM import, deployment) are added mid-phase.
 |---|---|---|---|---|
 | 1 | Foundation & Modern Map | ✅ **CLOSED** 2026-07-22 | 22/22 | 73/73 active must-haves verified; 7 deployment-only must-haves deferred (01-16, 01-17); 18/18 requirements satisfied. Chrome 150 + Edge 150 accepted, localhost-only. → [archive](milestones/v1.0/ROADMAP-ARCHIVE.md#phase-1-foundation--modern-map-115-weeks) · [phase dir](milestones/v1.0/phases/01-foundation-modern-map-1-1-5-weeks/) |
 | 2 | Region Variants & Advanced Features | 🔄 **EXECUTING** — engineering complete, 2 owner gates open | 26/36 | World canvas, camera, Locate, legend, composition persistence, export transaction. Historical snapshots **deferred** → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md) |
-| 3 | Clean UI Overhaul | 📋 **PLANNED** (v1.1) — ready to execute | 0/11 | Full-bleed canvas + icon rail/flyout HUD, Themely token system, Design.md, dark mode, owned SVG→PNG export path. **4 roadmap amendments landed 2026-08-06.** Context `03-CONTEXT.md` (D-01…D-35) · research `03-RESEARCH.md` · design contract `03-UI-SPEC.md` (28 RED-provable assertions). |
+| 3 | Clean UI Overhaul | 📋 **PLANNED** (v1.1) — ready to execute | 0/12 | Full-bleed canvas + icon rail/flyout HUD, Themely token system, Design.md, dark mode, owned SVG→PNG export path. **4 roadmap amendments landed 2026-08-06.** Context `03-CONTEXT.md` (D-01…D-35) · research `03-RESEARCH.md` · design contract `03-UI-SPEC.md` (28 RED-provable assertions). **12 plan files** — the § Phase 3 ledger maps them to the eleven numbered items. |
 | 4 | Visual & Cartographic System | ⏳ **PENDING** (v1.1) | 0/0 | Sequential ramps, water presets, interior-border mesh, gradient bands, text tools, legend overhaul. |
 | 5 | Data-Driven Maps | ⏳ **PENDING** (v1.1) | 0/0 | CSV import, classed choropleth engine, value labels, auto range legend. LLM import owner-gated, not scheduled. |
 | 6 | Polish & Launch | ⏳ **PENDING** (v1.1) | 0/0 | Onboarding, shortcuts, WCAG, perf, guide, v1.1 acceptance. Deployment/insets/LLM are explicit owner decisions. |
