@@ -138,6 +138,7 @@ marked resolved.
 | `.planning/ARCHIVES.md` | Archive navigation index + `.planning/` file-hygiene conventions | Before looking for anything historical. **Grep the archives first, read narrowly.** |
 | `.planning/REQUIREMENTS.md` | Functional / non-functional / data / acceptance criteria | Reference for feature scope. **Original requirement text is never rewritten** — F2/F3/F7 carry supersession annotations, and Phase 1 Release Acceptance is immutable evidence. |
 | `.planning/phases/02-.../.continue-here.md` | Session resumption only: current position, next action, working-tree hazards | Start of any Phase 2 session. It points at the canonical homes rather than copying them. |
+| `Design.md` (repo root) | The **normative** design contract Phase 3 implements against: token tables vendored verbatim from Themely, the mode-invariant export firewall, the ten type roles, the accent budget, the CountriesIRL-only anatomy, the post-D-34 export-unsafe reason | Before writing or reviewing any CSS, token, type-role, icon, or motion change. **It outranks a component file, and `03-UI-SPEC.md` outranks it** — a disagreement between the two is reported, never silently resolved. |
 | `.planning/PROJECT.md` | Vision, problem, solution, target users, constraints | Shipped; reference only. |
 
 ### GSD files (auto-loaded by GSD commands — don't hand-load)
@@ -150,7 +151,7 @@ marked resolved.
 |---|---|
 | `.planning/CODEX_PROMPT.md` · `.planning/PHASE1_CODEX_BRIEF.md` | **Spent Phase 1 inputs, kept for provenance only.** Frozen Phase 1 artifacts cite them by path, so they stay put. They describe a Europe-only app with a Vercel deployment target — neither is true now. Load only when auditing Phase 1 evidence. |
 | `.planning/phases/02-…/02-RESEARCH.md` · `02-PATTERNS.md` · `02-UI-SPEC.md` · `02-VALIDATION.md` | Planning a change inside the surface they cover. These are large (50–80KB each) — grep them, never read one whole. |
-| `Design.md` | **Does not exist yet.** Create it when Phase 3 visual polish starts. |
+| `.planning/phases/03-…/03-CONTEXT.md` · `03-RESEARCH.md` · `03-UI-SPEC.md` | Planning or executing a Phase 3 change. Larger still (90–140KB each) — grep them, never read one whole. `03-UI-SPEC.md` is the **approved** contract and outranks `Design.md` on any disagreement. |
 
 There is **no** `.planning/codebase/` directory and no `.planning/PHASE2_PLANNING.md`. Rows for
 both were carried in this table for months; neither file has ever been committed. Removed
@@ -215,7 +216,7 @@ Every subsystem owns a rules file, and the rule lands with the code:
 
 ---
 
-*Last updated: 2026-07-26 — documentation pass: removed the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), pointed the guardrails at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, added the destructive gsd-sdk verbs and the unverified-browser rule, and load-gated the spent Phase 1 inputs.*
-*Last updated: 2026-07-26 — Phase 2 routing: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, and documentation-as-you-build (plan 02-25).*
+*Last updated: 2026-08-06 — `Design.md` exists. Its routing row moved out of the load-gated table (where it read "**Does not exist yet**") into the always-relevant engine docs as the normative design contract, with the precedence rule stated: `03-UI-SPEC.md` outranks it, and it outranks a component file. The Phase 3 planning docs joined the load-gated table at 90–140KB each (plan 03-02).*
+*Last updated: 2026-07-26 — Phase 2 routing plus the documentation pass: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, documentation-as-you-build (plan 02-25); removal of the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), the guardrails re-pointed at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, the destructive gsd-sdk verbs, the unverified-browser rule, and the load-gating of the spent Phase 1 inputs.*
 
 *Full edit history: `git log -p -- CLAUDE.md`.*
