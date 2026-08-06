@@ -273,7 +273,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   const legendText = page.locator('[data-layer="legend"] text');
   await expect(historicalPath).toHaveCount(1);
   await expect(historicalPath).toHaveAttribute('fill', '#DC2626');
-  await expect(legendText).toHaveText('Imperial lands');
+  await expect(legendText).toHaveText('Empire lands');
 
   await historicalPath.press('Enter');
   await openRailTool(page, 'Colors');
@@ -283,7 +283,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
 
   await page.getByRole('button', { name: 'Undo Color Change' }).click();
   await expect(historicalPath).toHaveAttribute('fill', '#DC2626');
-  await expect(legendText).toHaveText('Imperial lands');
+  await expect(legendText).toHaveText('Empire lands');
   // History carries colors and never selection: undo cannot resurrect - or
   // clear - a selection, so the entity is still the one selected target.
   await expect(

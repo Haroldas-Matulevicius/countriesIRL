@@ -826,7 +826,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
   ).toHaveCount(0);
   await expect(historicalPath).toHaveAttribute('fill', '#DC2626');
   await expect(page.locator('[data-layer="legend"] text')).toHaveText(
-    'Imperial lands',
+    'Empire lands',
   );
 
   await openRailTool(page, 'Countries');
@@ -904,7 +904,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
   expect(roundTrip).toMatchObject({
     snapshotId: '1700',
     colors: { [HISTORICAL_ENTITY_ID]: '#DC2626' },
-    legend: { entries: [{ label: 'Imperial lands' }] },
+    legend: { entries: [{ label: 'Empire lands' }] },
   });
   // No phantom color for an entity the scene never contained.
   expect(roundTrip?.colors).toEqual({ [HISTORICAL_ENTITY_ID]: '#DC2626' });
@@ -934,8 +934,8 @@ test('real app round-trips a historical scene with live catalog and exported leg
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveCount(2);
   expect(await page.locator('[data-layer="legend"] text').allTextContents()).toEqual([
-    'Imperial lands',
-    'Imperial lands',
+    'Empire lands',
+    'Empire lands',
   ]);
   await expect(page.getByRole('button', { name: 'Export PNG' })).toBeVisible({
     timeout: 10_000,

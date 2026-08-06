@@ -113,7 +113,11 @@ export function createHistoricalSavedRecord(): Record<string, unknown> {
       },
       snapshotId: '1700',
       legend: {
-        entries: [{ color: '#DC2626', label: 'Imperial lands', order: 0 }],
+        // 12 chars: the maximum two 'large' lines hold under the
+        // Inter-derived wrap (6/line). Was 'Imperial lands' (14), which is
+        // now export-blocked at 'large' by design — re-baselined
+        // deliberately by 03-11 (D-25/OQ-5).
+        entries: [{ color: '#DC2626', label: 'Empire lands', order: 0 }],
         position: { x: 64, y: 720, preset: null },
         theme: 'dark',
         textSize: 'large',
