@@ -419,7 +419,7 @@ describe('createCompositionExportTransaction', (): void => {
       {
         getMapCanvasHandle: vi.fn(() => probe.handle),
         exportMap: vi.fn(async (): Promise<ExportResult> => {
-          throw new Error('html2canvas exploded');
+          throw new Error('rasterisation exploded');
         }),
       },
       calls,

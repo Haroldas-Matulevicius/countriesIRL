@@ -1190,8 +1190,9 @@ describe('Phase 3 toast allowlist is unchanged (assertion 23)', (): void => {
  * Everything the export clone can carry.
  *
  * **The reason, restated for the post-D-34 world.** The Phase 2 justification
- * for this guard was a rasterizer-mismatch argument about html2canvas, and that
- * argument goes false the moment D-34 removes html2canvas from the export path.
+ * for this guard was a rasterizer-mismatch argument about the retired
+ * third-party rasterizer, and that argument went false when D-34 removed it
+ * from the export path.
  * The true reason is stronger, not weaker: the clone is serialised into a
  * `data:image/svg+xml` URL and rasterised as an image, and that image is an
  * ISOLATED DOCUMENT which sees none of the host page's stylesheets. An effect

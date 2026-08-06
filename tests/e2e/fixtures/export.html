@@ -46,8 +46,8 @@
       const DATE_LINE_COUNTRY = 'FJI';
 
       // The export frame is a body-level div holding the sanitized clone.
-      // Snapshot it as it lands so the spec can inspect exactly what
-      // html2canvas was handed, without stubbing anything.
+      // Snapshot it as it lands so the spec can inspect exactly what the
+      // rasteriser was handed, without stubbing anything.
       let lastClone = null;
 
       function summarizeAttributeUse(svg) {
@@ -217,7 +217,7 @@
             };
           },
           failCanvasContext: () => {
-            // A blocked 2D context is how html2canvas fails in the wild.
+            // A blocked 2D context is how rasterisation fails in the wild.
             HTMLCanvasElement.prototype.getContext = () => null;
           },
         };

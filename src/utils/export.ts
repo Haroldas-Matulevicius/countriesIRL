@@ -1,11 +1,13 @@
-import html2canvas from 'html2canvas';
-
 import { DEFAULT_BORDER_COLOR } from '../constants/colors';
 import {
   EXPORT_FRAME_SIZE,
   EXPORT_SCALE,
   EXPORT_SIZE,
 } from '../constants/config';
+import {
+  EXPORT_FONT_FAMILY,
+  buildExportFontFaceCss,
+} from '../styles/interFontFace';
 import type { ExportResult } from '../types/ui';
 
 const EXPORT_BACKGROUND_COLOR = '#FFFFFF';
@@ -24,6 +26,8 @@ const OUTGOING_SCENE_SELECTOR =
   '[data-layer="outgoing-scenes"],[data-layer="outgoing-scene"]';
 const EDITOR_ONLY_SELECTOR = '[data-editor-only]';
 const NON_VISUAL_ELEMENT_SELECTOR = 'title,desc,metadata';
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const SVG_IMAGE_DATA_URL_PREFIX = 'data:image/svg+xml,';
 // Wrapped Pacific copies carry `scene-path` but not `country-path`; both must be
 // normalized or a date-line composition exports with mismatched borders.
 const SCENE_PATH_SELECTOR = 'path.scene-path,path.country-path';
@@ -50,6 +54,132 @@ const SEMANTIC_ONLY_ATTRIBUTES = [
 ] as const;
 
 const ARIA_ATTRIBUTE_PREFIX = 'aria-';
+
+/**
+ * TEST-ONLY suppression seam for the export font embedding. Assertion 25
+ * (tests/e2e/export.spec.ts) exports the same composition twice — once
+ * normally, once with the embedded `@font-face` suppressed — and asserts the
+ * two rasters differ; without this seam that gate cannot go RED. Nothing in
+ * the product writes this flag: it is set only by a Playwright
+ * `addInitScript`/`evaluate`, it is not read from storage, and no
+ * creator-facing control reaches it.
+ */
+export const EXPORT_FONT_FACE_SUPPRESSION_FLAG =
+  '__COUNTRIESIRL_TEST_ONLY_SUPPRESS_EXPORT_FONT_FACE__';
+
+function isExportFontFaceSuppressed(): boolean {
+  return (
+    Reflect.get(globalThis, EXPORT_FONT_FACE_SUPPRESSION_FLAG) === true
+  );
+}
+
+/**
+ * The generalised font-embedding registry (D-34a): family name → `@font-face`
+ * rule with the bytes inlined. Only Inter is registered in Phase 3; Phase 4's
+ * text tools add entries here instead of re-opening the rasterisation path.
+ */
+const EXPORT_FONT_FACE_BUILDERS: ReadonlyMap<string, () => string> = new Map([
+  [EXPORT_FONT_FAMILY, buildExportFontFaceCss],
+]);
+
+const GENERIC_FONT_FAMILY_KEYWORDS: ReadonlySet<string> = new Set([
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  'math',
+  'emoji',
+  'fangsong',
+  'inherit',
+  'initial',
+  'unset',
+]);
+
+function parseFontFamilyList(value: string): string[] {
+  return value
+    .split(',')
+    .map((family: string): string =>
+      family.trim().replaceAll(/^['"]|['"]$/gu, '').trim(),
+    )
+    .filter(
+      (family: string): boolean =>
+        family.length > 0 &&
+        !GENERIC_FONT_FAMILY_KEYWORDS.has(family.toLowerCase()),
+    );
+}
+
+/**
+ * D-34a: collect the distinct named font families this composition actually
+ * references — `font-family` presentation attributes and inline styles — so
+ * the embedding step is "embed each font the composition uses", never a
+ * hard-coded Inter branch.
+ */
+export function collectCompositionFonts(
+  svg: SVGSVGElement,
+): ReadonlyArray<string> {
+  const families: string[] = [];
+  const seen = new Set<string>();
+  const elements: Element[] = [svg, ...svg.querySelectorAll('*')];
+
+  elements.forEach((element: Element): void => {
+    const attributeValue = element.getAttribute('font-family') ?? '';
+    const inlineValue =
+      (element as Partial<SVGElement>).style?.fontFamily ?? '';
+    [attributeValue, inlineValue].forEach((value: string): void => {
+      parseFontFamilyList(value).forEach((family: string): void => {
+        if (!seen.has(family)) {
+          seen.add(family);
+          families.push(family);
+        }
+      });
+    });
+  });
+
+  return families;
+}
+
+/**
+ * Insert one `<style>` carrying an `@font-face` per referenced family the
+ * registry has bytes for, as the clone's FIRST child. The clone is rasterised
+ * from a `data:image/svg+xml` URL — an isolated document that sees no host
+ * stylesheet and can issue no request — so bytes inside the serialised
+ * subtree are the only way any typeface reaches the exported PNG.
+ *
+ * `insertBefore(style, firstChild)` shifts the camera and legend indices
+ * equally, so `isPreservedComposition`'s camera-before-legend order check
+ * still holds; the canonical clone shape in `coding-rules/export.md` permits
+ * this leading `<style>` by name.
+ */
+export function injectExportFontFace(
+  svg: SVGSVGElement,
+  families: ReadonlyArray<string>,
+): void {
+  if (isExportFontFaceSuppressed()) {
+    return;
+  }
+
+  const fontFaceCss = families
+    .map((family: string): string | null => {
+      const buildFontFace = EXPORT_FONT_FACE_BUILDERS.get(family);
+      return buildFontFace === undefined ? null : buildFontFace();
+    })
+    .filter((css: string | null): css is string => css !== null)
+    .join('');
+
+  if (fontFaceCss === '') {
+    return;
+  }
+
+  const style = svg.ownerDocument.createElementNS(SVG_NAMESPACE, 'style');
+  style.textContent = fontFaceCss;
+  svg.insertBefore(style, svg.firstChild);
+}
 
 // `url(#gradient)` in a paint attribute or inline style, and `href="#clip"` on
 // `<use>`, are the two ways an SVG resolves an element by id.
@@ -286,10 +416,40 @@ function createExportFrame(sourceSvg: SVGSVGElement): HTMLDivElement {
   clonedNode.style.display = 'block';
   clonedNode.style.overflow = 'hidden';
 
+  // Injected BEFORE sanitization so the sanitize step is proven to preserve
+  // the <style>: it is not in NON_VISUAL_ELEMENT_SELECTOR, carries no
+  // data-editor-only, and collectReferencedIds already reads <style> text.
+  injectExportFontFace(clonedNode, collectCompositionFonts(clonedNode));
   sanitizeExportClone(clonedNode);
   exportFrame.appendChild(clonedNode);
 
   return exportFrame;
+}
+
+/**
+ * Serialise the sanitized clone into the exact SVG-as-image shape the OQ-1
+ * spike proved in installed Chrome: `"data:image/svg+xml," +
+ * encodeURIComponent(XMLSerializer output)`. The resulting image is an
+ * isolated document — the sandbox boundary that makes the exported PNG
+ * structurally independent of every host stylesheet, theme class, and custom
+ * property, and the reason the fonts must ride inside the subtree.
+ */
+function serialiseCloneToImageUrl(svg: SVGSVGElement): string {
+  const serialised = new XMLSerializer().serializeToString(svg);
+  return `${SVG_IMAGE_DATA_URL_PREFIX}${encodeURIComponent(serialised)}`;
+}
+
+function loadSvgImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise<HTMLImageElement>((resolve, reject): void => {
+    const image = new Image();
+    image.onload = (): void => {
+      resolve(image);
+    };
+    image.onerror = (): void => {
+      reject(new Error('The export SVG image failed to load.'));
+    };
+    image.src = dataUrl;
+  });
 }
 
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -363,23 +523,46 @@ export async function exportMapPng(
 
     document.body.appendChild(exportFrame);
 
-    let canvas: HTMLCanvasElement;
+    // A transient rasterisation failure (image decode, blocked 2D context)
+    // surfaces as the retryable capture-failed outcome; the synchronous
+    // refusals above have already returned and never reach this point.
+    let svgImage: HTMLImageElement;
     try {
-      canvas = await html2canvas(exportFrame, {
-        backgroundColor: EXPORT_BACKGROUND_COLOR,
-        width: EXPORT_FRAME_SIZE,
-        height: EXPORT_FRAME_SIZE,
-        scale: EXPORT_SCALE,
-        windowWidth: EXPORT_FRAME_SIZE,
-        windowHeight: EXPORT_FRAME_SIZE,
-      });
+      svgImage = await loadSvgImage(serialiseCloneToImageUrl(preparedSvg));
     } catch {
       return { ok: false, reason: 'capture-failed' };
     }
 
+    const canvas = document.createElement('canvas');
+    canvas.width = EXPORT_SIZE;
+    canvas.height = EXPORT_SIZE;
+    const renderingContext = canvas.getContext('2d');
+    if (renderingContext === null) {
+      return { ok: false, reason: 'capture-failed' };
+    }
+
+    // Read the dimensions BACK rather than trusting the assignment: a browser
+    // that clamps or zeroes an oversized canvas would otherwise encode a PNG
+    // that is not the contract. Exactly 1080x1080, always.
     if (canvas.width !== EXPORT_SIZE || canvas.height !== EXPORT_SIZE) {
       return { ok: false, reason: 'invalid-dimensions' };
     }
+
+    // Same geometry as the retired pipeline, kept deliberately: the clone's
+    // intrinsic size stays EXPORT_FRAME_SIZE (540) and the context scales by
+    // EXPORT_SCALE (2), so `vector-effect: non-scaling-stroke` still resolves
+    // EXPORT_BORDER_WIDTH in 540-unit viewport space and rasterises to the
+    // same crisp 1.5px line at 1080 the border contract documents.
+    renderingContext.fillStyle = EXPORT_BACKGROUND_COLOR;
+    renderingContext.fillRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
+    renderingContext.scale(EXPORT_SCALE, EXPORT_SCALE);
+    renderingContext.drawImage(
+      svgImage,
+      0,
+      0,
+      EXPORT_FRAME_SIZE,
+      EXPORT_FRAME_SIZE,
+    );
 
     let blob: Blob | null;
     try {

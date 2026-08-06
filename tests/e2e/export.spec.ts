@@ -88,7 +88,7 @@ async function readClone(page: Page): Promise<CloneSummary> {
     (): CloneSummary | null => window.__exportFixture.lastClone,
   );
   if (summary === null) {
-    throw new Error('No export clone was handed to html2canvas.');
+    throw new Error('No export clone was handed to the rasteriser.');
   }
   return summary;
 }
@@ -240,7 +240,10 @@ test.describe('PNG export', (): void => {
     expect(clone.svgCount).toBe(1);
     // Chromium serializes the opaque white frame background as rgb().
     expect(clone.frameBackgroundColor).toBe('rgb(255, 255, 255)');
-    expect(clone.layerOrder).toEqual(['camera', 'legend']);
+    // The leading null is the injected export `<style>` (no data-layer): it
+    // shifts the camera and legend indices EQUALLY, so camera-before-legend
+    // still holds. Re-baselined deliberately by 03-11 (D-34/D-25).
+    expect(clone.layerOrder).toEqual([null, 'camera', 'legend']);
     expect(clone.legendTransform).toBe(legendTransform);
     expect(clone.legendTexts).toEqual([LEGEND_LABEL]);
     expect(clone.legendEditorOnly).toBe(0);

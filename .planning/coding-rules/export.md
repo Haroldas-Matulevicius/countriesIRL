@@ -1,6 +1,12 @@
-# Coding Rules: Export (PNG Export via html2canvas)
+# Coding Rules: Export (SVG→PNG, owned by this repo since 03-11 / D-34)
 
-**Read when touching:** exportMapPng utility, PNG quality, size contracts, error handling, filename format.
+**Read when touching:** `exportMapPng`, the rasterisation pipeline, the font-embedding seam,
+PNG quality, size contracts, error handling, filename format.
+
+**There is no third-party rasteriser.** `html2canvas` was removed by plan `03-11` (D-34).
+`src/utils/export.ts` owns the whole path: serialise the frozen clone → SVG-as-image →
+`drawImage` → `toBlob`. Everything below describes that path; the html2canvas analysis this file
+used to carry is expired and deleted, not superseded in place.
 
 ---
 
@@ -10,118 +16,171 @@
 
 **This is non-negotiable.** If export is 1080×1079 or 1081×1080, the check fails.
 
-```typescript
-// ✅ Good — explicit width/height before export
-const canvas = await html2canvas(clone, {
-  backgroundColor: '#ffffff',
-  scale: 2,  // 2x DPI for crispness
-  width: 1080,
-  height: 1080,
-});
+The pipeline enforces it three times, deliberately:
 
-// At this point, canvas.width === 1080 and canvas.height === 1080
-```
+1. `exportMapPng` sizes its own canvas to `EXPORT_SIZE` (1080) — no third party decides.
+2. The dimensions are **read back** after assignment, before encoding. A browser that clamps or
+   zeroes a canvas (canvas-size limits exist) would otherwise encode a wrong-size PNG; the
+   read-back guard returns `invalid-dimensions` instead.
+3. `tests/e2e/export.spec.ts` parses the downloaded bytes' `IHDR` (`width` at byte 16, `height`
+   at byte 20) for the exact 1080 square. A `toBlob` success proves nothing about size.
 
-**DPI scaling for quality.** html2canvas default `scale: 1` renders at screen DPI (~96 DPI). Instagram posts are often viewed at 1.5–2x pixel density. Use `scale: 2` to render at 192 DPI, then canvas.toBlob() downsamples to 1080×1080 for download.
+**The scale geometry is a contract, not an implementation detail.** The clone's intrinsic size
+stays `EXPORT_FRAME_SIZE` (540) and the 2D context scales by `EXPORT_SCALE` (2):
 
 ```typescript
-// ✅ Good — 2x scale for crisp output
-const canvas = await html2canvas(clone, {
-  scale: 2,  // Renders at 2x internally, then downsampled
-  width: 540,  // Effective size is 540×2 = 1080
-  height: 540,
-});
+canvas.width = EXPORT_SIZE;                      // 1080
+canvas.height = EXPORT_SIZE;
+context.fillStyle = EXPORT_BACKGROUND_COLOR;     // opaque white first
+context.fillRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
+context.scale(EXPORT_SCALE, EXPORT_SCALE);       // 2
+context.drawImage(svgImage, 0, 0, EXPORT_FRAME_SIZE, EXPORT_FRAME_SIZE); // 540
 ```
 
-**Never hardcode dimensions in the SVG itself.** The SVG should render at any size; we control the final size via html2canvas options.
+Because every `path.scene-path` carries `vector-effect: non-scaling-stroke`, stroke widths
+resolve in the 540-unit viewport: `EXPORT_BORDER_WIDTH` (0.75) is 0.75 units at 540, which the
+scale-2 context rasterises to the same crisp 1.5px line at 1080 the retired pipeline produced.
+Serialising the clone at 1080 intrinsic instead would silently HALVE every border weight —
+that is why the 540-intrinsic / scale-2 shape must not be "simplified" to a 1080 canvas draw.
 
 ---
 
-## html2canvas Contract
+## Rasterisation Pipeline Contract
 
-**Export signature:**
+**Flow (all inside `exportMapPng`, which stays pure — it clones an already-frozen composition
+and never reaches into live state):**
 
-```typescript
-async function exportMapPng(
-  source: HTMLElement,
-  date?: Date,
-): Promise<ExportResult>
-```
+1. **Refuse before any work.** Disconnected source, ≠1 canonical SVG, sibling/duplicate legend —
+   all checked synchronously before a frame or clone exists.
+2. **Clone and prepare.** `cloneNode(true)`, re-assert the 1080 viewBox and the 540 frame size,
+   hard-set `background`/`backgroundColor` and `colorScheme = 'light'` inline on BOTH the export
+   frame and the cloned SVG.
+3. **Inject fonts, then sanitize.** `injectExportFontFace(clone, collectCompositionFonts(clone))`
+   inserts one `<style>` as the clone's FIRST child; `sanitizeExportClone` then strips semantics
+   (and is thereby proven to preserve the `<style>`).
+4. **Verify the prepared clone.** `isPreservedComposition` — camera and legend both present, in
+   camera-before-legend order, transforms unchanged. The leading `<style>` shifts both indices
+   equally, so the order check holds.
+5. **Append the frame to `document.body`.** The frame is a `div[aria-hidden="true"]` — this is
+   the observation seam the e2e suite's `MutationObserver` reads; do not remove it.
+6. **Serialise and rasterise.** `serialiseCloneToImageUrl`: `"data:image/svg+xml," +
+   encodeURIComponent(new XMLSerializer().serializeToString(clone))` — the exact shape the OQ-1
+   spike proved in installed Chrome (a 64,576-char base64 font `src` hits no length limit).
+   Load it into an `Image`, `drawImage` per the size contract above, `canvas.toBlob`.
+7. **Download and hand off.** Object URL → connected anchor → `click()` → one named, bounded
+   100ms macrotask (`waitForDownloadHandoff`) before resolving success.
+8. **Clean in `finally`.** Remove the anchor, revoke the object URL, remove the frame — nested
+   `finally` so every step runs even when an earlier one throws.
 
-**Flow:**
+**Failure mapping — each real failure mode surfaces as a typed `ExportResult` reason:**
 
-1. **Find and clone the SVG.** Don't modify the original (the creator may export again).
-2. **Create a temporary HTML frame.** Append the map-only clone to the document body offscreen.
-3. **Call html2canvas.** Capture the 540×540 HTML frame at scale 2.
-4. **Validate and encode.** Require an exact 1080×1080 canvas, then use `canvas.toBlob()`.
-5. **Connect the download anchor.** Create the object URL and anchor, set `href` and `download`, then append the anchor to `document.body` before calling `click()`.
-6. **Await browser handoff after a truthful click.** Only after `click()` returns successfully, await one named, bounded 100ms macrotask before resolving success.
-7. **Clean in `finally`.** After the handoff, remove the anchor, revoke the object URL, and remove the frame. If `click()` throws, skip the handoff wait and use the same `finally` immediately.
+| Failure | Reason | Retry |
+|---|---|---|
+| SVG image fails to load/decode | `capture-failed` | yes |
+| `getContext('2d')` returns null | `capture-failed` | yes |
+| canvas dimensions read back ≠ 1080 | `invalid-dimensions` | yes |
+| `toBlob` yields null, object URL throws, anchor click throws | `encoding-failed` | yes |
+| structural refusals (see clone contract) | `source-not-found` / `invalid-composition` | **no** |
 
-```typescript
-const DOWNLOAD_HANDOFF_DELAY_MS = 100;
-
-function waitForDownloadHandoff(): Promise<void> {
-  return new Promise<void>((resolve): void => {
-    setTimeout(resolve, DOWNLOAD_HANDOFF_DELAY_MS);
-  });
-}
-
-let downloadAnchor: HTMLAnchorElement | null = null;
-let objectUrl: string | null = null;
-
-try {
-  objectUrl = URL.createObjectURL(blob);
-  downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute('href', objectUrl);
-  downloadAnchor.setAttribute('download', filename);
-  document.body.appendChild(downloadAnchor);
-  downloadAnchor.click();
-  await waitForDownloadHandoff();
-  return { ok: true, filename };
-} finally {
-  try {
-    downloadAnchor?.remove();
-  } finally {
-    try {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    } finally {
-      exportFrame.remove();
-    }
-  }
-}
-```
-
-**Do not remove a successfully clicked anchor or revoke its object URL synchronously.** Chromium may not finish handing the native download to its download manager before the current task ends. Success is truthful only after the connected click succeeds and the bounded handoff completes.
-
-**Always contain expected failures.** html2canvas, PNG encoding, object-URL creation, or anchor click can fail; return the typed `ExportResult` reason while `finally` releases every resource.
+**Do not remove a successfully clicked anchor or revoke its object URL synchronously.** Chromium
+may not finish handing the native download to its download manager before the current task ends.
+Success is truthful only after the connected click succeeds and the bounded handoff completes.
 
 ---
 
-## Prepared-Composition Clone Contract (Phase 2)
+## The Sandbox Boundary — why fonts are embedded, and why the PNG cannot follow the theme
+
+**The single most important fact about this path:** an SVG loaded as an image from a
+`data:image/svg+xml` URL is an **isolated document**. It sees none of the host document's
+stylesheets — no `@font-face`, no `.dark` rules, no custom properties — and it can issue **no
+request**, including a same-origin one. Everything the PNG needs must be INSIDE the serialised
+subtree: presentation attributes, inline styles, and the injected `<style>`.
+
+Two consequences, both load-bearing:
+
+1. **Fonts must ride inside the clone.** `theme.css`'s `@font-face` styles the editor chrome and
+   never reaches the export. `src/styles/interFontFace.ts` provides the vendored Inter bytes as
+   a build-time `data:font/woff2;base64,…` string (Vite `?inline`), and `injectExportFontFace`
+   embeds them per export. WebKit/Safari is the documented exception to this technique (it
+   treats data URIs in SVG-as-image as external files); Safari is outside certification scope,
+   and **this technique is never described as cross-browser**. Verified in installed Chrome 151
+   only.
+2. **The exported PNG is theme-independent BY CONSTRUCTION.** No host CSS — token, `.dark` rule,
+   media query — can reach the rasterised pixels, because none of it is in the serialised
+   subtree. The hard-set inline `background`/`colorScheme` on the frame and clone, and the
+   canvas's own white `fillRect`, are the remaining defence layers; the placement of the frame
+   outside `.map-editor` matters less than it did, but stays. Assertion 24
+   (`tests/e2e/responsive.spec.ts`) remains the browser-level tripwire against a future
+   rasterisation change that reads live computed styles — see plan `03-11`'s probe 9 record for
+   what does and does not redden it against this path.
+
+### The font-embedding seam is GENERALISED (D-34a)
+
+`collectCompositionFonts(clone)` walks the clone and returns the distinct named families it
+actually references (`font-family` attributes and inline styles, generic keywords excluded).
+`injectExportFontFace(clone, families)` embeds an `@font-face` for each family the
+`EXPORT_FONT_FACE_BUILDERS` registry has bytes for. **Only Inter is registered in Phase 3.**
+Phase 4's text tools add registry entries; they do not re-open the rasterisation path.
+
+**The test-only suppression seam.** `EXPORT_FONT_FACE_SUPPRESSION_FLAG` is a `globalThis`
+sentinel that makes `injectExportFontFace` a no-op. It exists so assertion 25 can export a
+font-suppressed control run and go RED when the injection is deleted. It is set only from
+Playwright (`addInitScript`/`evaluate`); nothing in the product writes it, it is not read from
+storage, and no creator-facing control reaches it. Keep it that way.
+
+### Coverage is latin-only, and that is recorded, not hidden (CF-2)
+
+The vendored subset stops at `U+00FF` (48,432 B raw / 64,576 B base64 — `src/assets/README.md`
+holds provenance, SHA-256, and the measured cost of widening). Latin-ext glyphs — `Ł ą ę ś ż`
+(Polish), `č ė š ų ū ž` (Lithuanian), `ě ř ů` (Czech), `č ć đ š ž` (Balkan), `ā ē ģ ķ` (Latvian),
+`ș ț` (Romanian) — fall back to the generic stack **mid-string**, in the editor and in the
+exported PNG. Bundled Natural Earth names are ASCII; the real exposure is creator-typed legend
+labels in native orthography. A test in `tests/e2e/export.spec.ts` documents the observed
+fallback so it is a known outcome, not a surprise. **No claim of full Unicode coverage may be
+made anywhere.** These bytes ship inside every export bundle; widening to latin-ext (+85,272 B
+raw / +113,696 B base64) is a recorded owner decision for v1.1, not an executor's.
+
+---
+
+## Prepared-Composition Clone Contract
 
 The export utility is **pure**: it clones an already-prepared, already-frozen DOM. It never
 freezes the camera, never acquires or releases a `CameraFreezeLease`, and never mutates the
 live composition. Lease orchestration lives in the export transaction, not here.
 
-**Canonical shape it requires** (`MapCanvas` renders exactly this):
+**Canonical shape of the SOURCE it requires** (`MapCanvas` renders exactly this):
 
 ```
 div.map-export-source
 └── svg.map-canvas                 ← exactly one; more or fewer is `source-not-found`
-    ├── g[data-layer="camera"]     ← must come FIRST
+    ├── g[data-layer="camera"]     ← must come BEFORE the legend
     │   ├── g[data-layer="outgoing-scenes"]
     │   └── g[data-layer="countries"]
     └── g[data-layer="legend"]     ← at most one, and it must be INSIDE the svg
 ```
+
+**Canonical shape of the sanitized CLONE** (what the rasteriser is handed) adds one element:
+
+```
+svg.map-canvas
+├── style                          ← injected export @font-face(s); FIRST child
+├── g[data-layer="camera"]         ← still before the legend; transform preserved
+└── g[data-layer="legend"]         ← transform preserved
+```
+
+The leading `<style>` is legitimate and expected: `isPreservedComposition` checks *order*
+(camera index < legend index), which a first-child insertion preserves because it shifts both
+indices equally. A doc or test that asserts `g[data-layer="camera"]` is the clone's literal
+first child is asserting the pre-03-11 shape and is wrong.
 
 **Refuse rather than export a wrong picture.** `invalid-composition` is returned when:
 
 - a `[data-layer="legend"]` group exists in the export source but **outside** the canonical
   SVG (a sibling overlay is silently dropped by `cloneNode`, so the PNG would ship with no
   legend — this is exactly the defect class that produced the clipped-legend regression);
+- a legend exists anywhere in the document while the source has none (a legend hoisted above
+  the export source is the same defect wearing a different hat — the zero-on-both-sides case is
+  accepted only when `source.ownerDocument` has zero too);
 - more than one legend group exists (a composition with **no** legend at all is allowed — see
   the zero-legend rule below);
 - the sanitized clone has lost the camera or legend group, reordered them, or changed either
@@ -159,11 +218,11 @@ tears a seam through the exported map.
 
 | Removed from the clone | Kept in the clone |
 |---|---|
-| `[data-layer="outgoing-scene(s)"]` (mid-crossfade predecessor) | `g[data-layer="camera"]` and its `transform` |
-| `[data-editor-only]` (legend hit area, nudge handles) | every `path.scene-path`, including `country-path--decorative` wrapped repeats |
-| `<title>`, `<desc>`, `<metadata>` | `d`, `fill`, `transform`, and all `data-*` geometry markers |
-| **all** `aria-*` attributes | the live legend `<g>` with its exact `transform`, text, and fills |
-| `role`, `tabindex`, `focusable`, `id` | |
+| `[data-layer="outgoing-scene(s)"]` (mid-crossfade predecessor) | the injected export `<style>` (first child) |
+| `[data-editor-only]` (legend hit area, nudge handles) | `g[data-layer="camera"]` and its `transform` |
+| `<title>`, `<desc>`, `<metadata>` | every `path.scene-path`, including `country-path--decorative` wrapped repeats |
+| **all** `aria-*` attributes | `d`, `fill`, `transform`, and all `data-*` geometry markers |
+| `role`, `tabindex`, `focusable`, `id` | the live legend `<g>` with its exact `transform`, text, and fills |
 | `selected` / `hovered` / `focused` classes and `data-selected` / `data-hovered` / `data-focused` | |
 
 **Normalize borders across `path.scene-path`, not `path.country-path`.** Wrapped repeats carry
@@ -176,11 +235,12 @@ in the PNG.
 layer wraps the geometry in `scale(zoom)`, and `zoom` runs to 24. A plain `stroke-width: 1`
 inside that group is *1 user unit × zoom*, so the frame the creator set decided how heavy their
 borders came out: a hairline on screen downloaded as an ~8px outline at 8x. Pinning the vector
-effect resolves the stroke in viewport space instead — `EXPORT_BORDER_WIDTH` (0.75) at the 540px
-frame is 0.75 CSS pixels, which `EXPORT_SCALE` 2 rasterizes to a crisp 1.5px line at 1080 at
+effect resolves the stroke in viewport space instead — `EXPORT_BORDER_WIDTH` (0.75) at the 540
+frame is 0.75 viewport units, which `EXPORT_SCALE` 2 rasterizes to a crisp 1.5px line at 1080 at
 every zoom. `sanitizeExportClone` **sets** the attribute rather than inheriting it, and sets
-`style.vectorEffect` too, because external CSS is not serialized into the `html2canvas` SVG
-image. It removed the attribute from Phase 1 until 2026-07-27; that removal was the bug.
+`style.vectorEffect` too, because external CSS is not part of the serialised SVG image — an
+externally-styled effect renders NOT AT ALL in the isolated document. The attribute was removed
+from Phase 1 until 2026-07-27; that removal was the bug.
 
 The gate is `clone.vectorEffects === WRAPPED_PATH_COUNT` in `tests/e2e/export.spec.ts` — a
 count, not a `> 0`, so a path that loses the effect fails. Its unit twin only bites if the
@@ -192,15 +252,16 @@ editor semantics; an id something points at is **paint**. Before removing any `i
 every reference in the clone — `url(#…)` in any attribute or inline style, and `href` /
 `xlink:href` beginning with `#` — and keep the ids they resolve. A blanket strip renders
 correctly on screen and ships a PNG with the gradient, clip path, mask, marker, or filter
-silently gone, because the reference is resolved by `html2canvas` *after* sanitization.
+silently gone, because the reference is resolved **inside the isolated SVG image** *after*
+sanitization.
 
 A test that asserts `clone.ids === 0` **confirms** that break instead of catching it. Assert
 instead that no surviving `url(#…)` or `href="#…"` reference dangles.
 
 **Zero legends is not a missing legend.** `isSingleCanonicalComposition` refuses a duplicated
-legend and a legend that exists in the source but not in the canonical SVG. It deliberately
-allows zero-on-both-sides: an uncolored map has no legend entries and must still export a white
-square. Do not "tighten" this to `=== 1`.
+legend and a legend that exists in the source (or hoisted above it) but not in the canonical
+SVG. It deliberately allows zero-everywhere: an uncolored map has no legend entries and must
+still export a white square. Do not "tighten" this to `=== 1`.
 
 ---
 
@@ -226,13 +287,13 @@ stuck export gate.
 
 **Do not re-validate the source shape in the transaction.** `exportMapPng` already refuses a
 disconnected source, a source without exactly one canonical SVG, and a sibling/duplicate legend
-— all *before* it creates a frame or calls html2canvas. A second copy of those rules in the
+— all *before* it creates a frame or rasterises anything. A second copy of those rules in the
 transaction is a drift hazard, not a safety net. The transaction only refuses a `null` source
 (`export-source-unavailable`), which the utility cannot see.
 
 **Failure reasons stay truthful:** a throw before the capture begins is `preparation-failed`, a
-throw once html2canvas is running is `export-failed`, and the five `ExportFailureReason` values
-are passed through unchanged.
+throw once rasterisation is running is `export-failed`, and the five `ExportFailureReason`
+values are passed through unchanged.
 
 ---
 
@@ -262,157 +323,47 @@ last committed save or load — set only when that transaction succeeds — and 
 the export transaction as a `getCompositionName()` accessor. The exporter never owns it: save
 and load read the same identity.
 
-**No spaces or special characters.** Keep it clean for non-technical users' file systems.
-
----
-
-## Error Handling
-
-> **Superseded in Phase 2.** `alert()` is not how the app reports anything — outcomes go through
-> `ToastRegion`, whose allowlist rejects any string it does not recognize, and the reason is
-> branched per the table above. The Phase 1 shape below is kept for release-evidence continuity
-> only; do not copy it into new code.
-
-**Errors in export should alert the user but not crash the app.**
-
-```typescript
-// ✅ Good — user gets feedback
-const handleExport = async () => {
-  try {
-    await exportMapPng(svgRef.current, filename);
-    alert('Map exported successfully!');
-  } catch (error) {
-    alert('Export failed. See console for details.');
-    console.error(error);
-  }
-};
-
-// ❌ Bad — silent failure, user has no idea
-const handleExport = async () => {
-  await exportMapPng(svgRef.current, filename).catch(() => {});
-};
-```
-
-**Common failures:**
-
-| Error | Cause | Mitigation |
-|---|---|---|
-| "SVG element not found" | svgRef.current is null | Ensure MapCanvas is rendered before export button is enabled |
-| "Canvas blob creation failed" | Browser out of memory | Return `encoding-failed` and offer a retry. **Never recommend refreshing the page** — the composition lives only in browser memory, so a refresh destroys every unsaved colour, camera, period, and legend. This row said "recommend refreshing the page" until 2026-07-26, contradicting the rule three sections above; the contradiction is the point of this note. |
-| Network timeout | html2canvas trying to fetch resources | Avoid external image URLs in SVG; embed base64 or use data URIs |
-
 ---
 
 ## Background Color Contract
 
-**Always export with a white background (`#ffffff`).**
+**Always export with an opaque white background (`#FFFFFF`).** Three layers, each deliberate:
+the canvas is `fillRect`'d white before the draw, the export frame hard-sets white inline, and
+the cloned SVG hard-sets white inline. Do not "simplify" one away because the others cover it —
+each alone keeps the PNG opaque and theme-independent, which is exactly why removing one is
+invisible until the last one goes.
 
-```typescript
-const canvas = await html2canvas(clone, {
-  backgroundColor: '#ffffff',  // NOT transparent, NOT light gray
-  scale: 2,
-});
-```
+**Why white?** Instagram's square format looks best with a white background, and transparent
+PNGs are harder for non-technical creators to work with.
 
-**Why white?** Instagram's square format looks best with a white background. Users can overlay it on any background in their editor. Transparent PNGs (alpha channel) are harder for non-technical creators to work with.
+**The legend ships inside the canonical SVG before `exportMapPng` is called** — see the clone
+contract. A legend that is a *sibling* of `svg.map-canvas` is a hard `invalid-composition`
+refusal, never a silently legend-less PNG.
 
-**The Phase 2 legend ships, and it is part of the canonical SVG before `exportMapPng` is
-called** — see the clone contract above. A legend that is a *sibling* of `svg.map-canvas` is a
-hard `invalid-composition` refusal, never a silently legend-less PNG.
-
-### Theme independence is held by PLACEMENT and hard-setting, not by the token contract (Phase 3, D-35)
-
-**Measured in `03-09`, and it corrects the approved plan.** `03-09` was told to RED-prove
-assertion 24 by giving `.dark` a `--map-surface` override, on the stated grounds that
-`--map-surface` is "the clearest" export token. **It does not work, and the reason matters more
-than the probe.** The exported PNG is immune to *every* CSS custom property today, through three
-independent mechanisms:
-
-1. `createExportFrame` appends the frame to `document.body`, which is **outside** `.map-editor` —
-   and D-30 scopes `.dark` to that mount root, so the clone is never in the theme's scope at all;
-2. the frame and the cloned `svg` both hard-set `background` / `background-color` **inline** to
-   `EXPORT_BACKGROUND_COLOR`, and `html2canvas` is passed the same colour a third time;
-3. `sanitizeExportClone` hard-sets `stroke` / `stroke-width` inline from `DEFAULT_BORDER_COLOR`,
-   and the legend paints from the `THEME_COLORS` TS literals rather than from `var()`.
-
-Both `exportFrame` and the clone also pin `style.colorScheme = 'light'`.
-
-**Consequences, stated rather than left to be rediscovered.**
-
-- A `.dark` override of a `--map-*` token changes **nothing** in the PNG right now. Live
-  Invariant 9 is therefore enforced *only* by assertion 4 in `uiContract.test.ts` at the CSS
-  level; assertion 24 does not currently back it up on the token axis. That is defence in depth
-  working, not a redundant gate — but do not describe assertion 24 as the token contract's
-  browser-level guard, because it is not one.
-- **The defect assertion 24 can still catch is a COMPOSITE one**, and it takes two halves:
-  the theme class escaping above the mount root (`document.documentElement`, the hazard
-  `App.tsx` records verbatim) **plus** a theme-conditional paint on map geometry that the clone
-  does not hard-set. Committing both makes the exported PNG diverge, and assertion 24 goes red on
-  it — RED-proven in `03-09` with the sampled pixel moving `255,255,255 → 16,16,16`.
-- **Do not "simplify" any of the three mechanisms away**, and do not read a green assertion 24 as
-  permission to. Each one alone would still leave the PNG theme-independent, which is exactly why
-  removing one is invisible.
-- **`03-11` replaces the rasterisation path (D-34) and this analysis expires with it.** A test
-  that passed against html2canvas and still passes has not been shown to test the new code, so
-  `03-11` re-runs the composite probe above against the replacement — and if the new path resolves
-  CSS in the clone's own scope, the single-token probe becomes valid again and assertion 24
-  becomes the token contract's browser-level guard for the first time.
-
----
-
-## Performance & Timeouts
-
-**Export should complete in <3 seconds.** If it takes longer, the UX feels broken.
-
-**html2canvas is synchronous.** It blocks the main thread. For Phase 1 (1080×1080, single SVG), this is acceptable. Phase 2 might offload to a Web Worker if batch exports (timelapse) are too slow.
-
-**No progress bars in Phase 1.** Just a loading spinner or disabled button state.
-
-```typescript
-const [exporting, setExporting] = useState(false);
-
-const handleExport = async () => {
-  setExporting(true);
-  try {
-    await exportMapPng(svgRef.current, filename);
-    alert('Exported!');
-  } catch (error) {
-    alert('Export failed.');
-  } finally {
-    setExporting(false);
-  }
-};
-
-return (
-  <button onClick={handleExport} disabled={exporting}>
-    {exporting ? '📥 Exporting...' : '📥 Export PNG'}
-  </button>
-);
-```
-
----
-
-## Browser Compatibility
-
-**html2canvas works in all modern browsers.** No IE11, but Phase 1 doesn't support IE anyway.
-
-**CORS issues.** If the SVG ever includes external images (Phase 2+), they must be same-origin or have CORS headers. html2canvas can't export cross-origin images.
-
-**Canvas size limit.** Most browsers cap canvas at ~16384×16384. 1080×1080 is nowhere near that, so no issue.
+**`LegendOverlay.tsx`'s colour literals are deliberate export-fixed values** (`THEME_COLORS`,
+the `#9CA3AF` swatch stroke). They are exempted by name in the token contract (assertion 8).
+Pointing them at `--themely-*` tokens would not "tokenize" the legend — inside the isolated
+export document the `var()` would resolve to nothing at all (pitfall P-3).
 
 ---
 
 ## Testing
 
-**Manual export tests:**
+### The two-part font gate (assertion 25)
 
-- [ ] Color 5 countries
-- [ ] Click "Export PNG"
-- [ ] File downloads as `CountriesIRL_<date>.png`
-- [ ] File is exactly 1080×1080 pixels (check image properties)
-- [ ] Image quality is crisp (not blurry, not pixelated)
-- [ ] Colors match the map on screen
-- [ ] Upload to Instagram; confirm it displays correctly in feed
+A markup-level "the clone names Inter" assertion is green whether or not the font resolves —
+`LegendOverlay` has named Inter since Phase 2 while the export fell back silently. Assertion 25
+is therefore two parts, and **Part 2 is the load-bearing half**:
+
+1. **Structural, via `MutationObserver`:** the observed clone contains `svg.map-canvas > style`
+   matching `/@font-face/` and `/src:\s*url\(data:font\/woff2;base64,/`, as the first child.
+2. **Pixel inequality against a font-suppressed control:** export the same composition twice in
+   one run (normal, and with `EXPORT_FONT_FACE_SUPPRESSION_FLAG` set), crop both PNGs to the
+   legend region **derived from `resolveLegendRender`** (never hard-coded), and assert the crops
+   differ beyond a noise threshold — with a content floor first (both crops carry ink) and a
+   blank-crop discrimination control (both differ from a blank of the same size, which itself
+   counts zero ink). Three empty regions satisfy a bare inequality perfectly; this repo has
+   shipped that defect once already.
 
 ### Journey evidence: `tests/e2e/final-integration.spec.ts`
 
@@ -425,61 +376,25 @@ surviving that whole chain into the downloaded bytes.
 
 ### Browser evidence: `tests/e2e/export.spec.ts` + `fixtures/export.html`
 
-**Never stub `html2canvas` in the browser slice.** The fixture composes the **real**
+**Never stub the rasterisation in the browser slice.** The fixture composes the **real**
 `MapCanvas` (real geo data → real 248 × 3 wrapped paths) and the **real** `LegendOverlay`,
 then calls the **real** `exportMapPng`. A handcrafted fixture SVG can silently drift from
 `MapCanvas` and keep passing while production breaks.
 
-**A fixture cannot prove legend placement — only the real app can.**
-`fixtures/export.html` passes its own `legendSlot: h(LegendOverlay, …)` into `MapCanvas`, which
-re-implements `App`'s wiring. Asserting `svg.map-canvas > [data-layer="legend"]` there proves
-only that `MapCanvas` fills the slot it is handed; it stays green while `App` renders the legend
-as a sibling and **every** export refuses with `invalid-composition`. So the containment
-assertions must also run against `page.goto('/')`:
+**A fixture cannot prove legend placement — only the real app can.** `fixtures/export.html`
+passes its own `legendSlot` into `MapCanvas`, which re-implements `App`'s wiring. Asserting
+`svg.map-canvas > [data-layer="legend"]` there proves only that `MapCanvas` fills the slot it
+is handed. The containment assertions must also run against `page.goto('/')`. Rule of thumb:
+**when a fixture re-implements the wiring under test, its assertion is about the fixture.**
+Keep one real-app counterpart for every structural contract the composition root owns.
 
-```ts
-await expect(mapListbox.locator('[data-layer="legend"]')).toHaveCount(0);
-await expect(page.locator('svg.map-canvas > [data-layer="legend"]')).toHaveCount(1);
-// the legend must not be announced as a map option
-element.closest('[role="listbox"]') === null
-```
+**Id references live in `<style>` text as well as attributes.** `collectReferencedIds` scans
+`textContent` for `<style>` too — the injected font `<style>` contains no `url(#…)` today, but
+a future `.swatch { fill: url(#grad) }` would. If you ever narrow the walk, narrow the JSDoc in
+the same edit.
 
-Rule of thumb: **when a fixture re-implements the wiring under test, its assertion is about the
-fixture.** Keep one real-app counterpart for every structural contract the composition root owns.
-
-**"No legend in the source" is only innocent when the page has none either.** The structural gate
-compares legend counts in the export source against the canonical SVG, and a legend hoisted
-*above* the source — a refactor that lifts `<LegendOverlay/>` to App's `workspace__map` div —
-gives `0 === 0`, which used to be accepted as "a composition that never had a legend" and shipped
-a legend-less PNG under a success toast. Widen the zero case to `source.ownerDocument`: zero in
-the source is accepted only when the document has zero too. This is safe to read because
-`exportMapPng` requires a connected source and runs the check before any clone is appended.
-
-**Id references live in `<style>` text as well as attributes.** `collectReferencedIds` walks
-attribute values, which covers `fill`/`clip-path`/`filter`/`marker-*`/inline `style` and
-`href`/`xlink:href`. A `<style>` element inside the SVG holds `.swatch { fill: url(#grad) }` as
-*text content*, so its target id would be stripped and the gradient would vanish from the PNG
-while the on-screen map stayed correct. Scan `textContent` for `<style>` too — and if you ever
-narrow the walk, narrow the JSDoc in the same edit. A comment claiming coverage the code lacks is
-how this stayed latent.
-
-**The export-unsafe-CSS guard must list every class the clone can carry, and prove the list.**
-`EXPORT_CONTENT_PATTERN` is hand-maintained, so it rots the moment `MapCanvas` gains a path
-class. It omitted `.map-unit-path` for a whole phase and nothing noticed, because
-`.map-unit-path` and `.scene-path` have zero rules today — the omission only becomes a defect the
-day someone adds `.map-unit-path { filter: brightness(0.98) }` to dim non-selectable units, which
-html2canvas approximates differently than the browser paints it. Bind the list back to the
-component (`expect(mapCanvasSource.includes("'map-unit-path'")).toBe(true)`) so removing a class
-breaks the test rather than leaving it guarding a ghost.
-
-**A pixel probe that only asserts equality passes on a blank canvas.** The theme-independence
-gate exported in three browser contexts and compared 64 sample points across them. Three
-identical all-white 1080×1080 squares satisfy that perfectly — and that is exactly the shape a
-`foreignObject`/CORS or `isolation: isolate` regression produces, in every context at once. Every
-creator ships a blank PNG, green.
-
-So a comparison gate owes a **content** assertion first, and it must be independent of where the
-sample grid lands:
+**A pixel probe that only asserts equality passes on a blank canvas.** A comparison gate owes a
+**content** assertion first, independent of where the sample grid lands:
 
 ```ts
 expect(baseline.nonWhitePixels).toBeGreaterThan(MIN_NON_WHITE_PIXELS); // ~71k actual
@@ -487,40 +402,30 @@ expect(baseline.appliedRedPixels).toBeGreaterThan(MIN_APPLIED_RED_PIXELS); // ~1
 // only then: expect(dark.samples).toStrictEqual(baseline.samples)
 ```
 
-Assert the positive claim (the composition rasterized, and the color the test applied reached the
-PNG) before the relational one (all contexts agree). Pick thresholds with a real margin over the
-measured value, and record the measured value in the same change so the next author can tell a
-regression from a threshold that was always tight.
+Pick thresholds with a real margin over the measured value, and record the measured value in
+the same change so the next author can tell a regression from a threshold that was always tight.
 
 **Count colors in disjoint regions, never in the whole frame.** A legend swatch is painted in
-the country's own colour, so a whole-frame count of `#DC2626` cannot distinguish "France
-reached the PNG" from "the legend swatch reached the PNG" — and one probe passing for the other
-reason is how a half-broken export stays green. Split the 1080 square into a legend corner box
-and a map column that do not overlap, and count each colour per region
-(`tests/e2e/final-integration.spec.ts`). Measured at a 1.5× world camera: France ≈ 1.1k map
-pixels, Germany ≈ 1.2k, one legend swatch ≈ 570 corner pixels.
+the country's own colour; split the 1080 square into a legend corner box and a map column that
+do not overlap and count per region (`tests/e2e/final-integration.spec.ts`). Measured at a 1.5×
+world camera: France ≈ 1.1k map pixels, Germany ≈ 1.2k, one legend swatch ≈ 570 corner pixels.
 
-**A cross-export equality needs a discrimination control in the same test.** Comparing a
-restored export against the authored one is the strongest assertion available — and it is also
-satisfied by two identical blank squares. Export the *known-different* state (the blank page
-after a reload, before the load) in the same run and assert it differs. Content floors alone are
-not enough: they prove something rasterized, not that the comparison can tell two compositions
-apart.
+**A cross-export equality needs a discrimination control in the same test.** Export the
+*known-different* state (the blank page after a reload, before the load) in the same run and
+assert it differs. Content floors alone prove something rasterized, not that the comparison can
+tell two compositions apart.
 
-**The exported bytes follow the history position, not the saved baseline.** Undo must remove the
-undone colour *and its legend swatch* from the next PNG. Assert it on the pixels, not only on the
-DOM: an exporter that captured `savedColorsBaseline`, or a stale scene, passes every DOM-level
-undo assertion and still ships the wrong map.
+**The exported bytes follow the history position, not the saved baseline.** Undo must remove
+the undone colour *and its legend swatch* from the next PNG, asserted on pixels.
 
 **Inspect the clone with a `MutationObserver` on `document.body`,** not by stubbing. The
 export frame is a body-level `div[aria-hidden="true"]` containing the sanitized clone; it is
 appended after sanitization and removed in `finally`, so the observer callback is the only
 place it can be read without changing the code under test.
 
-**Prove pixels, not promises.** `download.saveAs()` → parse the PNG `IHDR` (`width` at byte
-16, `height` at byte 20) for the exact 1080 square, then re-decode the bytes in the page via
-`createImageBitmap` and sample all four corners for `[255, 255, 255, 255]`. A `toBlob`
-success alone proves nothing about size or opacity.
+**Prove pixels, not promises.** `download.saveAs()` → parse the PNG `IHDR` for the exact 1080
+square, then re-decode the bytes via `createImageBitmap` and sample all four corners for
+`[255, 255, 255, 255]`.
 
 **Failure branches are injected through real browser APIs**, each mapping to one reason:
 
@@ -537,13 +442,8 @@ leaked `body > a[download]` anchors.** A leak here is the same defect class as t
 stuck export gate.
 
 **Downloads are written under `.artifacts/playwright/` only** — that root is git-ignored, so
-evidence never enters the repository.
-
-**Edge cases:**
-
-- [ ] Export twice in a row (both files should have the same name, second one should ask to overwrite)
-- [ ] Export, then change colors, export again (both should have updated colors)
-- [ ] Export with no countries colored (should export white map, not error)
+evidence never enters the repository. Downloaded PNGs from before a pipeline change are stale
+evidence: clear `.artifacts/playwright/downloads/` before the first post-change run.
 
 ---
 
@@ -554,33 +454,21 @@ geometry is deferred for missing rights-cleared source material. This sketch is 
 intent record only — it is not a contract, and no part of it may be cited as evidence that
 historical snapshots exist.
 
-**Draft contract, unimplemented:**
-
-```typescript
-// Batch export 10 images of Lithuania's borders, 1500–1750, 25-year intervals
-const images = await exportTimelapsePngs({
-  focusCountry: 'LT',
-  focusColor: '#FF0000',
-  otherColor: '#FFFFFF',
-  startYear: 1500,
-  endYear: 1750,
-  interval: 25,
-});
-
-// Returns: [Promise<Blob>, Promise<Blob>, ..., Promise<Blob>]
-// Resolves when all 10 PNGs are downloaded
-```
-
-**Each image will be:**
-- Named: `CountriesIRL_LT_1500.png`, `CountriesIRL_LT_1525.png`, ...
-- Size: 1080×1080
-- Content: Lithuania highlighted in red, all other countries in white
-
-**Delivered as a ZIP file** for convenience (user can unzip → upload to Instagram).
+**Draft contract, unimplemented:** `exportTimelapsePngs({ focusCountry, startYear, endYear,
+interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.png`.
 
 ---
 
-*Last updated: 2026-08-06 — §Background Color Contract gains "Theme independence is held by PLACEMENT and hard-setting, not by the token contract" (D-35): the export frame is appended outside the `.dark` mount root and hard-sets background, stroke, and `color-scheme` inline, so a `.dark` override of a `--map-*` token changes nothing in the PNG and the plan's suggested `--map-surface` probe cannot redden assertion 24; the composite two-half defect that CAN redden it, RED-proven; and the note that `03-11`'s replacement rasterisation path expires the whole analysis (plan 03-09).*
-*Last updated: 2026-08-06 + 2026-07-26/27 — `EXPORT_BORDER_WIDTH` lowered to 0.75 alongside the toned-down screen weights (0.75/1.5/2), with the normalization and `non-scaling-stroke` contract unchanged; earlier, the clone keeps `vector-effect="non-scaling-stroke"` (removing it let camera zoom multiply border widths in the PNG); cross-domain journey rules from plan 02-27: region-disjoint colour counting, discrimination controls beside cross-export equalities, exported bytes follow the history position; no-refresh copy enforced, Phase 1 `alert()` handling superseded, and the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
+*Last updated: 2026-08-06 — rewritten for D-34 (plan 03-11): html2canvas removed and the whole
+serialise → SVG-as-image → drawImage → toBlob path owned in `export.ts`; the canonical clone
+shape gains a leading injected `<style>`; the generalised font-embedding seam (D-34a) with its
+test-only suppression flag; the sandbox boundary as the structural reason for both font
+embedding and export theme-independence, replacing the expired `03-09` placement-and-hard-set
+analysis; the 540-intrinsic / scale-2 geometry recorded as the border-weight contract; CF-2's
+latin-only coverage limit recorded with no full-Unicode claim.*
+*Last updated: 2026-08-06 (earlier) — `03-09`'s theme-independence-by-placement analysis (now
+expired and replaced above); `EXPORT_BORDER_WIDTH` 0.75 with the `non-scaling-stroke` contract;
+journey rules from 02-27 (region-disjoint counting, discrimination controls, bytes follow
+history); no-refresh copy enforced and the Phase 2 legend inside the canonical SVG (02-25).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

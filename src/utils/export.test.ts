@@ -6,7 +6,13 @@ import {
   EXPORT_SCALE,
   EXPORT_SIZE,
 } from '../constants/config';
-import { createExportFilename, exportMapPng } from './export';
+import {
+  EXPORT_FONT_FACE_SUPPRESSION_FLAG,
+  collectCompositionFonts,
+  createExportFilename,
+  exportMapPng,
+  injectExportFontFace,
+} from './export';
 
 /*
  * Deliberately NOT `SELECTED_BORDER_COLOR`. Every map border is black now, so a
@@ -18,12 +24,9 @@ import { createExportFilename, exportMapPng } from './export';
  */
 const SOURCE_STROKE_SENTINEL = '#0F766E';
 
-const html2canvasMock = vi.hoisted(() => vi.fn());
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
-
-vi.mock('html2canvas', () => ({
-  default: html2canvasMock,
-}));
+const LEGEND_FONT_FAMILY_DECLARATION =
+  "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 class FakeStyleDeclaration {
   public cssText = '';
@@ -46,6 +49,7 @@ class FakeStyleDeclaration {
   public transition = '';
   public filter = '';
   public outline = '';
+  public fontFamily = '';
 
   public setProperty(name: string, value: string): void {
     Reflect.set(this, name.replaceAll('-', ''), value);
@@ -57,6 +61,7 @@ class FakeElement {
   public readonly children: FakeElement[] = [];
   public readonly style = new FakeStyleDeclaration();
   public parentElement: FakeElement | null = null;
+  public textContent: string | null = '';
   public isConnected: boolean;
   public wasRemoved = false;
   public removeCallCount = 0;
@@ -75,8 +80,9 @@ class FakeElement {
    * The real DOM always gives a connected element an owner document, and the
    * legend guard reads it to catch a legend hoisted *above* the export source
    * (0 legends in the source and 0 in the SVG is otherwise indistinguishable
-   * from an uncolored map that legitimately has none). The stub has to offer it
-   * or the guard cannot be exercised here at all.
+   * from an uncolored map that legitimately has none). The font injection
+   * reads it too, for `createElementNS`. The stub has to offer it or neither
+   * path can be exercised here at all.
    */
   public get ownerDocument(): unknown {
     return Reflect.get(globalThis, 'document');
@@ -100,6 +106,10 @@ class FakeElement {
     };
   }
 
+  public get firstChild(): FakeElement | null {
+    return this.children[0] ?? null;
+  }
+
   public setAttribute(name: string, value: string): void {
     this.attributes.set(name, value);
   }
@@ -120,6 +130,18 @@ class FakeElement {
     child.parentElement = this;
     child.setConnected(this.isConnected);
     this.children.push(child);
+    return child;
+  }
+
+  public insertBefore<T extends FakeElement>(
+    child: T,
+    reference: FakeElement | null,
+  ): T {
+    child.parentElement = this;
+    child.setConnected(this.isConnected);
+    const index =
+      reference === null ? this.children.length : this.children.indexOf(reference);
+    this.children.splice(index < 0 ? this.children.length : index, 0, child);
     return child;
   }
 
@@ -149,6 +171,7 @@ class FakeElement {
     this.attributes.forEach((value: string, name: string): void => {
       clone.setAttribute(name, value);
     });
+    clone.textContent = this.textContent;
     Object.assign(clone.style, this.style);
     if (deep) {
       this.children.forEach((child: FakeElement): void => {
@@ -240,16 +263,89 @@ class FakeElement {
   }
 }
 
+class FakeRenderingContext {
+  public fillStyle = '';
+  public readonly scaleCalls: Array<readonly [number, number]> = [];
+  public readonly fillRectCalls: Array<
+    readonly [number, number, number, number]
+  > = [];
+  public readonly drawImageCalls: Array<ReadonlyArray<unknown>> = [];
+
+  public scale(x: number, y: number): void {
+    this.scaleCalls.push([x, y]);
+  }
+
+  public fillRect(x: number, y: number, width: number, height: number): void {
+    this.fillRectCalls.push([x, y, width, height]);
+  }
+
+  public drawImage(...call: unknown[]): void {
+    this.drawImageCalls.push(call);
+  }
+}
+
+interface FakeCanvasOptions {
+  contextUnavailable?: boolean;
+  blob?: Blob | null;
+  /** Simulates a browser clamping an oversized canvas: assignments are ignored. */
+  lockDimensionsTo?: { width: number; height: number };
+}
+
+class FakeCanvas {
+  public readonly tagName = 'CANVAS';
+  public readonly context = new FakeRenderingContext();
+  public readonly toBlob = vi.fn(
+    (callback: (blob: Blob | null) => void, type?: string): void => {
+      expect(type).toBe('image/png');
+      callback(
+        this.options.blob === undefined ? new Blob(['png']) : this.options.blob,
+      );
+    },
+  );
+  private assignedWidth = 0;
+  private assignedHeight = 0;
+
+  public constructor(private readonly options: FakeCanvasOptions) {}
+
+  public set width(value: number) {
+    this.assignedWidth = this.options.lockDimensionsTo?.width ?? value;
+  }
+
+  public get width(): number {
+    return this.assignedWidth;
+  }
+
+  public set height(value: number) {
+    this.assignedHeight = this.options.lockDimensionsTo?.height ?? value;
+  }
+
+  public get height(): number {
+    return this.assignedHeight;
+  }
+
+  public getContext(kind: string): FakeRenderingContext | null {
+    expect(kind).toBe('2d');
+    return this.options.contextUnavailable === true ? null : this.context;
+  }
+}
+
 class FakeDocument {
   public readonly body = new FakeElement('BODY', true);
   public readonly createdElements: FakeElement[] = [];
+  public readonly createdCanvases: FakeCanvas[] = [];
   public nextAnchorClickError: Error | null = null;
+  public canvasOptions: FakeCanvasOptions = {};
 
   public querySelectorAll(selector: string): FakeElement[] {
     return this.body.querySelectorAll(selector);
   }
 
-  public createElement(tagName: string): FakeElement {
+  public createElement(tagName: string): FakeElement | FakeCanvas {
+    if (tagName === 'canvas') {
+      const canvas = new FakeCanvas(this.canvasOptions);
+      this.createdCanvases.push(canvas);
+      return canvas;
+    }
     const element = new FakeElement(tagName.toUpperCase());
     if (tagName === 'a') {
       element.clickError = this.nextAnchorClickError;
@@ -257,24 +353,52 @@ class FakeDocument {
     this.createdElements.push(element);
     return element;
   }
+
+  public createElementNS(_namespace: string, tagName: string): FakeElement {
+    const element = new FakeElement(tagName.toUpperCase());
+    this.createdElements.push(element);
+    return element;
+  }
 }
 
-interface FakeCanvasOptions {
-  width?: number;
-  height?: number;
-  blob?: Blob | null;
+/**
+ * Every clone handed to `XMLSerializer` lands here, which is the new path's
+ * capture seam: the serialised element IS the sanitized clone, and its parent
+ * is the export frame.
+ */
+const serializedClones: FakeElement[] = [];
+const loadedImageUrls: string[] = [];
+let failNextSvgImageLoad = false;
+
+class FakeXMLSerializer {
+  public serializeToString(node: unknown): string {
+    serializedClones.push(node as FakeElement);
+    return '<svg data-serialized="true"/>';
+  }
 }
 
-function createCanvas(options: FakeCanvasOptions = {}): HTMLCanvasElement {
-  const canvas = {
-    width: options.width ?? EXPORT_SIZE,
-    height: options.height ?? EXPORT_SIZE,
-    toBlob: vi.fn((callback: BlobCallback, type?: string): void => {
-      expect(type).toBe('image/png');
-      callback(options.blob === undefined ? new Blob(['png']) : options.blob);
-    }),
-  };
-  return canvas as unknown as HTMLCanvasElement;
+class FakeImage {
+  public onload: (() => void) | null = null;
+  public onerror: ((error?: unknown) => void) | null = null;
+  public width = 0;
+  public height = 0;
+  private assignedSrc = '';
+
+  public set src(value: string) {
+    this.assignedSrc = value;
+    loadedImageUrls.push(value);
+    queueMicrotask((): void => {
+      if (failNextSvgImageLoad) {
+        this.onerror?.(new Error('load failed'));
+      } else {
+        this.onload?.();
+      }
+    });
+  }
+
+  public get src(): string {
+    return this.assignedSrc;
+  }
 }
 
 const CAMERA_TRANSFORM = 'translate(120 -40) scale(2.5)';
@@ -379,6 +503,9 @@ function createSource(): FakeSource {
   const legendText = new FakeElement('TEXT');
   legendText.setAttribute('data-label', 'Visited France');
   legendText.setAttribute('fill', '#111827');
+  // Mirrors LegendOverlay's rendered declaration: the composition names the
+  // family, and the seam collects what the composition names (D-34a).
+  legendText.setAttribute('font-family', LEGEND_FONT_FAMILY_DECLARATION);
   const editorHitArea = new FakeElement('RECT');
   editorHitArea.setAttribute('data-editor-only', 'true');
   editorHitArea.setAttribute('role', 'button');
@@ -410,6 +537,14 @@ function getCreatedElement(documentMock: FakeDocument, tagName: string): FakeEle
     throw new Error(`Expected ${tagName} to be created`);
   }
   return element;
+}
+
+function getSerializedClone(): FakeElement {
+  const clone = serializedClones[0];
+  if (clone === undefined) {
+    throw new Error('No clone was serialised for rasterisation.');
+  }
+  return clone;
 }
 
 describe('createExportFilename', (): void => {
@@ -447,6 +582,79 @@ describe('createExportFilename', (): void => {
   });
 });
 
+describe('the generalised font-embedding seam (D-34a)', (): void => {
+  beforeEach((): void => {
+    vi.stubGlobal('document', new FakeDocument());
+  });
+
+  afterEach((): void => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(globalThis, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+  });
+
+  it('collects the distinct named families the composition references', (): void => {
+    const svg = new FakeElement('SVG');
+    const inter = new FakeElement('TEXT');
+    inter.setAttribute('font-family', LEGEND_FONT_FAMILY_DECLARATION);
+    const duplicate = new FakeElement('TEXT');
+    duplicate.setAttribute('font-family', "'Inter', serif");
+    const other = new FakeElement('TEXT');
+    other.style.fontFamily = 'Fraunces, system-ui';
+    svg.appendChild(inter);
+    svg.appendChild(duplicate);
+    svg.appendChild(other);
+
+    expect(
+      collectCompositionFonts(svg as unknown as SVGSVGElement),
+    ).toEqual([
+      'Inter',
+      '-apple-system',
+      'BlinkMacSystemFont',
+      'Segoe UI',
+      'Fraunces',
+    ]);
+  });
+
+  it('embeds one @font-face per referenced family the registry has bytes for', (): void => {
+    const svg = new FakeElement('SVG', true);
+    svg.appendChild(new FakeElement('G'));
+
+    injectExportFontFace(svg as unknown as SVGSVGElement, [
+      'Inter',
+      'Fraunces',
+    ]);
+
+    const style = svg.firstChild;
+    expect(style?.tagName).toBe('STYLE');
+    const css = style?.textContent ?? '';
+    expect(css).toMatch(/@font-face/u);
+    expect(css).toMatch(/font-family:'Inter'/u);
+    expect(css).toMatch(/src:\s*url\(data:font\/woff2;base64,/u);
+    // Only registered families are embedded; an unregistered one adds nothing.
+    expect(css).not.toMatch(/Fraunces/u);
+    expect(css.match(/@font-face/gu)).toHaveLength(1);
+  });
+
+  it('inserts nothing when no referenced family is registered', (): void => {
+    const svg = new FakeElement('SVG', true);
+    svg.appendChild(new FakeElement('G'));
+
+    injectExportFontFace(svg as unknown as SVGSVGElement, ['Fraunces']);
+
+    expect(svg.firstChild?.tagName).toBe('G');
+  });
+
+  it('honours the test-only suppression flag and never injects under it', (): void => {
+    const svg = new FakeElement('SVG', true);
+    svg.appendChild(new FakeElement('G'));
+    Reflect.set(globalThis, EXPORT_FONT_FACE_SUPPRESSION_FLAG, true);
+
+    injectExportFontFace(svg as unknown as SVGSVGElement, ['Inter']);
+
+    expect(svg.firstChild?.tagName).toBe('G');
+  });
+});
+
 describe('exportMapPng', (): void => {
   let documentMock: FakeDocument;
   let createObjectURLMock: ReturnType<typeof vi.fn>;
@@ -456,53 +664,82 @@ describe('exportMapPng', (): void => {
     documentMock = new FakeDocument();
     createObjectURLMock = vi.fn((): string => 'blob:countriesirl-export');
     revokeObjectURLMock = vi.fn();
+    serializedClones.length = 0;
+    loadedImageUrls.length = 0;
+    failNextSvgImageLoad = false;
     vi.stubGlobal('document', documentMock);
     vi.stubGlobal('URL', {
       createObjectURL: createObjectURLMock,
       revokeObjectURL: revokeObjectURLMock,
     });
-    html2canvasMock.mockReset();
+    vi.stubGlobal('XMLSerializer', FakeXMLSerializer);
+    vi.stubGlobal('Image', FakeImage);
   });
 
   afterEach((): void => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(globalThis, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
   });
 
-  it('captures an HTML map-only frame at 540 square and scale 2', async (): Promise<void> => {
+  it('serialises the sanitized 540 clone and rasterises it onto a 1080 canvas at scale 2', async (): Promise<void> => {
     const { source, sourceElement, sourcePath } = createSource();
-    const canvas = createCanvas();
-    html2canvasMock.mockResolvedValue(canvas);
 
     const result = await exportMapPng(source, new Date('2026-07-21T12:00:00.000Z'));
 
     expect(result).toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
-    expect(html2canvasMock).toHaveBeenCalledOnce();
-    const [capturedFrame, options] = html2canvasMock.mock.calls[0] as [
-      FakeElement,
-      Record<string, unknown>,
-    ];
-    expect(capturedFrame.tagName).toBe('DIV');
-    expect(capturedFrame.tagName).not.toBe('SVG');
-    expect(options).toEqual({
-      backgroundColor: '#FFFFFF',
-      width: EXPORT_FRAME_SIZE,
-      height: EXPORT_FRAME_SIZE,
-      scale: EXPORT_SCALE,
-      windowWidth: EXPORT_FRAME_SIZE,
-      windowHeight: EXPORT_FRAME_SIZE,
-    });
-    expect(capturedFrame.style.width).toBe(`${EXPORT_FRAME_SIZE}px`);
-    expect(capturedFrame.style.height).toBe(`${EXPORT_FRAME_SIZE}px`);
-    expect(capturedFrame.style.backgroundColor).toBe('#FFFFFF');
-    expect(capturedFrame.children).toHaveLength(1);
 
-    const clonedSvg = capturedFrame.children[0];
-    expect(clonedSvg?.getAttribute('viewBox')).toBe('0 0 1080 1080');
-    expect(clonedSvg?.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
-    expect(clonedSvg?.getAttribute('width')).toBe('540');
-    expect(clonedSvg?.getAttribute('height')).toBe('540');
-    const clonedPath = clonedSvg?.querySelector('path.country-path');
+    // The rasterised image is the serialised clone, nothing else.
+    expect(serializedClones).toHaveLength(1);
+    expect(loadedImageUrls).toHaveLength(1);
+    expect(loadedImageUrls[0]?.startsWith('data:image/svg+xml,')).toBe(true);
+
+    // Exactly 1080x1080, painted white first, then the 540 clone at scale 2 -
+    // the geometry that keeps `non-scaling-stroke` borders at their contract
+    // weight.
+    const canvas = documentMock.createdCanvases[0];
+    expect(canvas).toBeDefined();
+    expect(canvas?.width).toBe(EXPORT_SIZE);
+    expect(canvas?.height).toBe(EXPORT_SIZE);
+    expect(canvas?.context.fillStyle).toBe('#FFFFFF');
+    expect(canvas?.context.fillRectCalls).toEqual([
+      [0, 0, EXPORT_SIZE, EXPORT_SIZE],
+    ]);
+    expect(canvas?.context.scaleCalls).toEqual([[EXPORT_SCALE, EXPORT_SCALE]]);
+    expect(canvas?.context.drawImageCalls).toHaveLength(1);
+    expect(canvas?.context.drawImageCalls[0]?.slice(1)).toEqual([
+      0,
+      0,
+      EXPORT_FRAME_SIZE,
+      EXPORT_FRAME_SIZE,
+    ]);
+
+    const clonedSvg = getSerializedClone();
+    const capturedFrame = clonedSvg.parentElement;
+    expect(capturedFrame?.tagName).toBe('DIV');
+    expect(capturedFrame?.getAttribute('aria-hidden')).toBe('true');
+    expect(capturedFrame?.style.width).toBe(`${EXPORT_FRAME_SIZE}px`);
+    expect(capturedFrame?.style.height).toBe(`${EXPORT_FRAME_SIZE}px`);
+    expect(capturedFrame?.style.backgroundColor).toBe('#FFFFFF');
+    expect(capturedFrame?.style.colorScheme).toBe('light');
+
+    expect(clonedSvg.getAttribute('viewBox')).toBe('0 0 1080 1080');
+    expect(clonedSvg.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet');
+    expect(clonedSvg.getAttribute('width')).toBe('540');
+    expect(clonedSvg.getAttribute('height')).toBe('540');
+    expect(clonedSvg.style.colorScheme).toBe('light');
+
+    // The embedded @font-face rides as the clone's FIRST child, so the
+    // isolated SVG-as-image document can resolve the legend's typeface.
+    const fontStyle = clonedSvg.firstChild;
+    expect(fontStyle?.tagName).toBe('STYLE');
+    expect(fontStyle?.textContent).toMatch(/@font-face/u);
+    expect(fontStyle?.textContent).toMatch(/font-family:'Inter'/u);
+    expect(fontStyle?.textContent).toMatch(
+      /src:\s*url\(data:font\/woff2;base64,/u,
+    );
+
+    const clonedPath = clonedSvg.querySelector('path.country-path');
     expect(clonedPath?.getAttribute('fill')).toBe('#DC2626');
     expect(clonedPath?.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
     expect(clonedPath?.getAttribute('stroke-width')).toBe('0.75');
@@ -520,13 +757,13 @@ describe('exportMapPng', (): void => {
     expect(clonedPath?.getAttribute('data-selected')).toBeNull();
     expect(clonedPath?.querySelector('title')).toBeNull();
 
-    const clonedCamera = clonedSvg?.querySelector('[data-layer="camera"]');
+    const clonedCamera = clonedSvg.querySelector('[data-layer="camera"]');
     expect(clonedCamera?.getAttribute('transform')).toBe(CAMERA_TRANSFORM);
-    expect(clonedSvg?.querySelector('[data-layer="outgoing-scenes"]')).toBeNull();
-    expect(clonedSvg?.querySelector('[data-layer="outgoing-scene"]')).toBeNull();
-    expect(clonedSvg?.querySelector('[data-layer="countries"]')?.getAttribute('role')).toBeNull();
+    expect(clonedSvg.querySelector('[data-layer="outgoing-scenes"]')).toBeNull();
+    expect(clonedSvg.querySelector('[data-layer="outgoing-scene"]')).toBeNull();
+    expect(clonedSvg.querySelector('[data-layer="countries"]')?.getAttribute('role')).toBeNull();
 
-    const clonedLegend = clonedSvg?.querySelector('[data-layer="legend"]');
+    const clonedLegend = clonedSvg.querySelector('[data-layer="legend"]');
     expect(clonedLegend).not.toBeNull();
     expect(clonedLegend?.getAttribute('transform')).toBe(LEGEND_TRANSFORM);
     expect(clonedLegend?.querySelector('TEXT')?.getAttribute('data-label')).toBe(
@@ -535,23 +772,39 @@ describe('exportMapPng', (): void => {
     expect(clonedLegend?.querySelector('TEXT')?.getAttribute('fill')).toBe('#111827');
     expect(clonedLegend?.querySelector('[data-editor-only]')).toBeNull();
 
-    const clonedLayers = (clonedSvg?.children ?? []).map(
+    // The leading <style> shifts the camera and legend indices EQUALLY, so
+    // camera-before-legend still holds and isPreservedComposition passed.
+    const clonedLayers = clonedSvg.children.map(
       (child: FakeElement): string | null => child.getAttribute('data-layer'),
     );
-    expect(clonedLayers).toEqual(['camera', 'legend']);
+    expect(clonedLayers).toEqual([null, 'camera', 'legend']);
+    expect(clonedSvg.children[0]?.tagName).toBe('STYLE');
 
     const anchor = getCreatedElement(documentMock, 'A');
     expect(anchor.getAttribute('href')).toBe('blob:countriesirl-export');
     expect(anchor.getAttribute('download')).toBe('CountriesIRL_2026-07-21.png');
     expect(anchor.wasClicked).toBe(true);
     expect(anchor.wasRemoved).toBe(true);
-    expect(capturedFrame.wasRemoved).toBe(true);
+    expect(capturedFrame?.wasRemoved).toBe(true);
     expect(revokeObjectURLMock).toHaveBeenCalledOnce();
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:countriesirl-export');
 
     expect(sourceElement.isConnected).toBe(true);
     expect(sourcePath.getAttribute('class')).toContain('selected');
     expect(sourcePath.getAttribute('stroke')).toBe(SOURCE_STROKE_SENTINEL);
+  });
+
+  it('suppresses the font embedding under the test-only flag and still exports', async (): Promise<void> => {
+    const { source } = createSource();
+    Reflect.set(globalThis, EXPORT_FONT_FACE_SUPPRESSION_FLAG, true);
+
+    await expect(
+      exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
+    ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
+
+    const clonedSvg = getSerializedClone();
+    expect(clonedSvg.querySelector('STYLE')).toBeNull();
+    expect(clonedSvg.firstChild?.getAttribute('data-layer')).toBe('camera');
   });
 
   it('keeps the ids that paint references and strips the rest', async (): Promise<void> => {
@@ -582,17 +835,11 @@ describe('exportMapPng', (): void => {
     legend.appendChild(swatch);
     legend.appendChild(swatchUse);
 
-    html2canvasMock.mockResolvedValue(createCanvas());
-
     await expect(
       exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
     ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
 
-    const [capturedFrame] = html2canvasMock.mock.calls[0] as [FakeElement];
-    const clonedSvg = capturedFrame.children[0];
-    if (clonedSvg === undefined) {
-      throw new Error('The clone is missing.');
-    }
+    const clonedSvg = getSerializedClone();
 
     expect(
       clonedSvg.querySelector('[id="legend-gradient"]')?.getAttribute('id'),
@@ -641,15 +888,13 @@ describe('exportMapPng', (): void => {
 
   it('keeps every visible wrapped path and strips only its duplicate semantics', async (): Promise<void> => {
     const { source } = createSource();
-    html2canvasMock.mockResolvedValue(createCanvas());
 
     await expect(
       exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
     ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
 
-    const capturedFrame = html2canvasMock.mock.calls[0]?.[0] as FakeElement;
-    const clonedSvg = capturedFrame.children[0];
-    const clonedPaths = clonedSvg?.querySelectorAll('path') ?? [];
+    const clonedSvg = getSerializedClone();
+    const clonedPaths = clonedSvg.querySelectorAll('path');
 
     expect(clonedPaths).toHaveLength(3);
     expect(
@@ -682,7 +927,6 @@ describe('exportMapPng', (): void => {
 
   it('downloads a named composition under its sanitized filename', async (): Promise<void> => {
     const { source } = createSource();
-    html2canvasMock.mockResolvedValue(createCanvas());
 
     await expect(
       exportMapPng(source, new Date('2026-07-21T12:00:00.000Z'), 'Baltic  Tour!'),
@@ -694,9 +938,8 @@ describe('exportMapPng', (): void => {
   });
 
   it('leaves the live composition untouched after sanitizing the clone', async (): Promise<void> => {
-    const { source, sourcePath, wrappedPath, camera, countries, outgoingLayer } =
+    const { source, sourceSvg, sourcePath, wrappedPath, camera, countries, outgoingLayer } =
       createSource();
-    html2canvasMock.mockResolvedValue(createCanvas());
 
     await exportMapPng(source, new Date('2026-07-21T12:00:00.000Z'));
 
@@ -709,6 +952,23 @@ describe('exportMapPng', (): void => {
     expect(countries.getAttribute('role')).toBe('listbox');
     expect(outgoingLayer.wasRemoved).toBe(false);
     expect(outgoingLayer.parentElement).toBe(camera);
+    // The base64 @font-face lives only in the throwaway clone, never in the
+    // editor's live SVG.
+    expect(sourceSvg.querySelector('STYLE')).toBeNull();
+  });
+
+  it('refuses a disconnected source before any work', async (): Promise<void> => {
+    const { source, sourceElement } = createSource();
+    sourceElement.remove();
+    expect(sourceElement.isConnected).toBe(false);
+
+    await expect(exportMapPng(source)).resolves.toEqual({
+      ok: false,
+      reason: 'source-not-found',
+    });
+
+    expect(serializedClones).toHaveLength(0);
+    expect(documentMock.createdElements).toEqual([]);
   });
 
   it('refuses a composition whose legend renders as a sibling overlay', async (): Promise<void> => {
@@ -721,7 +981,7 @@ describe('exportMapPng', (): void => {
       reason: 'invalid-composition',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
   });
 
   it('refuses a legend hoisted above the export source entirely', async (): Promise<void> => {
@@ -740,7 +1000,7 @@ describe('exportMapPng', (): void => {
       reason: 'invalid-composition',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
   });
 
   it('still exports a composition that never had a legend', async (): Promise<void> => {
@@ -748,13 +1008,12 @@ describe('exportMapPng', (): void => {
     // a legitimate white square - never a refusal.
     const { source, legend } = createSource();
     legend.remove();
-    html2canvasMock.mockResolvedValue(createCanvas());
 
     await expect(
       exportMapPng(source, new Date('2026-07-21T12:00:00.000Z')),
     ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
 
-    expect(html2canvasMock).toHaveBeenCalledOnce();
+    expect(serializedClones).toHaveLength(1);
   });
 
   it('refuses a composition carrying more than one legend group', async (): Promise<void> => {
@@ -768,7 +1027,7 @@ describe('exportMapPng', (): void => {
       reason: 'invalid-composition',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
   });
 
   it('refuses a composition whose legend precedes the camera group', async (): Promise<void> => {
@@ -783,14 +1042,13 @@ describe('exportMapPng', (): void => {
       reason: 'invalid-composition',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
     expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
   });
 
   it('keeps the connected download live through the bounded browser handoff', async (): Promise<void> => {
     vi.useFakeTimers();
     const { source } = createSource();
-    html2canvasMock.mockResolvedValue(createCanvas());
     let didResolve = false;
 
     const exportPromise = exportMapPng(
@@ -800,9 +1058,8 @@ describe('exportMapPng', (): void => {
     void exportPromise.then((): void => {
       didResolve = true;
     });
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    // Flush the microtask chain (image load, blob encoding) up to the timer.
+    await vi.advanceTimersByTimeAsync(0);
 
     const frame = getCreatedElement(documentMock, 'DIV');
     const anchor = getCreatedElement(documentMock, 'A');
@@ -837,37 +1094,23 @@ describe('exportMapPng', (): void => {
     expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:countriesirl-export');
   });
 
-  it('fails before encoding when canvas dimensions are not exactly 1080 square', async (): Promise<void> => {
+  it('fails as capture-failed when the SVG image cannot load, and cleans the frame', async (): Promise<void> => {
     const { source } = createSource();
-    const canvas = createCanvas({ width: EXPORT_SIZE, height: EXPORT_SIZE - 1 });
-    html2canvasMock.mockResolvedValue(canvas);
+    failNextSvgImageLoad = true;
 
     await expect(exportMapPng(source)).resolves.toEqual({
       ok: false,
-      reason: 'invalid-dimensions',
+      reason: 'capture-failed',
     });
 
-    expect(canvas.toBlob).not.toHaveBeenCalled();
+    expect(documentMock.createdCanvases).toHaveLength(0);
     expect(createObjectURLMock).not.toHaveBeenCalled();
     expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
   });
 
-  it('surfaces a null PNG blob and removes the temporary frame', async (): Promise<void> => {
+  it('fails as capture-failed when the 2D context is blocked', async (): Promise<void> => {
     const { source } = createSource();
-    html2canvasMock.mockResolvedValue(createCanvas({ blob: null }));
-
-    await expect(exportMapPng(source)).resolves.toEqual({
-      ok: false,
-      reason: 'encoding-failed',
-    });
-
-    expect(createObjectURLMock).not.toHaveBeenCalled();
-    expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
-  });
-
-  it('surfaces html2canvas rejection and removes the temporary frame', async (): Promise<void> => {
-    const { source } = createSource();
-    html2canvasMock.mockRejectedValue(new Error('capture failed'));
+    documentMock.canvasOptions = { contextUnavailable: true };
 
     await expect(exportMapPng(source)).resolves.toEqual({
       ok: false,
@@ -878,13 +1121,47 @@ describe('exportMapPng', (): void => {
     expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
   });
 
+  it('fails before encoding when the canvas cannot hold exactly 1080 square', async (): Promise<void> => {
+    // A browser that clamps an oversized canvas ignores the size assignment;
+    // the read-back guard is what stops a wrong-size PNG from encoding.
+    const { source } = createSource();
+    documentMock.canvasOptions = {
+      lockDimensionsTo: { width: EXPORT_SIZE, height: EXPORT_SIZE - 1 },
+    };
+
+    await expect(exportMapPng(source)).resolves.toEqual({
+      ok: false,
+      reason: 'invalid-dimensions',
+    });
+
+    const canvas = documentMock.createdCanvases[0];
+    expect(canvas?.toBlob).not.toHaveBeenCalled();
+    expect(createObjectURLMock).not.toHaveBeenCalled();
+    expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
+  });
+
+  it('surfaces a null PNG blob and removes the temporary frame', async (): Promise<void> => {
+    const { source } = createSource();
+    documentMock.canvasOptions = { blob: null };
+
+    await expect(exportMapPng(source)).resolves.toEqual({
+      ok: false,
+      reason: 'encoding-failed',
+    });
+
+    expect(createObjectURLMock).not.toHaveBeenCalled();
+    expect(getCreatedElement(documentMock, 'DIV').wasRemoved).toBe(true);
+  });
+
   it('cleans immediately without a handoff wait if the connected click fails', async (): Promise<void> => {
     vi.useFakeTimers();
     const { source } = createSource();
     documentMock.nextAnchorClickError = new Error('download blocked');
-    html2canvasMock.mockResolvedValue(createCanvas());
 
-    await expect(exportMapPng(source)).resolves.toEqual({
+    const exportPromise = exportMapPng(source);
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(exportPromise).resolves.toEqual({
       ok: false,
       reason: 'encoding-failed',
     });
@@ -907,7 +1184,7 @@ describe('exportMapPng', (): void => {
       reason: 'source-not-found',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
     expect(documentMock.createdElements).toEqual([]);
   });
 
@@ -923,6 +1200,6 @@ describe('exportMapPng', (): void => {
       reason: 'source-not-found',
     });
 
-    expect(html2canvasMock).not.toHaveBeenCalled();
+    expect(serializedClones).toHaveLength(0);
   });
 });

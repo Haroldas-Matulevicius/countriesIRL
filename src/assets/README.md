@@ -2,7 +2,7 @@
 
 These bytes are **reviewable and pinnable on purpose.** `src/assets/inter-latin-variable.woff2`
 does not merely style the editor: `03-11` base64-inlines it into the export bundle so the font
-reaches the `data:image/svg+xml` clone that html2canvas rasterises, which means these exact bytes
+reaches the `data:image/svg+xml` clone the export path rasterises, which means these exact bytes
 end up inside every PNG a creator publishes. That is the same reason `public/data/world-manifest.json`
 records a hash for the world geometry, and this file applies the same discipline
 (`03-RESEARCH.md` § Security Domain, ASVS V6).
@@ -84,8 +84,8 @@ variation : fvar gvar avar HVAR MVAR STAT
 ```
 
 It also renders through the real export path: `tests/e2e/spike-export-font.spec.ts` loads this file
-by name, base64-inlines it into an SVG serialised exactly the way html2canvas does, and asserts the
-raster differs from a font-less control. See the `OQ-1 verdict` section of
+by name, base64-inlines it into an SVG serialised exactly the way `src/utils/export.ts` does, and
+asserts the raster differs from a font-less control. See the `OQ-1 verdict` section of
 `.planning/phases/03-clean-ui-overhaul-1-1-5-weeks/03-01-SUMMARY.md`.
 
 ### Coverage gap — latin-ext is NOT included

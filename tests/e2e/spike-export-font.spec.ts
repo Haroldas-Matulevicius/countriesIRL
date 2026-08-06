@@ -5,11 +5,12 @@
  * resolve when that SVG is rasterised as an `<img>` whose `src` is
  * `"data:image/svg+xml," + encodeURIComponent(XMLSerializer output)`?
  *
- * That serialisation shape is not a choice — it is what html2canvas 1.4.1 does at
- * `html2canvas.js:4562`, and `src/utils/export.ts` never sees it. The escaping is
- * `encodeURIComponent`, not base64, and a very long base64 `src` inside an
- * `encodeURIComponent`'d data URL is the unusual shape OQ-1 doubts. So the spike
- * reproduces the shape verbatim rather than approximating it.
+ * That serialisation shape is exactly what `src/utils/export.ts` now performs
+ * itself (D-34, plan 03-11): `serialiseCloneToImageUrl` builds the same
+ * `encodeURIComponent`'d data URL. The escaping is `encodeURIComponent`, not
+ * base64, and a very long base64 `src` inside an `encodeURIComponent`'d data
+ * URL is the unusual shape OQ-1 doubted. So the spike reproduces the shape
+ * verbatim rather than approximating it.
  *
  * Scope: installed Google Chrome only. Edge is not installed on this machine
  * (D-33) and is deliberately not run. WebKit/Safari is the documented exception
@@ -139,7 +140,7 @@ for (const font of AVAILABLE_FONTS) {
         `${mode === 'blank' ? '' : textBlock}` +
         `</svg>`;
 
-      // Verbatim html2canvas 1.4.1 `SVGElementContainer` shape (html2canvas.js:4562):
+      // The exact shape `src/utils/export.ts` `serialiseCloneToImageUrl` uses:
       //   "data:image/svg+xml," + encodeURIComponent(s.serializeToString(img))
       // encodeURIComponent, NOT base64 — the escaping is part of the question.
       const serialiseLikeHtml2Canvas = (markup: string): string => {

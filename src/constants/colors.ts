@@ -10,8 +10,9 @@ export const SELECTED_BORDER_COLOR = '#000000';
 // Solid fill for units nobody can color (colorOwnerId === null: disputed and
 // neutral territories such as Kosovo, Western Sahara, Antarctica). White made
 // them indistinguishable from an uncolored colorable country, which read as
-// "this country is broken". A solid fill, never a CSS filter - filters
-// rasterize differently under html2canvas than the browser paints them.
+// "this country is broken". A solid fill, never a CSS filter - a filter
+// applied through external CSS never reaches the serialised export clone,
+// which is rasterised as an isolated SVG-as-image document.
 export const NEUTRAL_UNIT_COLOR = '#E5E7EB';
 
 // The accepted-syntax hint for the custom colour field. It lives here rather

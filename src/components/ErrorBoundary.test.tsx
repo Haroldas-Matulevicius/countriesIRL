@@ -40,9 +40,10 @@ function createBlockedStorage(): Storage {
   };
 }
 
-// `html2canvas` touches `window.document.createElement` at module-evaluation
-// time, and these tests import `App` dynamically (after the stubs are in
-// place) so the boundary module can be mocked first.
+// The export utility's retired rasterizer dependency used to touch
+// `window.document.createElement` at module-evaluation time; these tests keep
+// importing `App` dynamically (after the stubs are in place) so the boundary
+// module can be mocked first.
 function createStubDocument(): Document {
   return {
     getElementById: (): Record<string, never> => ({}),
