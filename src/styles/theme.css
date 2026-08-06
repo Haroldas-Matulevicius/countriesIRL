@@ -1,25 +1,58 @@
 /*
- * UI-SPEC sections 4-6 and 20. Two hard rules govern this file:
+ * The Phase 3 token layer (`Design.md`, `03-UI-SPEC.md` section "Design Tokens").
  *
- * 1. `--map-*` are export tokens. They are declared exactly once, in `:root`,
- *    and are never redefined inside a media or supports block. A dark, contrast,
- *    or forced-colors override of any of them would change the exported PNG,
- *    which must be theme- and device-pixel-ratio independent.
- * 2. Glass is progressive enhancement over an opaque fallback. The opaque value
- *    is the `:root` value; the translucent value exists only under
- *    `@supports (backdrop-filter: blur(1px))`, and every accessibility
- *    preference restores the opaque baseline.
- * 3. A preference block must define BOTH schemes. `prefers-reduced-transparency`
- *    and `prefers-contrast` are orthogonal to `prefers-color-scheme` and come
- *    later in source order at equal specificity, so a literal authored for one
- *    scheme silently overrides the other. Restore surfaces by deriving from the
- *    scheme-tracked surface tokens; where a literal is unavoidable (text and
- *    border under `prefers-contrast`), pair it with an explicit
- *    `and (prefers-color-scheme: dark)` counterpart.
+ * Four rules govern this file, and each of them is gated by
+ * `src/styles/uiContract.test.ts` rather than left to review:
+ *
+ * 1. The `--themely-*` colour values are VENDORED VERBATIM from Themely's
+ *    `globals.css`. No value here may be adjusted. Where a CountriesIRL surface
+ *    needs a different value to meet WCAG AA, it consumes its own token
+ *    (`--accent-fill`, `--destructive`) - it never edits a `--themely-*` value.
+ *
+ * 2. The light and dark palettes are the SAME PROPERTY NAMES declared twice:
+ *    once here in the unconditioned `:root`, once in `.dark`. The flip is a
+ *    class on the editor mount root and nothing in this file reads an operating
+ *    system colour preference. `prefers-reduced-motion`,
+ *    `prefers-reduced-transparency`, `prefers-contrast`, and `forced-colors`
+ *    remain legitimate and are used below.
+ *
+ * 3. The mode-invariant set - `--map-*`, `--tooltip-*`, `--swatch-border`,
+ *    `--accent-fill*` - is declared exactly once, in the unconditioned `:root`,
+ *    and appears in no `.dark` block, no media query, and no supports query.
+ *    Redefining one of them makes the exported PNG follow the viewer's theme,
+ *    which no rendering test catches. This outranks Themely's "tokens flip
+ *    themselves" rule for this family (Live Invariant 9).
+ *
+ * 4. A preference block that overrides a palette literal must override it for
+ *    BOTH `:root` and `.dark` inside the same at-rule. The preference block is
+ *    authored after the palette at equal specificity, so a literal written for
+ *    one mode silently wins in the other - the defect that once painted a light
+ *    bar under light text at 1.0:1 for the user who asked for more contrast.
  */
+
+/*
+ * Same-origin, vendored into `src/assets/`. No Google Fonts import, no CDN
+ * link, no runtime third-party request (`coding-rules/general.md` section
+ * Forbidden Patterns). The subset is latin-only; `unicode-range` is declared so
+ * a latin-ext character falls back to the stack below instead of rendering as a
+ * notdef box. `src/assets/README.md` records the measured cost of widening it
+ * and `03-11` owns that decision.
+ */
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../assets/inter-latin-variable.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   color-scheme: light;
 
+  /* ---- Spacing: the 8-point scale, unchanged from Phase 2. ------------- */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -29,41 +62,112 @@
   --space-3xl: 64px;
   --target-compact: 44px;
 
-  --font-label: 14px;
-  --font-body: 16px;
-  --font-heading: 20px;
-  --font-display: 28px;
-  --weight-regular: 400;
-  --weight-semibold: 600;
+  /* ---- Boundary and focus weights ------------------------------------- */
+  /*
+   * Weights are tokens, not literals: they are the only reason
+   * `prefers-contrast: more` can strengthen every boundary and every focus ring
+   * in one place. A rule that writes `1px solid` opts out of that silently.
+   */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --border-width: 1px;
 
+  /* ---- Radii (D-07) ---------------------------------------------------- */
   --radius-control: 8px;
-  --radius-large: 16px;
+  --radius-row: 10px;
+  --radius-card: 14px;
+  --radius-modal: 18px;
+  --radius-pill: 9999px;
 
-  --motion-fast: 150ms;
-  --motion-scene: 160ms;
-  --motion-camera: 240ms;
-  --easing-control: ease-out;
-  --easing-camera: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ---- Typography (D-09, D-10) ----------------------------------------- */
+  /*
+   * Ten roles, each bundling size, line height, weight, and tracking. The role
+   * name carries the size because that is the name `Design.md` uses; the three
+   * companions carry the rest of the bundle, and `.text-<role>` below applies
+   * all four at once.
+   *
+   * The retired `--font-label` / `--font-body` / `--font-heading` /
+   * `--font-display` and `--weight-regular` / `--weight-semibold` are DELETED,
+   * not aliased: a role token bundles its own weight, so a separate weight
+   * scale is a second, unsynchronised source for the same decision.
+   */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /*
-   * Phase 3 motion contract (D-26). Added ADDITIVELY beside the Phase 2 names,
-   * removing nothing: `03-04` owns the retirement of the absorbed names, and a
-   * deletion here would collide with its retired-token gate.
-   *
+   * CLOSED CONSUMER EXEMPTION - exactly two roles, and adding a third fails.
+   * `--text-display` and `--text-stat` have no consumer in this app: there is
+   * no marketing hero and no stat card. D-09 vendors the whole scale anyway, so
+   * they are declared with this reason recorded rather than dropped. Every
+   * other role must be read by a rendering rule, or its declaration is theatre.
+   */
+  --text-display: 40px;
+  --text-display-line-height: 1.1;
+  --text-display-weight: 700;
+  --text-display-tracking: -0.025em;
+
+  --text-h1: 30px;
+  --text-h1-line-height: 1.2;
+  --text-h1-weight: 600;
+  --text-h1-tracking: -0.02em;
+
+  --text-h2: 24px;
+  --text-h2-line-height: 1.25;
+  --text-h2-weight: 600;
+  --text-h2-tracking: -0.015em;
+
+  --text-h3: 18px;
+  --text-h3-line-height: 1.4;
+  --text-h3-weight: 600;
+  --text-h3-tracking: -0.01em;
+
+  --text-subheading: 16px;
+  --text-subheading-line-height: 1.4;
+  --text-subheading-weight: 500;
+  --text-subheading-tracking: 0;
+
+  --text-body: 15px;
+  --text-body-line-height: 1.55;
+  --text-body-weight: 400;
+  --text-body-tracking: 0;
+
+  --text-body-sm: 14px;
+  --text-body-sm-line-height: 1.5;
+  --text-body-sm-weight: 400;
+  --text-body-sm-tracking: 0;
+
+  --text-caption: 12px;
+  --text-caption-line-height: 1.4;
+  --text-caption-weight: 400;
+  --text-caption-tracking: 0;
+
+  --text-eyebrow: 11px;
+  --text-eyebrow-line-height: 1.3;
+  --text-eyebrow-weight: 500;
+  --text-eyebrow-tracking: 0.08em;
+
+  --text-stat: 30px;
+  --text-stat-line-height: 1;
+  --text-stat-weight: 600;
+  --text-stat-tracking: -0.02em;
+
+  /* ---- Motion (D-26) --------------------------------------------------- */
+  /*
    * `src/lib/motion/tokens.ts` is the TS mirror; `tokens.test.ts` pins the two
    * layers in lockstep and fails when either moves alone.
    *
-   * Three deliberate reconciliations, named so a later reader does not read a
-   * rename as a retime:
-   *   - `--motion-ease-out` ABSORBS `--easing-camera`      - byte-identical.
-   *   - `--motion-duration-fast` ABSORBS `--motion-fast`   - byte-identical.
-   *   - `--motion-duration-base` ABSORBS `--motion-camera` - byte-identical.
-   *   - `--motion-ease-snappy` absorbs `--easing-control: ease-out`, and this
-   *     is NOT byte-equal. It is a deliberate RETIME of control micro-feedback
-   *     onto Themely's snappy curve (research assumption A8), not a rename.
-   *   - `--motion-scene` stays LOCAL at 160ms and is NOT retimed to 150ms.
-   *     Themely's "do-not-snap" idiom; retiming the scene crossfade is a
-   *     visible change to the map nobody asked for.
+   * `--motion-ease-snappy` is a deliberate RETIME of control micro-feedback
+   * onto Themely's snappy curve (research assumption A8), not a rename of the
+   * Phase 2 control easing it replaces. A rename and a retime look identical in
+   * a diff, so the mirror test asserts the curve is genuinely not `ease-out`.
+   *
+   * `--motion-scene` stays LOCAL at 160ms and is never retimed to 150ms:
+   * Themely's do-not-snap idiom. Retiming the scene crossfade is a visible
+   * change to the map nobody asked for.
+   *
+   * Every token here has a live consumer - a CSS `var()` in a rendering rule or
+   * a named read in `src/utils/motion.ts`. The TS mirror does NOT count: three
+   * motion tokens were once declared, reduced-motion-gated, and read by nothing
+   * while a gate read as proof.
    */
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -71,185 +175,206 @@
   --motion-duration-fast: 150ms;
   --motion-duration-base: 240ms;
   --motion-duration-slow: 360ms;
+  --motion-scene: 160ms;
 
-  --focus-width: 2px;
-  --focus-offset: 2px;
-  --border-width: 1px;
+  /* ---- Elevation (D-06): flat with hairlines ---------------------------- */
+  /*
+   * `--hairline` is the card/input/row treatment; a hairline is still a
+   * `box-shadow`, so nothing the export clone carries may reference it.
+   * `--hairline-color` is the same relationship expressed as a colour, for the
+   * boundaries that still need to occupy layout.
+   */
+  --hairline-color: color-mix(in srgb, var(--themely-stone-gray) 60%, transparent);
+  --hairline: 0 0 0 var(--border-width) var(--hairline-color);
+  --popover-shadow: 0 4px 12px -2px rgba(6, 27, 49, 0.1);
+  --dialog-shadow: 0 10px 40px -10px rgba(6, 27, 49, 0.2);
 
-  --surface-page: #eef1f3;
-  --surface-card: #ffffff;
-  --surface-hover: #e2e8f0;
-  --surface-pressed: #cbd5e1;
-  --surface-accent-tint: #ccfbf1;
-  --text-primary: #111827;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border-default: #cbd5e1;
-  --border-strong: #1f2937;
-  --accent: #0f766e;
-  --accent-contrast: #ffffff;
-  --accent-hover: #0b5b55;
+  /* ---- Themely cool palette, light. VERBATIM (D-03, D-04). -------------- */
+  --themely-platinum: #ffffff;
+  --themely-porcelain: #f8fafd;
+  --themely-powder: #e5edf5;
+  --themely-apple-blue: #0071e3;
+  --themely-apple-blue-hover: #005db8;
+  --themely-midnight-ink: #061b31;
+  --themely-slate-blue: #50617a;
+  --themely-nav-ink: #0d0d0d;
+  --themely-ghost-gray: #64748d;
+  --themely-stone-gray: #d8d6df;
+  --themely-red: #ff5252;
+  --themely-on-accent: #ffffff;
+  --themely-media-backdrop: #000000;
+  --themely-on-media: #ffffff;
+
+  /* ---- Semantic status colours ------------------------------------------ */
+  /*
+   * `--destructive` is NOT `--themely-red` in light mode, and the reason is a
+   * measurement rather than a preference: `#ff5252` on Porcelain is 3.05:1 and
+   * white on a `#ff5252` fill is 3.19:1, both below AA's 4.5:1. The same
+   * problem the owner already solved for the accent is solved the same way -
+   * the Themely value stays verbatim and the surface that owes AA consumes its
+   * own token. In dark mode `#ff6b6b` clears AA on every chrome surface, so
+   * `--destructive` DERIVES from the palette token there instead of restating a
+   * second red.
+   *
+   * D-05 collapses status hues onto Apple Blue, Themely Red, or no colour at
+   * all; `--success` and `--warning` survive this plan because the toast
+   * severity surfaces that consume them are restyled in `03-10`.
+   */
   --destructive: #b42318;
   --destructive-tint: #fef3f2;
   --success: #067647;
   --success-tint: #ecfdf3;
   --warning: #b54708;
   --warning-tint: #fffaeb;
-  --overlay: rgba(15, 23, 42, 0.72);
+  --overlay: color-mix(in srgb, var(--themely-media-backdrop) 72%, transparent);
 
-  --glass-app-bar: #f8fafc;
-  --glass-inspector: #ffffff;
-  --glass-navigation: #ffffff;
-  --glass-blur-app-bar: 0;
-  --glass-blur-inspector: 0;
-  --glass-blur-navigation: 0;
-
-  --shadow-inspector: 0 16px 48px rgba(15, 23, 42, 0.1);
-  --shadow-navigation: 0 8px 24px rgba(15, 23, 42, 0.12);
-  --modal-shadow: 0 16px 48px rgba(15, 23, 42, 0.32);
-  --toast-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
-
+  /* ---- The mode-invariant (fixed) set - the export firewall -------------- */
+  /*
+   * Declared exactly once, here, in the unconditioned root. Not in `.dark`, not
+   * in a media query, not in a supports query. One of these redefined anywhere
+   * else makes the exported PNG follow the viewer's theme.
+   *
+   * `--map-fixed-text` stays `#111827`: re-toning it changes exported pixels for
+   * every existing saved composition, and D-25 already spends this phase's one
+   * deliberate export-pixel change on the legend typeface.
+   *
+   * `--map-border-focus` moves off the retired teal to Apple Blue's LIGHT value
+   * and stays fixed in both modes - leaving the teal would keep a second
+   * saturated hue alive, which D-05 forbids. It is safe for the export because
+   * `sanitizeExportClone` strips focus classes and attributes before capture, so
+   * the focus stroke never reaches a PNG.
+   */
   --map-surface: #ffffff;
   --map-fill-default: #ffffff;
   --map-border-default: #000000;
   --map-border-hover: #000000;
   --map-border-selected: #000000;
-  --map-border-focus: #0f766e;
+  --map-border-focus: #0071e3;
   --map-fixed-text: #111827;
   --map-skeleton-fill: #e5e7eb;
   --map-skeleton-stroke: #d1d5db;
-  /*
-   * D-32 export frame. New members of the mode-invariant set: declared in the
-   * unconditioned root and in no conditional block, for the same reason every
-   * other `--map-*` token is. The frame marks where the 1080 viewBox square
-   * lands once the canvas region stops being square, so a viewer-theme-
-   * dependent edge would move the creator's only WYSIWYG signal.
-   */
   --map-frame-edge: rgba(6, 27, 49, 0.55);
   --map-frame-scrim: rgba(6, 27, 49, 0.06);
-  --tooltip-border: #cbd5e1;
-  --tooltip-surface: #111827;
-  --tooltip-text: #f8fafc;
-  --tooltip-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
   --swatch-border: #9ca3af;
-  --mixed-color-light: #ffffff;
-  --mixed-color-dark: #64748b;
-  --active-check-border: #ffffff;
-  --active-check-surface: #111827;
-  --active-check-text: #ffffff;
+
+  /*
+   * The tooltip is an HTML overlay and can never reach the export clone, yet it
+   * is declared fixed anyway: consuming the flipping ink token would produce a
+   * light chip with white text in dark mode. White on `#061b31` is 17.9:1.
+   */
+  --tooltip-surface: #061b31;
+  --tooltip-text: #ffffff;
+  --tooltip-border: rgba(255, 255, 255, 0.14);
+  --tooltip-shadow: 0 4px 12px -2px rgba(6, 27, 49, 0.1);
+
+  /*
+   * The `Export PNG` fill. Fixed for ACCESSIBILITY rather than for export
+   * independence, which is why it is not a `--map-*` token: white on `#0071e3`
+   * is 4.70:1 (AA), while the flipping accent would give white on `#2997ff` =
+   * 3.02:1 in dark and its hover pair `#1a7fd4` = 4.18:1. Do not "simplify" this
+   * onto the flipping token - it looks tidier and silently reintroduces a
+   * failing label that no rendering test catches.
+   */
+  --accent-fill: #0071e3;
+  --accent-fill-hover: #005db8;
 }
 
 /*
- * Dark changes editor chrome only (UI-SPEC 5.3). No `--map-*` token appears
- * here: the composition square and the exported PNG stay fixed and opaque.
- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --surface-page: #0b0f12;
-    --surface-card: #151b20;
-    --surface-hover: #1e293b;
-    --surface-pressed: #334155;
-    --surface-accent-tint: #134e4a;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --border-default: #334155;
-    --border-strong: #f8fafc;
-    --accent: #5eead4;
-    --accent-contrast: #042f2e;
-    --accent-hover: #99f6e4;
-    --overlay: rgba(0, 0, 0, 0.8);
-    --glass-app-bar: #151b20;
-    --glass-inspector: #151b20;
-    --glass-navigation: #151b20;
-  }
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  :root {
-    --glass-app-bar: rgba(248, 250, 252, 0.86);
-    --glass-inspector: rgba(255, 255, 255, 0.88);
-    --glass-navigation: rgba(255, 255, 255, 0.9);
-    --glass-blur-app-bar: 16px;
-    --glass-blur-inspector: 18px;
-    --glass-blur-navigation: 14px;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --glass-app-bar: rgba(21, 27, 32, 0.86);
-      --glass-inspector: rgba(21, 27, 32, 0.88);
-      --glass-navigation: rgba(21, 27, 32, 0.9);
-    }
-  }
-}
-
-/*
- * Opaque baseline restoration. Each of these preferences independently returns
- * the enhanced glass tokens to an opaque surface and removes blur, so no
- * readability ever depends on content behind a translucent surface.
+ * "Lights Out", verbatim. The flip is this class on the editor mount root, and
+ * it is set from an explicit control - there is no operating-system listener
+ * anywhere in the dark path (D-30).
  *
- * The restored value is `var(--surface-card)`, not a literal: these blocks come
- * after `@media (prefers-color-scheme: dark)` at equal specificity, so a light
- * literal here would paint a light bar under dark-mode text at ~1:1. Deriving
- * from the scheme-tracked surface token makes that defect unrepresentable.
+ * `--themely-on-accent`, `--themely-media-backdrop`, and `--themely-on-media`
+ * are IDENTICAL in both modes by contract, so they are restated here rather
+ * than omitted: the parity gate reads their presence as the claim.
+ *
+ * No `--map-*`, `--tooltip-*`, `--swatch-border`, or `--accent-fill*` token
+ * appears below, and a gate fails if one ever does.
+ */
+.dark {
+  color-scheme: dark;
+
+  --themely-platinum: #000000;
+  --themely-porcelain: #16181c;
+  --themely-powder: #1d1f23;
+  --themely-apple-blue: #2997ff;
+  --themely-apple-blue-hover: #1a7fd4;
+  --themely-midnight-ink: #e7e9ea;
+  --themely-slate-blue: #8b9099;
+  --themely-nav-ink: #ffffff;
+  --themely-ghost-gray: #71767b;
+  --themely-stone-gray: #2f3336;
+  --themely-red: #ff6b6b;
+  --themely-on-accent: #ffffff;
+  --themely-media-backdrop: #000000;
+  --themely-on-media: #ffffff;
+
+  --destructive: var(--themely-red);
+  --destructive-tint: #2b1513;
+  --success: #4ade80;
+  --success-tint: #0d1f16;
+  --warning: #fbbf24;
+  --warning-tint: #241a08;
+
+  --popover-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.45);
+}
+
+/*
+ * A translucent scrim is the only transparency left in the editor now that the
+ * glass family is deleted, so this is the one token the preference restores.
+ * Declared for both modes in the same at-rule even though the value is
+ * identical, because the shape of the block is what the gate reads: the next
+ * token added here must answer for both modes too.
  */
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --glass-app-bar: var(--surface-card);
-    --glass-inspector: var(--surface-card);
-    --glass-navigation: var(--surface-card);
-    --glass-blur-app-bar: 0;
-    --glass-blur-inspector: 0;
-    --glass-blur-navigation: 0;
+    --overlay: var(--themely-media-backdrop);
+  }
+
+  .dark {
+    --overlay: var(--themely-media-backdrop);
   }
 }
 
+/*
+ * More contrast darkens secondary text and strengthens hairlines in light, and
+ * does the OPPOSITE in dark. Every literal below is answered in both blocks -
+ * that pairing is the whole point of the rule, and it is asserted structurally
+ * rather than trusted.
+ *
+ * The replacement values are other members of the same palette (light secondary
+ * steps up to the primary ink; the hairline steps up to secondary), so nothing
+ * here invents a colour.
+ */
 @media (prefers-contrast: more) {
   :root {
     --border-width: 2px;
     --focus-width: 3px;
-    --border-default: #1f2937;
-    --text-secondary: #1f2937;
-    --text-muted: #1f2937;
-    --glass-app-bar: var(--surface-card);
-    --glass-inspector: var(--surface-card);
-    --glass-navigation: var(--surface-card);
-    --glass-blur-app-bar: 0;
-    --glass-blur-inspector: 0;
-    --glass-blur-navigation: 0;
+    --themely-slate-blue: #061b31;
+    --themely-stone-gray: #50617a;
+    --destructive: #8c1a12;
+  }
+
+  .dark {
+    --themely-slate-blue: #e7e9ea;
+    --themely-stone-gray: #8b9099;
+    --destructive: #ff9b9b;
   }
 }
 
 /*
- * The contrast block above darkens text and borders, which is only "more
- * contrast" against a light surface. Dark mode needs the opposite move against
- * `--surface-card: #151b20`, so the same preference is restated for that scheme
- * rather than left to inherit a near-black-on-near-black override.
+ * Forced colors hands every paint decision to the user agent, so this block
+ * overrides no colour at all: it strengthens the two weights and removes the
+ * shadows, which a forced palette cannot express. `--tooltip-shadow` is absent
+ * on purpose - it is an export token and may not be redefined anywhere.
  */
-@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
-  :root {
-    --border-default: #e2e8f0;
-    --text-secondary: #f8fafc;
-    --text-muted: #e2e8f0;
-  }
-}
-
 @media (forced-colors: active) {
   :root {
     --border-width: 2px;
     --focus-width: 3px;
-    --glass-app-bar: Canvas;
-    --glass-inspector: Canvas;
-    --glass-navigation: Canvas;
-    --glass-blur-app-bar: 0;
-    --glass-blur-inspector: 0;
-    --glass-blur-navigation: 0;
-    --shadow-inspector: none;
-    --shadow-navigation: none;
-    --modal-shadow: none;
-    --toast-shadow: none;
+    --hairline: none;
+    --popover-shadow: none;
+    --dialog-shadow: none;
   }
 }
 
@@ -280,13 +405,81 @@ body {
    * container and silently kills sticky positioning inside it.
    */
   overflow-x: hidden;
-  color: var(--text-primary);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  font-size: var(--font-body);
-  font-weight: var(--weight-regular);
-  line-height: 1.5;
+  color: var(--themely-midnight-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  line-height: var(--text-body-line-height);
   text-rendering: optimizeLegibility;
+}
+
+/* ---- The type-role classes ------------------------------------------- */
+/*
+ * One class per role that this app actually uses. `--text-display` and
+ * `--text-stat` deliberately have no class here: giving every role a class
+ * would make the closed consumer exemption above vacuously true, which is the
+ * "gate that cannot fail" shape this repo keeps catching.
+ */
+.text-h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: var(--text-h1-tracking);
+  line-height: var(--text-h1-line-height);
+}
+
+.text-h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--text-h2-weight);
+  letter-spacing: var(--text-h2-tracking);
+  line-height: var(--text-h2-line-height);
+}
+
+.text-h3 {
+  font-size: var(--text-h3);
+  font-weight: var(--text-h3-weight);
+  letter-spacing: var(--text-h3-tracking);
+  line-height: var(--text-h3-line-height);
+}
+
+.text-subheading {
+  font-size: var(--text-subheading);
+  font-weight: var(--text-subheading-weight);
+  letter-spacing: var(--text-subheading-tracking);
+  line-height: var(--text-subheading-line-height);
+}
+
+.text-body {
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  letter-spacing: var(--text-body-tracking);
+  line-height: var(--text-body-line-height);
+}
+
+.text-body-sm {
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-body-sm-weight);
+  letter-spacing: var(--text-body-sm-tracking);
+  line-height: var(--text-body-sm-line-height);
+}
+
+.text-caption {
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+  line-height: var(--text-caption-line-height);
+}
+
+.text-eyebrow {
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  line-height: var(--text-eyebrow-line-height);
+  text-transform: uppercase;
+}
+
+/* Any column of numbers, so digits line up rather than jitter as they change. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 button,
@@ -299,42 +492,48 @@ select {
 button {
   min-width: 0;
   min-height: var(--space-2xl);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: var(--surface-card);
-  color: var(--text-primary);
-  font-size: var(--font-label);
-  font-weight: var(--weight-semibold);
-  line-height: 1.4;
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-body-sm-weight);
+  line-height: var(--text-body-sm-line-height);
   cursor: pointer;
   transition:
-    background-color var(--motion-fast) var(--easing-control),
-    border-color var(--motion-fast) var(--easing-control),
-    color var(--motion-fast) var(--easing-control);
+    background-color var(--motion-duration-fast) var(--motion-ease-snappy),
+    border-color var(--motion-duration-fast) var(--motion-ease-snappy),
+    color var(--motion-duration-fast) var(--motion-ease-snappy);
 }
 
 button:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--themely-powder);
 }
 
 button:active:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--surface-pressed);
+  border-color: var(--themely-slate-blue);
+  background: var(--themely-powder);
 }
 
 button:disabled,
 input:disabled,
 select:disabled {
-  color: var(--text-muted);
+  color: var(--themely-slate-blue);
   cursor: not-allowed;
   opacity: 0.56;
 }
 
+/*
+ * The one global Apple Blue exemption from the per-surface accent budget
+ * (D-05): focus rings are transient, keyboard-only, and required by NFR11. The
+ * exemption covers `:focus-visible` and nothing else - not `:hover`, not
+ * `:active`.
+ */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: var(--focus-width) solid var(--accent);
+  outline: var(--focus-width) solid var(--themely-apple-blue);
   outline-offset: var(--focus-offset);
 }
 
@@ -348,42 +547,46 @@ ul {
   margin-block-start: 0;
 }
 
-h1,
-h2,
+h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--text-h1-weight);
+  letter-spacing: var(--text-h1-tracking);
+  line-height: var(--text-h1-line-height);
+}
+
+h2 {
+  font-size: var(--text-h2);
+  font-weight: var(--text-h2-weight);
+  letter-spacing: var(--text-h2-tracking);
+  line-height: var(--text-h2-line-height);
+}
+
 h3,
-h4,
+h4 {
+  font-size: var(--text-h3);
+  font-weight: var(--text-h3-weight);
+  letter-spacing: var(--text-h3-tracking);
+  line-height: var(--text-h3-line-height);
+}
+
 strong,
 label,
 legend {
-  font-weight: var(--weight-semibold);
-}
-
-h1 {
-  font-size: var(--font-display);
-  line-height: 1.2;
-}
-
-h2,
-h3,
-h4 {
-  font-size: var(--font-heading);
-  line-height: 1.3;
+  font-weight: var(--text-subheading-weight);
 }
 
 label,
 legend {
-  font-size: var(--font-label);
-  line-height: 1.4;
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm-line-height);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --motion-fast: 0ms;
-    --motion-scene: 0ms;
-    --motion-camera: 0ms;
     --motion-duration-fast: 0ms;
     --motion-duration-base: 0ms;
     --motion-duration-slow: 0ms;
+    --motion-scene: 0ms;
   }
 
   *,
