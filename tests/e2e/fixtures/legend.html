@@ -37,7 +37,12 @@
         height: 32px;
         border: 1px solid #111827;
       }
-      svg {
+      /*
+       * Scoped to the legend canvas: `03-07` gave the editor's reorder
+       * buttons inline SVG glyphs, and a bare `svg` rule inflated each glyph
+       * to a second 540px square.
+       */
+      svg[data-legend-canvas='true'] {
         width: 540px;
         height: 540px;
         border: 1px solid #9ca3af;

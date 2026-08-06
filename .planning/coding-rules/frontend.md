@@ -1152,6 +1152,35 @@ reordering would have moved an accent onto a `Dismiss` button with nothing faili
 filled primary action in the composed DOM" is a claim about `controls__action--primary`
 specifically, which is why that class lives in one component.
 
+## Tool-panel content styling (UI-SPEC 7/8, plan 03-07)
+
+**Sub-section headings and `<fieldset>` legends inside the tool panel are `--text-body-sm` at
+weight 500 — never `--text-subheading`.** 16px and 14px are only 2px apart, which reads as an
+accident rather than a hierarchy in a 280px column; the weight bump carries the hierarchy.
+
+**Stack labelled controls; reserve rows for icon-only or single-word controls.** A row of
+full-phrase controls has no width at which it fits 280px. The legend entry's reorder actions are
+icon-only ghost buttons at `--target-compact` (44px) on their own row, with inline SVG glyphs
+following the `MapNavigation` precedent and **unchanged accessible names** (`Move Up`,
+`Move Down`, `Drag <label> to reorder`); keyboard reorder through the two arrows is the primary
+path and drag the enhancement.
+
+**Option groups are pills, not visible radios**: Porcelain + Slate Blue unselected, Powder +
+Midnight Ink selected, the radio input kept in the tree visually hidden (never `display: none`)
+so every `getByLabel` and announcement keeps working, and the focus ring riding on the label via
+`:has(input:focus-visible)`. The position picker is a 3×3 grid of 44px cells (four corners +
+`Custom` centre); selecting `Custom` adopts the currently rendered position via
+`resolveLegendPosition` and announces the existing approved string.
+
+**No accent in the `legend` panel** (D-05: no primary action ⇒ no Apple Blue; the range slider's
+`accent-color` is Slate Blue), and **no ghost-gray text** — the counter and row meta use
+`--themely-slate-blue`, because painting text with `--themely-ghost-gray` is gated out. An
+invalid legend row gets its red left edge from `[data-entry-invalid="true"]`, never a positional
+selector. **The panel body stays the single scroll container**: the country list's inspector-era
+inner scroll cap is gone (the locate combobox popup keeps its own bounded scroll — it is a
+transient listbox, not panel flow). Test fixtures that size an `svg` must scope the selector —
+a bare `svg` rule inflated the new 20px glyphs to 540px squares.
+
 ## The Period HUD (D-14, D-15)
 
 `src/components/editor/PeriodHud.tsx` is the `.period-hud` surface in the **canvas region, never
@@ -1179,7 +1208,7 @@ holds five labels elsewhere in the module graph.
 
 ---
 
-*Last updated: 2026-08-06 — §The Period HUD (D-14/D-15): `CompositionBar` deleted and rehomed as `.period-hud` in the canvas region (never the rail — the status region is an `aria-describedby` target and must sit next to its control); resolved manifest options only, never `SNAPSHOT_CATALOG`; one option renders as a visibly inert read-only pill with the interactive `<select>` path kept reachable in code; both ids byte-identical to Phase 2; assertion 13 scoped to `.period-hud`, assertion 14's load-bearing half asserting every `aria-describedby` id resolves (plan 03-07).*
+*Last updated: 2026-08-06 — §The Period HUD (D-14/D-15): `CompositionBar` deleted and rehomed as `.period-hud` in the canvas region (never the rail — the status region is an `aria-describedby` target and must sit next to its control); resolved manifest options only, never `SNAPSHOT_CATALOG`; one option renders as a visibly inert read-only pill with the interactive `<select>` path kept reachable in code; both ids byte-identical to Phase 2; assertion 13 scoped to `.period-hud`, assertion 14's load-bearing half asserting every `aria-describedby` id resolves. §Tool-panel content styling (UI-SPEC 7/8): weight-carried hierarchy at `--text-body-sm` 500, stacked labelled controls with 44px icon-only action rows and unchanged accessible names, option pills over visually hidden radios, the 3×3 position grid with a `Custom` cell, no accent and no ghost-gray text in the legend panel, `[data-entry-invalid]` for the red row edge, and the panel body as the single scroll container (plan 03-07).*
 *Last updated: 2026-08-06 + 2026-07-26/27 — earlier Phase 3 rules, condensed: §The Tool Rail and its Panel (D-12/D-13/D-16/D-17/D-18/D-29): 48px rows as a translation, not a copy, of Themely's `h-9`; background-only state with instant paint; rows as plain tab stops with no second roving-tabindex writer; no scroll container in the rail; HUD header/footer as pinned siblings whose fixed heights the panel body reserves; hide by truncation or visual hiding, never `display: none`; the panel track as the persistent `main` landmark; the title row sticky inside the one scroll container; `Controls` as one component with a three-value declared variant and exactly one mounted instance; `openRailTool`/`legendDisclosure` in the shared e2e harness (plan 03-06). §The Phase 3 Token System (D-03…D-10/D-26/D-30): verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token (`--accent-fill`, `--destructive`, ghost-gray text ban); class-based dark flip with no OS colour query; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned; flat hairline elevation; matrix row count as a literal; `uiContract.test.ts` as the only CSS contract test (plan 03-04). §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root over an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` two-valued with exactly one writer; animate the registered `--panel-width`, never the track list; `ResizeObserver` as an ownership set; the export frame as a sibling of the export source (plan 03-03). Earlier: borders by stroke-width with `non-scaling-stroke` in the camera scale group; wave789 inspector rules (both-scheme preference queries, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, chrome off the square, stacked 376px controls, derived grid tracks); `NEUTRAL_UNIT_COLOR` for null-owner units in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth, `src/lib/motion/tokens.ts` a mirror pinned by a two-way lockstep gate. §Vendored Animated Icons (D-28): authored in-repo, recipes translated never copied, `size` prop, forwardRef + `*IconHandle`, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

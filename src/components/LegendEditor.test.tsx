@@ -81,9 +81,12 @@ describe('LegendEditor static semantics', (): void => {
 
     expect(markup).toContain('Legend label for #DC2626');
     expect(markup).toContain('14/32');
+    // The counter never announces per keystroke.
+    expect(markup).toContain('aria-live="off"');
     expect(markup).toContain('aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"');
-    expect(markup).toContain('>Move Up<');
-    expect(markup).toContain('>Move Down<');
+    // Icon-only since 03-07; the accessible names are unchanged.
+    expect(markup).toContain('aria-label="Move Up"');
+    expect(markup).toContain('aria-label="Move Down"');
     expect(markup).toContain('Drag Warm countries to reorder');
     expect(markup).toContain('aria-label="Legend theme"');
     expect(markup).toContain('value="light"');
@@ -106,6 +109,10 @@ describe('LegendEditor static semantics', (): void => {
     expect(markup).toContain('>Top right<');
     expect(markup).toContain('>Bottom left<');
     expect(markup).toContain('>Bottom right<');
+    // 03-07: the 3x3 position grid gains the Custom cell; a preset position
+    // leaves it unchecked.
+    expect(markup).toContain('>Custom<');
+    expect(markup).toContain('legend-editor__position-grid');
   });
 
   it('renders exact empty state with disabled style and position controls', (): void => {

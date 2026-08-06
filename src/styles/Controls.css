@@ -456,23 +456,20 @@
 }
 
 /*
- * Bounded in absolute terms, not in `vh`. At 48vh the 195-row list was the
- * tallest thing in the inspector on every screen and pushed Locate off the
- * bottom; a fixed cap keeps the list one element among several.
+ * No inner scroll container: at 195 rows the PANEL BODY is the single scroll
+ * container (UI-SPEC 7). The inspector-era fixed cap existed to keep Locate
+ * reachable below the list; in the panel, Locate scrolls with the body.
  */
 .country-list__items {
-  max-height: calc(var(--space-3xl) * 5);
-  overflow-y: auto;
-  overscroll-behavior: contain;
   border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  scrollbar-gutter: stable;
 }
 
 .country-list__item + .country-list__item {
   border-top: var(--border-width) solid var(--hairline-color);
 }
 
+/* Hover paint is INSTANT on every row in the editor (D-29). */
 .country-list__label {
   display: grid;
   align-items: center;
@@ -481,8 +478,6 @@
   grid-template-columns: var(--space-lg) minmax(0, 1fr) var(--space-lg);
   gap: var(--space-sm);
   cursor: pointer;
-  transition: background-color var(--motion-duration-fast)
-    var(--motion-ease-snappy);
 }
 
 .country-list__label:hover {
@@ -871,20 +866,43 @@
   gap: var(--space-md);
 }
 
+/*
+ * The compact empty-state recipe (UI-SPEC 7): dashed Stone Gray at 70%,
+ * Porcelain at 40%, centred, with a 40x40 Apple-Blue-at-10% chip holding the
+ * 16px `layers` glyph. Copy unchanged.
+ */
 .legend-editor__empty {
   padding: var(--space-lg);
-  border: var(--border-width) dashed var(--hairline-color);
-  border-radius: var(--radius-control);
+  border: var(--border-width) dashed
+    color-mix(in srgb, var(--themely-stone-gray) 70%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--themely-porcelain) 40%, transparent);
   text-align: center;
+}
+
+.legend-editor__empty-chip {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--themely-apple-blue) 10%, transparent);
+  color: var(--themely-slate-blue);
+  place-items: center;
 }
 
 .legend-editor__empty h3 {
   margin-bottom: var(--space-sm);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
 }
 
 .legend-editor__empty p {
   margin-bottom: 0;
   color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
 }
 
 .legend-editor__entries {
@@ -899,24 +917,41 @@
  * `swatch | label + input | counter`, then the error and the actions each span
  * the row.
  */
+/*
+ * UI-SPEC 7 entry row: a Porcelain card at `--radius-card` with the hairline.
+ * NO inner hairline card - the label input sits directly on the card with a
+ * bottom edge only.
+ */
 .legend-editor__entry {
   display: grid;
   align-items: center;
-  padding: var(--space-md);
+  padding: var(--space-sm);
   border-radius: var(--radius-card);
   background: var(--themely-porcelain);
   box-shadow: var(--hairline);
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--space-sm) var(--space-md);
+  gap: var(--space-sm);
+}
+
+/*
+ * An invalid row gets its red left edge from the row's own data attribute,
+ * never from a positional selector. `--destructive` rather than the raw
+ * Themely red: the destructive family is the AA-measured treatment and IS the
+ * Themely red in dark mode.
+ */
+.legend-editor__entry[data-entry-invalid="true"] {
+  box-shadow:
+    inset 2px 0 0 var(--destructive),
+    var(--hairline);
 }
 
 .legend-editor__swatch {
   display: block;
   flex: 0 0 auto;
-  width: var(--space-xl);
-  height: var(--space-xl);
+  width: 20px;
+  height: 20px;
   border: var(--border-width) solid var(--swatch-border);
-  border-radius: var(--radius-control);
+  border-radius: 6px;
 }
 
 .legend-editor__entry label {
@@ -925,6 +960,11 @@
   gap: var(--space-xs);
 }
 
+/*
+ * `--themely-slate-blue`, not the SPEC's ghost gray: painting text with the
+ * ghost token is gated out (3.60:1 on dark Powder), and slate blue is the
+ * tertiary-meta role the gate names as the replacement.
+ */
 .legend-editor__counter {
   color: var(--themely-slate-blue);
   font-size: var(--text-caption);
@@ -932,37 +972,56 @@
   line-height: var(--text-caption-line-height);
 }
 
+.legend-editor__counter--limit {
+  color: var(--destructive);
+}
+
 /*
- * Derived tracks again: at three fixed columns the 376px inspector gave each
- * action a 92px track and broke `Move Down` across two lines. A minimum track
- * that fits the longest label yields two columns here and three on a wider card,
- * with no label wrapped.
+ * Icon-only ghost actions at 44px on their own row (UI-SPEC 7): a full-phrase
+ * control row has no width at which it fits a 280px column.
  */
 .legend-editor__row-actions {
-  display: grid;
+  display: flex;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  justify-content: flex-end;
   gap: var(--space-sm);
 }
 
+.legend-editor__row-action {
+  display: grid;
+  width: var(--target-compact);
+  min-height: var(--target-compact);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--themely-nav-ink);
+  place-items: center;
+}
+
+.legend-editor__row-action:hover:not(:disabled) {
+  background: var(--themely-powder);
+}
+
+/*
+ * The label input sits DIRECTLY on the card: transparent, no box, a hairline
+ * bottom edge only (UI-SPEC 7 - no borders on top of borders).
+ */
 .legend-editor__entry input[type="text"] {
   width: 100%;
   min-width: 0;
   min-height: var(--space-2xl);
-  padding: var(--space-sm) var(--space-md);
-  border: var(--border-width) solid var(--hairline-color);
-  border-radius: var(--radius-control);
-  background: var(--themely-porcelain);
+  padding: var(--space-sm) 0;
+  border: 0;
+  border-bottom: var(--border-width) solid var(--hairline-color);
+  border-radius: 0;
+  background: transparent;
   color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .legend-editor__entry input[aria-invalid="true"] {
   border-color: var(--destructive);
-  background: var(--destructive-tint);
-}
-
-.legend-editor__entry button {
-  padding: var(--space-sm) var(--space-md);
 }
 
 .legend-editor__entry p[role="alert"],
@@ -984,28 +1043,170 @@
   border: 0;
 }
 
+/*
+ * UI-SPEC 7 style controls: each inner fieldset is a Porcelain card whose
+ * `<legend>` is `--text-body-sm` at weight 500 - deliberately NOT
+ * `--text-subheading`. 16px and 14px are only 2px apart and read as an
+ * accident rather than a hierarchy in the same 280px column; the weight bump
+ * carries the hierarchy.
+ */
 .legend-editor fieldset fieldset {
   margin-top: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+  box-shadow: var(--hairline);
 }
 
-.legend-editor fieldset label {
-  display: flex;
+.legend-editor fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-sm);
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
+}
+
+/*
+ * Options are PILLS (UI-SPEC 7): neutral Porcelain + Slate Blue unselected,
+ * Powder + Midnight Ink selected. NO accent - the legend panel has no primary
+ * action, so per D-05 it carries no Apple Blue at all. The radio input stays
+ * in the tree, visually hidden, so every `getByLabel` and announcement keeps
+ * working; the focus ring rides on the label through `:has`.
+ */
+.legend-editor__pill {
+  display: inline-flex;
   align-items: center;
-  min-height: var(--space-2xl);
-  gap: var(--space-sm);
+  justify-content: center;
+  min-height: var(--target-compact);
+  margin-right: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  box-shadow: var(--hairline);
+  color: var(--themely-slate-blue);
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm-line-height);
+  cursor: pointer;
 }
 
-.legend-editor input[type="radio"] {
-  width: var(--space-lg);
-  height: var(--space-lg);
+.legend-editor__pill:has(input:checked) {
+  background: var(--themely-powder);
+  color: var(--themely-midnight-ink);
+}
+
+.legend-editor__pill:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--themely-apple-blue);
+  outline-offset: var(--focus-offset);
+}
+
+.legend-editor__pill input[type="radio"],
+.legend-editor__position-cell input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  accent-color: var(--themely-apple-blue);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
+/*
+ * The position picker: a 3x3 grid of 44px cells, four corner presets plus
+ * Custom in the centre; the selected cell is Powder (UI-SPEC 7). The cell's
+ * text label is visually hidden - never `display: none` - so `Top left` etc.
+ * stay the radios' accessible names.
+ */
+.legend-editor__position-grid {
+  display: grid;
+  justify-content: start;
+  grid-template-columns: repeat(3, var(--target-compact));
+  grid-template-rows: repeat(3, var(--target-compact));
+  gap: var(--space-xs);
+}
+
+.legend-editor__position-cell {
+  position: relative;
+  display: grid;
+  border-radius: var(--radius-control);
+  box-shadow: var(--hairline);
+  color: var(--themely-slate-blue);
+  cursor: pointer;
+  place-items: center;
+}
+
+.legend-editor__position-cell--top-left {
+  grid-area: 1 / 1;
+}
+
+.legend-editor__position-cell--top-right {
+  grid-area: 1 / 3;
+}
+
+.legend-editor__position-cell--bottom-left {
+  grid-area: 3 / 1;
+}
+
+.legend-editor__position-cell--bottom-right {
+  grid-area: 3 / 3;
+}
+
+.legend-editor__position-cell--custom {
+  grid-area: 2 / 2;
+}
+
+.legend-editor__position-cell:has(input:checked) {
+  background: var(--themely-powder);
+  color: var(--themely-midnight-ink);
+}
+
+.legend-editor__position-cell:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--themely-apple-blue);
+  outline-offset: var(--focus-offset);
+}
+
+.legend-editor__position-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.legend-editor__position-dot {
+  width: var(--space-sm);
+  height: var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: currentcolor;
+}
+
+/*
+ * The opacity slider's label block - the same Porcelain card and weight-500
+ * heading treatment as the sibling fieldsets, so the five style controls read
+ * as one family.
+ */
+.legend-editor > fieldset > label {
+  display: grid;
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+  box-shadow: var(--hairline);
+  gap: var(--space-xs);
+}
+
+.legend-editor > fieldset > label > span {
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
+}
+
+/* Neutral, not Apple Blue: the legend panel spends no accent at all (D-05). */
 .legend-editor input[type="range"] {
   width: 100%;
   min-height: var(--space-2xl);
-  accent-color: var(--themely-apple-blue);
+  accent-color: var(--themely-slate-blue);
 }
 
 /*

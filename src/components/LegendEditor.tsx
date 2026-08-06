@@ -37,6 +37,7 @@ import type {
   LegendNudgeDirection,
   LegendValidationResult,
 } from '../utils/legend';
+import { LayersIcon } from './icons/LayersIcon';
 
 export const LEGEND_LABEL_MAX_LENGTH = 32;
 
@@ -71,6 +72,7 @@ const CORNER_OPTIONS: ReadonlyArray<{
   { value: 'bottom-left', label: 'Bottom left' },
   { value: 'bottom-right', label: 'Bottom right' },
 ];
+const CUSTOM_POSITION_LABEL = 'Custom';
 const NUDGE_OPTIONS: ReadonlyArray<{
   direction: LegendNudgeDirection;
   label: string;
@@ -315,6 +317,19 @@ export function LegendEditor({
     onStatusMessage(`Legend moved to ${label}.`);
   };
 
+  // The Custom cell adopts the position the overlay is actually rendering as a
+  // free position, which is what reveals the nudge controls. Its announcement
+  // is the existing approved string - no new message enters the allowlist.
+  const setCustomPosition = (): void => {
+    const resolved = resolveLegendPosition(legend.position, bounds);
+    commands.setLegendPosition({
+      x: resolved.x,
+      y: resolved.y,
+      preset: null,
+    });
+    onStatusMessage('Legend position updated.');
+  };
+
   const nudge = (direction: LegendNudgeDirection): void => {
     // Nudge from the position the overlay is actually rendering, not from a
     // stored value that may predate a column reflow.
@@ -332,6 +347,9 @@ export function LegendEditor({
     <div className="legend-editor" data-legend-validation={validation.ok ? 'valid' : 'invalid'}>
       {isEmpty ? (
         <div className="legend-editor__empty">
+          <span className="legend-editor__empty-chip" aria-hidden="true">
+            <LayersIcon size={16} />
+          </span>
           <h3>Your legend will appear here</h3>
           <p>Color at least one country to create the first legend entry.</p>
         </div>
@@ -347,6 +365,12 @@ export function LegendEditor({
                 key={entry.color}
                 className="legend-editor__entry"
                 data-legend-row-color={entry.color}
+                /*
+                  Keyed on a data attribute, never a positional selector: the
+                  red left edge belongs to the row that is invalid, not to
+                  whichever row happens to sit where an invalid one once did.
+                */
+                data-entry-invalid={error === undefined ? undefined : 'true'}
                 tabIndex={0}
                 aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
                 onKeyDown={(event): void => handleRowKeyDown(event, entry, index)}
@@ -380,7 +404,14 @@ export function LegendEditor({
                     onKeyDown={(event): void => handleLabelKeyDown(event, entry)}
                   />
                 </label>
-                <span className="legend-editor__counter" aria-live="off">
+                <span
+                  className={
+                    draft.length >= LEGEND_LABEL_MAX_LENGTH
+                      ? 'legend-editor__counter legend-editor__counter--limit'
+                      : 'legend-editor__counter'
+                  }
+                  aria-live="off"
+                >
                   {draft.length}/32
                 </span>
                 {error === undefined ? null : (
@@ -394,38 +425,95 @@ export function LegendEditor({
                   are banned, so the row needs a class of its own rather than a
                   `:nth-child` reach from the entry.
                 */}
+                {/*
+                  Icon-only ghost buttons on their own row (UI-SPEC 7): a
+                  full-phrase control row has no width at which it fits a
+                  280px column. Inline SVG glyphs follow the MapNavigation
+                  precedent; the accessible names are unchanged, and keyboard
+                  reorder through the two arrows stays the PRIMARY path -
+                  drag is the enhancement.
+                */}
                 <div className="legend-editor__row-actions">
-                <button
-                  type="button"
-                  disabled={index === 0}
-                  onClick={(): void => updateOrder(entry.color, index - 1)}
-                >
-                  Move Up
-                </button>
-                <button
-                  type="button"
-                  disabled={index === activeEntries.length - 1}
-                  onClick={(): void => updateOrder(entry.color, index + 1)}
-                >
-                  Move Down
-                </button>
-                <button
-                  type="button"
-                  draggable
-                  aria-label={`Drag ${entry.label} to reorder`}
-                  onDragStart={(event): void => {
-                    event.stopPropagation();
-                    draggedColorRef.current = entry.color;
-                    event.dataTransfer.effectAllowed = 'move';
-                    event.dataTransfer.setData('text/plain', entry.color);
-                  }}
-                  onDragEnd={(event): void => {
-                    event.stopPropagation();
-                    draggedColorRef.current = null;
-                  }}
-                >
-                  Drag
-                </button>
+                  <button
+                    type="button"
+                    className="legend-editor__row-action"
+                    aria-label="Move Up"
+                    title="Move Up"
+                    disabled={index === 0}
+                    onClick={(): void => updateOrder(entry.color, index - 1)}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M10 16V4M10 4 5 9M10 4l5 5" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="legend-editor__row-action"
+                    aria-label="Move Down"
+                    title="Move Down"
+                    disabled={index === activeEntries.length - 1}
+                    onClick={(): void => updateOrder(entry.color, index + 1)}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M10 4v12m0 0 5-5m-5 5-5-5" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className="legend-editor__row-action"
+                    draggable
+                    aria-label={`Drag ${entry.label} to reorder`}
+                    title={`Drag ${entry.label} to reorder`}
+                    onDragStart={(event): void => {
+                      event.stopPropagation();
+                      draggedColorRef.current = entry.color;
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', entry.color);
+                    }}
+                    onDragEnd={(event): void => {
+                      event.stopPropagation();
+                      draggedColorRef.current = null;
+                    }}
+                  >
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      stroke="none"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <circle cx="7" cy="5" r="1.5" />
+                      <circle cx="13" cy="5" r="1.5" />
+                      <circle cx="7" cy="10" r="1.5" />
+                      <circle cx="13" cy="10" r="1.5" />
+                      <circle cx="7" cy="15" r="1.5" />
+                      <circle cx="13" cy="15" r="1.5" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             );
@@ -444,7 +532,7 @@ export function LegendEditor({
         <fieldset aria-label="Legend theme">
           <legend>Legend theme</legend>
           {THEME_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value}>
+            <label key={option.value} className="legend-editor__pill">
               <input
                 type="radio"
                 name="legend-theme"
@@ -460,7 +548,7 @@ export function LegendEditor({
         <fieldset aria-label="Legend text size">
           <legend>Legend text size</legend>
           {TEXT_SIZE_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value}>
+            <label key={option.value} className="legend-editor__pill">
               <input
                 type="radio"
                 name="legend-text-size"
@@ -499,7 +587,7 @@ export function LegendEditor({
         <fieldset aria-label="Legend border">
           <legend>Legend border</legend>
           {BORDER_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value}>
+            <label key={option.value} className="legend-editor__pill">
               <input
                 type="radio"
                 name="legend-border"
@@ -516,20 +604,55 @@ export function LegendEditor({
           ))}
         </fieldset>
 
+        {/*
+          UI-SPEC 7: a 3x3 grid of 44px cells - the four corner presets plus
+          Custom in the centre. The radios keep their visible-to-AT labels
+          (visually hidden, never display: none), so `Top left` etc. stay the
+          accessible names every locator and announcement keys on. The
+          announcements are the existing approved strings; nothing new enters
+          the allowlist.
+        */}
         <fieldset aria-label="Legend position">
           <legend>Legend position</legend>
-          {CORNER_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value}>
+          <div className="legend-editor__position-grid">
+            {CORNER_OPTIONS.map((option): JSX.Element => (
+              <label
+                key={option.value}
+                className={`legend-editor__position-cell legend-editor__position-cell--${option.value}`}
+              >
+                <input
+                  type="radio"
+                  name="legend-position"
+                  value={option.value}
+                  checked={legend.position.preset === option.value}
+                  onChange={(): void => setCorner(option.value, option.label)}
+                />
+                <span className="legend-editor__position-label">
+                  {option.label}
+                </span>
+                <span
+                  className="legend-editor__position-dot"
+                  aria-hidden="true"
+                />
+              </label>
+            ))}
+            <label className="legend-editor__position-cell legend-editor__position-cell--custom">
               <input
                 type="radio"
                 name="legend-position"
-                value={option.value}
-                checked={legend.position.preset === option.value}
-                onChange={(): void => setCorner(option.value, option.label)}
+                value="custom"
+                checked={legend.position.preset === null}
+                onChange={setCustomPosition}
               />
-              {option.label}
+              <span className="legend-editor__position-label">
+                {CUSTOM_POSITION_LABEL}
+              </span>
+              <span
+                className="legend-editor__position-dot"
+                aria-hidden="true"
+              />
             </label>
-          ))}
+          </div>
         </fieldset>
 
         {legend.position.preset === null ? (
