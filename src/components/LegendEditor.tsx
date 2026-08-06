@@ -10,6 +10,7 @@ import type {
   KeyboardEvent,
 } from 'react';
 
+import { DEFAULT_COLOR } from '../constants/colors';
 import type {
   LegendBorderStyle,
   LegendCorner,
@@ -175,7 +176,7 @@ export function LegendEditor({
 
     effectiveColors.forEach((color): void => {
       const normalizedColor = color.toUpperCase();
-      if (normalizedColor !== '#FFFFFF' && !entriesByColor.has(normalizedColor)) {
+      if (normalizedColor !== DEFAULT_COLOR && !entriesByColor.has(normalizedColor)) {
         nextOrder += 1;
         commands.setLegendEntry({
           color: normalizedColor,

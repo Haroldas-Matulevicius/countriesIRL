@@ -1,13 +1,13 @@
 /**
- * One source of truth for animation durations: the UI-SPEC motion tokens in
+ * One source of truth for animation durations: the motion tokens in
  * `theme.css`.
  *
- * Before this module, `--motion-scene: 160ms` and `--motion-camera: 240ms` were
- * declared, gated by `phase2CssContract.test.ts`, and referenced by nothing;
- * the real durations were the literals `CROSSFADE_DURATION_MS = 160` and
- * `CAMERA_MOTION_DURATION_MS = 240`. The contract test asserted both tokens fall
- * to `0ms` under `prefers-reduced-motion` and read as proof that scene and
- * camera motion are suppressed. It proved nothing about either: the crossfade
+ * Before this module, the scene and camera durations were declared, gated by
+ * the CSS contract test, and referenced by nothing; the real durations were the
+ * literals `CROSSFADE_DURATION_MS = 160` and `CAMERA_MOTION_DURATION_MS = 240`.
+ * The contract test asserted both tokens fall to `0ms` under
+ * `prefers-reduced-motion` and read as proof that scene and camera motion are
+ * suppressed. It proved nothing about either: the crossfade
  * honoured the preference through a separate JS branch, and the camera
  * transition did not honour it at all, despite UI-SPEC 17/18 requiring Locate
  * and Reset View to be immediate under reduced motion.
@@ -26,7 +26,15 @@ import {
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export const MOTION_SCENE_TOKEN = '--motion-scene';
-export const MOTION_CAMERA_TOKEN = '--motion-camera';
+
+/**
+ * The camera reads the STRUCTURAL duration token, not a camera-specific one.
+ * `--motion-camera` was absorbed byte-identically by `--motion-duration-base`
+ * in `03-04`; the constant is named after the token it reads rather than after
+ * the caller, because a constant whose name outlives its value is how a stale
+ * name survives a rename.
+ */
+export const MOTION_DURATION_BASE_TOKEN = '--motion-duration-base';
 
 /**
  * Used only when the token cannot be read at all - a detached element, or a
@@ -35,7 +43,7 @@ export const MOTION_CAMERA_TOKEN = '--motion-camera';
  */
 export const MOTION_FALLBACK_MS: Readonly<Record<string, number>> = {
   [MOTION_SCENE_TOKEN]: SCENE_CROSSFADE_DURATION_MS,
-  [MOTION_CAMERA_TOKEN]: CAMERA_MOTION_DURATION_MS,
+  [MOTION_DURATION_BASE_TOKEN]: CAMERA_MOTION_DURATION_MS,
 };
 
 /** `160ms`, `0.16s`, and `0` are all valid CSS <time> spellings of a duration. */
@@ -60,14 +68,18 @@ export function parseMotionDuration(value: string): number | null {
   return match.groups.unit === 's' ? amount * 1000 : amount;
 }
 
-export const EASING_CAMERA_TOKEN = '--easing-camera';
+/**
+ * The entrance/settle curve. `--easing-camera` was absorbed byte-identically by
+ * `--motion-ease-out` in `03-04` and the old name is deleted rather than
+ * aliased, so a stale reference fails at the contract test instead of resolving.
+ */
+export const MOTION_EASE_OUT_TOKEN = '--motion-ease-out';
 
 /**
  * UI-SPEC 4.4: the camera and scene-completion curve.
  *
- * Read from the Phase 3 mirror rather than restated. `--easing-camera` is
- * byte-identical to `--motion-ease-out` (D-26), and keeping a second literal of
- * the same four control points here is exactly the drift the lockstep test
+ * Read from the Phase 3 mirror rather than restated; keeping a second literal
+ * of the same four control points here is exactly the drift the lockstep test
  * exists to prevent.
  */
 const FALLBACK_EASING: readonly [number, number, number, number] = EASE_OUT;
@@ -152,15 +164,17 @@ export function parseCubicBezier(
 
 /**
  * Resolves the SPEC'd camera/scene curve from its token. Without this, both d3
- * transitions ran on d3's default `easeCubic` (cubic in-out) while
- * `--easing-camera` sat unread, so the declared curve was never the curve.
+ * transitions ran on d3's default `easeCubic` (cubic in-out) while the declared
+ * easing token sat unread, so the declared curve was never the curve.
  */
 export function resolveCameraEasing(
   element: Element | null,
 ): (time: number) => number {
   if (element !== null && typeof globalThis.getComputedStyle === 'function') {
     const declared = parseCubicBezier(
-      globalThis.getComputedStyle(element).getPropertyValue(EASING_CAMERA_TOKEN),
+      globalThis
+        .getComputedStyle(element)
+        .getPropertyValue(MOTION_EASE_OUT_TOKEN),
     );
     if (declared !== null) {
       return createCubicBezierEasing(declared);

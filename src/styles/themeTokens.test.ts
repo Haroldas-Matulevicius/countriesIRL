@@ -416,9 +416,15 @@ describe('component theme tokens', (): void => {
     expect(nameRule).not.toContain('overflow-wrap: anywhere;');
   });
 
+  /**
+   * Comments are stripped first. The rule is that a component stylesheet
+   * DECLARES no colour literal; a comment recording the measured ratio that
+   * made a token mode-invariant is the reason the rule exists, and scanning it
+   * would make writing the reason down the thing that fails.
+   */
   it('keeps component colors tokenized while fixed colors stay in theme.css', (): void => {
-    const mapCanvasCss = readStyleSheet('./MapCanvas.css');
-    const controlsCss = readStyleSheet('./Controls.css');
+    const mapCanvasCss = stripComments(readStyleSheet('./MapCanvas.css'));
+    const controlsCss = stripComments(readStyleSheet('./Controls.css'));
 
     expect(mapCanvasCss).not.toMatch(COMPONENT_COLOR_LITERAL);
     expect(controlsCss).not.toMatch(COMPONENT_COLOR_LITERAL);

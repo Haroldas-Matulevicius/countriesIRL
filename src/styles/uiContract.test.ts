@@ -673,25 +673,19 @@ const RESIZE_OBSERVER_OWNERS = [
 const RESIZE_OBSERVER_IDENTIFIER = ['Resize', 'Observer'].join('');
 
 describe('Phase 3 export frame (D-32)', (): void => {
-  it('declares the frame tokens once, in the unconditioned root', (): void => {
+  /**
+   * The "declared nowhere else" half of this claim moved into assertion 4,
+   * which now guards the whole mode-invariant family rather than these two
+   * alone. What stays here is the shape of the two frame values: they are the
+   * creator's only signal of what the PNG crops to, and a hex here would mean
+   * the scrim stopped being a scrim.
+   */
+  it('declares the frame tokens as translucent values in the unconditioned root', (): void => {
     const themeRules = rulesOf('theme.css');
     const rootTokens = tokensOf(findRule(themeRules, ':root'));
 
     FRAME_TOKENS.forEach((token): void => {
       expect(resolveTokenValue(rootTokens, token)).toMatch(/^rgba\(/u);
-    });
-
-    everyRule().forEach((rule): void => {
-      if (rule.conditions.length === 0 && rule.selector === ':root') {
-        return;
-      }
-      declarationsOf(rule.body).forEach(([property]): void => {
-        expect(
-          (FRAME_TOKENS as ReadonlyArray<string>).includes(property),
-          `"${property}" marks the exported square and must stay fixed; found ` +
-            `under [${rule.conditions.join(' > ')}] ${rule.selector}`,
-        ).toBe(false);
-      });
     });
   });
 
@@ -752,5 +746,487 @@ describe('Phase 3 ported helpers', (): void => {
 
     expect(resolveTokenValue(tokens, '--alias')).toBe('#ffffff');
     expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 5);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The Phase 3 token system - assertions 1-6 and 26
+ * ------------------------------------------------------------------ */
+
+/**
+ * Assembled rather than written out, for the same reason the observer
+ * identifier above is. This file is a `.ts` and the scan below reads `.css`, so
+ * spelling it would not currently poison the gate - but `03-09` and `03-10` add
+ * more scanners over more file kinds, and a gate that greps for a literal it
+ * also contains is one glob change away from being unable to fail.
+ */
+const OS_COLOR_SCHEME_FEATURE = ['prefers', 'color', 'scheme'].join('-');
+
+/**
+ * Assertion 2's subject: every token name the Phase 3 system RETIRED. They are
+ * deleted, never aliased, so a stale reference fails here instead of resolving
+ * to a compatibility shim and looking migrated.
+ *
+ * Matching is name-boundary aware on purpose. A plain substring test would
+ * report `--accent-fill` as the retired `--accent`, and `--accent-fill` is a
+ * token this phase deliberately ADDS - a scan that cannot tell them apart would
+ * have to be loosened or deleted, and a loosened scan is how the retired name
+ * comes back.
+ */
+const RETIRED_TOKENS = [
+  '--accent',
+  '--accent-hover',
+  '--accent-contrast',
+  '--surface-page',
+  '--surface-card',
+  '--surface-hover',
+  '--surface-pressed',
+  '--surface-accent-tint',
+  '--text-primary',
+  '--text-secondary',
+  '--text-muted',
+  '--border-default',
+  '--border-strong',
+  '--glass-app-bar',
+  '--glass-inspector',
+  '--glass-navigation',
+  '--glass-blur-app-bar',
+  '--glass-blur-inspector',
+  '--glass-blur-navigation',
+  '--shadow-inspector',
+  '--shadow-navigation',
+  '--modal-shadow',
+  '--toast-shadow',
+  '--font-label',
+  '--font-body',
+  '--font-heading',
+  '--font-display',
+  '--weight-regular',
+  '--weight-semibold',
+  '--radius-large',
+  '--map-shadow',
+  '--mixed-color-light',
+  '--mixed-color-dark',
+  '--active-check-border',
+  '--active-check-surface',
+  '--active-check-text',
+  '--motion-fast',
+  '--motion-camera',
+  '--easing-camera',
+  '--easing-control',
+] as const;
+
+/** Identical in both modes by contract, so parity is an equality, not a flip. */
+const FIXED_TRIO = [
+  '--themely-media-backdrop',
+  '--themely-on-accent',
+  '--themely-on-media',
+] as const;
+
+/**
+ * The export firewall. Every one of these is declared exactly once, in the
+ * unconditioned `:root`, and nowhere else - not in `.dark`, not in a media
+ * query, not in a supports block. One of them redefined elsewhere makes the
+ * exported PNG follow the viewer's theme, which no rendering test catches
+ * (Live Invariant 9).
+ *
+ * The last two are chrome rather than export, and share the mechanism for a
+ * different reason: white on `#0071e3` is 4.70:1 while the flipping accent
+ * would give 3.02:1 in dark. Assertion 26 states that reason as a measurement.
+ */
+const MODE_INVARIANT_TOKENS = [
+  '--map-surface',
+  '--map-fill-default',
+  '--map-border-default',
+  '--map-border-hover',
+  '--map-border-selected',
+  '--map-border-focus',
+  '--map-fixed-text',
+  '--map-skeleton-fill',
+  '--map-skeleton-stroke',
+  '--map-frame-edge',
+  '--map-frame-scrim',
+  '--swatch-border',
+  '--tooltip-surface',
+  '--tooltip-text',
+  '--tooltip-border',
+  '--tooltip-shadow',
+  '--accent-fill',
+  '--accent-fill-hover',
+] as const;
+
+/** Zeroed under `prefers-reduced-motion`. The easings are curves, not times. */
+const MOTION_DURATION_TOKENS = [
+  '--motion-duration-fast',
+  '--motion-duration-base',
+  '--motion-duration-slow',
+  '--motion-scene',
+] as const;
+
+const REDUCED_MOTION_CONDITION = '@media (prefers-reduced-motion: reduce)';
+
+function themeRules(): CssRule[] {
+  return rulesOf('theme.css');
+}
+
+function unconditionedRootTokens(): Map<string, string> {
+  return tokensOf(findRule(themeRules(), ':root'));
+}
+
+function unconditionedDarkTokens(): Map<string, string> {
+  return tokensOf(findRule(themeRules(), '.dark'));
+}
+
+/** Every stylesheet's source with comments removed, joined once. */
+function allStyleSheetSource(): string {
+  return STYLE_SHEETS.map(([, css]): string => stripComments(css)).join('\n');
+}
+
+/**
+ * Resolves the palette THROUGH THE REAL CASCADE for one mode and one set of
+ * matching preference at-rules.
+ *
+ * Ported from `resolveRootTokens` in the Phase 2 contract test and extended for
+ * the class-based flip. Two properties matter and both are load-bearing:
+ *
+ * - `.dark` and `:root` have EQUAL specificity (a class and a pseudo-class are
+ *   both 0-1-0), so source order decides. Iterating the rules in file order and
+ *   letting later writes win is therefore the browser's own resolution, not an
+ *   approximation of it.
+ * - That is precisely why a preference block must override a literal for BOTH
+ *   `:root` and `.dark`: a `:root` override authored inside `prefers-contrast`
+ *   comes AFTER the top-level `.dark` block and wins in dark mode unless the
+ *   same at-rule answers it. This resolver reproduces that, so the matrix can
+ *   actually fail on the defect rather than describing it.
+ */
+function resolvePaletteTokens(
+  mode: 'light' | 'dark',
+  active: readonly string[],
+): Map<string, string> {
+  const selectors = mode === 'dark' ? [':root', '.dark'] : [':root'];
+  const resolved = new Map<string, string>();
+
+  themeRules()
+    .filter(
+      (rule): boolean =>
+        selectors.includes(rule.selector) &&
+        rule.conditions.every((condition): boolean =>
+          active.includes(condition),
+        ),
+    )
+    .forEach((rule): void => {
+      tokensOf(rule).forEach((value, token): void => {
+        resolved.set(token, value);
+      });
+    });
+
+  return resolved;
+}
+
+/** A rule that paints something, as opposed to one that declares tokens. */
+function isRenderingRule(rule: CssRule): boolean {
+  return rule.selector !== ':root' && rule.selector !== '.dark';
+}
+
+describe('Phase 3 dark mode is a class, not a preference (assertion 1)', (): void => {
+  /**
+   * D-30. The theme is an explicit control the creator operates, persisted
+   * through the storage adapter, defaulting to light when the key is absent.
+   * An operating-system query anywhere in the dark path would give a second,
+   * invisible writer of the same state - and it would silently un-do the whole
+   * reason the flip became a class, which is that a host embedding this editor
+   * decides its own theme.
+   *
+   * Scanned as raw text as well as through parsed conditions: an at-rule with
+   * no rules inside it produces no conditions at all, so the parser alone would
+   * not see a query that is one edit away from being populated.
+   */
+  it('carries no operating-system colour preference in any stylesheet', (): void => {
+    STYLE_SHEETS.forEach(([file, css]): void => {
+      expect(
+        stripComments(css).includes(OS_COLOR_SCHEME_FEATURE),
+        `${file}: the dark palette flips from a class on the editor mount ` +
+          'root. An OS colour preference here is a second writer of the theme ' +
+          'that no control can override.',
+      ).toBe(false);
+    });
+
+    everyRule().forEach((rule): void => {
+      rule.conditions.forEach((condition): void => {
+        expect(condition.includes(OS_COLOR_SCHEME_FEATURE)).toBe(false);
+      });
+    });
+  });
+
+  it('keeps the four legitimate preference queries', (): void => {
+    const source = allStyleSheetSource();
+
+    [
+      'prefers-reduced-motion',
+      'prefers-reduced-transparency',
+      'prefers-contrast',
+      'forced-colors',
+    ].forEach((feature): void => {
+      expect(
+        source.includes(feature),
+        `"${feature}" is orthogonal to the colour scheme and D-30 does not ` +
+          'touch it. Losing it here is an accessibility regression that looks ' +
+          'like a cleanup.',
+      ).toBe(true);
+    });
+  });
+
+  /**
+   * The class has to be spelled the same way everywhere or the flip is a no-op
+   * on half the palette. `.dark` is Themely's own selector, which is what lets
+   * a host's `globals.css` become the token source with no shim.
+   */
+  it('declares the dark palette on the class the mount root carries', (): void => {
+    const darkTokens = unconditionedDarkTokens();
+
+    expect(darkTokens.size).toBeGreaterThan(0);
+    expect(
+      new Map(declarationsOf(findRule(themeRules(), '.dark').body)).get(
+        'color-scheme',
+      ),
+      'native controls and scrollbars follow `color-scheme`, so the dark ' +
+        'palette without it leaves white scrollbars on a black wall.',
+    ).toBe('dark');
+  });
+});
+
+describe('Phase 3 retired tokens are deleted, not aliased (assertion 2)', (): void => {
+  it('references no retired token name in any stylesheet', (): void => {
+    STYLE_SHEETS.forEach(([file, css]): void => {
+      const source = stripComments(css);
+
+      RETIRED_TOKENS.forEach((token): void => {
+        const boundary = new RegExp(
+          `(?<![\\w-])${token}(?![\\w-])`,
+          'u',
+        );
+        expect(
+          boundary.test(source),
+          `${file}: "${token}" was retired by the Phase 3 token system and ` +
+            'deleted rather than aliased, so this reference resolves to ' +
+            'nothing. Migrate it to its replacement.',
+        ).toBe(false);
+      });
+    });
+  });
+
+  /**
+   * The list above is only as good as its ability to tell a retired name from
+   * the token that replaced it. `--accent` and `--accent-fill` share a prefix
+   * and have opposite dispositions, so the boundary matching is asserted
+   * directly - if it ever degrades to a substring test, this fails before the
+   * assertion above starts reporting the new token as the old one.
+   */
+  it('distinguishes a retired name from the token that replaced it', (): void => {
+    const boundary = new RegExp('(?<![\\w-])--accent(?![\\w-])', 'u');
+
+    expect(boundary.test('background: var(--accent-fill);')).toBe(false);
+    expect(boundary.test('.onboarding__action--accent {')).toBe(false);
+    expect(boundary.test('background: var(--accent);')).toBe(true);
+  });
+});
+
+describe('Phase 3 palette parity (assertion 3)', (): void => {
+  /**
+   * Every `--themely-*` token declared in one mode must be declared in the
+   * other. A token present in `:root` and missing from `.dark` does not fail
+   * loudly - it inherits the light value and paints a light chip on a black
+   * wall, which is exactly the class of defect a palette split across two
+   * blocks invites.
+   */
+  it('declares the same token set in both modes', (): void => {
+    const light = [...unconditionedRootTokens().keys()]
+      .filter((token): boolean => token.startsWith('--themely-'))
+      .sort();
+    const dark = [...unconditionedDarkTokens().keys()]
+      .filter((token): boolean => token.startsWith('--themely-'))
+      .sort();
+
+    expect(light.length).toBe(14);
+    expect(dark, 'the light and dark palettes must declare the same names').
+      toStrictEqual(light);
+  });
+
+  it('keeps the fixed trio identical and every other token genuinely flipped', (): void => {
+    const light = unconditionedRootTokens();
+    const dark = unconditionedDarkTokens();
+
+    let compared = 0;
+
+    [...light.keys()]
+      .filter((token): boolean => token.startsWith('--themely-'))
+      .forEach((token): void => {
+        const isFixed = (FIXED_TRIO as ReadonlyArray<string>).includes(token);
+
+        if (isFixed) {
+          expect(
+            dark.get(token),
+            `"${token}" is identical in both modes by contract.`,
+          ).toBe(light.get(token));
+        } else {
+          expect(
+            dark.get(token),
+            `"${token}" holds the same value in both modes. Either it should ` +
+              'be in the fixed trio, or the dark value was pasted from light.',
+          ).not.toBe(light.get(token));
+        }
+        compared += 1;
+      });
+
+    expect(compared).toBe(14);
+    expect(FIXED_TRIO).toHaveLength(3);
+  });
+});
+
+describe('Phase 3 export firewall (assertions 4 and 5)', (): void => {
+  /**
+   * Live Invariant 9, extended to `.dark`. Phase 2 guarded media and supports
+   * blocks because those were the only places a redefinition could hide; the
+   * class-based flip adds a third, and it is the likeliest one - `.dark` is
+   * where every other colour token legitimately gets a second value.
+   */
+  it('declares no export token outside the unconditioned root', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        if (rule.conditions.length === 0 && rule.selector === ':root') {
+          return;
+        }
+        declarationsOf(rule.body).forEach(([property]): void => {
+          expect(
+            (MODE_INVARIANT_TOKENS as ReadonlyArray<string>).includes(property),
+            `${file}: "${property}" is mode-invariant and must stay fixed; ` +
+              `found under [${rule.conditions.join(' > ')}] ${rule.selector}. ` +
+              'Redefining it makes the exported PNG follow the viewer theme.',
+          ).toBe(false);
+        });
+      });
+    });
+  });
+
+  it('declares every export token exactly once, and gives each one a consumer', (): void => {
+    const themeSource = stripComments(readStyleSheet('./theme.css'));
+    const source = allStyleSheetSource();
+    const root = unconditionedRootTokens();
+
+    MODE_INVARIANT_TOKENS.forEach((token): void => {
+      const declarations = [...themeSource.matchAll(/(--[\w-]+)\s*:/gu)].filter(
+        (match): boolean => match[1] === token,
+      );
+      expect(declarations, `"${token}" is declared more than once`).toHaveLength(
+        1,
+      );
+
+      expect(root.has(token), `"${token}" is not in the light root`).toBe(true);
+
+      expect(
+        source.includes(`var(${token})`),
+        `"${token}" is declared and gated as a fixed export token but nothing ` +
+          'reads it, so the guard describes a treatment the map does not have.',
+      ).toBe(true);
+    });
+
+    expect(MODE_INVARIANT_TOKENS).toHaveLength(18);
+  });
+});
+
+describe('Phase 3 motion tokens (assertion 6)', (): void => {
+  /**
+   * A reduced-motion assertion on a token nothing reads proves nothing: three
+   * motion tokens were once declared, gated, and read only by the TS mirror,
+   * while the gate that "covered" them accepted the mirror as a consumer.
+   * `03-04` gave all three a rendering consumer, so the consumer set here is
+   * back to Phase 2's: a `var()` in a rule that paints, or a named read in
+   * `utils/motion.ts`. The mirror is excluded on purpose.
+   */
+  it('gives every motion token a consumer that actually renders', (): void => {
+    const motionUtils = readStyleSheet('../utils/motion.ts');
+    const renderingSource = ALL_RULES.flatMap(([, rules]): string[] =>
+      rules.filter(isRenderingRule).map((rule): string => rule.body),
+    ).join('\n');
+
+    const motionTokens = [...unconditionedRootTokens().keys()].filter(
+      (token): boolean => token.startsWith('--motion-'),
+    );
+
+    expect(motionTokens).toHaveLength(7);
+
+    motionTokens.forEach((token): void => {
+      expect(
+        renderingSource.includes(`var(${token})`) ||
+          motionUtils.includes(token),
+        `"${token}" is declared and reduced-motion-gated but nothing renders ` +
+          'with it and no runtime read resolves it.',
+      ).toBe(true);
+    });
+  });
+
+  it('zeroes every motion duration under reduced motion', (): void => {
+    const reduced = tokensOf(
+      findRule(themeRules(), ':root', [REDUCED_MOTION_CONDITION]),
+    );
+
+    MOTION_DURATION_TOKENS.forEach((token): void => {
+      expect(reduced.get(token), `${token} under reduced motion`).toBe('0ms');
+    });
+    expect(MOTION_DURATION_TOKENS).toHaveLength(4);
+  });
+});
+
+describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
+  /**
+   * The measurement, not the preference: white on `#0071e3` is 4.70:1 and
+   * clears AA; white on the dark accent `#2997ff` is 3.02:1 and does not, and
+   * neither does its hover pair at 4.18:1. `Export PNG` is a filled primary in
+   * both modes, so its fill cannot be the flipping token.
+   *
+   * This resolves the DECLARATION rather than the token, in both modes, so
+   * pointing `--accent-fill` at `var(--themely-apple-blue)` fails here as well
+   * as in the contrast matrix - the tidy-looking change has two gates on it.
+   */
+  it('resolves the Export fill to the light Apple Blue in both modes', (): void => {
+    const primary = new Map(
+      declarationsOf(
+        findRule(rulesOf('Controls.css'), '.controls__action--primary').body,
+      ),
+    );
+
+    const background = primary.get('background') ?? '';
+    const reference = /^var\((--[\w-]+)\)$/u.exec(background);
+    expect(
+      reference,
+      `the Export fill is "${background}"; it must resolve through a token so ` +
+        'both modes can be checked.',
+    ).not.toBeNull();
+
+    (['light', 'dark'] as const).forEach((mode): void => {
+      const tokens = resolvePaletteTokens(mode, []);
+      expect(
+        resolveTokenValue(tokens, (reference as RegExpExecArray)[1]),
+        `the Export fill resolves to a value below AA in ${mode} mode`,
+      ).toBe('#0071e3');
+    });
+  });
+
+  it('declares the accent fill pair once, in the light root, off the flipping token', (): void => {
+    const root = unconditionedRootTokens();
+    const dark = unconditionedDarkTokens();
+
+    (['--accent-fill', '--accent-fill-hover'] as const).forEach(
+      (token): void => {
+        expect(root.get(token)).not.toContain('var(');
+        expect(
+          dark.has(token),
+          `"${token}" must not appear in .dark - that is the whole point of it.`,
+        ).toBe(false);
+      },
+    );
+
+    expect(root.get('--accent-fill')).toBe('#0071e3');
+    expect(root.get('--accent-fill-hover')).toBe('#005db8');
   });
 });

@@ -16,10 +16,10 @@
 .composition-bar__preview {
   min-width: 0;
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-label);
-  font-weight: var(--weight-semibold);
-  line-height: 1.4;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .composition-bar__period {
@@ -29,30 +29,37 @@
   min-width: 0;
 }
 
+/*
+ * The period surface's eyebrow. `03-07` rehomes this block into `.period-hud`;
+ * the type role it carries is already the one the design contract assigns it.
+ */
 .composition-bar__period label {
-  color: var(--text-secondary);
-  font-size: var(--font-label);
-  font-weight: var(--weight-semibold);
+  color: var(--themely-slate-blue);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  line-height: var(--text-eyebrow-line-height);
+  text-transform: uppercase;
 }
 
 .composition-bar__period select {
   min-height: var(--space-2xl);
   max-width: 100%;
   padding: 0 var(--space-sm);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: var(--surface-card);
-  color: var(--text-primary);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
   font: inherit;
 }
 
 .composition-bar__reset-view {
   min-height: var(--space-2xl);
   padding: 0 var(--space-md);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--themely-midnight-ink);
   font: inherit;
   cursor: pointer;
 }
@@ -68,18 +75,18 @@
   align-items: center;
   gap: var(--space-xs);
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-label);
-  line-height: 1.4;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
 }
 
 .composition-bar__retry {
   min-height: var(--space-2xl);
   padding: 0 var(--space-sm);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--themely-midnight-ink);
   font: inherit;
   cursor: pointer;
 }
@@ -88,8 +95,8 @@
  * D-32: the map surface is edge to edge. The region is no longer square, so it
  * is no longer called one - `aspect-ratio: 1` moves to `.map-frame` below and
  * the relocation is the visible form of the decision. The border, the radius,
- * and `--map-shadow` do not carry over: a full-bleed canvas has nothing to
- * elevate and nothing to inset.
+ * and the square's elevation do not carry over: a full-bleed canvas has nothing
+ * to elevate and nothing to inset, so the token that raised it was deleted.
  *
  * `container-type: size` is what makes `min(width, height)` expressible in pure
  * CSS, which is how the frame lands exactly where `xMidYMid meet` puts the
@@ -162,13 +169,17 @@
   stroke-linejoin: round;
   stroke-width: 0.75px;
   transition:
-    fill var(--motion-fast) var(--easing-control),
-    stroke var(--motion-fast) var(--easing-control),
-    stroke-width var(--motion-fast) var(--easing-control);
+    fill var(--motion-duration-fast) var(--motion-ease-snappy),
+    stroke var(--motion-duration-fast) var(--motion-ease-snappy),
+    stroke-width var(--motion-duration-fast) var(--motion-ease-snappy);
 }
 
-/* UI-SPEC 6: hover is a heavier boundary. No glow, no filter - a filter on map
- * geometry is rasterized differently by the export clone than it is painted. */
+/*
+ * UI-SPEC 6: hover is a heavier boundary. No glow and no filter - the export
+ * clone is rasterised as an isolated SVG document that sees none of this
+ * stylesheet, so an effect authored here does not render approximately in the
+ * PNG. It does not render at all.
+ */
 .country-path.hovered:not(.focused) {
   stroke: var(--map-border-hover);
   stroke-width: 1.5px;
@@ -181,8 +192,9 @@
 
 /*
  * The focus boundary is a fixed map token, not the chrome accent: the square is
- * theme-independent, so a focused country must not change color when the
- * viewer's OS switches to dark (UI-SPEC 5.4).
+ * theme-independent, so a focused country must not change colour when the
+ * creator switches the editor to its dark theme. It re-tones to Apple Blue's
+ * light value in this phase and stays fixed in both modes.
  */
 .country-path.focused,
 .country-path:focus-visible {
@@ -197,7 +209,7 @@
  * Antarctica). No pointer affordance - clicks are swallowed by design - and a
  * lighter boundary so they recede behind the colorable states. Solid
  * properties only: this class reaches the export clone, so export-unsafe
- * effects are banned here (enforced by phase2CssContract.test.ts).
+ * effects are banned here (enforced by uiContract.test.ts, assertion 17).
  */
 .map-unit-path {
   cursor: default;
@@ -213,7 +225,7 @@
 }
 
 /*
- * UI-SPEC 10: one glass surface holding three 44x44 icon-only controls, not
+ * UI-SPEC 10: one flat surface holding three 44x44 icon-only controls, not
  * three floating pills. The 44px targets themselves are set by the component
  * and asserted in MapNavigation.test.tsx.
  *
@@ -238,17 +250,11 @@
 .map-navigation__cluster {
   display: flex;
   padding: var(--space-xs);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: var(--glass-navigation);
+  background: var(--themely-porcelain);
   gap: var(--space-xs);
-  box-shadow: var(--shadow-navigation);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .map-navigation__cluster {
-    backdrop-filter: blur(var(--glass-blur-navigation));
-  }
+  box-shadow: var(--popover-shadow);
 }
 
 .map-navigation__control {
@@ -271,12 +277,12 @@
   z-index: 4;
   display: grid;
   padding: var(--space-xs);
-  border: var(--border-width) solid var(--border-default);
+  border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
-  background: var(--surface-card);
+  background: var(--themely-porcelain);
   grid-template-columns: repeat(3, auto);
   gap: var(--space-xs);
-  box-shadow: var(--shadow-navigation);
+  box-shadow: var(--popover-shadow);
 }
 
 /* Keyed on the direction, never on the child index. */
@@ -349,9 +355,9 @@
   border-radius: var(--radius-control);
   background: var(--warning-tint);
   color: var(--warning);
-  font-size: var(--font-label);
-  font-weight: var(--weight-semibold);
-  line-height: 1.4;
+  font-size: var(--text-caption);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-caption-line-height);
 }
 
 .map-fatal-error h2 {
@@ -381,11 +387,16 @@
 
 .map-tooltip__country {
   overflow: hidden;
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-h3-weight);
+  line-height: var(--text-body-sm-line-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .map-tooltip__color {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
 }

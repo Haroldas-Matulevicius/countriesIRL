@@ -20,7 +20,7 @@ import type {
 } from '../types/composition';
 import type { CountryId, GeoFeature } from '../types/map';
 import {
-  MOTION_CAMERA_TOKEN,
+  MOTION_DURATION_BASE_TOKEN,
   resolveCameraEasing,
   resolveMotionDuration,
 } from '../utils/motion';
@@ -374,7 +374,7 @@ export function useCameraController({
         // regardless. Reading the token is what makes the preference reach here.
         svgSelection
           .transition(CAMERA_TRANSITION_NAME)
-          .duration(resolveMotionDuration(MOTION_CAMERA_TOKEN, svgElement))
+          .duration(resolveMotionDuration(MOTION_DURATION_BASE_TOKEN, svgElement))
           .ease(resolveCameraEasing(svgElement))
           .call(zoomBehavior.transform, constrainCameraTransform(target));
       },

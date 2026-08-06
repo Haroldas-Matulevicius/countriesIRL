@@ -53,6 +53,7 @@ const MOTION_UTILS_SOURCE = readRepoFile('../../utils/motion.ts');
 const APP_CSS = readRepoFile('../../styles/App.css');
 const CONTROLS_CSS = readRepoFile('../../styles/Controls.css');
 const MAP_CANVAS_CSS = readRepoFile('../../styles/MapCanvas.css');
+const EDITOR_CSS = readRepoFile('../../styles/editor.css');
 
 /**
  * The number of rows the mirror is supposed to have, written independently of
@@ -74,27 +75,36 @@ const NON_MIRRORED_EXPORTS: readonly string[] = [
 ];
 
 /**
- * Phase 2 names that the Phase 3 tokens ABSORB byte-identically. They stay
- * declared through this plan because `03-04` owns the retirement and a deletion
- * here would collide with its retired-token gate. Asserting the byte-identity
- * is what makes "absorbs" a checked claim rather than a comment: if a later edit
- * moves one of the pair, the absorption stops being true and this fails.
+ * The Phase 2 names are DELETED as of `03-04`, so the absorption can no longer
+ * be asserted as an equality between two live declarations. It is asserted
+ * against the absorbed VALUE instead: each Phase 3 token must still hold the
+ * exact bytes its Phase 2 predecessor held, so "absorbs, byte-identical" stays
+ * a checked claim after the predecessor's name is gone.
+ *
+ * Dropping the claim with the name would have been the quiet failure: a rename
+ * and a retime look identical in a diff, and the retirement commit is precisely
+ * where a retime could ride along unnoticed.
  */
-const ABSORBED_BYTE_IDENTICAL: ReadonlyArray<readonly [string, string]> = [
-  ['--motion-fast', '--motion-duration-fast'],
-  ['--motion-camera', '--motion-duration-base'],
-  ['--easing-camera', '--motion-ease-out'],
-];
+const ABSORBED_BYTE_IDENTICAL: ReadonlyArray<readonly [string, string, string]> =
+  [
+    ['--motion-duration-fast', '150ms', 'the Phase 2 fast duration'],
+    ['--motion-duration-base', '240ms', 'the Phase 2 camera duration'],
+    [
+      '--motion-ease-out',
+      'cubic-bezier(0.22, 1, 0.36, 1)',
+      'the Phase 2 camera easing',
+    ],
+  ];
 
 /**
- * The one reconciliation that is NOT byte-equal: `--easing-control: ease-out`
- * maps onto `--motion-ease-snappy`, which is a deliberate RETIME of control
- * micro-feedback (research assumption A8), not a rename. Asserting the values
- * DIFFER stops a later reader "simplifying" the two into one and silently
- * shipping a retime as a cleanup.
+ * The one reconciliation that is NOT byte-equal: the Phase 2 control easing was
+ * the keyword `ease-out`, and `--motion-ease-snappy` is a deliberate RETIME of
+ * control micro-feedback onto Themely's curve (research assumption A8), not a
+ * rename. Asserting the value is NOT that keyword stops a later reader
+ * "simplifying" the token back and shipping a timing change as a cleanup.
  */
 const RETIMED_NOT_BYTE_EQUAL: ReadonlyArray<readonly [string, string]> = [
-  ['--easing-control', '--motion-ease-snappy'],
+  ['--motion-ease-snappy', 'ease-out'],
 ];
 
 function stripCssComments(css: string): string {
@@ -215,11 +225,7 @@ describe('motion token lockstep (theme.css :root <-> lib/motion/tokens.ts)', () 
 
   it('keeps the declared token set and the accounted-for token set two-way equal', () => {
     const declaredNames = [...DECLARED.keys()].sort();
-    const accountedFor = [
-      ...Object.keys(MOTION_TOKEN_MIRROR),
-      ...ABSORBED_BYTE_IDENTICAL.map(([legacy]): string => legacy),
-      ...RETIMED_NOT_BYTE_EQUAL.map(([legacy]): string => legacy),
-    ].sort();
+    const accountedFor = [...Object.keys(MOTION_TOKEN_MIRROR)].sort();
 
     // Two-way, not a subset in either direction. A `--motion-*` / `--easing-*`
     // token declared in CSS with no row here is exactly the dead token this gate
@@ -228,24 +234,25 @@ describe('motion token lockstep (theme.css :root <-> lib/motion/tokens.ts)', () 
     expect(declaredNames).toEqual(accountedFor);
   });
 
-  it('holds the three absorbed Phase 2 names byte-identical to their Phase 3 tokens', () => {
+  it('holds the three absorbed Phase 2 values byte-identical after the rename', () => {
     expect(ABSORBED_BYTE_IDENTICAL).toHaveLength(3);
 
-    ABSORBED_BYTE_IDENTICAL.forEach(([legacy, absorbing]): void => {
+    ABSORBED_BYTE_IDENTICAL.forEach(([absorbing, value, absorbed]): void => {
       expect(
-        DECLARED.get(legacy),
-        `"${legacy}" is documented as byte-identical to "${absorbing}".`,
-      ).toBe(DECLARED.get(absorbing));
+        DECLARED.get(absorbing),
+        `"${absorbing}" absorbed ${absorbed} byte-identically. A different ` +
+          'value here means the retirement commit shipped a retime.',
+      ).toBe(value);
     });
   });
 
-  it('keeps the one deliberate retime visibly different from the name it replaces', () => {
-    RETIMED_NOT_BYTE_EQUAL.forEach(([legacy, retimedOnto]): void => {
+  it('keeps the one deliberate retime visibly different from the value it replaces', () => {
+    RETIMED_NOT_BYTE_EQUAL.forEach(([retimedOnto, previousValue]): void => {
       expect(
-        DECLARED.get(legacy),
-        `"${legacy}" -> "${retimedOnto}" is a deliberate retime (A8), not a ` +
-          'rename. Equal values would mean the retime was quietly undone.',
-      ).not.toBe(DECLARED.get(retimedOnto));
+        DECLARED.get(retimedOnto),
+        `"${retimedOnto}" is a deliberate retime (A8), not a rename of the ` +
+          'Phase 2 control easing. Restoring the old keyword would undo it.',
+      ).not.toBe(previousValue);
     });
 
     expect(THEME_CSS).toMatch(/deliberate RETIME of control micro-feedback/u);
@@ -282,27 +289,35 @@ describe('motion token lockstep (theme.css :root <-> lib/motion/tokens.ts)', () 
   });
 
   /**
-   * Assertion 6's TS half. Its CSS half — a real `var()` consumer for every new
-   * `--motion-*` token — lands in `03-04` with the stylesheet rewrite. Until
-   * then `--motion-ease-snappy`, `--motion-ease-in`, and `--motion-duration-slow`
-   * are consumed only by this mirror, which is a knowingly weaker state than
-   * Phase 2's and is recorded rather than hidden.
+   * Assertion 6's TS half, at PHASE 2 STRENGTH again.
+   *
+   * `03-02` widened this to accept a named read in the mirror itself, which for
+   * `--motion-ease-snappy`, `--motion-ease-in`, and `--motion-duration-slow`
+   * meant the only "consumer" was the file being compared - a token read by
+   * nothing while a gate read as proof, which is the exact shape this repo has
+   * shipped before. `03-04` gave all three a real rendering consumer and the
+   * mirror is removed from the consumer set here: a CSS `var()` or a named read
+   * in `utils/motion.ts`, nothing else.
    */
   it('gives every declared --motion-* token a consumer', () => {
-    const styleSheets = [THEME_CSS, APP_CSS, CONTROLS_CSS, MAP_CANVAS_CSS].join(
-      '\n',
-    );
+    const styleSheets = [
+      THEME_CSS,
+      APP_CSS,
+      CONTROLS_CSS,
+      MAP_CANVAS_CSS,
+      EDITOR_CSS,
+    ].join('\n');
 
     expect(DECLARED.size).toBeGreaterThan(0);
 
     [...DECLARED.keys()].forEach((token): void => {
       const consumed =
         styleSheets.includes(`var(${token})`) ||
-        TOKENS_SOURCE.includes(token) ||
         MOTION_UTILS_SOURCE.includes(token);
       expect(
         consumed,
-        `"${token}" is declared and reduced-motion-gated but nothing reads it.`,
+        `"${token}" is declared and reduced-motion-gated but nothing renders ` +
+          'with it. The TS mirror does not count - it is the layer under test.',
       ).toBe(true);
     });
   });

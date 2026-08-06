@@ -5,7 +5,7 @@ import type {
   MouseEvent,
 } from 'react';
 
-import { COLOR_PRESETS } from '../constants/colors';
+import { COLOR_PRESETS, CUSTOM_COLOR_PLACEHOLDER } from '../constants/colors';
 import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
 import {
@@ -16,7 +16,6 @@ import {
 import { TOAST_MESSAGES } from './ToastRegion';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
-const CUSTOM_COLOR_PLACEHOLDER = '#RRGGBB or rgb(0, 0, 0)';
 const CUSTOM_COLOR_ERROR =
   'Enter #RGB, #RRGGBB, or rgb values from 0 to 255.';
 

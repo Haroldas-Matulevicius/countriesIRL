@@ -14,6 +14,12 @@ export const SELECTED_BORDER_COLOR = '#000000';
 // rasterize differently under html2canvas than the browser paints them.
 export const NEUTRAL_UNIT_COLOR = '#E5E7EB';
 
+// The accepted-syntax hint for the custom colour field. It lives here rather
+// than in `ColorPicker.tsx` because it spells a colour value, and no component
+// `.tsx` may carry one - the contract test's exemption list is closed at
+// `LegendOverlay.tsx`, whose literals are deliberate export-fixed values.
+export const CUSTOM_COLOR_PLACEHOLDER = '#RRGGBB or rgb(0, 0, 0)';
+
 export const COLOR_PRESETS = [
   { name: 'Red', value: '#DC2626' },
   { name: 'Green', value: '#16A34A' },

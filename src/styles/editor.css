@@ -28,17 +28,42 @@
   initial-value: 0px;
 }
 
+/*
+ * The mount root also paints the wall and the ink, so the theme flip is a class
+ * on THIS element and nothing above it. `html` and `body` stay unpainted, which
+ * is what lets a host place this one element and get the whole editor.
+ *
+ * The wall crossfades on `--motion-duration-slow`: a theme toggle repaints the
+ * entire surface at once, and snapping between a white and a black wall is the
+ * one place in this editor where an instant change reads as a fault rather than
+ * as responsiveness. Every other surface transition in the app is `-fast`.
+ */
 .map-editor {
   display: grid;
   grid-template-columns: var(--rail-width) var(--panel-width) 1fr;
   block-size: 100dvh;
   min-width: 0;
   background: var(--themely-platinum);
-  transition: --panel-width var(--motion-duration-base) var(--motion-ease-out);
+  color: var(--themely-midnight-ink);
+  transition:
+    --panel-width var(--motion-duration-base) var(--motion-ease-out),
+    background-color var(--motion-duration-slow) var(--motion-ease-out),
+    color var(--motion-duration-slow) var(--motion-ease-out);
 }
 
 .map-editor[data-panel-open='true'] {
   --panel-width: 280px;
+}
+
+/*
+ * Entrance and exit are different curves. The track opens on the settle curve
+ * and closes on the exit curve, which is the same directional pairing D-20
+ * specifies for the narrow-width bottom sheet - `03-09` joins this token rather
+ * than introducing a second one. The timing function in effect is the one
+ * declared by the state being transitioned TO, so this rule owns the close.
+ */
+.map-editor[data-panel-open='false'] {
+  transition-timing-function: var(--motion-ease-in);
 }
 
 .tool-rail {
@@ -47,7 +72,7 @@
   min-width: 0;
   flex-direction: column;
   padding: var(--space-xs);
-  border-inline-end: var(--border-width) solid var(--border-default);
+  border-inline-end: var(--border-width) solid var(--hairline-color);
   gap: var(--space-xs);
 }
 
@@ -74,7 +99,7 @@
 .tool-panel {
   min-width: 0;
   overflow: hidden;
-  border-inline-end: var(--border-width) solid var(--border-default);
+  border-inline-end: var(--border-width) solid var(--hairline-color);
 }
 
 .tool-panel__body {
@@ -108,7 +133,7 @@
 
 .tool-panel__body > header {
   padding: var(--space-md);
-  border-bottom: var(--border-width) solid var(--border-default);
+  border-bottom: var(--border-width) solid var(--hairline-color);
 }
 
 /*

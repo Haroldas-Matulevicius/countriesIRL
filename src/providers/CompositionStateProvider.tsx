@@ -17,6 +17,7 @@ import type {
   SnapshotId,
   VisibleCompositionSettings,
 } from '../types/composition';
+import { DEFAULT_COLOR } from '../constants/colors';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
@@ -30,7 +31,7 @@ import {
 
 const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
 const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
-  '#FFFFFF';
+  DEFAULT_COLOR;
 // One default, shared with the legacy save-migration path
 // (`createLegacyCompatibleSnapshot`). A provider-local copy previously stored
 // `{x:0, y:0, preset:'top-right'}`, which both failed `isPositionValid` and

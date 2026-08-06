@@ -6,8 +6,8 @@ import {
 } from '../constants/camera';
 import {
   createCubicBezierEasing,
-  EASING_CAMERA_TOKEN,
-  MOTION_CAMERA_TOKEN,
+  MOTION_EASE_OUT_TOKEN,
+  MOTION_DURATION_BASE_TOKEN,
   MOTION_FALLBACK_MS,
   MOTION_SCENE_TOKEN,
   parseCubicBezier,
@@ -66,13 +66,13 @@ describe('resolveMotionDuration', (): void => {
   it('reads the declared token rather than the TypeScript default', (): void => {
     stubComputedStyle({
       [MOTION_SCENE_TOKEN]: '160ms',
-      [MOTION_CAMERA_TOKEN]: '240ms',
+      [MOTION_DURATION_BASE_TOKEN]: '240ms',
     });
 
     expect(resolveMotionDuration(MOTION_SCENE_TOKEN, element)).toBe(
       SCENE_CROSSFADE_DURATION_MS,
     );
-    expect(resolveMotionDuration(MOTION_CAMERA_TOKEN, element)).toBe(
+    expect(resolveMotionDuration(MOTION_DURATION_BASE_TOKEN, element)).toBe(
       CAMERA_MOTION_DURATION_MS,
     );
   });
@@ -86,12 +86,12 @@ describe('resolveMotionDuration', (): void => {
   it('honours a zeroed token even when the media query says otherwise', (): void => {
     stubComputedStyle({
       [MOTION_SCENE_TOKEN]: '0ms',
-      [MOTION_CAMERA_TOKEN]: '0ms',
+      [MOTION_DURATION_BASE_TOKEN]: '0ms',
     });
     stubReducedMotion(false);
 
     expect(resolveMotionDuration(MOTION_SCENE_TOKEN, element)).toBe(0);
-    expect(resolveMotionDuration(MOTION_CAMERA_TOKEN, element)).toBe(0);
+    expect(resolveMotionDuration(MOTION_DURATION_BASE_TOKEN, element)).toBe(0);
   });
 
   it('falls back to the SPEC default only when the token is unreadable', (): void => {
@@ -101,8 +101,8 @@ describe('resolveMotionDuration', (): void => {
     expect(resolveMotionDuration(MOTION_SCENE_TOKEN, element)).toBe(
       MOTION_FALLBACK_MS[MOTION_SCENE_TOKEN],
     );
-    expect(resolveMotionDuration(MOTION_CAMERA_TOKEN, null)).toBe(
-      MOTION_FALLBACK_MS[MOTION_CAMERA_TOKEN],
+    expect(resolveMotionDuration(MOTION_DURATION_BASE_TOKEN, null)).toBe(
+      MOTION_FALLBACK_MS[MOTION_DURATION_BASE_TOKEN],
     );
   });
 
@@ -111,12 +111,12 @@ describe('resolveMotionDuration', (): void => {
     stubReducedMotion(true);
 
     expect(resolveMotionDuration(MOTION_SCENE_TOKEN, element)).toBe(0);
-    expect(resolveMotionDuration(MOTION_CAMERA_TOKEN, null)).toBe(0);
+    expect(resolveMotionDuration(MOTION_DURATION_BASE_TOKEN, null)).toBe(0);
   });
 
   it('keeps the TypeScript fallbacks equal to the declared token values', (): void => {
     expect(MOTION_FALLBACK_MS[MOTION_SCENE_TOKEN]).toBe(160);
-    expect(MOTION_FALLBACK_MS[MOTION_CAMERA_TOKEN]).toBe(240);
+    expect(MOTION_FALLBACK_MS[MOTION_DURATION_BASE_TOKEN]).toBe(240);
   });
 });
 
@@ -154,7 +154,7 @@ describe('camera easing', (): void => {
   });
 
   it('reads the token, and falls back to the SPEC curve when it is unreadable', (): void => {
-    stubComputedStyle({ [EASING_CAMERA_TOKEN]: 'cubic-bezier(0, 0, 1, 1)' });
+    stubComputedStyle({ [MOTION_EASE_OUT_TOKEN]: 'cubic-bezier(0, 0, 1, 1)' });
     const linear = resolveCameraEasing(element);
     // A linear curve is the one thing the SPEC curve is not, so this proves the
     // token was read rather than the default returned.

@@ -52,15 +52,9 @@
       calc(var(--space-xl) + env(safe-area-inset-right)),
       calc((100% - 1440px) / 2 + var(--space-xl))
     );
-  border-bottom: var(--border-width) solid var(--border-default);
-  background: var(--glass-app-bar);
+  border-bottom: var(--border-width) solid var(--hairline-color);
+  background: var(--themely-porcelain);
   gap: var(--space-lg);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .app > header {
-    backdrop-filter: blur(var(--glass-blur-app-bar));
-  }
 }
 
 .app > header > div {
@@ -93,7 +87,7 @@
 
 .app > header p {
   margin-bottom: 0;
-  color: var(--text-secondary);
+  color: var(--themely-slate-blue);
 }
 
 .app > header button {
@@ -106,14 +100,22 @@
   max-width: 1376px;
   margin: 0 auto var(--space-lg);
   padding: var(--space-lg);
-  border: var(--border-width) solid var(--border-default);
-  border-left: var(--space-xs) solid var(--accent);
-  border-radius: var(--radius-control);
-  background: var(--surface-accent-tint);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
 }
 
+/*
+ * The accent-tinted surface and the accent left edge are both gone. D-05 gives
+ * this banner exactly ONE Apple Blue element and that element is its CTA; a
+ * tinted card plus an accent rule plus a filled button is three.
+ */
 .onboarding h2 {
   margin-bottom: var(--space-sm);
+  font-size: var(--text-subheading);
+  font-weight: var(--text-subheading-weight);
+  letter-spacing: var(--text-subheading-tracking);
+  line-height: var(--text-subheading-line-height);
 }
 
 .onboarding p,
@@ -145,14 +147,14 @@
  * moved the accent onto `Dismiss Help` with nothing failing.
  */
 .onboarding__action--accent {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  border-color: var(--themely-apple-blue);
+  background: var(--themely-apple-blue);
+  color: var(--themely-on-accent);
 }
 
 .onboarding__action--accent:hover:not(:disabled) {
-  border-color: var(--accent-hover);
-  background: var(--accent-hover);
+  border-color: var(--themely-apple-blue-hover);
+  background: var(--themely-apple-blue-hover);
 }
 
 .workspace {
@@ -217,27 +219,25 @@
 /*
  * UI-SPEC 6/7.1: the desktop inspector is ONE shell. Its sections are
  * transparent and separated by a hairline, never a card inside a card - the
- * shell owns the only border, radius, and shadow in the column.
+ * shell owns the only border and radius in the column.
+ *
+ * D-06 makes elevation flat: the shell's drop shadow is gone with the token
+ * that carried it, and the hairline plus the Porcelain step off the Platinum
+ * wall is what separates the column from the page now. `03-05` dissolves this
+ * container entirely.
  */
 .workspace--desktop .workspace__control-column {
   padding: var(--space-lg);
-  border: var(--border-width) solid var(--border-default);
-  border-radius: var(--radius-large);
-  background: var(--glass-inspector);
-  box-shadow: var(--shadow-inspector);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
   gap: 0;
 }
 
 .workspace--desktop .workspace__control-column > * + * {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: var(--border-width) solid var(--border-default);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .workspace--desktop .workspace__control-column {
-    backdrop-filter: blur(var(--glass-blur-inspector));
-  }
+  border-top: var(--border-width) solid var(--hairline-color);
 }
 
 .workspace--compact {
@@ -292,12 +292,12 @@
    */
   /*
    * One block per (selector, conditions) pair. Split across two, `findRule` in
-   * `phase2CssContract.test.ts` returns only the first and any assertion on the
-   * mobile header silently reads half its declarations.
+   * the contract test returns only the first and any assertion on the mobile
+   * header silently reads half its declarations.
    *
-   * UI-SPEC 7.4: the mobile header also uses opaque surfaces. Glass here is
-   * paint cost and visual noise on the breakpoint with the least room for
-   * either.
+   * UI-SPEC 7.4: the surface is restated rather than inherited, because this
+   * block also changes position, alignment, and gap - splitting it in two to
+   * avoid the repetition is exactly what the paragraph above forbids.
    */
   .app > header {
     position: static;
@@ -307,8 +307,7 @@
     padding-inline: calc(var(--space-md) + env(safe-area-inset-left))
       calc(var(--space-md) + env(safe-area-inset-right));
     gap: var(--space-md);
-    backdrop-filter: none;
-    background: var(--surface-card);
+    background: var(--themely-porcelain);
   }
 
   .app > header button,
