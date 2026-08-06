@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import { openRailTool } from './support/appHarness';
+
 const HISTORY_FIXTURE_URL = '/tests/e2e/fixtures/history.html';
 const LOGICAL_CORE_COUNT = 195;
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
@@ -287,6 +289,9 @@ test.describe('approved period switching', (): void => {
     await routeHistoricalCatalog(page);
     await waitForApp(page);
 
+    // D-18: the panel opens CLOSED, so every tool control is reached through
+    // its rail row now.
+    await openRailTool(page, 'Countries');
     const countrySearch = page.getByRole('searchbox', {
       name: 'Search countries',
     });
@@ -320,6 +325,7 @@ test.describe('approved period switching', (): void => {
     await expect(franceRow).not.toBeChecked();
 
     // Colouring now applies to the continuing selection only.
+    await openRailTool(page, 'Colors');
     await page.getByRole('button', { name: 'Apply Red' }).click();
     await expect(
       page.locator('path.country-path[data-country-id="DEU"]'),

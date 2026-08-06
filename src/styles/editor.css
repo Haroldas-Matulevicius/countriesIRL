@@ -10,6 +10,19 @@
 :root {
   --rail-width: 56px;
   --panel-width: 0px;
+  /*
+   * The pinned HUD blocks are a fixed height so `.tool-panel__body` can reserve
+   * exactly that much room at both ends. The header and footer overhang the
+   * panel track when it is open (D-12/D-13 widen them to 336px), so without the
+   * reservation they would cover the panel's title row and its last control.
+   *
+   * The footer is two 48px controls stacked, at BOTH widths. Laying them side
+   * by side when the panel opens would mean a footer whose height changes with
+   * the panel state, and the panel body reserves that height - a reservation
+   * that moves is a reservation that is wrong for one frame of every toggle.
+   */
+  --hud-header-size: 64px;
+  --hud-footer-size: 112px;
 }
 
 /*
@@ -66,6 +79,17 @@
   transition-timing-function: var(--motion-ease-in);
 }
 
+/*
+ * The rail is 56px wide with `--space-xs` padding, so its content column is
+ * 48px - exactly the minimum target size, which is why the rows are square.
+ *
+ * Nothing in the rail is a scroll container. The rows are icon-only, so each
+ * one carries a tooltip that has to escape the 48px column to be readable, and
+ * `overflow-y: auto` computes `overflow-x: auto` and clips it. The trade is
+ * recorded: six rows plus the two 64px HUD blocks need 436px of height, so a
+ * viewport shorter than that overflows instead of scrolling. `03-09` owns the
+ * short/narrow layouts and the D-20 bottom sheet.
+ */
 .tool-rail {
   z-index: 2;
   display: flex;
@@ -80,15 +104,294 @@
   display: flex;
   min-height: 0;
   flex-direction: column;
-  overflow-y: auto;
   gap: var(--space-xs);
 }
 
+/*
+ * D-16/D-29, translated from Themely's `PrimaryNavRow`. The utility-to-CSS
+ * mapping is 03-UI-SPEC section "Component Contracts 1"; the one deliberate
+ * departure is the row height, which is the 48px minimum target rather than
+ * Themely's `h-9` (36px). The 48px floor is a landed accessibility gate here
+ * and the rail is the app's only icon-only control strip, so honouring a
+ * desktop-sidebar utility would have meant weakening that gate.
+ *
+ * Only the BACKGROUND carries state: colour is constant across inactive,
+ * hover, and active, there is no accent bar, and there is no weight bump.
+ */
 .tool-rail__row {
+  position: relative;
   display: grid;
   width: 100%;
   padding: 0;
+  border-color: transparent;
+  border-radius: var(--radius-row);
+  background: transparent;
+  color: var(--themely-nav-ink);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-body-sm-weight);
+  line-height: var(--text-body-sm-line-height);
+  white-space: nowrap;
   place-items: center;
+}
+
+.tool-rail__row:hover:not(:disabled) {
+  background: var(--themely-porcelain);
+}
+
+/*
+ * Keyed on the state attribute the row already publishes, never on its position
+ * (assertion 16). A rail of near-identical icon rows is where an ordinal
+ * selector would go unnoticed longest.
+ */
+.tool-rail__row[aria-expanded="true"] {
+  background: var(--themely-powder);
+}
+
+.tool-rail__row:active:not(:disabled) {
+  border-color: transparent;
+  background: var(--themely-powder);
+}
+
+/*
+ * D-29: hover paint is INSTANT on every row and tile in the editor. Themely
+ * states an ease here is "a regression, not polish" - only the icon glyph
+ * animates, and it does so through the imperative handle rather than through a
+ * CSS transition. Declared apart from the rules that set the background so the
+ * plan's own gate has a subject it can read.
+ */
+.tool-rail__row,
+.tool-rail__action,
+.color-picker__preset {
+  transition: none;
+}
+
+.tool-rail__row-icon {
+  display: grid;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  place-items: center;
+}
+
+/*
+ * The rail is icon-only at 56px, so every row and every footer control names
+ * itself on hover and on keyboard focus. Chrome, and never in the export clone.
+ * The tokens are the mode-invariant tooltip family (UI-SPEC 9): a chip that
+ * followed the theme would be light-on-light in one of the two modes.
+ */
+.rail-tooltip {
+  position: absolute;
+  z-index: 4;
+  inset-inline-start: calc(100% + var(--space-xs));
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--border-width) solid var(--tooltip-border);
+  border-radius: var(--radius-control);
+  background: var(--tooltip-surface);
+  color: var(--tooltip-text);
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+  line-height: var(--text-caption-line-height);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.tool-rail__row:hover .rail-tooltip,
+.tool-rail__row:focus-visible .rail-tooltip,
+.tool-rail__action:hover .rail-tooltip,
+.tool-rail__action:focus-visible .rail-tooltip,
+.controls--rail .controls__action:hover .rail-tooltip,
+.controls--rail .controls__action:focus-visible .rail-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/*
+ * D-12/D-13: the two pinned HUD blocks. They are siblings of the tools rather
+ * than children of it, which is what makes "never scrolls away" structural.
+ *
+ * Both widen over the panel track when a tool is open, so identity and Export
+ * read as one 336px block rather than as a 56px strip beside a panel.
+ */
+.tool-rail__header,
+.tool-rail__footer {
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  inline-size: calc(var(--rail-width) + var(--panel-width) - 2 * var(--space-xs));
+  overflow: hidden;
+  background: var(--themely-platinum);
+  gap: var(--space-sm);
+}
+
+.tool-rail__header {
+  align-items: center;
+  block-size: var(--hud-header-size);
+  border-block-end: var(--border-width) solid var(--hairline-color);
+}
+
+.tool-rail__footer {
+  block-size: var(--hud-footer-size);
+  flex-direction: column;
+  justify-content: center;
+  margin-block-start: auto;
+  border-block-start: var(--border-width) solid var(--hairline-color);
+}
+
+/*
+ * No Apple Blue anywhere in the identity block - the rail's one accent is
+ * Export (D-05).
+ */
+.hud-header__chip {
+  display: grid;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  flex: 0 0 auto;
+  border-radius: var(--radius-row);
+  background: var(--themely-powder);
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-caption);
+  font-weight: var(--text-h3-weight);
+  place-items: center;
+}
+
+.hud-header__identity {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+/*
+ * The product name and tagline are the document's `h1` landmark and its
+ * description. They are hidden VISUALLY and never with `display: none`, which
+ * would take them out of the accessible tree along with the landmark.
+ */
+.hud-header__product,
+.hud-header__tagline {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hud-header__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-h3);
+  font-weight: var(--text-h3-weight);
+  letter-spacing: var(--text-h3-tracking);
+  line-height: var(--text-h3-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-header__pill {
+  flex: 0 0 auto;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--themely-porcelain);
+  color: var(--themely-slate-blue);
+  font-size: var(--text-eyebrow);
+  font-weight: var(--text-eyebrow-weight);
+  letter-spacing: var(--text-eyebrow-tracking);
+  line-height: var(--text-eyebrow-line-height);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * D-12: at 56px the name and the pill are `opacity: 0` and clipped by the
+ * header's own width. They are never `display: none`, so the block keeps its
+ * accessible content in both states.
+ */
+.map-editor[data-panel-open="false"] .hud-header__name,
+.map-editor[data-panel-open="false"] .hud-header__pill {
+  opacity: 0;
+}
+
+/*
+ * D-13: `[icon] Export PNG` when the panel is open, icon-only at 56px with the
+ * label in the tooltip. The closed state hides the label VISUALLY rather than
+ * with `display: none` or `opacity: 0` - `display: none` would strip it from
+ * the button's accessible name, and a transparent label would still take the
+ * width that pushes the glyph off centre in a 48px square.
+ */
+.map-editor[data-panel-open="false"] .controls--rail .controls__action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The neutral ghost treatment shared by the theme toggle and the panel's close
+ * control (D-30, UI-SPEC 5). Transparent surface, Nav Ink glyph, Porcelain on
+ * hover - and no accent, because the rail already spent its one.
+ */
+.tool-rail__action {
+  position: relative;
+  display: grid;
+  width: var(--space-2xl);
+  flex: 0 0 auto;
+  padding: 0;
+  border-color: transparent;
+  border-radius: var(--radius-row);
+  background: transparent;
+  color: var(--themely-nav-ink);
+  place-items: center;
+}
+
+.tool-rail__footer .tool-rail__action {
+  width: 100%;
+}
+
+.tool-rail__action:hover:not(:disabled) {
+  background: var(--themely-porcelain);
+}
+
+/*
+ * `display: contents` rather than a wrapper box: `Controls` is one component
+ * with a declared variant, and the footer lays its action out directly so the
+ * component does not have to know it is in a rail.
+ */
+.controls--rail,
+.controls--rail .controls__actions {
+  display: contents;
+}
+
+.controls--rail .controls__heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.controls--rail .controls__action {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: var(--space-sm);
+  border-radius: var(--radius-control);
+  gap: var(--space-sm);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.controls--rail .controls__action:disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /*
@@ -106,6 +409,7 @@
   display: flex;
   width: 280px;
   height: 100%;
+  padding-block: var(--hud-header-size) var(--hud-footer-size);
   overflow-y: auto;
   overscroll-behavior: contain;
   flex-direction: column;
@@ -118,13 +422,40 @@
  * cancel. What remains is the panel's own inner spacing, which is the panel's
  * to own.
  */
-.tool-panel__body > .workspace {
+.tool-panel__content {
   padding: var(--space-md);
 }
 
-.tool-panel__body > header {
+/*
+ * UI-SPEC 5: the title row does not scroll. It sticks to the top of the ONE
+ * scroll container rather than living outside it - hoisting it out would move
+ * the scroll container down to the content and leave the landed
+ * `overflow-y: auto` + `overscroll-behavior: contain` pair asserted against an
+ * element that scrolls nothing.
+ */
+.tool-panel__title-row {
+  position: sticky;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inset-block-start: 0;
   padding: var(--space-md);
-  border-bottom: var(--border-width) solid var(--hairline-color);
+  background: var(--themely-platinum);
+  gap: var(--space-sm);
+}
+
+.tool-panel__title {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-h3);
+  font-weight: var(--text-h3-weight);
+  letter-spacing: var(--text-h3-tracking);
+  line-height: var(--text-h3-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /*
@@ -159,6 +490,33 @@
   inset-block-end: var(--space-lg);
   inset-inline-end: var(--space-lg);
   margin-top: 0;
+}
+
+/*
+ * UI-SPEC 10: the onboarding card and `Show Help`, in the canvas region and
+ * outside `div.map-export-source`. It is anchored at the bottom-inline-start
+ * corner - the composition bar owns top-start and the camera cluster owns
+ * bottom-end - and capped at the panel's own measure so it never becomes a
+ * page-width banner over a full-bleed map. `03-10` owns its final treatment.
+ */
+.map-workspace > .editor-help {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  max-inline-size: 280px;
+  inset-block-end: var(--space-lg);
+  inset-inline-start: var(--space-lg);
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.map-workspace > .editor-help .onboarding {
+  width: 100%;
+  margin: 0;
+}
+
+.editor-help__toggle {
+  padding: var(--space-sm) var(--space-md);
 }
 
 /*

@@ -16,51 +16,13 @@
 }
 
 /*
- * D-11: the top app bar is retired as a CONTAINER. There is no viewport-
- * spanning sticky bar, no 1440px page measure, and no `.app` wrapper - the
- * editor mount root is `.map-editor` and the canvas is full-bleed edge to edge.
- * What survives is the panel header: the product identity and `Show Help`,
- * relocated into the tool panel until `03-06` gives each of them its final home
- * in the rail. Relocated, not deleted - losing a control between two plans is
- * the defect this rule exists to prevent.
+ * D-11/D-12: the panel header is retired with the app bar it was the remains
+ * of. `03-05` parked the product identity and `Show Help` there until this plan
+ * gave each of them a home: the identity is now the rail's HUD header (visually
+ * hidden, so the document keeps exactly one `h1`), and `Show Help` travels with
+ * the onboarding card it controls, into the canvas region (UI-SPEC 10).
+ * Relocated, not deleted - losing a control between two plans is T-03-20.
  */
-.panel-header {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.panel-header__identity {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.panel-header__actions {
-  display: flex;
-  min-width: 0;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-sm);
-}
-
-.panel-header h1 {
-  margin-bottom: var(--space-xs);
-  overflow-wrap: anywhere;
-}
-
-.panel-header p {
-  margin-bottom: 0;
-  color: var(--themely-slate-blue);
-}
-
-.panel-header button {
-  flex: 0 0 auto;
-  padding: var(--space-sm) var(--space-md);
-}
-
 .onboarding {
   width: calc(100% - (var(--space-md) * 2));
   margin: 0 auto var(--space-md);
@@ -123,11 +85,10 @@
 }
 
 /*
- * D-11: the right inspector column is retired as a container too. The 376px
- * desktop track, the compact two-column grid, the sticky card with its own
- * border, radius, and surface - all gone. The tools it held are a vertical
- * stack inside the panel track, and every one of them has a named destination
- * in `03-06` or `03-07`.
+ * D-11/D-17: the inspector column is gone, and so is the flat stack `03-05`
+ * left in its place. Each of its sections is now one rail tool's panel content,
+ * so the workspace landmark holds exactly one section at a time and needs no
+ * separators between siblings that no longer exist.
  *
  * The `--desktop` / `--compact` modifier classes stay on the element because
  * `03-09` still keys the responsive suite on them and owns their replacement.
@@ -142,27 +103,10 @@
   gap: var(--space-lg);
 }
 
-.workspace__control-column,
-.workspace__actions,
 .workspace__selection-color,
 .workspace__legend,
-.workspace__country-list {
+.workspace__country-list,
+.workspace__saved-maps {
   min-width: 0;
   max-width: 100%;
-}
-
-.workspace__control-column {
-  display: flex;
-  flex-direction: column;
-}
-
-/*
- * A hairline between sections, and nothing else. The shell owned a border, a
- * radius, and a surface before D-06 flattened elevation and D-11 dissolved the
- * shell; the separator is the part that was doing real work.
- */
-.workspace__control-column > * + * {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: var(--border-width) solid var(--hairline-color);
 }

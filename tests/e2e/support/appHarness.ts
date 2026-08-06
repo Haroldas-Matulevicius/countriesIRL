@@ -24,6 +24,44 @@ export async function waitForApp(page: Page): Promise<void> {
   }
 }
 
+/**
+ * `03-06` put every editor tool behind a rail row, and D-18 opens a first run
+ * with the panel CLOSED. Anything that reaches for a colour swatch, the country
+ * list, the legend editor, or Save/Load has to open its tool first.
+ *
+ * Declared here rather than re-declared per spec: two existing specs already
+ * carry duplicated camera helpers as a recorded pending todo, and a rail helper
+ * copied into eight files is the same debt with eight places to drift.
+ */
+export type RailToolLabel = 'Colors' | 'Countries' | 'Legend' | 'Saved Maps';
+
+export async function openRailTool(
+  page: Page,
+  label: RailToolLabel,
+): Promise<void> {
+  const row = page.getByRole('button', { name: label, exact: true });
+  if ((await row.getAttribute('aria-expanded')) === 'true') {
+    return;
+  }
+  await row.click();
+  await expect(row).toHaveAttribute('aria-expanded', 'true');
+}
+
+/**
+ * The legend DISCLOSURE inside the open Legend panel.
+ *
+ * `getByRole('button', { name: /^Legend/ })` now matches two controls - the
+ * rail's `Legend` row and the disclosure's `Legend · N entries · Top left` -
+ * so every caller scopes to the panel content rather than picking one by index.
+ * An ordinal here would silently start clicking the rail row the next time the
+ * rail's order changed.
+ */
+export function legendDisclosure(page: Page): ReturnType<Page['getByRole']> {
+  return page
+    .locator('.tool-panel__content')
+    .getByRole('button', { name: /^Legend/ });
+}
+
 export async function clearSavedMaps(page: Page): Promise<void> {
   await page.evaluate(
     (storageKey): void => localStorage.removeItem(storageKey),

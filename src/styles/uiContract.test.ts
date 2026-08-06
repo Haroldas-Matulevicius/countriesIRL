@@ -479,7 +479,18 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
    * disagree about which panel is open, with both of them "working".
    */
   it('has exactly one writer, and it writes only those two values', (): void => {
-    const writers = COMPONENT_SOURCES.filter(([, source]): boolean =>
+    /*
+     * Production source only, for the same reason assertion 8 scans it: a test
+     * that ASSERTS the attribute is doing its job, and counting it as a writer
+     * would mean the gate goes red the first time anyone covers the rule it
+     * enforces. `03-06` hit exactly that - a new `App.test.tsx` assertion on
+     * `data-panel-open="false"` read as a second writer.
+     *
+     * This narrows WHO is scanned, never WHAT is required: the subject is still
+     * "exactly one production file writes this attribute, and it writes only
+     * the two enumerated literals".
+     */
+    const writers = productionComponentSources().filter(([, source]): boolean =>
       source.includes(PANEL_STATE_ATTRIBUTE),
     );
 

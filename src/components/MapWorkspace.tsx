@@ -27,6 +27,16 @@ interface MapWorkspaceProps {
    * subtree (UI-SPEC section 9).
    */
   compositionBar: ReactNode;
+  /**
+   * The onboarding card and `Show Help` (UI-SPEC 10). A SIBLING of the export
+   * source, exactly like `compositionBar` and `navigationSlot`: the export
+   * clones `svg.map-canvas`, so nothing placed here can reach the PNG.
+   *
+   * It lives in the canvas region rather than in the tool panel because D-18
+   * opens a first run with the panel CLOSED, and onboarding a creator has not
+   * dismissed cannot be hidden behind a panel they have not opened.
+   */
+  helpSlot?: ReactNode;
   snapshotId: SnapshotId;
   periodLabel: string;
   /**
@@ -68,6 +78,7 @@ interface MapWorkspaceProps {
 export function MapWorkspace({
   geoData,
   compositionBar,
+  helpSlot,
   snapshotId,
   periodLabel,
   features,
@@ -168,6 +179,7 @@ export function MapWorkspace({
       </div>
 
       {isSceneReady ? navigationSlot : null}
+      {helpSlot}
     </section>
   );
 }

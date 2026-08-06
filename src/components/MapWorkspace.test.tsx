@@ -284,6 +284,7 @@ describe('MapWorkspace navigation placement', (): void => {
  * satisfy every behavioural assertion in this file.
  */
 const SLOT_DECLARATIONS = [
+  'helpSlot?: ReactNode;',
   'legendSlot?: ReactNode;',
   'navigationSlot?: ReactNode;',
 ] as const;
@@ -322,6 +323,7 @@ function renderReadyWorkspace(): string {
     <MapWorkspace
       geoData={READY_GEO_DATA}
       compositionBar={createCompositionBar()}
+      helpSlot={<div data-testid="help-slot" />}
       snapshotId="modern"
       periodLabel={MODERN_PERIOD_OPTION.label}
       features={[]}
@@ -383,14 +385,37 @@ describe('MapWorkspace export frame (D-32)', (): void => {
     /*
      * The frame is structural chrome, not composable content. A caller that
      * could replace it could remove the creator's only signal of what the PNG
-     * crops to, so it is not a slot and the slot set stays at two.
+     * crops to, so it is not a slot and it never becomes one.
+     *
+     * `03-06` added `helpSlot` - the onboarding card and `Show Help`, which
+     * D-18 pushes out of the tool panel because a first run opens with that
+     * panel closed. It is asserted here as a closed, enumerated set rather than
+     * as "at most two", so the next slot is a visible contract change.
      */
     expect(
       [...source.matchAll(/^\s{2}(\w+Slot)\??:/gmu)].map(
         (match): string => match[1],
       ),
-    ).toStrictEqual(['legendSlot', 'navigationSlot']);
+    ).toStrictEqual(['helpSlot', 'legendSlot', 'navigationSlot']);
     expect(source).not.toContain('frameSlot');
+  });
+
+  /*
+   * Same reason the navigation slot is guarded: the export clones
+   * `svg.map-canvas`, so a slot rendered inside it would be serialised into
+   * every PNG. Asserted as a boolean that CAN be true, not only as an index
+   * comparison that an absent slot satisfies.
+   */
+  it('keeps the help slot outside the canonical SVG entirely', (): void => {
+    const markup = renderReadyWorkspace();
+    const svgStart = markup.indexOf('class="map-canvas"');
+    const svgEnd = markup.indexOf('</svg>', svgStart);
+    const helpIndex = markup.indexOf('data-testid="help-slot"');
+
+    expect(svgStart).toBeGreaterThan(-1);
+    expect(helpIndex).toBeGreaterThan(-1);
+    expect(helpIndex > svgStart && helpIndex < svgEnd).toBe(false);
+    expect(helpIndex).toBeGreaterThan(svgEnd);
   });
 
   it('still renders both slots into their documented positions', (): void => {

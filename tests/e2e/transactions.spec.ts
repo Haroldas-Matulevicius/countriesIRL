@@ -6,6 +6,8 @@ import {
   clearSavedMaps,
   expectD3ZoomSynchronized,
   expectOneCameraOwner,
+  legendDisclosure,
+  openRailTool,
   readCameraTransform,
   stampCameraOwnerSentinel,
   waitForApp,
@@ -100,6 +102,7 @@ test('every camera callback reaches the one bound handle across the 1200px remou
   expect(reset.x).toBeCloseTo(baseline.x, 1);
   await expectD3ZoomSynchronized(page);
 
+  await openRailTool(page, 'Countries');
   const locateInput = page.getByRole('combobox', { name: 'Find a country' });
   await locateInput.fill('Germany');
   await locateInput.press('Enter');
@@ -139,12 +142,14 @@ test('every export refusal class releases the camera lease in one session', asyn
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
   const refusalToast = page.locator('[data-severity="error"]');
 
   // 1 - legend-blocked: a synchronous refusal before the lease is ever taken.
-  await page.getByRole('button', { name: /^Legend/ }).click();
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
   await page.getByLabel('Large').check();
   const legendLabel = page.getByLabel('Legend label for #DC2626');
   await legendLabel.fill('12345678901234567890123456789012');
@@ -255,6 +260,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await waitForApp(page);
   await stampCameraOwnerSentinel(page);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical composition' })
@@ -269,6 +275,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await expect(legendText).toHaveText('Imperial lands');
 
   await historicalPath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Blue' }).click();
   await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
   await expect(legendText).toHaveText('#2563EB');
@@ -286,10 +293,16 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
   await expect(legendText).toHaveText('#2563EB');
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Historical redo');
   await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  // Scoped: the `saved` tool panel carries a `Close Saved Maps` control too.
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
 
   await page.setViewportSize(COMPACT_VIEWPORT);
   await expectLayout(page, 'compact');
@@ -299,9 +312,11 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await expectOneCameraOwner(page);
   await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
 
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await expect(legendText).toHaveCount(0);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical redo' })
@@ -322,6 +337,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   ).toHaveCount(0);
   // The browser keeps the modern 195-core catalog, disabled rather than
   // filtered, so a scene without France still cannot be given a French color.
+  await openRailTool(page, 'Countries');
   await page
     .getByRole('searchbox', { name: 'Search countries' })
     .fill('France');

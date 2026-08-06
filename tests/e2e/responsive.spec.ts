@@ -13,6 +13,7 @@ import {
 import {
   clearSavedMaps,
   expectOneCameraOwner,
+  openRailTool,
   stampCameraOwnerSentinel,
   waitForApp,
 } from './support/appHarness';
@@ -76,16 +77,21 @@ async function expectLayout(
 /**
  * The landmark census. A silently deleted landmark was a real defect in this
  * phase, and it fails nothing else: every control still renders and works.
+ *
+ * `03-05` retired the app bar and `03-06` retired the panel header that was
+ * left of it, so there is no `banner` any more, and the inspector's
+ * `complementary` went with the column that carried it. Both are asserted as
+ * ABSENT rather than dropped from the census: "the banner is gone" has to keep
+ * failing if one comes back, or this helper stops being a census.
+ *
+ * `main` is now the panel track itself, which stays mounted at every panel
+ * state - the landmark used to live inside the panel body, which `03-06`
+ * unmounts whenever no tool is open.
  */
-async function expectLandmarks(
-  page: Page,
-  layout: 'desktop' | 'compact',
-): Promise<void> {
-  await expect(page.getByRole('banner')).toHaveCount(1);
+async function expectLandmarks(page: Page): Promise<void> {
+  await expect(page.getByRole('banner')).toHaveCount(0);
+  await expect(page.getByRole('complementary')).toHaveCount(0);
   await expect(page.getByRole('main')).toHaveCount(1);
-  await expect(page.getByRole('complementary')).toHaveCount(
-    layout === 'desktop' ? 1 : 0,
-  );
   await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveCount(
     1,
   );
@@ -207,7 +213,7 @@ test.describe('responsive world workspace', (): void => {
     await stampCameraOwnerSentinel(page);
 
     await expectLayout(page, 'desktop');
-    await expectLandmarks(page, 'desktop');
+    await expectLandmarks(page);
     await expectOneCameraOwner(page);
 
     const square = await page
@@ -277,7 +283,7 @@ test.describe('responsive world workspace', (): void => {
 
     await page.setViewportSize(COMPACT_TWO_COLUMN_VIEWPORT);
     await expectLayout(page, 'compact');
-    await expectLandmarks(page, 'compact');
+    await expectLandmarks(page);
     // The same DOM node moved; it was not remounted as a second camera owner.
     await expectOneCameraOwner(page);
 
@@ -304,7 +310,7 @@ test.describe('responsive world workspace', (): void => {
 
     await page.setViewportSize(COMPACT_SINGLE_COLUMN_VIEWPORT);
     await expectLayout(page, 'compact');
-    await expectLandmarks(page, 'compact');
+    await expectLandmarks(page);
     await expectOneCameraOwner(page);
 
     const singleColumn = await page.evaluate((): ReadonlyArray<number> =>
@@ -326,7 +332,7 @@ test.describe('responsive world workspace', (): void => {
     await page.setViewportSize(MOBILE_VIEWPORT);
     await waitForApp(page);
     await expectLayout(page, 'compact');
-    await expectLandmarks(page, 'compact');
+    await expectLandmarks(page);
 
     expect(await findHorizontalOverflow(page)).toStrictEqual([]);
 
@@ -366,7 +372,7 @@ test.describe('responsive world workspace', (): void => {
     await page.setViewportSize(ZOOM_200_EQUIVALENT_VIEWPORT);
     await waitForApp(page);
     await expectLayout(page, 'compact');
-    await expectLandmarks(page, 'compact');
+    await expectLandmarks(page);
 
     expect(await findHorizontalOverflow(page)).toStrictEqual([]);
 
@@ -376,16 +382,25 @@ test.describe('responsive world workspace', (): void => {
       .evaluate((element): string => getComputedStyle(element).fontSize);
     expect(labelFontSize).toBe('14px');
 
-    for (const name of [
-      'Undo Color Change',
-      'Redo Color Change',
-      'Save or Load Maps',
-      'Reset All Colors',
-      'Export PNG',
-      'Reset View',
-    ]) {
+    /*
+      `03-06` moved these behind rail tools: Undo/Redo are rail rows, Export is
+      the HUD footer, `Reset View` is the canvas region, and `Save or Load
+      Maps` / `Reset All Colors` live in the `saved` and `colors` panels. Every
+      one is still reachable - the tool it lives in is opened first. `03-09`
+      owns the wider rewrite of this file (CF-3); this is the minimal repair
+      that keeps its red list at the 12 it already owned rather than growing it.
+    */
+    for (const name of ['Undo Color Change', 'Redo Color Change', 'Export PNG', 'Reset View']) {
       await expect(page.getByRole('button', { name })).toBeVisible();
     }
+    await openRailTool(page, 'Saved Maps');
+    await expect(
+      page.getByRole('button', { name: 'Save or Load Maps' }),
+    ).toBeVisible();
+    await openRailTool(page, 'Colors');
+    await expect(
+      page.getByRole('button', { name: 'Reset All Colors' }),
+    ).toBeVisible();
   });
 
   test('the map navigation cluster sits below the square outside the export source', async ({
@@ -500,13 +515,16 @@ test.describe('responsive world workspace', (): void => {
   }): Promise<void> => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
+    // The inspector column is gone; the tool panel is where these controls
+    // live now, and the Colors panel is the one that holds the preset grid.
+    await openRailTool(page, 'Colors');
 
     const clipped = await page.evaluate((): ReadonlyArray<string> => {
       const failures: string[] = [];
 
-      const inspector = document.querySelector('.workspace__control-column');
+      const inspector = document.querySelector('.tool-panel__content');
       if (inspector === null) {
-        throw new Error('The inspector is not composed.');
+        throw new Error('The tool panel is not composed.');
       }
       if (inspector.scrollWidth > inspector.clientWidth) {
         failures.push(
@@ -552,7 +570,7 @@ test.describe('responsive world workspace', (): void => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await waitForApp(page);
     await expectLayout(page, 'desktop');
-    await expectLandmarks(page, 'desktop');
+    await expectLandmarks(page);
 
     // UI-SPEC 8: Undo, Redo, Save or Load Maps, Export PNG - on the bar, in
     // that order, and nowhere else in the composed DOM.
@@ -704,9 +722,13 @@ test.describe('responsive world workspace', (): void => {
     );
     expect(spoofed).toStrictEqual([]);
 
-    for (const name of ['Undo Color Change', 'Redo Color Change', 'Reset All Colors']) {
+    for (const name of ['Undo Color Change', 'Redo Color Change']) {
       await expect(page.getByRole('button', { name })).toBeDisabled();
     }
+    await openRailTool(page, 'Colors');
+    await expect(
+      page.getByRole('button', { name: 'Reset All Colors' }),
+    ).toBeDisabled();
   });
 });
 
@@ -940,6 +962,7 @@ async function probeExportedPng(
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
     await france.press('Enter');
+    await openRailTool(page, 'Colors');
     await page.getByRole('button', { name: 'Apply Red' }).click();
     await expect(page.locator('[data-layer="legend"] text')).toHaveText(
       '#DC2626',

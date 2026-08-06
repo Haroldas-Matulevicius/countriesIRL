@@ -55,6 +55,9 @@ function createStubDocument(): Document {
 
 function stubBrowserGlobals(): void {
   vi.stubGlobal('window', {
+    // framer-motion's projection node attaches a resize listener to `window`.
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     document: createStubDocument(),
     localStorage: createBlockedStorage(),
     matchMedia: vi.fn(() => ({
@@ -148,12 +151,19 @@ describe('fatal error boundary wiring', (): void => {
     expect(boundaryIndex).toBeGreaterThan(-1);
     expect(markup).toContain('We couldn&#x27;t load the world map');
     expect(markup).toContain('>Reload Map<');
-    // The boundary is inside the workspace landmark and wraps its sections.
-    expect(markup.indexOf('aria-label="Map creator workspace"')).toBeLessThan(
-      boundaryIndex,
-    );
-    expect(markup.indexOf('class="workspace__selection-color"')).toBeGreaterThan(
-      boundaryIndex,
+    /*
+     * `03-06` moved the boundary OUTSIDE the workspace landmark, because the
+     * landmark is now the panel track itself and the tool content inside it is
+     * unmounted whenever the panel is closed (D-18 opens a first run closed).
+     * A boundary that only exists while a tool is open would have left the
+     * assertion below trivially satisfiable by rendering nothing at all - the
+     * vacuous-pass shape this repo keeps catching - so the boundary wraps the
+     * whole panel and both indices below are real positions.
+     */
+    const panelIndex = markup.indexOf('class="tool-panel workspace--compact"');
+    expect(panelIndex).toBeGreaterThan(boundaryIndex);
+    expect(markup.indexOf('aria-label="Map creator workspace"')).toBeGreaterThan(
+      panelIndex,
     );
 
     /*

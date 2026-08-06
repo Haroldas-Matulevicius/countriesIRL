@@ -17,6 +17,25 @@ export type ColorNormalizationResult =
 export type SavedMap = LegacySavedComposition;
 
 /**
+ * The four rail tools (D-16). The rail's open state is one of these or closed,
+ * and exactly one may be open at a time (D-17).
+ *
+ * Declared here rather than beside the rail components so `utils/storage.ts`
+ * can validate a stored id without importing a component module - the adapter
+ * is the boundary, and a boundary that depends on the UI it persists for is not
+ * one.
+ */
+export type ToolId = 'colors' | 'countries' | 'legend' | 'saved';
+
+/**
+ * D-30. An explicit creator choice written as a class on the editor mount root,
+ * persisted through `StorageAdapter`, defaulting to `light` when the key is
+ * absent. It is never derived from an operating-system colour preference - not
+ * even to seed a first run.
+ */
+export type EditorThemeMode = 'light' | 'dark';
+
+/**
  * Row-level description of a stored record. Saved-map rows must never read the
  * stored colors, so the list surface gets this projection instead of `SavedMap`.
  */

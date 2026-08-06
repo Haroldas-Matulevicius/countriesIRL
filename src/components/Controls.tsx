@@ -1,21 +1,35 @@
 import { useRef } from 'react';
 
+import { DownloadIcon } from './icons/DownloadIcon';
 import { ResetColorsAction } from './ResetColorsAction';
 
 const EXPORT_IDLE_LABEL = 'Export PNG';
 const EXPORT_BUSY_LABEL = 'Exporting PNG…';
+const EXPORT_GLYPH_SIZE = 20;
 
 /**
- * Where the strip is composed, which decides whether it carries
- * `Reset All Colors` (UI-SPEC 8/11):
+ * Where the strip is composed, which decides what it carries (UI-SPEC 3/8/11).
  *
- * - `app-bar`: the desktop app bar action group - Undo, Redo, Save or Load
- *   Maps, Export PNG. `Reset All Colors` is rendered by the selection/color
- *   section instead, so content reset can never be read as a pair with
- *   `Reset View`.
- * - `strip`: the compact/mobile action strip, which does carry it.
+ * - `rail`: the D-13 HUD footer. It carries `Export PNG` and nothing else,
+ *   because the rail gives Undo and Redo their own icon rows, `Save or Load
+ *   Maps` its own tool, and `Reset All Colors` the Colors panel. Export stays
+ *   here rather than being rebuilt in the footer, which is the whole mechanism:
+ *   `controls__action--primary` exists in exactly one component, so "exactly
+ *   one filled action in the composed DOM" is true by construction rather than
+ *   by review.
+ * - `app-bar`: the retired desktop app bar action group - Undo, Redo, Save or
+ *   Load Maps, Export PNG. D-11 retired its container in `03-05` and `03-06`
+ *   retired its last mount site; the variant is kept declared and tested rather
+ *   than deleted, because deleting a rendering path is `03-09`'s call to make
+ *   when it rewrites the responsive layout.
+ * - `strip`: the compact/mobile action strip, which does carry `Reset All
+ *   Colors`. Also unmounted as of `03-06` - the rail is present at every width -
+ *   and also `03-09`'s to keep or replace with the D-20 bottom sheet.
+ *
+ * EXACTLY ONE INSTANCE IS MOUNTED AT A TIME. That is not a convention; it is
+ * what keeps the accent budget and the single `Reset All Colors` countable.
  */
-export type ControlsVariant = 'app-bar' | 'strip';
+export type ControlsVariant = 'rail' | 'app-bar' | 'strip';
 
 interface ControlsProps {
   variant: ControlsVariant;
@@ -72,6 +86,51 @@ export function Controls({
     }
   };
 
+  /*
+   * D-13: the rail footer carries the primary action and nothing else. Written
+   * as one early return rather than four `variant === 'rail' ? null : …`
+   * guards, so the footer's contents are readable as a list of one instead of
+   * as the residue of four conditions.
+   */
+  const exportAction = (
+    <button
+      type="button"
+      data-action="export"
+      className="controls__action controls__action--primary"
+      onClick={() => void handleExport()}
+      disabled={!isMapReady || isExporting}
+      aria-busy={isExporting}
+    >
+      {variant === 'rail' ? <DownloadIcon size={EXPORT_GLYPH_SIZE} /> : null}
+      <span className="controls__action-label">
+        {isExporting ? EXPORT_BUSY_LABEL : EXPORT_IDLE_LABEL}
+      </span>
+      {variant === 'rail' ? (
+        <span
+          className="rail-tooltip"
+          data-editor-only="true"
+          aria-hidden="true"
+        >
+          {isExporting ? EXPORT_BUSY_LABEL : EXPORT_IDLE_LABEL}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  if (variant === 'rail') {
+    return (
+      <section
+        className="controls controls--rail"
+        aria-labelledby="map-actions-heading"
+      >
+        <h2 className="controls__heading" id="map-actions-heading">
+          Map actions
+        </h2>
+        <div className="controls__actions">{exportAction}</div>
+      </section>
+    );
+  }
+
   return (
     <section
       className={`controls controls--${variant}`}
@@ -124,16 +183,7 @@ export function Controls({
             onStatusMessage={onStatusMessage}
           />
         ) : null}
-        <button
-          type="button"
-          data-action="export"
-          className="controls__action controls__action--primary"
-          onClick={() => void handleExport()}
-          disabled={!isMapReady || isExporting}
-          aria-busy={isExporting}
-        >
-          {isExporting ? EXPORT_BUSY_LABEL : EXPORT_IDLE_LABEL}
-        </button>
+        {exportAction}
       </div>
     </section>
   );

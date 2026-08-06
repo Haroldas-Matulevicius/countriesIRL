@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { zoomIdentity } from 'd3';
 
 import { STORAGE_KEY } from '../../src/constants/config';
+import { legendDisclosure, openRailTool } from './support/appHarness';
 import { transformToCamera } from '../../src/utils/camera';
 import {
   HISTORICAL_ASSET_PATH,
@@ -143,18 +144,12 @@ async function readWorldPointAtClient(
 }
 
 /**
- * Desktop keeps the map first and wraps the four inspector sections in the
- * single scrolling `complementary` shell (UI-SPEC 7.1); compact flattens the
- * shell and puts the actions first.
+ * `03-06` dissolved the inspector shell into four rail tools, so there is no
+ * section list to read any more: the workspace landmark IS the panel track and
+ * it holds one tool's content at a time. `openRailTool` is imported from the
+ * shared harness rather than re-declared here - two specs already carry
+ * duplicated camera helpers as a recorded pending todo.
  */
-async function readWorkspaceOrder(page: Page): Promise<string[]> {
-  return page
-    .locator('main.workspace > *')
-    .evaluateAll((elements): string[] =>
-      elements.map((element): string => element.className),
-    );
-}
-
 /**
  * D-11/D-32 moved the canvas region out of the workspace landmark and into the
  * shell's third grid track, so it is no longer a workspace section at either
@@ -168,41 +163,50 @@ async function expectOneCanvasRegionOutsideTheWorkspace(
   await expect(page.locator('.map-editor > section.map-workspace')).toHaveCount(
     1,
   );
-  await expect(page.locator('main.workspace .map-workspace')).toHaveCount(0);
+  await expect(page.locator('main.tool-panel .map-workspace')).toHaveCount(0);
   await expect(page.locator('svg.map-canvas')).toHaveCount(1);
 }
 
-async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
-  expect(await readWorkspaceOrder(page)).toEqual(['workspace__control-column']);
-  await expectOneCanvasRegionOutsideTheWorkspace(page);
-  const inspector = page.getByRole('complementary', { name: 'Map inspector' });
-  await expect(inspector).toHaveCount(1);
+/**
+ * The rail is present at EVERY width and carries the same six rows in the same
+ * order, so this replaces the two layout-specific shell helpers `03-05` left
+ * behind. The layout hook stays asserted because `03-09` still keys the
+ * responsive suite on it.
+ */
+async function expectRailShell(
+  page: Page,
+  layoutModifier: 'workspace--desktop' | 'workspace--compact',
+): Promise<void> {
+  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
+    new RegExp(layoutModifier),
+  );
   expect(
-    await inspector
-      .locator('> *')
+    await page
+      .locator('.tool-rail__row')
       .evaluateAll((elements): string[] =>
-        elements.map((element): string => element.className),
+        elements.map((element): string => element.getAttribute('data-tool') ?? ''),
       ),
-  ).toEqual([
-    // UI-SPEC 8: the global action strip is not here on desktop - it composes
-    // into the app bar, and the inspector opens with selection/color.
-    'workspace__selection-color',
-    'workspace__legend',
-    'workspace__country-list',
-  ]);
+  ).toEqual(['colors', 'countries', 'legend', 'saved', 'undo', 'redo']);
+
+  // D-12/D-13: identity above the tools, Export below them, neither inside the
+  // element that scrolls.
+  await expect(page.locator('.tool-rail__header')).toHaveCount(1);
   await expect(
-    page.locator('.tool-panel__body > header .controls--app-bar'),
+    page.locator('.tool-rail__footer [data-action="export"]'),
   ).toHaveCount(1);
-  await expect(page.locator('.workspace__actions')).toHaveCount(0);
-  /*
-   * Scroll containment, relocated rather than dropped. `03-05` retired the
-   * inspector as a CONTAINER: it is no longer a sticky card with its own
-   * overflow, so the tool column's scroll container is the panel body. The
-   * claim - a flick inside the tools does not chain out and scroll something
-   * else - is asserted where it now lives, and the inspector is asserted to
-   * have stopped being a scroll container, so the pair cannot both be true of
-   * an element that scrolls nothing.
-   */
+  await expect(page.locator('.controls__action--primary')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(1);
+
+  await expectOneCanvasRegionOutsideTheWorkspace(page);
+}
+
+/**
+ * Scroll containment, still asserted where it lives. `03-05` re-pointed this
+ * from the retired inspector card to the panel body; `03-06` keeps the body as
+ * the ONE scroll container and sticks the title row to its top rather than
+ * hoisting the row out, so the pair below keeps exactly one subject.
+ */
+async function expectPanelBodyIsTheScrollContainer(page: Page): Promise<void> {
   const panelBody = page.locator('.tool-panel__body');
   expect(
     await panelBody.evaluate((element): string =>
@@ -215,24 +219,12 @@ async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
     ),
   ).toBe('auto');
   expect(
-    await inspector.evaluate((element): string =>
-      globalThis.getComputedStyle(element).overflowY,
-    ),
-  ).toBe('visible');
-  await expect(page.locator('svg.map-canvas')).toHaveCount(1);
-}
-
-async function expectCompactWorkspaceOrder(page: Page): Promise<void> {
-  expect(await readWorkspaceOrder(page)).toEqual([
-    'workspace__actions',
-    'workspace__selection-color',
-    'workspace__country-list',
-    'workspace__legend',
-  ]);
-  await expect(
-    page.getByRole('complementary', { name: 'Map inspector' }),
-  ).toHaveCount(0);
-  await expectOneCanvasRegionOutsideTheWorkspace(page);
+    await page
+      .locator('.tool-panel__title-row')
+      .evaluate((element): string =>
+        globalThis.getComputedStyle(element).position,
+      ),
+  ).toBe('sticky');
 }
 
 /**
@@ -567,7 +559,7 @@ test('a duplicate-identity scene degrades to the fatal error state instead of a 
   ).toBe(true);
 });
 
-test('the inspector keeps its in-progress UI state across the 1200px transition', async ({
+test('tool drafts survive both a tool switch and the 1200px transition', async ({
   page,
 }): Promise<void> => {
   await page.setViewportSize({ width: 1300, height: 900 });
@@ -576,53 +568,66 @@ test('the inspector keeps its in-progress UI state across the 1200px transition'
   await page.locator('svg.map-canvas').evaluate((svg): void => {
     svg.setAttribute('data-camera-owner-sentinel', 'stable-owner');
   });
-  await expectDesktopWorkspaceShell(page);
+  await expectRailShell(page, 'workspace--desktop');
 
+  /*
+   * `03-05` proved this claim by crossing the 1200px branch, which remounted
+   * the four inspector sections together. `03-06` gives each of them its own
+   * tool, so switching tools unmounts them ONE AT A TIME - a strictly stronger
+   * exercise of the same invariant, and the reason `useInspectorUiState` is
+   * held above the composition root's layout branch.
+   */
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+
+  await openRailTool(page, 'Colors');
+  await expectPanelBodyIsTheScrollContainer(page);
   await page.getByRole('button', { name: 'Apply Red' }).click();
+  await page.getByLabel('Custom color').fill('#123456');
 
-  const legendToggle = page.getByRole('button', { name: /^Legend/ });
-  const legendLabel = page.getByLabel('Legend label for #DC2626');
-  const countrySearch = page.getByRole('searchbox', { name: 'Search countries' });
-  const customColor = page.getByLabel('Custom color');
-  const locateInput = page.getByRole('combobox', { name: 'Find a country' });
+  await openRailTool(page, 'Countries');
+  await page.getByRole('searchbox', { name: 'Search countries' }).fill('Ger');
+  await page.getByRole('combobox', { name: 'Find a country' }).fill('Spa');
 
-  await legendToggle.click();
-  await expect(legendLabel).toBeVisible();
-  await countrySearch.fill('Ger');
-  await customColor.fill('#123456');
-  await locateInput.fill('Spa');
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
+  await expect(page.getByLabel('Legend label for #DC2626')).toBeVisible();
 
-  // Desktop wraps these four sections in the inspector shell and compact does
-  // not, so React remounts them on every crossing. The state they show must be
-  // owned above the branch, exactly like the map and composition state.
-  const expectPreservedInspectorState = async (): Promise<void> => {
-    await expect(countrySearch).toHaveValue('Ger');
-    await expect(customColor).toHaveValue('#123456');
-    await expect(locateInput).toHaveValue('Spa');
-    await expect(legendToggle).toHaveAttribute('aria-expanded', 'true');
-    await expect(legendLabel).toBeVisible();
+  const expectPreservedToolState = async (): Promise<void> => {
+    await openRailTool(page, 'Colors');
+    await expect(page.getByLabel('Custom color')).toHaveValue('#123456');
+
+    await openRailTool(page, 'Countries');
+    await expect(
+      page.getByRole('searchbox', { name: 'Search countries' }),
+    ).toHaveValue('Ger');
+    await expect(
+      page.getByRole('combobox', { name: 'Find a country' }),
+    ).toHaveValue('Spa');
+
+    await openRailTool(page, 'Legend');
+    await expect(legendDisclosure(page)).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await expect(page.getByLabel('Legend label for #DC2626')).toBeVisible();
+
     await expect(page.locator('svg.map-canvas')).toHaveAttribute(
       'data-camera-owner-sentinel',
       'stable-owner',
     );
   };
 
+  await expectPreservedToolState();
+
   await page.setViewportSize({ width: 900, height: 900 });
-  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
-    /workspace--compact/,
-  );
-  await expectCompactWorkspaceOrder(page);
-  await expectPreservedInspectorState();
+  await expectRailShell(page, 'workspace--compact');
+  await expectPreservedToolState();
 
   await page.setViewportSize({ width: 1300, height: 900 });
-  await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
-    /workspace--desktop/,
-  );
-  await expectDesktopWorkspaceShell(page);
-  await expectPreservedInspectorState();
+  await expectRailShell(page, 'workspace--desktop');
+  await expectPreservedToolState();
 });
 
 test('real app export failure and frozen load both release without false success', async ({
@@ -639,13 +644,19 @@ test('real app export failure and frozen load both release without false success
   );
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
   await page.getByRole('button', { name: 'Zoom In' }).click();
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Freeze baseline');
   await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Zoom In' }).click();
   const beforeFrozenLoad = await readCameraTransform(page);
 
@@ -679,6 +690,7 @@ test('real app export failure and frozen load both release without false success
     /workspace--desktop/,
   );
   expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Freeze baseline' }).click();
   // The extra Zoom In after saving left unsaved work, so the load is confirmed
@@ -691,7 +703,11 @@ test('real app export failure and frozen load both release without false success
   await expect(page.getByRole('button', { name: 'Export PNG' })).toBeVisible({
     timeout: 10_000,
   });
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'Zoom Out' }).click();
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
@@ -729,10 +745,12 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
 
-  const legendToggle = page.getByRole('button', { name: /^Legend/ });
+  await openRailTool(page, 'Legend');
+  const legendToggle = legendDisclosure(page);
   await legendToggle.click();
   await page.getByLabel('Large').check();
   const legendLabel = page.getByLabel('Legend label for #DC2626');
@@ -763,6 +781,7 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   // the legend trivially valid again. The gate must follow the live state.
   await legendToggle.click();
   await expect(page.getByLabel('Legend label for #DC2626')).toHaveCount(0);
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveCount(0);
 
@@ -802,6 +821,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
   });
 
   await waitForApp(page);
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical composition' })
@@ -820,6 +840,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
     'Imperial lands',
   );
 
+  await openRailTool(page, 'Countries');
   const countrySearch = page.getByRole('searchbox', { name: 'Search countries' });
   await countrySearch.fill('France');
   const franceRow = page.getByRole('checkbox', { name: /France Current color/ });
@@ -829,14 +850,18 @@ test('real app round-trips a historical scene with live catalog and exported leg
   await expect(franceRow).toBeDisabled();
   await expect(franceRow).not.toBeChecked();
   await expect(page.getByRole('button', { name: 'Select Visible' })).toBeDisabled();
+  await openRailTool(page, 'Colors');
   await expect(page.getByRole('button', { name: 'Apply Red' })).toBeDisabled();
+  await openRailTool(page, 'Countries');
   await expect(page.locator('[data-selection-live-region="true"]')).not.toHaveText(
     /country selected\./,
   );
+  await openRailTool(page, 'Colors');
   await expect(
     page.getByRole('heading', { name: 'Select countries to color' }),
   ).toBeVisible();
 
+  await openRailTool(page, 'Countries');
   await countrySearch.fill(HISTORICAL_LABEL);
   await expect(
     page.getByText(`No countries match “${HISTORICAL_LABEL}”.`),
@@ -864,6 +889,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
       .scale(settledTransform.k),
   );
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Historical resaved');
   await page.getByRole('button', { name: 'Save Current Map' }).click();
@@ -903,7 +929,11 @@ test('real app round-trips a historical scene with live catalog and exported leg
     settledCamera.centerLatitude,
     4,
   );
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
 
   await page.evaluate((): void => {
     const originalToBlob = HTMLCanvasElement.prototype.toBlob;
@@ -951,12 +981,17 @@ test('a saved composition exports under its sanitized name in the real app', asy
   expect(downloadNames).toHaveLength(1);
   expect(downloadNames[0]).toMatch(/^CountriesIRL_\d{4}-\d{2}-\d{2}\.png$/u);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('textbox', { name: 'Map name' })
     .fill('Baltic  Tour /2026!');
   await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
@@ -970,6 +1005,7 @@ test('a saved composition exports under its sanitized name in the real app', asy
    * Deleting the saved map used to leave the name set, so this export shipped
    * `Baltic_Tour_2026_<date>.png` for a composition with no stored counterpart.
    */
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Delete Saved Map: Baltic Tour /2026!' })
@@ -978,7 +1014,11 @@ test('a saved composition exports under its sanitized name in the real app', asy
     .getByRole('button', { name: 'Delete Map: Baltic Tour /2026!' })
     .click();
   await expect(page.getByText('Saved map deleted.')).toBeVisible();
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
@@ -1001,6 +1041,7 @@ test('a legend detached from the canonical SVG refuses the export without a refr
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
   await expect(

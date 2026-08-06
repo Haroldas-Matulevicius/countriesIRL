@@ -7,6 +7,8 @@ import { DEFAULT_COLOR } from '../../src/constants/colors';
 import {
   LOGICAL_PATH_SELECTOR,
   clearSavedMaps,
+  legendDisclosure,
+  openRailTool,
   readCameraTransform,
   waitForApp,
   waitForSettledCamera,
@@ -242,6 +244,8 @@ async function colorCountry(
   );
   await country.focus();
   await country.press('Enter');
+  // D-18 opens the panel CLOSED, so a colour is applied through its rail tool.
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: `Apply ${presetName}` }).click();
 }
 
@@ -250,6 +254,7 @@ async function labelLegendEntry(
   color: string,
   label: string,
 ): Promise<void> {
+  await openRailTool(page, 'Legend');
   const input = page.getByLabel(`Legend label for ${color}`);
   await input.fill(label);
   await input.press('Enter');
@@ -284,7 +289,8 @@ test('a full creator session survives a browser reload and exports what the scre
   await expect(france).toHaveAttribute('fill', RED);
   await expect(germany).toHaveAttribute('fill', BLUE);
 
-  await page.getByRole('button', { name: /^Legend/ }).click();
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
   await labelLegendEntry(page, RED, 'Visited France');
   await labelLegendEntry(page, BLUE, 'Visited Germany');
   await expect(legendTexts).toHaveText(['Visited France', 'Visited Germany']);
@@ -293,10 +299,21 @@ test('a full creator session survives a browser reload and exports what the scre
   const authoredCamera = await waitForSettledCamera(page);
   expect(authoredCamera.k).toBeGreaterThan(1);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill(COMPOSITION_NAME);
   await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  /*
+   * Scoped to the dialog. `03-06` gives the `saved` TOOL PANEL a close control
+   * whose label is `Close Saved Maps` too (UI-SPEC's new-strings table), so an
+   * unscoped `.first()` would close the panel instead of the dialog. The two
+   * merge when `03-07` migrates the dialog's contents into the panel.
+   */
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
 
   /*
    * Invariant 4, at the only moment it matters: a legend rendered as a sibling
@@ -389,6 +406,7 @@ test('a full creator session survives a browser reload and exports what the scre
     authored.regions.totalNonWhitePixels,
   );
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: `Load This Map: ${COMPOSITION_NAME}` })
@@ -441,7 +459,8 @@ test('the legend follows its position into the exported PNG', async ({
   await clearSavedMaps(page);
 
   await colorCountry(page, 'FRA', 'Red');
-  await page.getByRole('button', { name: /^Legend/ }).click();
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
   await labelLegendEntry(page, RED, 'Visited France');
   await expect(
     page.locator('svg.map-canvas [data-layer="legend"] text'),

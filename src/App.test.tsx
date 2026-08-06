@@ -212,6 +212,14 @@ function stubWindow(isDesktop: boolean, storage: Storage): void {
     localStorage: storage,
     matchMedia: vi.fn(() => createMediaQueryList(isDesktop)),
     location: { reload: vi.fn() },
+    /*
+      The rail's vendored icons are `motion/react` components, and framer's
+      projection node attaches a resize listener to `window` as it mounts. A
+      partial stub without these two throws inside the renderer, which would
+      look like a defect in App rather than a gap in the stub.
+    */
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   });
 }
 
@@ -405,109 +413,150 @@ describe('App composition root', () => {
     );
   });
 
-  it('composes the desktop global actions on the app bar, reset with the colors', () => {
+  it('mounts exactly one Controls, and it is the rail footer carrying the only fill', () => {
     stubWindow(true, createMemoryStorage());
     mocks.world.current = READY_WORLD;
 
     const markup = renderApp();
-
-    // UI-SPEC 8: the four global actions belong to the app bar, which is why
-    // the sticky bar carries more than title, subtitle, and Show Help.
-    expect(countOccurrences(markup, 'controls controls--app-bar')).toBe(1);
-    expect(countOccurrences(markup, 'controls--strip')).toBe(0);
-    expect(countOccurrences(markup, 'workspace__actions')).toBe(0);
-
-    const headerEnd = markup.indexOf('</header>');
-    ['data-action="undo"', 'data-action="redo"', 'data-action="save-load"', 'data-action="export"'].forEach(
-      (action): void => {
-        expect(countOccurrences(markup, action)).toBe(1);
-        expect(markup.indexOf(action)).toBeLessThan(headerEnd);
-      },
-    );
-
-    // UI-SPEC 11: exactly one Reset All Colors, in the selection/color section
-    // and never on the bar beside the export action.
-    expect(countOccurrences(markup, 'data-action="reset-colors"')).toBe(1);
-    expect(markup.indexOf('data-action="reset-colors"')).toBeGreaterThan(
-      markup.indexOf('class="workspace__selection-color"'),
-    );
-    expect(markup.indexOf('data-action="reset-colors"')).toBeLessThan(
-      markup.indexOf('class="workspace__legend"'),
-    );
-  });
-
-  it('composes the compact global actions as the first workspace section', () => {
-    stubWindow(false, createMemoryStorage());
-    mocks.world.current = READY_WORLD;
-
-    const markup = renderApp();
-
-    // UI-SPEC 7.4/8: compact and mobile keep the strip in the workspace, and it
-    // is the strip - not the app bar - that carries Reset All Colors.
-    expect(countOccurrences(markup, 'controls controls--strip')).toBe(1);
-    expect(countOccurrences(markup, 'controls--app-bar')).toBe(0);
-    expect(countOccurrences(markup, 'data-action="reset-colors"')).toBe(1);
-
-    const headerEnd = markup.indexOf('</header>');
-    expect(markup.indexOf('data-action="export"')).toBeGreaterThan(headerEnd);
-    expect(markup.indexOf('class="workspace__actions"')).toBeGreaterThan(
-      headerEnd,
-    );
-  });
-
-  it('renders one workspace with the desktop inspector landmark', () => {
-    stubWindow(true, createMemoryStorage());
-    mocks.world.current = READY_WORLD;
-
-    const markup = renderApp();
-
-    expect(countOccurrences(markup, 'workspace--desktop')).toBe(1);
-    expect(countOccurrences(markup, 'workspace--compact')).toBe(0);
-    expect(countOccurrences(markup, 'class="map-canvas"')).toBe(1);
-    expect(countOccurrences(markup, 'aria-label="Map creator workspace"')).toBe(
-      1,
-    );
-    expect(countOccurrences(markup, 'aria-label="Map inspector"')).toBe(1);
-  });
-
-  it('renders one workspace in the compact section order without a second map', () => {
-    stubWindow(false, createMemoryStorage());
-    mocks.world.current = READY_WORLD;
-
-    const markup = renderApp();
-
-    expect(countOccurrences(markup, 'workspace--compact')).toBe(1);
-    expect(countOccurrences(markup, 'workspace--desktop')).toBe(0);
-    expect(countOccurrences(markup, 'class="map-canvas"')).toBe(1);
-    expect(countOccurrences(markup, 'aria-label="Map creator workspace"')).toBe(
-      1,
-    );
-    // Compact drops the inspector shell, so the sections are direct children in
-    // the documented order.
-    expect(countOccurrences(markup, 'aria-label="Map inspector"')).toBe(0);
 
     /*
-     * D-11/D-16: the canvas region left the section list for the shell's third
-     * grid track, so the documented order is rail, then the panel's sections,
-     * then the canvas - and the map is no longer reordered by the 1200px
-     * switch at all.
+     * UI-SPEC 3: `Controls` is one component with a declared variant and
+     * exactly one instance is mounted. That is the mechanism, not a
+     * convention - `controls__action--primary` exists in one component, so
+     * "exactly one filled action in the composed DOM" holds by construction.
+     * `app-bar` and `strip` stay declared for `03-09`; neither is mounted.
      */
-    expect(markup.indexOf('class="tool-rail"')).toBeLessThan(
-      markup.indexOf('class="tool-panel"'),
+    expect(countOccurrences(markup, 'controls controls--rail')).toBe(1);
+    expect(countOccurrences(markup, 'controls--app-bar')).toBe(0);
+    expect(countOccurrences(markup, 'controls--strip')).toBe(0);
+    expect(countOccurrences(markup, 'controls__action--primary')).toBe(1);
+    expect(countOccurrences(markup, 'data-action="export"')).toBe(1);
+
+    const footerIndex = markup.indexOf('class="tool-rail__footer"');
+    expect(footerIndex).toBeGreaterThan(-1);
+    expect(markup.indexOf('data-action="export"')).toBeGreaterThan(footerIndex);
+
+    // Undo and Redo are rail rows now, not Controls actions: the labels are
+    // unchanged because the e2e locators and the toast allowlist key on them.
+    expect(countOccurrences(markup, 'data-action="undo"')).toBe(0);
+    expect(countOccurrences(markup, 'data-action="redo"')).toBe(0);
+    expect(countOccurrences(markup, 'aria-label="Undo Color Change"')).toBe(1);
+    expect(countOccurrences(markup, 'aria-label="Redo Color Change"')).toBe(1);
+  });
+
+  it('gives every tool a rail row with a stable id, and the pair no aria-expanded', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    /*
+     * Assertion 16's subject: the rows differ only by order until they carry a
+     * `data-tool`, so the inventory is asserted as an ordered, enumerated list
+     * rather than as a count.
+     */
+    expect(
+      [...markup.matchAll(/data-tool="([a-z]+)"/gu)].map(
+        (match): string => match[1],
+      ),
+    ).toEqual(['colors', 'countries', 'legend', 'saved', 'undo', 'redo']);
+
+    // Four tools point at the one panel; the two pinned rows expand nothing,
+    // so they carry no `aria-expanded` at all rather than a permanent `false`.
+    const rowTag = (tool: string): string =>
+      new RegExp(`<button[^>]*data-tool="${tool}"[^>]*>`, 'u').exec(
+        markup,
+      )?.[0] ?? '';
+
+    ['colors', 'countries', 'legend', 'saved'].forEach((tool): void => {
+      expect(rowTag(tool)).toContain('aria-controls="map-editor-tool-panel"');
+      expect(rowTag(tool)).toContain('aria-expanded="false"');
+    });
+    ['undo', 'redo'].forEach((tool): void => {
+      expect(rowTag(tool)).not.toContain('aria-expanded');
+      expect(rowTag(tool)).not.toContain('aria-controls');
+    });
+    expect(
+      countOccurrences(markup, 'aria-controls="map-editor-tool-panel"'),
+    ).toBe(4);
+  });
+
+  it('opens the first run closed and still mounts the workspace landmark', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    /*
+     * D-18: closed on a first run - a full-bleed world map plus a quiet icon
+     * strip. The landmark is asserted alongside it because the panel BODY is
+     * what unmounts; a landmark that disappeared with the open tool would be
+     * one a screen-reader user could not rely on.
+     */
+    expect(countOccurrences(markup, 'data-panel-open="false"')).toBe(1);
+    expect(countOccurrences(markup, 'data-panel-open="true"')).toBe(0);
+    expect(countOccurrences(markup, 'class="tool-panel__body"')).toBe(0);
+    expect(countOccurrences(markup, 'aria-label="Map creator workspace"')).toBe(
+      1,
     );
-    expect(markup.indexOf('class="map-workspace"')).toBeGreaterThan(
-      markup.indexOf('class="workspace__legend"'),
+    expect(countOccurrences(markup, 'aria-label="Map inspector"')).toBe(0);
+
+    // No tool is open, so none of the tool contents is in the document.
+    expect(countOccurrences(markup, 'workspace__selection-color')).toBe(0);
+    expect(countOccurrences(markup, 'data-action="reset-colors"')).toBe(0);
+  });
+
+  it('keeps the layout hook on the landmark and the shell order rail, panel, canvas', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const desktop = renderApp();
+
+    expect(countOccurrences(desktop, 'workspace--desktop')).toBe(1);
+    expect(countOccurrences(desktop, 'workspace--compact')).toBe(0);
+    expect(countOccurrences(desktop, 'class="map-canvas"')).toBe(1);
+
+    expect(desktop.indexOf('class="tool-rail"')).toBeLessThan(
+      desktop.indexOf('class="tool-panel workspace--desktop"'),
+    );
+    expect(desktop.indexOf('class="map-workspace"')).toBeGreaterThan(
+      desktop.indexOf('class="tool-panel workspace--desktop"'),
     );
 
-    const order = [
-      'workspace__actions',
-      'workspace__selection-color',
-      'workspace__country-list',
-      'workspace__legend',
-    ].map((className): number => markup.indexOf(className));
-    expect(order.every((index): boolean => index !== -1)).toBe(true);
-    expect([...order].sort((left, right): number => left - right)).toEqual(
-      order,
+    stubWindow(false, createMemoryStorage());
+    const compact = renderApp();
+
+    expect(countOccurrences(compact, 'workspace--compact')).toBe(1);
+    expect(countOccurrences(compact, 'workspace--desktop')).toBe(0);
+    expect(countOccurrences(compact, 'class="map-canvas"')).toBe(1);
+  });
+
+  it('renders the onboarding card and Show Help in the canvas region', () => {
+    stubWindow(true, createMemoryStorage());
+    mocks.world.current = READY_WORLD;
+
+    const markup = renderApp();
+
+    /*
+     * UI-SPEC 10, and the reason it cannot stay in the panel: D-18 opens the
+     * first run CLOSED, so onboarding parked in the panel body would be hidden
+     * behind a panel the creator has not opened yet.
+     */
+    const canvasIndex = markup.indexOf('class="map-workspace"');
+    const helpIndex = markup.indexOf('class="editor-help"');
+    const exportSourceEnd =
+      markup.indexOf('</svg>', markup.indexOf('class="map-export-source"')) +
+      '</svg>'.length;
+
+    expect(canvasIndex).toBeGreaterThan(-1);
+    expect(helpIndex).toBeGreaterThan(canvasIndex);
+    expect(helpIndex).toBeGreaterThan(exportSourceEnd);
+    expect(countOccurrences(markup, 'id="onboarding-help"')).toBe(1);
+    expect(countOccurrences(markup, 'class="panel-header"')).toBe(0);
+    // The document keeps exactly one h1; it moved into the HUD header.
+    expect(countOccurrences(markup, '<h1')).toBe(1);
+    expect(markup.indexOf('<h1')).toBeGreaterThan(
+      markup.indexOf('class="tool-rail__header"'),
     );
   });
 

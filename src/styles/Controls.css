@@ -1,3 +1,9 @@
+/*
+ * UI-SPEC 5: the panel body is Platinum and its sections are Porcelain cards at
+ * `--radius-card`. `03-05`'s transparent-pane neutralisers are gone with the
+ * inspector shell that needed them - inside a Platinum panel the card IS the
+ * stacking mechanism, not a card inside a card.
+ */
 .workspace__actions > section,
 .selection-panel,
 .color-picker,
@@ -5,23 +11,8 @@
   min-width: 0;
   padding: var(--space-lg);
   border: var(--border-width) solid var(--hairline-color);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-card);
   background: var(--themely-porcelain);
-}
-
-/*
- * UI-SPEC 6/7.1: inside the desktop inspector shell these sections are
- * transparent panes divided by the shell's hairlines. Keeping their own border,
- * radius, and background here would be a card inside a card - the treatment the
- * visual direction explicitly prohibits.
- */
-.workspace--desktop .workspace__control-column .selection-panel,
-.workspace--desktop .workspace__control-column .color-picker,
-.workspace--desktop .workspace__control-column .country-list {
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
 }
 
 .workspace__actions h2,
@@ -811,7 +802,7 @@
   background: var(--themely-porcelain);
 }
 
-.workspace--desktop .workspace__control-column .legend-disclosure__panel {
+.tool-panel__content .legend-disclosure__panel {
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -982,7 +973,7 @@
   gap: var(--space-sm);
 }
 
-.workspace--desktop .workspace__control-column .locate-country {
+.tool-panel__content .locate-country {
   padding: 0;
   padding-top: var(--space-lg);
   border: 0;

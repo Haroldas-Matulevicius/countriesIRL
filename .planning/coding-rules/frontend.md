@@ -1067,7 +1067,70 @@ dropped the claim on the rename, which is how a contract test quietly gets weake
 
 ---
 
-*Last updated: 2026-08-06 — §The Phase 3 Token System (D-03…D-10/D-26/D-30): the verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token rather than an edited palette value, with the three measurements that forced `--accent-fill`, `--destructive`, and the ghost-gray text ban; the class-based dark flip with no OS colour query and the both-modes preference rule restated for equal specificity; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned outright; flat hairline elevation; the motion consumer gate restored to Phase 2 strength with the TS mirror excluded; eight role classes for ten roles so the closed exemption can fail; a matrix row count as a literal; and `uiContract.test.ts` as the only CSS contract test (plan 03-04).*
-*Last updated: 2026-07-26/27 + 2026-08-06 — §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root with an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` as a two-valued attribute with exactly one writer; animate the registered `--panel-width`, never the grid's track list; `ResizeObserver` gated as an ownership set; the export frame placed as a sibling of the export source with its geometry asserted as an equality; and the relocated - not retired - squareness assertion (plan 03-03). Earlier: black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate, absorbed names asserted equal and the one deliberate retime asserted different, with the three consumer-less tokens recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef plus a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
+## The Tool Rail and its Panel (Phase 3, D-12 / D-13 / D-16 / D-17 / D-18 / D-29)
+
+**Row height is 48px here, not Themely's 36px, and that is a translation rather than a copy.**
+The utility table in `03-UI-SPEC.md` maps `h-9` to `block-size: 36px`; this repo's contract test
+also asserts that no control declares a `min-height` below 48px, and the rail is the app's only
+icon-only control strip. Honouring a desktop-sidebar utility would have meant weakening a landed
+accessibility gate on the one surface where the target matters most. The rail is 56px wide with
+`--space-xs` padding, so its content column is 48px and the rows are square.
+
+**Only the row BACKGROUND carries state, and it paints instantly.** Colour is
+`--themely-nav-ink` across inactive, hover, and active; there is no accent bar, no blue active
+icon, and no weight bump. `transition` is declared in a rule that sets no background, and the
+background rules declare no transition — separated on purpose so a gate can read one without the
+other, and because Themely states an ease here is *"a regression, not polish"* (D-29).
+
+**The glyph animation is triggered from ROW hover through the imperative handle**, never from the
+icon's own hover. `startAnimation()` is reduced-motion-gated; `stopAnimation()` is
+**unconditional**, because a glyph left mid-animation when the preference flips is a stuck
+animation, not a respected preference.
+
+**Rows are plain tab stops and never write a roving `tabindex`.** There is exactly one roving
+writer in this app — `applyRovingTabStop` in `MapCanvas.tsx`, restored in commit `074173e` — and a
+second is the regression class that commit fixed.
+
+**Nothing in the rail is a scroll container.** Each row is icon-only and carries a tooltip that
+has to escape the 48px column, and `overflow-y: auto` computes `overflow-x: auto` and clips it.
+The trade is recorded rather than hidden: a viewport shorter than ~436px overflows instead of
+scrolling, and `03-09` owns the short/narrow layouts.
+
+**The HUD header and footer are SIBLINGS of the scrolling element, never children of it.** That
+is what makes "identity and Export never scroll away" (D-12, D-13) structural instead of a styling
+promise. Both widen over the panel track when a tool is open; `.tool-panel__body` reserves their
+fixed heights at both ends, and those heights do **not** change with the panel state — a
+reservation that moves is wrong for one frame of every toggle.
+
+**Hide by truncation or by visual hiding, never by `display: none`.** The composition name and the
+saved/unsaved pill go `opacity: 0` at 56px (D-12); the Export label is visually hidden there so a
+transparent label does not push the glyph off centre in a 48px square. `display: none` would strip
+either from the accessible name.
+
+**The panel track IS the `main` landmark, and it stays mounted at every panel state.** The panel
+BODY is what unmounts when no tool is open (a 0px track still holds live tab stops), so a landmark
+placed inside the body would come and go with the open tool. Empty is fine; absent is not.
+
+**The panel's title row sticks to the top of the ONE scroll container rather than sitting outside
+it.** Hoisting it out would move the scroll container down to the content and leave the landed
+`overflow-y: auto` + `overscroll-behavior: contain` pair asserted against an element that scrolls
+nothing.
+
+**`Controls` gains variants; it is never copied.** The declared set is `rail | app-bar | strip`
+and **exactly one instance is mounted**. That is the mechanism behind "exactly one filled action
+in the composed DOM": `controls__action--primary` exists in one component. `app-bar` and `strip`
+are unmounted as of `03-06` and stay declared — deleting a rendering path is `03-09`'s call when
+it rewrites the responsive layout.
+
+**Reaching a tool control in an e2e means opening its rail row first.** `openRailTool` and
+`legendDisclosure` live in `tests/e2e/support/appHarness.ts` and are imported, never re-declared.
+`getByRole('button', { name: /^Legend/ })` now matches two controls — the rail row and the
+disclosure — so scope, never `.first()`: an ordinal starts clicking the rail row the moment the
+rail's order changes.
+
+---
+
+*Last updated: 2026-08-06 — §The Tool Rail and its Panel (D-12/D-13/D-16/D-17/D-18/D-29): 48px rows as a translation of Themely's `h-9` rather than a copy, because the 48px target gate outranks a desktop-sidebar utility; background-only state with instant paint declared apart from the transition so a gate can read either; row-hover glyph animation, gated on start and unconditional on stop; rows as plain tab stops with no second roving-tabindex writer; no scroll container in the rail so tooltips can escape 48px; HUD header and footer as siblings of the scrolling element with fixed heights the panel body reserves; hide by truncation or visual hiding, never `display: none`; the panel track as the persistent `main` landmark with only its body unmounting; the title row sticky inside the one scroll container; `Controls` as one component with a three-value declared variant and exactly one mounted instance; and `openRailTool`/`legendDisclosure` in the shared e2e harness (plan 03-06).*
+*Last updated: 2026-08-06 — §The Phase 3 Token System (D-03…D-10/D-26/D-30): the verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token rather than an edited palette value, with the three measurements that forced `--accent-fill`, `--destructive`, and the ghost-gray text ban; the class-based dark flip with no OS colour query and the both-modes preference rule restated for equal specificity; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned outright; flat hairline elevation; the motion consumer gate restored to Phase 2 strength with the TS mirror excluded; eight role classes for ten roles so the closed exemption can fail; a matrix row count as a literal; and `uiContract.test.ts` as the only CSS contract test (plan 03-04).* Last updated: 2026-07-26/27 + 2026-08-06 — §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root with an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` as a two-valued attribute with exactly one writer; animate the registered `--panel-width`, never the grid's track list; `ResizeObserver` gated as an ownership set; the export frame placed as a sibling of the export source with its geometry asserted as an equality; and the relocated - not retired - squareness assertion (plan 03-03). Earlier: black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate, absorbed names asserted equal and the one deliberate retime asserted different, with the three consumer-less tokens recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef plus a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/constants/config';
+import { legendDisclosure, openRailTool } from './support/appHarness';
 
 const LOGICAL_CORE_COUNT = 195;
 // UI-SPEC section 20: the map label names the active period.
@@ -347,9 +348,11 @@ test('real app saves and loads the complete composition after responsive rebindi
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
-  await page.getByRole('button', { name: /^Legend/ }).click();
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
   const legendLabel = page.getByLabel('Legend label for #DC2626');
   await legendLabel.fill('Visited France');
   await legendLabel.press('Enter');
@@ -387,6 +390,7 @@ test('real app saves and loads the complete composition after responsive rebindi
   await page.getByRole('button', { name: 'Pan Right' }).click();
   const savedTransform = await readCameraTransform(page);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Integrated view');
   await page.getByRole('button', { name: 'Save Current Map' }).click();
@@ -439,7 +443,13 @@ test('real app saves and loads the complete composition after responsive rebindi
     page.getByRole('listitem').filter({ hasText: 'Integrated view' }),
   ).toContainText('Modern · 1 legend entry · Custom view');
 
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  // Scoped: the `saved` tool panel carries a `Close Saved Maps` control too.
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await francePath.focus();
@@ -463,6 +473,7 @@ test('real app saves and loads the complete composition after responsive rebindi
   await expect(francePath).toBeFocused();
   await expect(page.locator('svg.map-canvas')).toHaveCount(1);
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Integrated view' })
@@ -515,6 +526,7 @@ test('Saved Maps rows describe stored compositions and never rewrite a V1 record
     },
   );
   await waitForApp(page);
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
 
   const customRow = page
@@ -562,9 +574,11 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   const francePath = page.locator('path.country-path[data-country-id="FRA"]');
   await francePath.focus();
   await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Apply Red' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
 
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   const loadButton = page.getByRole('button', {
     name: 'Load This Map: Custom view map',
@@ -587,8 +601,17 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await expect(
     page.getByRole('button', { name: 'Delete Saved Map: Custom view map' }),
   ).toHaveCount(0);
+  /*
+   * Scoped to the dialog. `03-06` gives the `saved` TOOL PANEL its own
+   * `Close Saved Maps` control (UI-SPEC's new-strings table), which is outside
+   * this dialog and unaffected by its `inert`. The duplicate accessible name is
+   * recorded as a known collision that `03-07` closes when the dialog's
+   * contents move into the panel and one of the two disappears.
+   */
   await expect(
-    page.getByRole('button', { name: 'Close Saved Maps' }),
+    page.locator('.save-load-dialog').getByRole('button', {
+      name: 'Close Saved Maps',
+    }),
   ).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveCount(0);
   await expect(
@@ -704,23 +727,34 @@ test('Saved Maps restore the responsive opener on close and focus the map after 
   await page.setViewportSize({ width: 1300, height: 900 });
   await waitForApp(page);
 
+  await openRailTool(page, 'Saved Maps');
   const opener = page.getByRole('button', { name: 'Save or Load Maps' });
   await opener.click();
   await page.keyboard.press('Escape');
   await expect(opener).toBeFocused();
 
-  // The desktop opener node is replaced by the compact one while the dialog is
-  // open, so ordinary dismissal must find the currently mounted equivalent.
+  /*
+   * `03-06` gives the opener ONE home - the `saved` tool panel - at every
+   * width, so it is no longer replaced by a compact twin while the dialog is
+   * open. The crossing is kept anyway: dismissal must still find the mounted
+   * control, and the single-instance claim below is what would go red if a
+   * second opener ever came back.
+   */
   await opener.click();
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(
     page.getByRole('main', { name: 'Map creator workspace' }),
   ).toHaveClass(/workspace--compact/);
-  await page.getByRole('button', { name: 'Close Saved Maps' }).first().click();
+  await page
+    .locator('.save-load-dialog')
+    .getByRole('button', { name: 'Close Saved Maps' })
+    .first()
+    .click();
   await expect(page.locator(SAVE_LOAD_CONTROL_SELECTOR)).toHaveCount(1);
   await expect(page.locator(SAVE_LOAD_CONTROL_SELECTOR)).toBeFocused();
 
   // A successful load is the intentional exception: focus goes to the map.
+  await openRailTool(page, 'Saved Maps');
   await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Custom view map' })

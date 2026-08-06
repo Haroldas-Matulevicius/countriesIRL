@@ -68,6 +68,9 @@ const PROBE_STORAGE: StorageAdapter = {
 
 function stubHostEnvironment(): void {
   vi.stubGlobal('window', {
+    // framer-motion's projection node attaches a resize listener to `window`.
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     matchMedia: vi.fn(() => ({
       matches: true,
       media: '(min-width: 1200px)',

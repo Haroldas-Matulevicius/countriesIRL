@@ -120,8 +120,14 @@ async function waitForPanelTrack(page: Page, width: number): Promise<number[]> {
   return readGridTracks(page);
 }
 
+/**
+ * `03-06` replaced the one interim `Map tools` trigger with the four real tool
+ * rows, so opening the track means opening a TOOL. The row is addressed by its
+ * stable `data-tool` rather than by an index: assertion 16's whole subject is
+ * that a rail of near-identical icon rows must never be keyed on order.
+ */
 async function setPanelOpen(page: Page, isOpen: boolean): Promise<void> {
-  const trigger = page.getByRole('button', { name: 'Map tools' });
+  const trigger = page.locator('.tool-rail__row[data-tool="colors"]');
   if ((await trigger.getAttribute('aria-expanded')) !== String(isOpen)) {
     await trigger.click();
   }

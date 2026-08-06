@@ -18,8 +18,7 @@ import type {
   SnapshotId,
 } from './types/composition';
 import type { ColorMap, CountryId, GeoFeature } from './types/map';
-import type { ToastMessage } from './types/ui';
-import { AppHeader } from './components/AppHeader';
+import type { ToastMessage, ToolId } from './types/ui';
 import { ColorPicker } from './components/ColorPicker';
 import { CompositionBar } from './components/CompositionBar';
 import { Controls } from './components/Controls';
@@ -41,6 +40,10 @@ import { ResetColorsAction } from './components/ResetColorsAction';
 import { SaveLoad } from './components/SaveLoad';
 import { SelectionPanel } from './components/SelectionPanel';
 import { TOAST_MESSAGES, ToastRegion } from './components/ToastRegion';
+import { HudFooter } from './components/editor/HudFooter';
+import { HudHeader } from './components/editor/HudHeader';
+import { ToolPanel } from './components/editor/ToolPanel';
+import { ToolRail } from './components/editor/ToolRail';
 import { useCompositionExportTransaction } from './hooks/useCompositionExportTransaction';
 import type { CompositionExportTransactionOutcome } from './hooks/useCompositionExportTransaction';
 import { useCompositionLoadTransaction } from './hooks/useCompositionLoadTransaction';
@@ -88,9 +91,8 @@ type PeriodLoadState =
 const EMPTY_COUNTRIES: ReadonlyArray<WorldCountryMetadata> = [];
 const EMPTY_COUNTRY_LOOKUP: ReadonlyMap<CountryId, GeoFeature> = new Map();
 
-/** `aria-controls` target for the rail trigger; 03-06 keeps the id, not the trigger. */
+/** `aria-controls` target every rail tool row points at (D-16). */
 const TOOL_PANEL_ID = 'map-editor-tool-panel';
-const TOOL_PANEL_TRIGGER_LABEL = 'Map tools';
 
 function getLegendPositionLabel(position: LegendPosition): string {
   switch (position.preset) {
@@ -201,14 +203,18 @@ export default function App(): JSX.Element {
   );
   const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
   /**
-   * D-19: the panel RESERVES a layout track, it never overlays the map, so this
-   * is the single source of the track's width. `[data-panel-open]` is written
-   * from it as exactly `'true' | 'false'` - never absent, never a third value -
-   * and nothing else may write that attribute. 03-06 replaces the one rail
-   * trigger below with the real tool rows; that is a trigger change, not an
-   * architectural one, because the state and the attribute stay here.
+   * D-17/D-19: at most ONE tool is open, and the panel RESERVES a layout track
+   * rather than overlaying the map. This is the single source of the track's
+   * width. `[data-panel-open]` is written from it as exactly `'true' | 'false'`
+   * - never absent, never a third value - and nothing else may write that
+   * attribute (assertion 10).
+   *
+   * D-18: first run opens CLOSED. `03-06` reads the stored last-open tool here
+   * once storage lands in its own task; an absent key resolves to closed.
    */
-  const [isToolPanelOpen, setIsToolPanelOpen] = useState(true);
+  const [openTool, setOpenTool] = useState<ToolId | null>(null);
+  const toolRowsRef = useRef(new Map<ToolId, HTMLButtonElement | null>());
+  const openedByToolRef = useRef<ToolId | null>(null);
   const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
     () => colors,
   );
@@ -655,8 +661,38 @@ export default function App(): JSX.Element {
     setIsHelpVisible(true);
   }, []);
 
-  const handleToggleToolPanel = useCallback((): void => {
-    setIsToolPanelOpen((isOpen): boolean => !isOpen);
+  const registerToolRow = useCallback(
+    (tool: ToolId, element: HTMLButtonElement | null): void => {
+      toolRowsRef.current.set(tool, element);
+    },
+    [],
+  );
+
+  /**
+   * One at a time (D-17): opening a tool closes the previous one, and
+   * activating the open tool's own row closes it. The row that opened the panel
+   * is remembered so `Escape` can return focus to it - focus restoration to
+   * "wherever focus happened to be" is how a keyboard user ends up back at the
+   * top of the document.
+   */
+  const handleSelectTool = useCallback((tool: ToolId): void => {
+    setOpenTool((current): ToolId | null => {
+      if (current === tool) {
+        openedByToolRef.current = null;
+        return null;
+      }
+      openedByToolRef.current = tool;
+      return tool;
+    });
+  }, []);
+
+  const handleCloseToolPanel = useCallback((): void => {
+    const openedBy = openedByToolRef.current;
+    openedByToolRef.current = null;
+    setOpenTool(null);
+    if (openedBy !== null) {
+      toolRowsRef.current.get(openedBy)?.focus();
+    }
   }, []);
 
   const handleSelectCountry = useCallback(
@@ -829,13 +865,17 @@ export default function App(): JSX.Element {
     [runLoadTransaction],
   );
 
-  // UI-SPEC 8: on desktop the four global actions live on the app bar; compact
-  // and mobile compose the same component as the first workspace section. One
-  // instance is mounted at a time, so `Export PNG` stays the only filled action
-  // and `Reset All Colors` appears exactly once in the composed DOM.
+  /*
+   * UI-SPEC 3: exactly ONE `Controls` instance is mounted, and it is the rail
+   * footer's. That is what keeps `Export PNG` the only filled action in the
+   * composed DOM by construction: `controls__action--primary` exists in one
+   * component, and one instance of it is on screen. Undo and Redo are rail
+   * rows, `Save or Load Maps` is the `saved` tool, and `Reset All Colors` lives
+   * in the Colors panel - so the rail variant carries the primary action alone.
+   */
   const globalActions = (
     <Controls
-      variant={layout === 'desktop' ? 'app-bar' : 'strip'}
+      variant="rail"
       canUndo={canUndo}
       canRedo={canRedo}
       canReset={canReset}
@@ -849,12 +889,6 @@ export default function App(): JSX.Element {
       onExport={handleExport}
       onStatusMessage={showStatus}
     />
-  );
-
-  const actionControls = (
-    <div key="actions" className="workspace__actions">
-      {globalActions}
-    </div>
   );
 
   // UI-SPEC 10: the cluster is editor-only camera chrome handed to
@@ -927,10 +961,41 @@ export default function App(): JSX.Element {
    * guarantee for the single-camera-owner invariant than the keyed sibling it
    * replaces.
    */
+  /*
+   * UI-SPEC 10: the onboarding banner becomes an inline info card on the CANVAS
+   * region. It cannot stay in the panel track, because D-18 opens the first run
+   * with the panel closed - a first-run creator would meet the editor with the
+   * onboarding they have not dismissed hidden inside a panel they have not
+   * opened. `Show Help` travels with it: it is the control that brings the card
+   * back, so putting the two in different places is how one of them becomes
+   * unreachable. Both are chrome and never reach the export clone.
+   */
+  const helpSlot = (
+    <div className="editor-help" data-editor-only="true">
+      <OnboardingBanner
+        isVisible={isHelpRendered}
+        onDismiss={dismissHelpAndFocusMap}
+        onStartCreating={dismissHelpAndFocusMap}
+      />
+      {isHelpAvailable && !isHelpRendered ? (
+        <button
+          type="button"
+          className="editor-help__toggle"
+          onClick={handleShowHelp}
+          aria-controls="onboarding-help"
+          aria-expanded={false}
+        >
+          Show Help
+        </button>
+      ) : null}
+    </div>
+  );
+
   const mapWorkspace = (
       <MapWorkspace
         geoData={geoData}
         compositionBar={compositionBar}
+        helpSlot={helpSlot}
         snapshotId={compositionState.snapshotId}
         periodLabel={activePeriodLabel}
         features={visibleFeatures}
@@ -957,17 +1022,16 @@ export default function App(): JSX.Element {
         onStatus={showStatus}
       />
       {/*
-        UI-SPEC 11: `Reset All Colors` lives in the selection/color section on
-        desktop and in the action strip on compact/mobile - never in both, and
-        never next to `Reset View`.
+        UI-SPEC 6/11: `Reset All Colors` is CONTENT reset and lives in the
+        Colors panel, at every width. `Reset View` is CAMERA reset and lives in
+        the canvas region. The two never sit together, and each exists exactly
+        once in the composed DOM (assertion 15).
       */}
-      {layout === 'desktop' ? (
-        <ResetColorsAction
-          isDisabled={!isMapReady || !canReset}
-          onReset={handleResetColors}
-          onStatusMessage={showStatus}
-        />
-      ) : null}
+      <ResetColorsAction
+        isDisabled={!isMapReady || !canReset}
+        onReset={handleResetColors}
+        onStatusMessage={showStatus}
+      />
     </div>
   );
 
@@ -1009,29 +1073,45 @@ export default function App(): JSX.Element {
       />
     </div>
   );
-  // UI-SPEC 7.1: on desktop the inspector is one scrolling shell (a
-  // `complementary` landmark), not a stack of cards. It stays a keyed sibling
-  // so the 1200px layout switch moves nodes rather than remounting them.
-  const inspectorShell = (
-    <aside
-      key="inspector"
-      className="workspace__control-column"
-      aria-label="Map inspector"
-    >
-      {selectionAndColorControls}
-      {legendControls}
-      {countryList}
-    </aside>
+  /*
+   * The `saved` tool's panel. `03-07` migrates the save form and the saved-map
+   * list into it; until then it holds the control that opens them, because a
+   * control whose new home is not built stays rendered rather than being
+   * deleted (T-03-20).
+   */
+  const savedMapsControls = (
+    <div key="saved" className="workspace__saved-maps">
+      <button
+        type="button"
+        data-action="save-load"
+        data-save-load-control="true"
+        className="controls__action"
+        onClick={handleOpenSaveLoad}
+        disabled={!isMapReady || !isPersistenceAvailable}
+      >
+        Save or Load Maps
+      </button>
+    </div>
   );
-  const workspaceSections =
-    layout === 'desktop'
-      ? [inspectorShell]
-      : [
-          actionControls,
-          selectionAndColorControls,
-          countryList,
-          legendControls,
-        ];
+
+  /*
+   * D-17: one tool's content at a time. The inspector's flat stack is gone -
+   * `03-05` retired it as a container and this plan gives each of its sections
+   * a rail row. Every transient draft these sections hold (the custom colour,
+   * the country query, the locate combobox, the legend disclosure) lives in
+   * `useInspectorUiState` ABOVE this switch, so switching tools unmounts the
+   * markup without losing the creator's in-progress work.
+   */
+  const toolPanelContent =
+    openTool === null
+      ? null
+      : openTool === 'colors'
+        ? selectionAndColorControls
+        : openTool === 'countries'
+          ? countryList
+          : openTool === 'legend'
+            ? legendControls
+            : savedMapsControls;
 
   /*
    * Transition-readiness (e): the theme class lands on the editor mount root
@@ -1046,28 +1126,28 @@ export default function App(): JSX.Element {
       className={
         initialThemeMode === 'dark' ? 'map-editor dark' : 'map-editor'
       }
-      data-panel-open={isToolPanelOpen ? 'true' : 'false'}
+      data-panel-open={openTool !== null ? 'true' : 'false'}
     >
       {/*
-        D-16: the rail is always present. It carries one trigger in this slice
-        and the four tool rows plus the HUD header and footer from 03-06; the
-        panel state it writes does not change when the trigger does.
+        D-16: the rail is always present, at every width. The HUD header and
+        footer are pinned siblings of the one scrolling element in it, so
+        identity and Export never scroll away.
       */}
-      <div className="tool-rail" data-editor-only="true">
-        <div className="tool-rail__tools">
-          <button
-            type="button"
-            className="tool-rail__row"
-            data-tool="tools"
-            aria-expanded={isToolPanelOpen}
-            aria-controls={TOOL_PANEL_ID}
-            aria-label={TOOL_PANEL_TRIGGER_LABEL}
-            onClick={handleToggleToolPanel}
-          >
-            <span aria-hidden="true">☰</span>
-          </button>
-        </div>
-      </div>
+      <ToolRail
+        panelId={TOOL_PANEL_ID}
+        openTool={openTool}
+        onSelectTool={handleSelectTool}
+        registerToolRow={registerToolRow}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        isMapReady={isMapReady}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        header={
+          <HudHeader compositionName={compositionName} isDirty={isDirty} />
+        }
+        footer={<HudFooter exportAction={globalActions} />}
+      />
 
       {/*
         D-19: the panel reserves its track, so the canvas reflows instead of
@@ -1075,35 +1155,16 @@ export default function App(): JSX.Element {
         0px column still holds live tab stops otherwise, which is a keyboard
         trap with nothing visible in it.
       */}
-      <div className="tool-panel" id={TOOL_PANEL_ID} data-editor-only="true">
-        {isToolPanelOpen ? (
-          <div className="tool-panel__body">
-            <AppHeader
-              isHelpVisible={isHelpRendered}
-              isHelpAvailable={isHelpAvailable}
-              globalActions={layout === 'desktop' ? globalActions : null}
-              onShowHelp={handleShowHelp}
-            />
-
-            <OnboardingBanner
-              isVisible={isHelpRendered}
-              onDismiss={dismissHelpAndFocusMap}
-              onStartCreating={dismissHelpAndFocusMap}
-            />
-
-            <main
-              className={`workspace workspace--${layout}`}
-              aria-label="Map creator workspace"
-            >
-              <ErrorBoundary
-                fallback={<FatalErrorState onReload={handleReload} />}
-              >
-                {workspaceSections}
-              </ErrorBoundary>
-            </main>
-          </div>
-        ) : null}
-      </div>
+      <ErrorBoundary fallback={<FatalErrorState onReload={handleReload} />}>
+        <ToolPanel
+          panelId={TOOL_PANEL_ID}
+          openTool={openTool}
+          layoutModifier={`workspace--${layout}`}
+          onClose={handleCloseToolPanel}
+        >
+          {toolPanelContent}
+        </ToolPanel>
+      </ErrorBoundary>
 
       <ErrorBoundary fallback={<FatalErrorState onReload={handleReload} />}>
         {mapWorkspace}

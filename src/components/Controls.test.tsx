@@ -50,10 +50,15 @@ describe('Controls global action strip', (): void => {
       'reset-colors',
       'export',
     ]);
-    ['Undo Color Change', 'Redo Color Change', 'Save or Load Maps', 'Reset All Colors', 'Export PNG'].forEach(
+    ['Undo Color Change', 'Redo Color Change', 'Save or Load Maps', 'Reset All Colors'].forEach(
       (label): void => {
         expect(markup).toContain(`>${label}</button>`);
       },
+    );
+    // Export carries its label in a span so the rail can hide it visually at
+    // 56px without `display: none` taking it out of the accessible name.
+    expect(markup).toContain(
+      '<span class="controls__action-label">Export PNG</span>',
     );
   });
 
@@ -109,7 +114,9 @@ describe('Controls global action strip', (): void => {
     expect(busy).toMatch(/data-action="export"[^>]*disabled/u);
 
     const idle = renderControls();
-    expect(idle).toContain('>Export PNG</button>');
+    expect(idle).toContain(
+      '<span class="controls__action-label">Export PNG</span>',
+    );
     expect(idle).not.toContain('Exporting PNG…');
     expect(idle).not.toMatch(/aria-busy="true"/u);
   });
