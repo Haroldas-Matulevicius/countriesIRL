@@ -24,7 +24,7 @@ approved decisions have already retired.
 | Failing test | Why it fails now | Plan that resolves it |
 |---|---|---|
 | the desktop workspace is map-first with one camera owner and exact landmarks | the canvas region is no longer a workspace section | `03-05` / `03-09` |
-| the app bar stays pinned while the responsive workspace scrolls | `.app > header` no longer matches; the bar is in the panel until it dissolves | `03-05` |
+| the app bar stays pinned while the responsive workspace scrolls | `.app > header` no longer matches; `03-05` retired the bar as a container, so "stays pinned" is a claim about something that no longer exists | ~~`03-05`~~ → `03-09` |
 | the compact sub-layouts respond at 1024 and 768 without a second DOM | `.workspace__map` no longer exists | `03-09` |
 | the complete UI contains at 360px with no overflow and full-size targets | narrow width is spec'd but not built | `03-09` |
 | the map navigation cluster sits below the square outside the export source | the cluster is in the canvas region now, not below a square | `03-08` |
@@ -58,6 +58,27 @@ spec; every asserted value is the same bytes. Leaving them red would have grown 
 The two rows above now say `03-09` alone rather than `03-04 / 03-09`: `03-04` deleted the tokens
 they key on, which is what makes them unfixable in place — they have to be rewritten against the
 new system, and that rewrite is `03-09`'s scope.
+
+### Re-measured after `03-05` — still exactly these 12
+
+`03-05` retired the app bar and the inspector as containers, which is the change most likely to
+move this number. It was re-measured, not assumed: **67 of 79 Chrome e2e tests pass, and the 12
+failures are the same 12 listed above** (`npx playwright test --project=chrome`, Chrome 151).
+
+One test was made red by `03-05` and was **repaired in the same plan**, for the same reason `03-04`
+repaired two: it was red for a reason `03-05` introduced, not one `03-09` owns.
+`phase2-composition.spec.ts` → *the inspector keeps its in-progress UI state across the 1200px
+transition* asserted `overscroll-behavior: contain` on the inspector, which stopped being a scroll
+container when its sticky card was retired. The claim was re-pointed at `.tool-panel__body`, which
+is the tool column's scroll container now, and paired with an assertion that the inspector's
+`overflow-y` is `visible` — so the relocated pair cannot both hold of an element that scrolls
+nothing. One assertion became three.
+
+The `app bar stays pinned…` row above still names `03-05`. It is **not** closed by this plan and
+its owner moves to `03-09`: `03-05` finished retiring the bar as a container, which makes "stays
+pinned" a claim about something that no longer exists. The test has to be rewritten against the
+rail and panel, and that rewrite is `03-09`'s scope — the same reasoning that moved the two
+`03-04` rows.
 
 ---
 
