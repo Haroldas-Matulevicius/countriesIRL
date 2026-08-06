@@ -80,6 +80,65 @@ pinned" a claim about something that no longer exists. The test has to be rewrit
 rail and panel, and that rewrite is `03-09`'s scope — the same reasoning that moved the two
 `03-04` rows.
 
+### Re-measured after `03-06` — still exactly these 12, and four were repaired in flight
+
+`03-06` is the change most likely to move this number: it dissolved the inspector into four rail
+tools and moved every control the responsive suite reaches for. It was re-measured, not assumed:
+**77 of 89 Chrome e2e tests pass, and the 12 failures are the same 12 listed above**
+(`npx playwright test --project=chrome`, Chrome 151.0.7922.75). The denominator moved from 79 to 89
+because `rail.spec.ts` adds 10.
+
+`03-06` briefly took the list to **16**. Four tests were red for a reason `03-06` introduced rather
+than one `03-09` owns, and all four were repaired in the same plan — the same rule `03-04` and
+`03-05` applied. The repair is mechanical (open the tool before reaching its control), not a
+rewrite; the rewrite is still `03-09`'s:
+
+| Test | Why `03-06` reddened it | Repair |
+|---|---|---|
+| core controls stay usable at the 200% zoom equivalent viewport | `Save or Load Maps` and `Reset All Colors` moved into tool panels; the landmark census expected a `banner` | opens the two tools; `expectLandmarks` now asserts `banner` and `complementary` are **absent** rather than dropping them from the census |
+| no inspector control is clipped by its container | `.workspace__control-column` no longer exists | re-pointed at `.tool-panel__content` with the Colors tool open |
+| every disabled action in the responsive strip is natively disabled | `Reset All Colors` is in the Colors panel | opens the tool for that one control |
+| the PNG is identical across theme, forced colors, and device pixel ratio | its `Apply Red` preamble needed the Colors tool | opens the tool |
+
+Two rows above changed shape rather than owner. *"the desktop app bar carries the global actions in
+the declared order"* and *"the desktop focus order runs bar, composition bar, map, navigation,
+inspector"* were already `03-06`-flavoured; both are now claims about surfaces that no longer exist
+at all, and the replacements are landed in **`tests/e2e/rail.spec.ts`** (the spec'd rail focus order,
+including the controls whose disabled state removes them, RED-proven against the arrangement it
+replaced). `03-09` deletes or rewrites the two originals rather than repairing them.
+
+---
+
+## D-4 — two controls share the accessible name `Close Saved Maps` — **owner `03-07`**
+
+**Found during:** `03-06`, wiring the `saved` tool panel.
+
+`SaveLoad.tsx` already renders **two** `Close Saved Maps` buttons (dialog header and footer), and
+UI-SPEC's new-strings table gives the `saved` TOOL PANEL a close control with the same label
+(`Close <Tool>`). With the panel open behind the dialog there are three controls sharing one name.
+
+**Not fixed here, and the reason is that both strings are approved copy.** Renaming either is a
+copy decision, not an implementation detail. The mitigation in place: the dialog is modal
+(`aria-modal`, with `inert` applied to its own body under the nested confirmation), and every e2e
+locator that reaches a dialog close is now **scoped to `.save-load-dialog`** rather than using
+`.first()` — an ordinal there would have started closing the panel instead.
+
+**`03-07` closes this** when it migrates the save form and the saved-map list into the `saved`
+panel: the dialog goes away and one of the two names goes with it.
+
+---
+
+## D-5 — the rail has no scroll container, so a very short viewport overflows — **owner `03-09`**
+
+**Found during:** `03-06`. `.tool-rail__tools` was authored with `overflow-y: auto` by `03-03`;
+`03-06` removed it, because every rail row is icon-only and carries a tooltip that has to escape the
+48px column, and `overflow-y: auto` computes `overflow-x: auto` and clips it. An icon-only rail with
+no tooltips is unusable, so the tooltip won.
+
+The cost, measured rather than estimated: six 48px rows plus two HUD blocks (64px + 112px) plus gaps
+need about **436px** of height. Below that the rows overflow instead of scrolling. `03-09` owns the
+short and narrow layouts and the D-20 bottom sheet, which is where this belongs.
+
 ---
 
 ## D-2 — the shell's interim token references — **CLOSED by `03-04`**
