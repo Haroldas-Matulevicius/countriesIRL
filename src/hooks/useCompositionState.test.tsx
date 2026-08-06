@@ -119,6 +119,42 @@ describe('compositionStateReducer', () => {
     expect('history' in state).toBe(false);
   });
 
+  it('reconciles legend entries from active colors in one write', () => {
+    let state = createInitialCompositionState();
+
+    state = reduce(state, {
+      type: 'RECONCILE_LEGEND',
+      payload: { effectiveColors: ['#dc2626', '#FFFFFF', '#DC2626', '#2563eb'] },
+    });
+
+    // White never gets an entry, duplicates collapse, colors canonicalize to
+    // uppercase, and each new entry is labelled with its own hex.
+    expect(state.legend.entries).toEqual([
+      { color: '#DC2626', label: '#DC2626', order: 0 },
+      { color: '#2563EB', label: '#2563EB', order: 1 },
+    ]);
+
+    const reconciledAgain = reduce(state, {
+      type: 'RECONCILE_LEGEND',
+      payload: { effectiveColors: ['#DC2626', '#2563EB'] },
+    });
+    expect(reconciledAgain).toBe(state);
+
+    const renamed = reduce(state, {
+      type: 'SET_LEGEND_ENTRY',
+      payload: { entry: { color: '#DC2626', label: 'Allies', order: 0 } },
+    });
+    const reconciledAfterRename = reduce(renamed, {
+      type: 'RECONCILE_LEGEND',
+      payload: { effectiveColors: ['#DC2626', '#2563EB'] },
+    });
+    expect(
+      reconciledAfterRename.legend.entries.find(
+        (entry) => entry.color === '#DC2626',
+      )?.label,
+    ).toBe('Allies');
+  });
+
   it('orders legend entries semantically and ignores unknown colors', () => {
     const withEntries = reduce(
       reduce(createInitialCompositionState(), {
@@ -282,6 +318,7 @@ describe('useCompositionState', () => {
         setCamera: expect.any(Function),
         setSnapshot: expect.any(Function),
         setLegendEntry: expect.any(Function),
+        reconcileLegendEntries: expect.any(Function),
         removeLegendEntry: expect.any(Function),
         setLegendStyle: expect.any(Function),
         setLegendOrder: expect.any(Function),

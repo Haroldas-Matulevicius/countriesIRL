@@ -26,7 +26,7 @@ import type {
   VisibleCompositionSettings,
 } from '../types/composition';
 import { normalizeColor } from '../utils/colors';
-import { createDefaultLegendState } from '../utils/legend';
+import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
 
 const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
 const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
@@ -80,6 +80,10 @@ export type CompositionAction =
   | { type: 'SET_CAMERA'; payload: { camera: CameraState } }
   | { type: 'SET_SNAPSHOT'; payload: { snapshotId: SnapshotId } }
   | { type: 'SET_LEGEND_ENTRY'; payload: { entry: LegendEntryState } }
+  | {
+      type: 'RECONCILE_LEGEND';
+      payload: { effectiveColors: ReadonlyArray<string> };
+    }
   | { type: 'REMOVE_LEGEND_ENTRY'; payload: { color: string } }
   | { type: 'SET_LEGEND_STYLE'; payload: { style: LegendStyleState } }
   | { type: 'SET_LEGEND_ORDER'; payload: { colors: ReadonlyArray<string> } }
@@ -98,6 +102,7 @@ export interface CompositionStateContextValue {
   setCamera: (camera: CameraState) => void;
   setSnapshot: (snapshotId: SnapshotId) => void;
   setLegendEntry: (entry: LegendEntryState) => void;
+  reconcileLegendEntries: (effectiveColors: ReadonlyArray<string>) => void;
   removeLegendEntry: (color: string) => void;
   setLegendStyle: (style: LegendStyleState) => void;
   setLegendOrder: (colors: ReadonlyArray<string>) => void;
@@ -400,6 +405,16 @@ export function compositionStateReducer(
       return replaceLegend(state, { ...state.legend, entries });
     }
 
+    // Auto-entry lives here, not in an App effect: `reconcileLegend` is the one
+    // home for "every active non-white color has an entry", shared with the
+    // storage repair path, so the two cannot disagree on canonicalization.
+    case 'RECONCILE_LEGEND': {
+      return replaceLegend(
+        state,
+        reconcileLegend(action.payload.effectiveColors, state.legend),
+      );
+    }
+
     case 'REMOVE_LEGEND_ENTRY': {
       const colorResult = normalizeColor(action.payload.color);
       if (!colorResult.ok) {
@@ -529,6 +544,13 @@ export function CompositionStateProvider({
     dispatch({ type: 'SET_LEGEND_ENTRY', payload: { entry } });
   }, []);
 
+  const reconcileLegendEntries = useCallback(
+    (effectiveColors: ReadonlyArray<string>): void => {
+      dispatch({ type: 'RECONCILE_LEGEND', payload: { effectiveColors } });
+    },
+    [],
+  );
+
   const removeLegendEntry = useCallback((color: string): void => {
     dispatch({ type: 'REMOVE_LEGEND_ENTRY', payload: { color } });
   }, []);
@@ -582,6 +604,7 @@ export function CompositionStateProvider({
       setCamera,
       setSnapshot,
       setLegendEntry,
+      reconcileLegendEntries,
       removeLegendEntry,
       setLegendStyle,
       setLegendOrder,
@@ -597,6 +620,7 @@ export function CompositionStateProvider({
       setCamera,
       setSnapshot,
       setLegendEntry,
+      reconcileLegendEntries,
       removeLegendEntry,
       setLegendStyle,
       setLegendOrder,

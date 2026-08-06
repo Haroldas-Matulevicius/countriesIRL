@@ -19,7 +19,6 @@ import type {
 } from './types/composition';
 import type { ColorMap, CountryId, GeoFeature } from './types/map';
 import type { ToastMessage } from './types/ui';
-import { DEFAULT_COLOR } from './constants/colors';
 import { AppHeader } from './components/AppHeader';
 import { ColorPicker } from './components/ColorPicker';
 import { CompositionBar } from './components/CompositionBar';
@@ -156,6 +155,7 @@ export default function App(): JSX.Element {
     setCamera,
     setSnapshot,
     setLegendEntry,
+    reconcileLegendEntries,
     setLegendStyle,
     setLegendOrder,
     setLegendPosition,
@@ -338,27 +338,11 @@ export default function App(): JSX.Element {
     [],
   );
 
+  // Legend auto-entry is one reducer write, so this effect depends only on the
+  // active colors - it cannot retrigger itself through the entries it creates.
   useEffect((): void => {
-    const existingColors = new Set(
-      compositionState.legend.entries.map((entry): string => entry.color),
-    );
-    let nextOrder = compositionState.legend.entries.reduce(
-      (maximum, entry): number => Math.max(maximum, entry.order),
-      -1,
-    );
-    effectiveColors.forEach((color): void => {
-      const normalizedColor = color.toUpperCase();
-      if (normalizedColor !== DEFAULT_COLOR && !existingColors.has(normalizedColor)) {
-        nextOrder += 1;
-        existingColors.add(normalizedColor);
-        setLegendEntry({
-          color: normalizedColor,
-          label: normalizedColor,
-          order: nextOrder,
-        });
-      }
-    });
-  }, [compositionState.legend.entries, effectiveColors, setLegendEntry]);
+    reconcileLegendEntries(effectiveColors);
+  }, [effectiveColors, reconcileLegendEntries]);
 
   const bindMapCanvasHandle = useCallback(
     (handle: MapCanvasHandle | null): void => {
