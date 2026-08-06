@@ -479,6 +479,12 @@ flood the 50-action history.
 - Real-time collaboration; community border repository
 - Animated transitions between time periods; batch export
 - Mobile app version; Discord/API integration
+- **Themely integration** — embed the editor in the Themely web app as an entitlement-gated tool
+  for post makers (alongside the planned slideshow image generator). Prerequisite shape: Phase 3
+  builds the HUD as a mountable editor component behind an explicit boundary (storage adapter +
+  asset base URL + entitlement props); Themely's backend would also make the owner-gated LLM
+  import viable by proxying the API key server-side. New explicit authorization required before
+  any embedding work starts (it ends localhost-only scope).
 
 ---
 
