@@ -332,13 +332,106 @@ is served by a route and never promotes geometry into `public/data`.
 
 ---
 
+## The Phase 3 Token System (D-03 → D-10, D-26, D-30)
+
+**Read this before §Visual Tokens and Preference Fallbacks below, which it supersedes on every
+point the two disagree.** The Phase 2 section is retained because Phase 1 and Phase 2 evidence
+cites it; where it says `prefers-color-scheme`, `--glass-*`, `--accent`, or
+`phase2CssContract.test.ts`, this section is what actually ships.
+
+**Colour tokens are Themely's `--themely-*` names, vendored verbatim. No value may be adjusted.**
+Type roles are `--text-*`, motion is `--motion-*`; spacing, focus, radii, and the CountriesIRL-only
+`--map-*` / `--tooltip-*` export set keep their local names. The namespace is not cosmetic — it is
+the transition-readiness requirement in its smallest form: a host's `globals.css` can become the
+token source and our declarations act as fallbacks, with no rename and no shim.
+`themeTokens.test.ts` holds an **explicit namespace allowlist**, so a retired un-namespaced name
+cannot quietly reappear beside the token that replaced it.
+
+**Where a surface needs a value the Themely palette does not give it, the surface gets its own
+token — the palette value is never edited.** This is the owner's own move, made twice:
+
+| Surface | Its own token | The measurement that forced it |
+|---|---|---|
+| `Export PNG` fill | `--accent-fill` / `--accent-fill-hover`, mode-invariant | white on `--themely-apple-blue` dark `#2997ff` is **3.02:1**, and its hover `#1a7fd4` is **4.18:1**. `#0071e3` is **4.70:1** in both modes |
+| Destructive text and fills | `--destructive`, light `#b42318`, dark `var(--themely-red)` | `--themely-red` light `#ff5252` is **3.05:1** on Porcelain and white on it is **3.19:1** |
+
+**`--themely-ghost-gray` carries no text in this app.** Measured against this palette it is
+**3.88:1** on Porcelain and **3.60:1** on Powder in dark mode. It stays declared, unadjusted, for
+palette parity; tertiary meta uses `--themely-slate-blue`. That restriction is a **gate**, not a
+paragraph — `uiContract.test.ts` fails any rule that sets `color` from it. A token excluded from a
+contrast matrix with only a comment to explain it is an exception wearing a different hat.
+
+**The dark flip is a class on the editor mount root, and NO stylesheet reads an operating-system
+colour preference** (D-30). `prefers-reduced-motion`, `prefers-reduced-transparency`,
+`prefers-contrast`, and `forced-colors` remain legitimate and are all still in use; D-30 forbids the
+colour-scheme query only. The Phase 2 rule *"a preference media query must define BOTH schemes"*
+survives, restated in class terms: **any preference override of a colour must be declared for both
+`:root` and `.dark` inside the same at-rule**, because the preference block is authored after the
+palette at equal specificity — `.dark` and `:root` are both 0-1-0, so source order decides, and a
+`:root` literal inside `prefers-contrast` wins in dark mode unless the same at-rule answers it.
+
+**Live Invariant 9 now covers `.dark` as well.** The mode-invariant set — `--map-*`, `--tooltip-*`,
+`--swatch-border`, plus `--accent-fill*` — is declared **exactly once, in the unconditioned
+`:root`**, and appears in no `.dark` block, no media query, and no `@supports` block. `.dark` is the
+likeliest hiding place precisely because it is where every other colour legitimately gets a second
+value.
+
+**Delete, never alias.** Every retired token is gone rather than pointed at its replacement:
+`--accent*`, `--surface-*`, `--text-primary/secondary/muted`, `--border-default/strong`, the whole
+`--glass-*` family, `--shadow-inspector/navigation`, `--modal-shadow`, `--toast-shadow`,
+`--font-label/body/heading/display`, `--weight-regular/semibold`, `--radius-large`, `--map-shadow`,
+`--mixed-color-*`, `--active-check-*`, and the absorbed motion names `--motion-fast`,
+`--motion-camera`, `--easing-camera`, `--easing-control`. An alias would let 64 stale `--glass-*`
+references keep working while looking migrated; a deletion makes each one fail at the contract test.
+
+**`backdrop-filter` is banned outright.** Not an approved-surface allowlist — a blanket ban, because
+an allowlist has to be maintained and a rotted allowlist reads exactly like an enforced one. The ban
+covers at-rule conditions too: a `@supports (backdrop-filter: …)` wrapper with an emptied body is
+scaffolding waiting to be refilled.
+
+**Elevation is flat with hairlines.** `--hairline` (a `box-shadow`) for cards, inputs, list rows,
+and panel sections; `--hairline-color` where a boundary must still occupy layout;
+`--popover-shadow` for floating chrome; `--dialog-shadow` for the one dialog surface. **A hairline
+is still a `box-shadow`**, so the export-unsafe guard is *more* load-bearing after this phase than
+before it, not less.
+
+**Every declared token needs a consumer, and the TS mirror does not count.** `03-02` widened the
+motion-consumer check to accept a named read in `src/lib/motion/tokens.ts`, which for
+`--motion-ease-snappy`, `--motion-ease-in`, and `--motion-duration-slow` meant the only "consumer"
+was the file being compared. `03-04` gave all three a rendering consumer — the snappy curve on
+control micro-feedback, the slow duration on the theme crossfade, the exit curve on the panel's
+*close* — and the gate is back to Phase 2 strength: a CSS `var()` in a rule that paints, or a named
+read in `utils/motion.ts`. Nothing else.
+
+**The type scale is ten `--text-*` roles, each bundling size, line-height, weight, and tracking.**
+`theme.css` ships a `.text-<role>` class for **eight** of them and deliberately not for
+`--text-display` and `--text-stat`: a class for all ten would make every role trivially "consumed"
+and the closed consumer exemption would pass no matter what.
+
+**A contract matrix asserts its own row count from a LITERAL, never from the tables it iterates.**
+`cases.length * pairs.length` reads like the same claim and is not one — emptying either table moves
+the expectation with the matrix and leaves the count "correct" at zero. This was measured, not
+reasoned: the first RED probe against the Phase 3 contrast matrix emptied its case table and the row
+count stayed green.
+
+**`uiContract.test.ts` is the only CSS contract test.** `phase2CssContract.test.ts` was deleted by
+`03-04` after every one of its 29 assertions was either carried forward or retired against a named
+decision, with the per-assertion mapping and the count delta recorded in `03-04-SUMMARY.md`. A
+skipped contract test is a gate that cannot fail wearing a different hat, so it was deleted rather
+than skipped.
+
+---
+
 ## Visual Tokens and Preference Fallbacks (Phase 2)
+
+> **Superseded in Phase 3 on tokens, glass, and the colour-scheme query — see §The Phase 3 Token
+> System above.** Retained because Phase 1 and Phase 2 release evidence cites it.
 
 **`--map-*` are export tokens: declared once in `:root`, never inside a media or supports
 block.** The PNG must be theme- and device-pixel-ratio independent. Redefining
 `--map-border-default` under `prefers-color-scheme: dark` would not fail any test that renders
 the map — it would just ship a differently-bordered PNG to dark-mode users.
-`phase2CssContract.test.ts` walks nested at-rules (a flat regex cannot see the nesting an
+`uiContract.test.ts` walks nested at-rules (a flat regex cannot see the nesting an
 accidental override hides in) and asserts each export token is declared exactly once.
 
 **A focus or selection stroke on map geometry uses a `--map-*` token, not `--accent`.** The
@@ -390,7 +483,7 @@ contrast got the worst contrast in the app.
 
 Derivation is preferred because it makes the defect unrepresentable. Where a literal is
 unavoidable (contrast deliberately *darkens* text, which no surface token expresses), the paired
-dark block is mandatory and `phase2CssContract.test.ts` enforces the pairing structurally.
+dark block is mandatory and `uiContract.test.ts` enforces the pairing structurally.
 
 **A token contract asserts a relationship, not a shape.** `expect(token).not.toContain('rgba')`
 plus `blur === 0` was green through the whole 1.0:1 defect — both are true of a light hex. The
@@ -418,7 +511,7 @@ motion, while the test read as proof that it did not.
   in `utils/motion.ts`, parsed to ms; a `cubic-bezier()` token is solved into an easing function
   for `.ease()`. The TS constant survives only as the unstyled-environment fallback, and that
   fallback still checks `prefers-reduced-motion` itself.
-- **`phase2CssContract.test.ts` asserts every `--motion-*` / `--easing-*` / `--map-*` token has a
+- **`uiContract.test.ts` asserts every `--motion-*` / `--easing-*` / `--map-*` token has a
   consumer** (a CSS `var()` or a named read in `motion.ts`). Deleting an unused token is the other
   valid answer, and the right one when UI-SPEC does *not* name it: `--map-fill-non-selectable` and
   `--map-border-historical` were listed in `FIXED_EXPORT_TOKENS` and covered by the "declared
@@ -454,7 +547,7 @@ on any `button`, `input`, `select`, `a`, or `summary`. `:nth-child`, `:first-chi
 `:last-child` bind a role to an ordinal, and order is copy: the onboarding banner styled its
 accent CTA with `button:first-child`, so reordering it would have moved the accent onto
 `Dismiss Help` with nothing failing. Key on a role class (`--primary`, `--destructive`,
-`--accent`). The ban is enforced by `phase2CssContract.test.ts`, not by review.
+`--accent`). The ban is enforced by `uiContract.test.ts`, not by review.
 
 ---
 
@@ -494,7 +587,7 @@ from a coincidence, and the gate rejects the literal form outright.
 **Known interim weakness, recorded rather than hidden.** `--motion-ease-snappy`,
 `--motion-ease-in`, and `--motion-duration-slow` currently have **no `var()` consumer** — the TS
 mirror is their only reader until `03-04` lands the stylesheet rewrite. The consumer assertion in
-`phase2CssContract.test.ts` was widened to accept a named read in `src/lib/motion/tokens.ts`
+`uiContract.test.ts` was widened to accept a named read in `src/lib/motion/tokens.ts`
 *in addition to* `utils/motion.ts`, never instead of it. That is genuinely weaker for those three
 tokens than Phase 2's rule was, and `03-04` closes it.
 
@@ -974,7 +1067,7 @@ dropped the claim on the rename, which is how a contract test quietly gets weake
 
 ---
 
-*Last updated: 2026-08-06 — §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root with an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` as a two-valued attribute with exactly one writer; animate the registered `--panel-width`, never the grid's track list; a 0px track still holds tab stops; `ResizeObserver` gated as an ownership set rather than a ban that is red on arrival; the export frame placed as a sibling of the export source with its geometry asserted as an equality against the viewBox projection; and the relocated - not retired - squareness assertion (plan 03-03).*
-*Last updated: 2026-07-26/27 + 2026-08-06 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate, absorbed names asserted equal and the one deliberate retime asserted different, with the three consumer-less tokens recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef plus a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
+*Last updated: 2026-08-06 — §The Phase 3 Token System (D-03…D-10/D-26/D-30): the verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token rather than an edited palette value, with the three measurements that forced `--accent-fill`, `--destructive`, and the ghost-gray text ban; the class-based dark flip with no OS colour query and the both-modes preference rule restated for equal specificity; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned outright; flat hairline elevation; the motion consumer gate restored to Phase 2 strength with the TS mirror excluded; eight role classes for ten roles so the closed exemption can fail; a matrix row count as a literal; and `uiContract.test.ts` as the only CSS contract test (plan 03-04).*
+*Last updated: 2026-07-26/27 + 2026-08-06 — §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root with an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` as a two-valued attribute with exactly one writer; animate the registered `--panel-width`, never the grid's track list; `ResizeObserver` gated as an ownership set; the export frame placed as a sibling of the export source with its geometry asserted as an equality; and the relocated - not retired - squareness assertion (plan 03-03). Earlier: black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate, absorbed names asserted equal and the one deliberate retime asserted different, with the three consumer-less tokens recorded as an interim weakness `03-04` closes. §Vendored Animated Icons (D-28): authored in-repo not installed, recipes translated never copied, `size` prop not className sizing, forwardRef plus a structurally identical `*IconHandle`, the strokeWidth 2→1.5 marker patch, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

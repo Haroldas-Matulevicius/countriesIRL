@@ -41,7 +41,8 @@ Guidance for Claude Code when working in this repository.
 - `src/utils/export.ts` — PNG export chokepoint (clone contract, sanitization, refusal reasons)
 - `src/utils/legend.ts` — `resolveLegendPosition` / `resolveLegendRender`; nothing reads `legend.position` raw
 - `src/utils/storage.ts` — bounded V2 records; limits checked **before** `JSON.parse`
-- `src/styles/phase2CssContract.test.ts` — machine-enforced CSS token and selector rules
+- `src/styles/uiContract.test.ts` — the **only** CSS contract test; machine-enforced token, contrast, export-firewall, and selector rules (`phase2CssContract.test.ts` was retired by plan 03-04)
+- `src/styles/themeTokens.test.ts` — the exact Themely palette values plus the token namespace allowlist
 - `tests/e2e/support/` — shared browser fixtures; import these, never re-declare helpers
 - `.planning/coding-rules/` — Domain-specific rules indexed below
 
@@ -216,7 +217,7 @@ Every subsystem owns a rules file, and the rule lands with the code:
 
 ---
 
-*Last updated: 2026-08-06 — `Design.md` exists. Its routing row moved out of the load-gated table (where it read "**Does not exist yet**") into the always-relevant engine docs as the normative design contract, with the precedence rule stated: `03-UI-SPEC.md` outranks it, and it outranks a component file. The Phase 3 planning docs joined the load-gated table at 90–140KB each (plan 03-02).*
-*Last updated: 2026-07-26 — Phase 2 routing plus the documentation pass: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, documentation-as-you-build (plan 02-25); removal of the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), the guardrails re-pointed at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, the destructive gsd-sdk verbs, the unverified-browser rule, and the load-gating of the spent Phase 1 inputs.*
+*Last updated: 2026-08-06 — routing: `phase2CssContract.test.ts` was retired by plan 03-04, so the non-obvious-paths table now points at `uiContract.test.ts` (the only CSS contract test) and `themeTokens.test.ts` (exact palette values plus the token namespace allowlist).*
+*Last updated: 2026-08-06 + 2026-07-26 — `Design.md` exists: its routing row moved out of the load-gated table (where it read "**Does not exist yet**") into the always-relevant engine docs as the normative design contract, with the precedence rule stated - `03-UI-SPEC.md` outranks it, and it outranks a component file - and the Phase 3 planning docs joined the load-gated table at 90-140KB each (plan 03-02). Earlier: Phase 2 routing plus the documentation pass: current phase and scope, world/catalog paths, real command set with no deploy target, evidence-not-inference and gate-must-be-able-to-fail guardrails, `/gsd:*` command form, owner gates, documentation-as-you-build (plan 02-25); removal of the two routing rows pointing at files that have never existed (`.planning/codebase/STRUCTURE.md`, `.planning/PHASE2_PLANNING.md`), the guardrails re-pointed at `coding-rules/general.md` as the canonical home for the live invariants and immutable safety constraints, the destructive gsd-sdk verbs, the unverified-browser rule, and the load-gating of the spent Phase 1 inputs.*
 
 *Full edit history: `git log -p -- CLAUDE.md`.*

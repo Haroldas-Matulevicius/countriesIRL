@@ -59,12 +59,23 @@ token source and our declarations act as fallbacks — no rename, no shim.
 | `--themely-midnight-ink` | `#061b31` | Primary text, panel titles, primary icon fill |
 | `--themely-slate-blue` | `#50617a` | Secondary text, descriptions, helper labels |
 | `--themely-nav-ink` | `#0d0d0d` | Rail row text/icons — **constant across inactive/hover/active** (D-29) |
-| `--themely-ghost-gray` | `#64748d` | Tertiary meta: saved-map timestamps, entry counts, placeholders |
+| `--themely-ghost-gray` | `#64748d` | **Carries no text in CountriesIRL — see the note below.** Declared for palette parity |
 | `--themely-stone-gray` | `#d8d6df` | Hairline borders and dividers — always consumed at 60% for card borders |
 | `--themely-red` | `#ff5252` | Destructive only: `Delete Saved Map`, error banners. Never decorative |
 | `--themely-on-accent` | `#ffffff` | Text/icons on an Apple Blue or Themely Red **fill**. Identical in both modes |
 | `--themely-media-backdrop` | `#000000` | Fixed black — scrims. Identical in both modes |
 | `--themely-on-media` | `#ffffff` | Text/icons on dark media. Identical in both modes |
+
+**`--themely-ghost-gray` carries no text here, and the reason is a measurement.** Against this
+palette it is **3.88:1** on Porcelain and **3.60:1** on Powder in dark mode — both below AA for the
+12px `--text-caption` the tertiary meta role uses, and `--text-caption` is not large text. D-04
+forbids adjusting a Themely value, and the contract forbids enumerating a contrast exception, so the
+third option is the one taken: **tertiary meta consumes `--themely-slate-blue`** (worst case 5.15:1),
+and the ghost value stays declared, unadjusted, for parity with upstream. This is the same treatment
+D-09 already gives `--text-display` and `--text-stat` — declared for parity, with the reason
+recorded — and it is a **gate**, not a note: `uiContract.test.ts` fails any rule that sets `color`
+from it. A token left out of a contrast matrix with only a comment to explain it is an exception
+wearing a different hat.
 
 ### Dark (`.dark`, D-08)
 
@@ -260,7 +271,8 @@ allowlist, and it cannot rot.
 
 | Token | Value | Only for |
 |---|---|---|
-| `--hairline` | `0 0 0 1px color-mix(in srgb, var(--themely-stone-gray) 60%, transparent)` | cards, inputs, list rows, panel sections |
+| `--hairline` | `0 0 0 var(--border-width) var(--hairline-color)` | cards, inputs, list rows, panel sections |
+| `--hairline-color` | `color-mix(in srgb, var(--themely-stone-gray) 60%, transparent)` | the same relationship as a **colour**, for boundaries that must still occupy layout (a rail edge, a panel divider, an input border). It is what replaced the retired `--border-default`, and routing the width through `--border-width` is what lets `prefers-contrast: more` thicken both forms in one place |
 | `--popover-shadow` | `0 4px 12px -2px rgba(6, 27, 49, 0.10)` | floating map controls, the narrow-width bottom sheet, toasts |
 | `--dialog-shadow` | `0 10px 40px -10px rgba(6, 27, 49, 0.20)` | fatal error surface |
 | `--toast-shadow` | *retired* → consumes `--popover-shadow` | |
@@ -287,11 +299,15 @@ pinned by a lockstep test that reads `theme.css` as text and fails when either l
 - `CAMERA_MOTION_DURATION_MS` **derives** from `DURATION_BASE` rather than restating `240`.
 - `@media (prefers-reduced-motion: reduce)` zeroes `--motion-duration-fast`, `-base`, `-slow`, and
   `--motion-scene`.
-- **Every motion token must have a live consumer** — a CSS `var()` or a named read in
-  `src/lib/motion/tokens.ts` / `src/utils/motion.ts`. That assertion is not optional: three motion
-  tokens were once declared, reduced-motion-gated, and read by nothing, so the gate proved nothing.
-  `03-04` closes the CSS half for `--motion-ease-snappy`, `--motion-ease-in`, and
-  `--motion-duration-slow`, whose only reader today is the mirror.
+- **Every motion token must have a live consumer** — a CSS `var()` in a rule that **paints**, or a
+  named read in `src/utils/motion.ts`. **The TS mirror does not count**, because it is the layer
+  under test: accepting it made `--motion-ease-snappy`, `--motion-ease-in`, and
+  `--motion-duration-slow` "consumed" by the file they were being compared against. `03-04` closed
+  that and restored the Phase 2 rule. Their consumers now: the snappy curve on control
+  micro-feedback (buttons, country paths, list rows); the slow duration on the **theme crossfade**,
+  which is the one surface change in this editor where an instant flip reads as a fault; and the
+  exit curve on the tool panel's **close**, the same directional pairing D-20 specifies for the
+  narrow-width bottom sheet — `03-09` joins that token rather than introducing a second one.
 - **A rename and a retime look identical in a diff.** The three byte-identical absorptions are
   asserted *equal*; the one deliberate retime (`--easing-control` → `--motion-ease-snappy`) is
   asserted *different*, so "simplifying" the pair cannot ship a timing change as a cleanup.
@@ -341,6 +357,15 @@ does not extend to `:hover` or `:active`.**
 
 **Second semantic colour:** `--themely-red` only, and only for destructive actions and error
 states. No third status hue exists — info is Apple Blue or no colour at all.
+
+**The destructive SURFACE consumes `--destructive`, not `--themely-red` directly, and for the same
+reason the Export fill does.** Measured: `#ff5252` is **3.05:1** on Porcelain and white on a
+`#ff5252` fill is **3.19:1** — both below AA, in light mode. `--destructive` is therefore `#b42318`
+in light (6.29:1 on Porcelain, 6.57:1 under white) and `var(--themely-red)` in dark, where `#ff6b6b`
+clears AA on every chrome surface (6.40:1 on Porcelain). The Themely value is unadjusted; the
+surface that owes AA has its own token. `--success` / `--warning` survive this phase unchanged
+because the toast severity surfaces that consume them are restyled in `03-10`; collapsing them onto
+Themely Red and neutral ink per D-05 belongs to that plan.
 
 ### The Export fill is mode-invariant — and why (owner-decided 2026-08-06)
 
@@ -552,8 +577,8 @@ the *editor* moves. Nothing reads `legend.position` raw; every read goes through
 |---|---|
 | Row | Porcelain card, `--radius-card`, `--hairline`, `--space-sm` padding and gap. **No inner hairline** — the label input sits directly on the card with a bottom edge only |
 | Swatch | 20×20, `border-radius: 6px`, `1px solid var(--swatch-border)`, `aria-label="Color <hex>"` |
-| Label input | `--text-body-sm`, transparent background, full row width, `--themely-ghost-gray` placeholder |
-| Counter | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`, `aria-live="off"` — it must not announce on every keystroke. Turns `--themely-red` at the limit |
+| Label input | `--text-body-sm`, transparent background, full row width, `--themely-slate-blue` placeholder (a placeholder is text, and ghost gray misses AA — see § 2) |
+| Counter | `--text-caption`, `--themely-slate-blue`, `tabular-nums`, `aria-live="off"` — it must not announce on every keystroke. Turns `--destructive` at the limit |
 | Actions | icon-only ghost buttons at 44×44, `--themely-nav-ink` glyphs, **stacked onto their own row** — a full-phrase control row has no width at which it fits a 280px column |
 | Reorder | keyboard reorder via the two arrow buttons is the **primary** path; drag is an enhancement |
 | Invalid | `data-legend-validation="invalid"` stays; a `--themely-red` 2px inset left edge keyed on the **data attribute**, never a positional selector, plus its message at `--text-caption` in `--themely-red` |
@@ -588,7 +613,7 @@ superseded in writing** — recorded, never silent.
 | Row | Porcelain card, `--radius-card`, `--hairline`, `px 16 / py 12`, `--space-sm` gap. Hover `--themely-powder`, **instant** |
 | Chip | 32×32 `--radius-control`, Platinum background, `--hairline` ring, `map` glyph in `--themely-slate-blue`. Chips step **up** from the Porcelain card |
 | Name | `--text-body-sm`, `--themely-midnight-ink`, one line, ellipsis |
-| Meta | `--text-caption`, `--themely-ghost-gray`, `tabular-nums` |
+| Meta | `--text-caption`, `--themely-slate-blue`, `tabular-nums` |
 | `Load This Map` | ghost: transparent, `--themely-midnight-ink`, `--hairline`, hover Porcelain. Accessible name `Load This Map: <name>` (unchanged) |
 | `Delete Saved Map` | **destructive**: `--themely-red` text on transparent, hover `--themely-red` at 10%. **Never one-shot** — always paired with the inline confirmation |
 | Confirm state | the row's actions swap to `Delete Map: <name>` (filled `--themely-red`, `--themely-on-accent` text) and `Keep Map: <name>` (ghost), plus the prompt at `--text-caption` |
@@ -674,6 +699,10 @@ The onboarding banner becomes an inline info card on the canvas region: Porcelai
 be keyed on a **role class**, never `button:first-child` — that exact selector once meant
 reordering would have moved the accent onto `Dismiss Help` with nothing failing.
 
+**The accent-tinted surface and the accent left edge are gone** (`03-04`). The Phase 2 banner had a
+`--surface-accent-tint` background, a 4px accent left rule, *and* a filled CTA. D-05 gives this
+surface exactly **one** Apple Blue element; three is not a stronger reading of the rule.
+
 ---
 
 ## 8. Export-unsafe CSS — the reason, restated for the post-D-34 world
@@ -746,7 +775,7 @@ source — `.map-unit-path` was once omitted from that pattern for a whole phase
 
 ---
 
-*Last updated: 2026-08-06 — § 7.1 gained the OQ-2 resolution (full-bleed surface, framed square) with the two verified citations that make it safe — `useCameraController.ts:310-313` and `MapCanvas.tsx:839-840` — the resulting "no `ResizeObserver` may be added, and the rule is an ownership set" statement, the measured 6e-14 px frame↔viewBox agreement, and the D-20 narrow-width contract recorded as specification for `03-09` to implement against rather than invent (plan 03-03).*
-*Last updated: 2026-08-06 — created by plan 03-02 as the design contract 03-03 onward implements against: upstream attribution with no cross-repo test dependency, the verbatim light and dark token tables, the mode-invariant export firewall, the ten type roles with a closed two-token consumer exemption, spacing/radii/elevation/motion, the accent budget with its `:focus-visible`-only exemption, the CountriesIRL-only anatomy marked [FOR REVIEW], the post-D-34 export-unsafe reason, and the translated Do's and Don'ts.*
+*Last updated: 2026-08-06 — the token layer landed (plan 03-04) and three things it MEASURED are now recorded here rather than discovered again: `--themely-ghost-gray` carries no text (3.88:1 on Porcelain, 3.60:1 on Powder in dark) and tertiary meta moves to Slate Blue; the destructive surface consumes `--destructive` for the same reason the Export fill consumes `--accent-fill` (3.05:1 / 3.19:1 measured on the verbatim red); `--hairline-color` joins elevation as the layout-occupying form of the hairline that replaced `--border-default`; the three formerly mirror-only motion tokens name their real consumers and the mirror is excluded from the consumer set; and the onboarding banner drops its accent tint and accent edge to satisfy D-05's one-accent-per-surface rule.*
+*Last updated: 2026-08-06 — created by plan 03-02 as the design contract 03-03 onward implements against (upstream attribution with no cross-repo test dependency, the verbatim token tables, the export firewall, the ten type roles with a closed two-token exemption, spacing/radii/elevation/motion, the accent budget, the CountriesIRL-only anatomy marked [FOR REVIEW], the post-D-34 export-unsafe reason, and the translated Do's and Don'ts), then extended by plan 03-03 with the § 7.1 OQ-2 resolution: full-bleed surface with a framed square, the two verified citations that make it safe (`useCameraController.ts:310-313`, `MapCanvas.tsx:839-840`), the "no `ResizeObserver` may be added, and the rule is an ownership set" statement, the measured 6e-14 px frame↔viewBox agreement, and the D-20 narrow-width contract as specification for `03-09`.*
 
 *Full edit history: `git log -p -- Design.md`.*

@@ -18,7 +18,7 @@ import {
 } from './support/appHarness';
 
 /**
- * The browser half of the Phase 2 UI contract. `phase2CssContract.test.ts`
+ * The browser half of the Phase 2 UI contract. The static CSS contract test
  * proves the stylesheet says the right thing; this file proves the browser does
  * the right thing, which is a different claim - a correct rule that never
  * matches, or is overridden three files later, passes the static contract.
@@ -885,7 +885,7 @@ test.describe('preference emulation', (): void => {
 
   /*
    * `prefers-reduced-transparency` has no Playwright emulation. Its fallback is
-   * asserted statically in `phase2CssContract.test.ts` and belongs to the
+   * asserted statically in the CSS contract test and belongs to the
    * physical acceptance matrix in `02-28`. It is deliberately not simulated here
    * as if it were browser evidence.
    */

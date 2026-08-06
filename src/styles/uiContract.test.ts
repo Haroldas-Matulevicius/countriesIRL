@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 /**
  * The executable half of the Phase 3 UI contract (`03-UI-SPEC.md`, `Design.md`).
  *
- * Successor to `phase2CssContract.test.ts`. The parser and helpers below are
- * ported from it VERBATIM - they are infrastructure, not policy, and a
- * hand-rewritten parser is how a successor contract test quietly gets weaker
- * than the one it replaces. The two files run side by side until `03-04` lands
- * the new token system and retires the Phase 2 assertions; deleting the old one
- * here would leave the Phase 2 token rules unguarded during the very wave the
- * tokens are being replaced in.
+ * The sole CSS contract test. It succeeded the Phase 2 file, which `03-04`
+ * deleted once every one of that file's 29 assertions had either been carried
+ * forward here or retired against a named decision - the mapping is recorded in
+ * `03-04-SUMMARY.md`, per assertion, with the count delta accounted for.
+ *
+ * The parser and helpers below are ported from the Phase 2 file VERBATIM. They
+ * are infrastructure, not policy, and a hand-rewritten parser is how a
+ * successor contract test quietly gets weaker than the one it replaces.
  *
  * Everything asserted here is a rule that would otherwise fail silently: the
  * map still renders, the panel still opens, and the PNG still downloads while
@@ -1615,6 +1616,216 @@ describe('Phase 3 type-role consumers (assertion 9)', (): void => {
         expect(root.has(token), `${token} is missing from the role bundle`).toBe(
           true,
         );
+      });
+    });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 17 - the export-unsafe guard, and the outright backdrop ban
+ * ------------------------------------------------------------------ */
+
+/**
+ * D-06 replaced the approved-glass-surface allowlist with a blanket ban, and
+ * the simplification is the point: an allowlist has to be maintained, so it
+ * rots, and a rotted allowlist reads exactly like an enforced one. A ban cannot
+ * rot.
+ *
+ * The at-rule condition is scanned too. `@supports (backdrop-filter: blur(1px))`
+ * declares no `backdrop-filter` of its own, so a declaration-only scan would
+ * leave the whole progressive-enhancement scaffold standing with nothing but a
+ * missing body to distinguish it from working glass.
+ */
+describe('Phase 3 backdrop-filter is banned outright (assertion 17)', (): void => {
+  it('declares backdrop-filter nowhere, in no rule and no at-rule', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property]): void => {
+          expect(
+            property,
+            `${file}: "${rule.selector}" declares ${property}. D-06 bans it ` +
+              'outright - flat surfaces with hairlines, no glass.',
+          ).not.toBe('backdrop-filter');
+        });
+
+        rule.conditions.forEach((condition): void => {
+          expect(
+            condition.includes('backdrop-filter'),
+            `${file}: "${condition}" still guards a glass surface that no ` +
+              'longer exists.',
+          ).toBe(false);
+        });
+      });
+    });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Carried forward from the retired Phase 2 contract test
+ *
+ * These are the Phase 2 assertions that survive `03-04` unchanged in subject.
+ * They are re-homed rather than re-derived: deleting the Phase 2 contract file
+ * without them would have shrunk the contract by six live rules while the
+ * commit message said "superseded".
+ * ------------------------------------------------------------------ */
+
+const SPACING_PROPERTIES = [
+  'margin',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'margin-block',
+  'margin-inline',
+  'padding',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'padding-block',
+  'padding-block-end',
+  'padding-inline',
+  'gap',
+  'row-gap',
+  'column-gap',
+] as const;
+
+/** The declared exceptions. Everything else comes from the token scale. */
+const ALLOWED_RAW_SPACING_PX = new Set(['0px', '44px', '1440px']);
+
+/** A control padded below the token scale would fall under the 48px target. */
+const UNDERSIZED_HEIGHT_PATTERN = /--space-(?:xs|sm|md|lg|xl)\b|\d+px/u;
+
+const GRADIENT_PATTERN = /(?:linear|radial|conic|repeating-[a-z-]+)-gradient\(/u;
+
+describe('Phase 3 carried-forward layout rules', (): void => {
+  /**
+   * The weights are tokens for exactly this reason: one place strengthens every
+   * boundary and every focus ring for a user who asked for more contrast. A
+   * rule that writes `1px solid` opts out with nothing failing.
+   */
+  it('strengthens boundaries and focus under contrast and forced colors', (): void => {
+    [CONTRAST_CONDITION, FORCED_COLORS_CONDITION].forEach((condition): void => {
+      const tokens = tokensOf(findRule(themeRules(), ':root', [condition]));
+      expect(tokens.get('--border-width'), condition).toBe('2px');
+      expect(tokens.get('--focus-width'), condition).toBe('3px');
+    });
+  });
+
+  /**
+   * `overflow-x: hidden` on a NON-VIEWPORT element computes `overflow-y: auto`,
+   * which makes that element its own scroll container and silently kills
+   * `position: sticky` inside it. On `body` the value propagates to the viewport
+   * and leaves stickiness intact.
+   *
+   * Generalised from the Phase 2 form, which named `.app`. `.app` is dissolved
+   * by `03-05`, and a rule that names a disappearing selector disappears with
+   * it - so this states the ownership instead: `body` and nothing else.
+   */
+  it('keeps horizontal containment on the viewport element alone', (): void => {
+    const owners: string[] = [];
+
+    ALL_RULES.forEach(([, rules]): void => {
+      rules.forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property]): void => {
+          if (property === 'overflow-x') {
+            owners.push(rule.selector);
+          }
+        });
+      });
+    });
+
+    expect(
+      [...new Set(owners)].sort(),
+      'horizontal containment belongs on `body`. On any other element it makes ' +
+        'that element a scroll container and sticky positioning inside it stops ' +
+        'working, with nothing failing.',
+    ).toStrictEqual(['body']);
+
+    const shell = new Map(
+      declarationsOf(findRule(rulesOf('editor.css'), '.map-editor').body),
+    );
+    expect(shell.has('overflow')).toBe(false);
+    expect(shell.has('overflow-x')).toBe(false);
+    expect(shell.has('overflow-y')).toBe(false);
+  });
+
+  it('authors application spacing only from the token scale', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (
+            !(SPACING_PROPERTIES as ReadonlyArray<string>).includes(property)
+          ) {
+            return;
+          }
+          [...value.matchAll(/\d+(?:\.\d+)?px/gu)].forEach((match): void => {
+            expect(
+              ALLOWED_RAW_SPACING_PX.has(match[0]),
+              `${file}: "${rule.selector}" sets ${property}: ${value}. ` +
+                'Use a --space-* token.',
+            ).toBe(true);
+          });
+        });
+      });
+    });
+  });
+
+  it('keeps every standard control at the 48px minimum target height', (): void => {
+    const themeButton = new Map(
+      declarationsOf(findRule(themeRules(), 'button').body),
+    );
+    expect(themeButton.get('min-height')).toBe('var(--space-2xl)');
+
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        const minHeight = new Map(declarationsOf(rule.body)).get('min-height');
+        if (minHeight === undefined) {
+          return;
+        }
+        expect(
+          UNDERSIZED_HEIGHT_PATTERN.test(minHeight),
+          `${file}: "${rule.selector}" sets min-height: ${minHeight}, which ` +
+            'is below the 48px target or bypasses the token scale.',
+        ).toBe(false);
+      });
+    });
+  });
+
+  /**
+   * On the page, the workspace, or any ancestor panel, `touch-action: none`
+   * swallows the creator's normal vertical scroll on touch - which is the only
+   * way a mobile user reaches anything below the map. Asserted as an ownership
+   * set rather than as a value on one selector, so a second owner fails.
+   */
+  it('scopes touch-action to the interactive square alone', (): void => {
+    const owners: string[] = [];
+
+    ALL_RULES.forEach(([, rules]): void => {
+      rules.forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (property === 'touch-action' && value !== 'auto') {
+            owners.push(rule.selector);
+          }
+        });
+      });
+    });
+
+    expect(owners).toStrictEqual(['.map-canvas']);
+    expect(
+      new Map(
+        declarationsOf(findRule(rulesOf('MapCanvas.css'), '.map-canvas').body),
+      ).get('touch-action'),
+    ).toBe('none');
+  });
+
+  it('authors no gradient anywhere', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        expect(
+          GRADIENT_PATTERN.test(rule.body),
+          `${file}: "${rule.selector}" authors a gradient.`,
+        ).toBe(false);
       });
     });
   });

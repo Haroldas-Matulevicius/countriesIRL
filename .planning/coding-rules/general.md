@@ -28,7 +28,7 @@ exactly why they are listed here rather than left implicit.
 | 6 | **The period selector is catalog-driven.** Deferred snapshots stay structurally unreachable, and a manifest label can never override an approved catalog label. | [`data.md`](data.md) |
 | 7 | **Export strips semantics, never geometry.** Every visible wrapped date-line path stays in the clone; roles, titles, ids, tab stops, all `aria-*`, editor state, and the outgoing crossfade layer are removed. Border normalization targets `path.scene-path` — a `path.country-path`-only rule silently leaves the 2px selection border on decorative wrapped repeats. A legend outside the canonical SVG is a hard `invalid-composition` refusal, never a silently legend-less PNG. | [`export.md`](export.md) |
 | 8 | **Legend opacity is a single 0–100 scale.** A stored 0–1 fraction is repaired to percent and reported, not silently clamped. | [`storage.md`](storage.md) |
-| 9 | **`--map-*` are export tokens, declared exactly once in `:root`.** No media, `@supports`, or nested block may redefine one, or the exported PNG starts following the viewer's theme. Enforced by `src/styles/phase2CssContract.test.ts`. | [`frontend.md`](frontend.md) |
+| 9 | **The mode-invariant set is declared exactly once, in the unconditioned `:root`.** `--map-*`, `--tooltip-*`, `--swatch-border`, and `--accent-fill*`: no `.dark` block, media query, `@supports`, or nested block may redefine one, or the exported PNG starts following the viewer's theme. Phase 3 extended this to `.dark`, which is the likeliest hiding place because it is where every other colour legitimately gets a second value. Enforced by `src/styles/uiContract.test.ts`. | [`frontend.md`](frontend.md) |
 
 ---
 
@@ -453,7 +453,7 @@ if a browser is not in the project's Playwright configuration, no document may s
 
 ---
 
-*Last updated: 2026-07-26 — became the canonical home for the Live Invariants and the Immutable Safety Constraints (previously triplicated across `STATE.md`, `HANDOFF.json`, and the phase `.continue-here.md`); added the destructive gsd-sdk planning-file verbs to §Git safety.*
-*Last updated: 2026-07-26 — Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
+*Last updated: 2026-08-06 — Live Invariant 9 extended to the class-based dark mode: the mode-invariant set now names `--tooltip-*`, `--swatch-border`, and `--accent-fill*` alongside `--map-*`, `.dark` is called out as the likeliest hiding place, and enforcement moved to `src/styles/uiContract.test.ts` after the Phase 2 contract test was retired (plan 03-04).*
+*Last updated: 2026-07-26 — became the canonical home for the Live Invariants and the Immutable Safety Constraints (previously triplicated across `STATE.md`, `HANDOFF.json`, and the phase `.continue-here.md`); added the destructive gsd-sdk planning-file verbs to §Git safety. Earlier the same day, Phase 2 corrections: Vitest/Playwright supersede the manual-only testing guidance, a gate must be able to fail on its own subject, `localStorage` is fallible, no backend and no runtime third-party request, toast-not-alert with no "refresh the page" copy, and the git-safety rule for RED probes (plan 02-25).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/general.md`.*
