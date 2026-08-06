@@ -790,9 +790,14 @@ test.describe('preference emulation', (): void => {
     /*
      * The scene crossfade and the camera transition are d3 transitions, not CSS
      * ones, so the loop above cannot see them. They read `--motion-scene` and
-     * `--motion-camera` off this element, which is the only reason the
+     * `--motion-duration-base` off this element, which is the only reason the
      * preference reaches them at all - previously the crossfade honoured it
      * through a separate JS branch and the camera ignored it entirely.
+     *
+     * `03-04` absorbed `--motion-camera` into `--motion-duration-base` and
+     * `--easing-camera` into `--motion-ease-out`, byte-identically, and deleted
+     * the old names. Only the token names moved here; the values asserted are
+     * the same bytes, which is what makes this a rename rather than a retime.
      */
     const motion = await page.evaluate((): Record<string, string> => {
       const canvas = document.querySelector('svg.map-canvas');
@@ -802,7 +807,7 @@ test.describe('preference emulation', (): void => {
       const style = getComputedStyle(canvas);
       return {
         scene: style.getPropertyValue('--motion-scene').trim(),
-        camera: style.getPropertyValue('--motion-camera').trim(),
+        camera: style.getPropertyValue('--motion-duration-base').trim(),
       };
     });
 
@@ -827,8 +832,8 @@ test.describe('preference emulation', (): void => {
       const style = getComputedStyle(canvas);
       return {
         scene: style.getPropertyValue('--motion-scene').trim(),
-        camera: style.getPropertyValue('--motion-camera').trim(),
-        easing: style.getPropertyValue('--easing-camera').trim(),
+        camera: style.getPropertyValue('--motion-duration-base').trim(),
+        easing: style.getPropertyValue('--motion-ease-out').trim(),
       };
     });
 

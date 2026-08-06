@@ -33,24 +33,44 @@ approved decisions have already retired.
 | the desktop focus order runs bar, composition bar, map, navigation, inspector | the declared order becomes rail → panel → canvas | `03-06` / `03-09` |
 | the responsive focus order follows the declared workflow | as above | `03-09` |
 | dark preference restyles chrome and leaves the composition square white | D-30 moves dark onto a `.dark` class; `emulateMedia` will change nothing | `03-09` (re-arms assertion 24) |
-| increased-contrast preference strengthens boundaries and focus rings | keyed on retired `--glass-*` / `--border-*` tokens | `03-04` / `03-09` |
-| forced-colors preference drops every glass surface to opaque | D-06 deletes the glass family outright | `03-04` |
+| increased-contrast preference strengthens boundaries and focus rings | keyed on retired `--glass-*` / `--border-*` tokens **and on `.map-workspace__square`, renamed by `03-03`** | `03-09` |
+| forced-colors preference drops every glass surface to opaque | D-06 deletes the glass family outright, so there is no glass surface left to assert | `03-09` |
 
 **The hazard this creates, stated plainly.** A suite that is red for several plans stops being
 read. `03-09` is the plan that must clear it, and `03-12`'s full-gate evidence is not honest until
 it is clear. Nothing here may be described as passing in the meantime.
 
+### Re-measured after `03-04` — still exactly these 12
+
+`03-04` retired the token system this file partly asserts against, so the count was re-measured
+rather than assumed: **67 of 79 Chrome e2e tests pass, and the 12 failures are the same 12 listed
+above.**
+
+Two tests were briefly made red by `03-04` and were **repaired in the same plan**, because they
+were red for a reason `03-04` introduced rather than for a reason `03-09` owns:
+`reduced-motion preference removes every authored transition` and
+`the map reads the SPEC motion tokens when motion is not reduced` read `--motion-camera` and
+`--easing-camera` by name. Those names were absorbed **byte-identically** into
+`--motion-duration-base` and `--motion-ease-out` and then deleted, so only the names moved in the
+spec; every asserted value is the same bytes. Leaving them red would have grown this list by two on
+`03-09`'s behalf for a rename anyone can follow.
+
+The two rows above now say `03-09` alone rather than `03-04 / 03-09`: `03-04` deleted the tokens
+they key on, which is what makes them unfixable in place — they have to be rewritten against the
+new system, and that rewrite is `03-09`'s scope.
+
 ---
 
-## D-2 — the shell's interim token references
+## D-2 — the shell's interim token references — **CLOSED by `03-04`**
 
-**Found during:** `03-03`. `src/styles/editor.css` consumes `--border-default` for the rail and
-panel hairlines and `--themely-platinum` for the editor wall. The first is a Phase 2 token
-`03-04` retires; the second does not exist yet, so the wall paints transparent until `03-04`
-lands the palette.
+**Found during:** `03-03`. `src/styles/editor.css` consumed `--border-default` for the rail and
+panel hairlines and `--themely-platinum` for the editor wall. The first was a Phase 2 token
+`03-04` retires; the second did not exist yet, so the wall painted transparent.
 
-**Owner: `03-04`.** This is the delete-don't-alias mechanism working as designed — the stale
-reference is meant to fail loudly at `03-04`'s retired-token gate rather than keep working.
+**Closed 2026-08-06 by `03-04`.** `--themely-platinum` now resolves (`#ffffff` light, `#000000`
+dark) and `--border-default` is gone, replaced by `--hairline-color`. The delete-don't-alias
+mechanism worked as designed: both references were found by the retired-token gate rather than by
+inspection.
 
 ---
 
