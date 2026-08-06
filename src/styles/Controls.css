@@ -790,6 +790,40 @@
   box-shadow: var(--popover-shadow);
 }
 
+/*
+ * D-20: the toast sits ABOVE the bottom bar, not on top of it.
+ *
+ * Pinned to the viewport's bottom edge it covered the bar's controls outright -
+ * measured, not predicted: at 360x740 the dismiss button intercepted every
+ * click aimed at a tool row, and nothing failed except the one e2e that tried
+ * to open a tool after a status message. The fix is placement, not a z-index
+ * fight: the toast joins the grid in the CANVAS row and aligns to its end, so
+ * the bar's own row is untouchable by construction and a bar that wraps to two
+ * lines moves the toast with it.
+ *
+ * It clears the OPEN SHEET too, by reading the same registered
+ * `--panel-height` the sheet is sized from - so the toast rides up with the
+ * sheet on the same curve instead of landing on the controls inside it. That
+ * was also measured: parked at the row's end it covered the legend position
+ * grid and every click aimed at a preset hit the toast.
+ *
+ * Authored beside the base rule rather than in `editor.css`: two files
+ * anchoring one element is how a placement ends up half-overridden.
+ */
+.map-editor[data-layout="compact"] > section[role="status"],
+.map-editor[data-layout="compact"] > section[role="alert"] {
+  position: relative;
+  z-index: 120;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: end;
+  justify-self: center;
+  inset: auto;
+  margin-block-end: calc(
+    var(--panel-height) + max(var(--space-md), env(safe-area-inset-bottom))
+  );
+}
+
 .map-editor > section[data-severity="success"] {
   border-color: var(--success);
   background: var(--success-tint);
@@ -1313,15 +1347,24 @@
   padding: var(--space-sm) var(--space-md);
 }
 
-/* UI-SPEC 4.1: inspector padding is 24px on desktop and 16px compact/mobile. */
-@media (max-width: 1199px) {
-  .workspace__actions > section,
-  .selection-panel,
-  .color-picker,
-  .country-list,
-  .locate-country {
-    padding: var(--space-md);
-  }
+/*
+ * UI-SPEC 4.1: panel section padding is 24px on desktop and 16px in the narrow
+ * sheet, where the sections are full-bleed rather than in a 280px track.
+ *
+ * Re-keyed off `data-layout` by `03-09`. The `@media (max-width: 1199px)` query
+ * this carried was a SECOND copy of the layout breakpoint, and D-20 turns that
+ * from a tidiness point into a real hazard: the shell now collapses at the same
+ * number, so the two copies drifting would move the layout and the padding
+ * apart with nothing failing. `useResponsiveLayout.ts` owns the only copy.
+ *
+ * `.locate-country` is deliberately absent: inside the panel it is a
+ * hairline-divided pane with no padding of its own at either width, and a
+ * layout-scoped rule here would outrank that and give it one back.
+ */
+.map-editor[data-layout='compact'] .selection-panel,
+.map-editor[data-layout='compact'] .color-picker,
+.map-editor[data-layout='compact'] .country-list {
+  padding: var(--space-md);
 }
 
 @media (max-width: 767px) {

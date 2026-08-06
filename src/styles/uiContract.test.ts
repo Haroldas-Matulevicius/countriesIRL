@@ -521,6 +521,156 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
 });
 
 /* ------------------------------------------------------------------ *
+ * D-20 - the narrow arrangement (plan 03-09)
+ * ------------------------------------------------------------------ */
+
+const LAYOUT_ATTRIBUTE = 'data-layout';
+const LAYOUT_VALUES = ['compact', 'desktop'] as const;
+const COMPACT_SHELL = `.map-editor[${LAYOUT_ATTRIBUTE}='compact']`;
+
+function layoutValuesStyled(): string[] {
+  const values = new Set<string>();
+
+  everyRule().forEach((rule): void => {
+    [
+      ...rule.selector.matchAll(
+        new RegExp(`\\[${LAYOUT_ATTRIBUTE}(?:=['"]?([^\\]'"]*)['"]?)?\\]`, 'gu'),
+      ),
+    ].forEach((match): void => {
+      values.add(match[1] ?? '');
+    });
+  });
+
+  return [...values].sort();
+}
+
+describe('Phase 3 narrow arrangement (D-20)', (): void => {
+  /**
+   * The narrow layout keys on an attribute, not on a media query, so the app
+   * keeps exactly ONE 1200px literal - the one `useResponsiveLayout.ts` owns
+   * and the one every focus-order and camera-owner assertion crosses. A CSS
+   * copy of that number is a second breakpoint the moment either moves.
+   */
+  it('introduces no second breakpoint anywhere in the stylesheets', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        rule.conditions.forEach((condition): void => {
+          expect(
+            /\b1[12]\d\d(?:\.\d+)?px\b/u.test(condition),
+            `${file}: "${rule.selector}" is conditioned on ${condition}, which ` +
+              'restates the layout breakpoint. `useResponsiveLayout.ts` owns ' +
+              'the only copy of it and publishes `data-layout`.',
+          ).toBe(false);
+        });
+      });
+    });
+  });
+
+  it('styles exactly the two layouts the attribute is allowed to hold', (): void => {
+    const styled = layoutValuesStyled();
+
+    expect(styled.length).toBeGreaterThan(0);
+    styled.forEach((value): void => {
+      expect(
+        (LAYOUT_VALUES as ReadonlyArray<string>).includes(value),
+        `"${value}" is styled off the layout attribute, which is two-valued so ` +
+          'a contract assertion can enumerate it.',
+      ).toBe(true);
+    });
+  });
+
+  /**
+   * Same shape as assertion 10's writer half, and for the same reason: two
+   * writers is how two surfaces come to disagree about which layout is on
+   * screen while both of them "work".
+   */
+  it('has exactly one writer, and it writes only the layout hook value', (): void => {
+    const writers = productionComponentSources().filter(([, source]): boolean =>
+      source.includes(`${LAYOUT_ATTRIBUTE}=`),
+    );
+
+    expect(
+      writers.map(([file]): string => file),
+      'the layout attribute must have exactly one writer.',
+    ).toHaveLength(1);
+
+    const [file, source] = writers[0];
+    expect(
+      new RegExp(`${LAYOUT_ATTRIBUTE}=\\{layout\\}`, 'u').test(source),
+      `${file}: the layout attribute must be written straight from the ` +
+        'responsive hook, so it cannot go absent or take a third value.',
+    ).toBe(true);
+  });
+
+  /**
+   * D-20's three structural claims, read off the stylesheet: one column with
+   * the bar as its own row, the sheet placed in the CANVAS cell (which is what
+   * makes it an overlay rather than a fourth track), and the sheet's height
+   * driven by the registered property so it interpolates instead of snapping.
+   */
+  it('collapses to one column with the sheet over the canvas cell', (): void => {
+    const editorRules = rulesOf('editor.css');
+    const shell = new Map(declarationsOf(findRule(editorRules, COMPACT_SHELL).body));
+
+    expect(shell.get('grid-template-columns')).toBe('1fr');
+    expect(shell.get('grid-template-rows')).toBe('1fr auto');
+
+    const bar = new Map(
+      declarationsOf(findRule(editorRules, `${COMPACT_SHELL} .tool-rail`).body),
+    );
+    const sheet = new Map(
+      declarationsOf(findRule(editorRules, `${COMPACT_SHELL} .tool-panel`).body),
+    );
+    const canvas = new Map(
+      declarationsOf(
+        findRule(editorRules, `${COMPACT_SHELL} .map-workspace`).body,
+      ),
+    );
+
+    expect(bar.get('grid-row')).toBe('2');
+    // The sheet and the canvas region share one cell: that is the overlay.
+    expect(sheet.get('grid-row')).toBe(canvas.get('grid-row'));
+    expect(sheet.get('grid-column')).toBe(canvas.get('grid-column'));
+    expect(sheet.get('align-self')).toBe('end');
+    expect(sheet.get('block-size')).toBe('var(--panel-height)');
+
+    const openTokens = tokensOf(
+      findRule(
+        editorRules,
+        `${COMPACT_SHELL}[${PANEL_STATE_ATTRIBUTE}='true']`,
+      ),
+    );
+    expect(openTokens.get('--panel-height')).toBeDefined();
+    expect(
+      tokensOf(findRule(editorRules, ':root')).get('--panel-height'),
+    ).toBe(CLOSED_PANEL_WIDTH);
+  });
+
+  it('registers the sheet height and animates that, not the track list', (): void => {
+    const editorCss = readStyleSheet('./editor.css');
+    const registration =
+      /@property\s+--panel-height\s*\{(?<body>[^}]*)\}/u.exec(editorCss)?.groups
+        ?.body ?? '';
+    const registered = new Map(declarationsOf(registration));
+
+    expect(registered.get('syntax')).toBe("'<length>'");
+    expect(registered.get('inherits')).toBe('true');
+    expect(registered.get('initial-value')).toBe(CLOSED_PANEL_WIDTH);
+
+    const animated = everyRule()
+      .flatMap((rule): Array<[string, string]> => declarationsOf(rule.body))
+      .filter(([property]): boolean => property.startsWith('transition'))
+      .map(([, value]): string => value);
+
+    expect(
+      animated.some((value): boolean => value.includes('--panel-height')),
+      'nothing transitions the registered sheet height, so the bottom sheet ' +
+        'snaps up instead of rising.',
+    ).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ *
  * Assertion 27 - exactly one roving-tabindex writer
  * ------------------------------------------------------------------ */
 
@@ -1776,6 +1926,31 @@ describe('Phase 3 contrast matrix (assertion 19)', (): void => {
     });
 
     expect(atRulesChecked).toBe(3);
+  });
+
+  /**
+   * `prefers-reduced-transparency` is asserted STATICALLY and only statically:
+   * Playwright cannot emulate it, and emulation a browser does not support is
+   * not evidence. The physical cell belongs to the owner acceptance matrix,
+   * exactly as Phase 2 left it.
+   *
+   * Added by `03-09` because the both-modes gate above cannot see a DELETED
+   * block - two empty override sets are equal, so removing the at-rule outright
+   * passes it. `findRule` throws when the rule is absent, which is what makes
+   * this one able to fail on the thing it covers.
+   */
+  it('restores the one translucent surface under reduced transparency, in both modes', (): void => {
+    [':root', '.dark'].forEach((selector): void => {
+      const rule = findRule(themeRules(), selector, [
+        REDUCED_TRANSPARENCY_CONDITION,
+      ]);
+      expect(
+        tokensOf(rule).get('--overlay'),
+        `${REDUCED_TRANSPARENCY_CONDITION} must restore the scrim for ` +
+          `"${selector}". Readability may never depend on what is behind a ` +
+          'surface, and this preference is never simulated as browser proof.',
+      ).toBe('var(--themely-media-backdrop)');
+    });
   });
 });
 

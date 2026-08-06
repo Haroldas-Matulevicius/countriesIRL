@@ -21,29 +21,46 @@ const NAVIGATION_FIXTURE_URL = '/tests/e2e/fixtures/navigation.html';
  * region's width and height differ by more than the cluster's short side plus
  * its margin (~124px), which is the documented bound in `MapCanvas.css`.
  *
- * Two spec'd viewports are deliberately NOT in this list, each for a stated
- * reason rather than because they failed:
+ * RE-MEASURED by `03-09`, and two rows changed places. D-20 replaces the 56px
+ * side rail below 1200px with a bottom bar, which takes height from the canvas
+ * region instead of width - so every compact shape's region changed and the
+ * membership of this list follows the measurement rather than the other way
+ * round. Chrome 151, this branch:
  *
- * - `1024 x 900` gives a 968 x 900 canvas region, inside the near-square band
- *   where no gutter can hold the cluster. It has its own test below. Listing it
- *   here would have forced this assertion to carry an `OR` for the exception,
- *   and an assertion with an escape hatch stops being one.
- * - `640 x 400` (the 200%-equivalent) is blocked by deferred item D-5, which
- *   `03-09` owns: the rail is not a scroll container, so below ~436px of
- *   viewport height it overflows and stretches the grid row. The measured
- *   canvas region there is 584 x 500, not 584 x 400 - a near-square 84px
- *   difference produced by the overflow, not by this placement. Re-add it here
- *   when D-5 closes; at 584 x 400 the inline gutter is 92px and the cluster
- *   fits with room to spare.
+ * | viewport   | canvas region | difference | verdict |
+ * |------------|---------------|-----------|---------|
+ * | 1440 x 900 | 1384 x 900    | 484       | inline gutter |
+ * | 1300 x 900 | 1244 x 900    | 344       | inline gutter |
+ * | 1024 x 900 | 1024 x 843    | 181       | inline gutter, 90px per side |
+ * |  800 x 900 |  800 x 843    |  43       | NEAR-SQUARE - the exception |
+ * |  640 x 400 |  640 x 343    | 297       | inline gutter, 148px per side |
+ * |  360 x 740 |  360 x 631    | 271       | block gutter, 135px per side |
+ *
+ * - `1024 x 900` ARRIVES. It used to be the near-square case (a 968 x 900
+ *   region under the side rail); the bar makes it a genuine 181px letterbox.
+ * - `800 x 900` LEAVES, to the bounded-exception test below, for the mirror
+ *   reason: the bar takes 57px of height off a region the rail used to take
+ *   56px of width off, and 800 x 843 is inside the band.
+ * - `640 x 400` RETURNS. Its exclusion was deferred item D-5 - the rail was not
+ *   a scroll container, so a viewport shorter than ~436px overflowed it and
+ *   stretched the grid row to a 584 x 500 region. The bar has no column to
+ *   overflow, the region measures the 640 x 343 the viewport implies, and the
+ *   inline gutter is 148px. This row is the observable evidence D-5 is closed
+ *   below 1200px, which is the condition `deferred-items.md` recorded.
+ *
+ * No row was removed to make an assertion pass: the exception test below
+ * asserts its own precondition (`difference < 124`), so a viewport in the wrong
+ * list fails on that rather than passing quietly.
  */
 const GUTTER_VIEWPORTS = [
   { name: 'desktop 1440x900', width: 1440, height: 900 },
   { name: 'desktop 1300x900', width: 1300, height: 900 },
-  { name: 'compact 800x900', width: 800, height: 900 },
+  { name: 'compact 1024x900', width: 1024, height: 900 },
+  { name: 'compact 640x400 (the 200% equivalent)', width: 640, height: 400 },
   { name: 'mobile 360x740', width: 360, height: 740 },
 ] as const;
 
-const NEAR_SQUARE_VIEWPORT = { width: 1024, height: 900 };
+const NEAR_SQUARE_VIEWPORT = { width: 800, height: 900 };
 
 interface Rect {
   readonly left: number;

@@ -1164,6 +1164,16 @@ export default function App(): JSX.Element {
     <div
       className={themeMode === 'dark' ? 'map-editor dark' : 'map-editor'}
       data-panel-open={openTool !== null ? 'true' : 'false'}
+      /*
+        D-20: the shell's ONE layout switch, published so the stylesheet can
+        collapse the three-track grid into the narrow bottom-bar arrangement.
+        It is written from `useResponsiveLayout`, which owns the only 1200px
+        literal in the app - a CSS media query here would be a second copy of
+        that breakpoint, and two copies of a breakpoint disagree eventually.
+        Exactly `'desktop' | 'compact'`, never absent, for the same reason
+        `data-panel-open` is two-valued (assertion 10).
+      */
+      data-layout={layout}
     >
       {/*
         D-16: the rail is always present, at every width. The HUD header and

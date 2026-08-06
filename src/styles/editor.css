@@ -23,6 +23,16 @@
    */
   --hud-header-size: 64px;
   --hud-footer-size: 112px;
+
+  /*
+   * D-20, the narrow arrangement. Below the 1200px breakpoint the rail lies
+   * down into a bottom bar and the panel rises over the map as a bottom sheet.
+   *
+   * The sheet is a HEIGHT where the desktop track is a width, and it is the
+   * same mechanism: a registered custom property that interpolates, animated on
+   * the shell rather than on the grid's track list.
+   */
+  --panel-height: 0px;
 }
 
 /*
@@ -36,6 +46,18 @@
  * so the literal is deliberately not written here.
  */
 @property --panel-width {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+/*
+ * The bottom sheet's own registered length (D-20). Same reasoning as the width
+ * above, and deliberately a SECOND property rather than one axis-agnostic
+ * `--panel-size`: the desktop track and the narrow sheet are open at different
+ * sizes and would otherwise have to be reset for each other at every switch.
+ */
+@property --panel-height {
   syntax: '<length>';
   inherits: true;
   initial-value: 0px;
@@ -77,6 +99,183 @@
  */
 .map-editor[data-panel-open='false'] {
   transition-timing-function: var(--motion-ease-in);
+}
+
+/* ------------------------------------------------------------------ *
+ * D-20 - the narrow arrangement: bottom bar + bottom sheet
+ *
+ * One grid becomes one COLUMN and two rows: the canvas region takes the
+ * remaining height and the rail lies down as a bar under it. The panel is
+ * placed in the SAME cell as the canvas region and aligned to its end, so it
+ * rises from just above the bar - the one surface in this editor that is
+ * allowed to overlay the map, and the only one.
+ *
+ * There is no second breakpoint here. `useResponsiveLayout.ts` owns the single
+ * 1200px literal in the app and publishes `data-layout`; every rule below keys
+ * on that attribute, so the switch cannot drift from the one the focus-order
+ * and camera-owner assertions cross.
+ * ------------------------------------------------------------------ */
+
+.map-editor[data-layout='compact'] {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr auto;
+  transition:
+    --panel-height var(--motion-duration-base) var(--motion-ease-out),
+    background-color var(--motion-duration-slow) var(--motion-ease-out),
+    color var(--motion-duration-slow) var(--motion-ease-out);
+}
+
+.map-editor[data-layout='compact'][data-panel-open='true'] {
+  --panel-height: min(60dvh, 360px);
+}
+
+/* Exit on the exit curve, entrance on the settle curve - the same directional
+ * pairing the desktop track uses, joining that token rather than adding one. */
+.map-editor[data-layout='compact'][data-panel-open='false'] {
+  transition-timing-function: var(--motion-ease-in);
+}
+
+/*
+ * The bar. `grid-row: 2` rather than DOM order: the rail is still the first
+ * child, which is what keeps the focus order rail -> panel -> canvas identical
+ * at both widths (UI-SPEC 20), while the bar paints at the thumb end.
+ */
+.map-editor[data-layout='compact'] .tool-rail {
+  grid-row: 2;
+  grid-column: 1;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: center;
+  padding: var(--space-xs);
+  border-inline-end: 0;
+  border-block-start: var(--border-width) solid var(--hairline-color);
+  gap: var(--space-xs);
+}
+
+/*
+ * The bar WRAPS rather than scrolls, and the arithmetic is why. Six 48px tool
+ * controls plus the two 48px footer controls need 408px with their gaps; 360px
+ * is the narrowest viewport this app is contained at. Something has to give,
+ * and every alternative is worse: shrinking a control breaks the 44px
+ * `--target-compact` floor, and an inline scroll container would need
+ * `overflow-x`, which belongs to `body` alone - on any other element the
+ * unstated axis computes to `auto` and silently makes it a scroll container.
+ * A wrapped second line keeps every control visible, keeps Export reachable
+ * without a swipe, and costs the canvas 48px of height at one viewport.
+ */
+.map-editor[data-layout='compact'] .tool-rail__tools {
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.map-editor[data-layout='compact'] .tool-rail__row {
+  inline-size: var(--space-2xl);
+  min-inline-size: var(--target-compact);
+  flex: 0 0 auto;
+}
+
+/*
+ * D-20: the HUD header and footer FOLD INTO the bar. They stop being pinned
+ * blocks with reserved heights and become inline groups; the identity block is
+ * the one that yields, truncating to nothing at 360px so the controls never do.
+ * `overflow: hidden` on it is the truncation - never `display: none`, which
+ * would take the `h1` landmark and the saved/unsaved state out of the
+ * accessible tree along with the pixels.
+ */
+.map-editor[data-layout='compact'] .tool-rail__header,
+.map-editor[data-layout='compact'] .tool-rail__footer {
+  inline-size: auto;
+  block-size: auto;
+  align-items: center;
+  flex-direction: row;
+  border: 0;
+  margin-block-start: 0;
+  gap: var(--space-xs);
+}
+
+.map-editor[data-layout='compact'] .tool-rail__header {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+/* Export stays PINNED and visible: it never shrinks and never scrolls. */
+.map-editor[data-layout='compact'] .tool-rail__footer {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.map-editor[data-layout='compact'] .tool-rail__footer .tool-rail__action,
+.map-editor[data-layout='compact'] .controls--rail .controls__action {
+  inline-size: var(--space-2xl);
+  min-inline-size: var(--target-compact);
+  flex: 0 0 auto;
+}
+
+/*
+ * The Export label is visually hidden in the bar for the same reason it is at
+ * 56px: a 44px square has no room for it, and `display: none` would strip it
+ * from the button's accessible name. The rule below re-states the clip rather
+ * than reusing the closed-panel one, because the panel is OPEN whenever the
+ * sheet is up and the label would otherwise reappear and push the glyph off
+ * centre mid-transition.
+ */
+.map-editor[data-layout='compact'] .controls--rail .controls__action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * The rail tooltip is suppressed in the bar, and that is a decision rather than
+ * an omission. It is `aria-hidden` decoration whose whole job is naming an
+ * icon-only control on hover; the bar is a touch surface where hover does not
+ * exist, and the group it lives in scrolls inline, which would clip the chip
+ * to a sliver anyway. Every control keeps its `aria-label`, so nothing that a
+ * screen reader or a locator reads changes.
+ */
+.map-editor[data-layout='compact'] .rail-tooltip {
+  display: none;
+}
+
+/*
+ * The sheet. Same cell as the canvas region, anchored to its end edge, so it
+ * rises over the map from just above the bar. `block-size` is the registered
+ * property, so opening and closing interpolate instead of snapping.
+ */
+.map-editor[data-layout='compact'] .tool-panel {
+  z-index: 4;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: end;
+  block-size: var(--panel-height);
+  border-inline-end: 0;
+  border-block-start: var(--border-width) solid var(--hairline-color);
+  border-start-start-radius: var(--radius-card);
+  border-start-end-radius: var(--radius-card);
+  background: var(--themely-platinum);
+  box-shadow: var(--popover-shadow);
+}
+
+/*
+ * The body fills the sheet instead of a 280px track, and it reserves nothing at
+ * either end: the HUD blocks are in the bar now, not stacked above and below
+ * this column. It is still the ONE scroll container.
+ */
+.map-editor[data-layout='compact'] .tool-panel__body {
+  width: 100%;
+  padding-block: 0;
+}
+
+.map-editor[data-layout='compact'] .map-workspace {
+  grid-row: 1;
+  grid-column: 1;
 }
 
 /*
