@@ -1230,3 +1230,392 @@ describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
     expect(root.get('--accent-fill-hover')).toBe('#005db8');
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Assertion 19 - the contrast matrix, resolved through the real cascade
+ * ------------------------------------------------------------------ */
+
+const WCAG_AA_BODY_RATIO = 4.5;
+
+const CONTRAST_CONDITION = '@media (prefers-contrast: more)';
+const FORCED_COLORS_CONDITION = '@media (forced-colors: active)';
+const REDUCED_TRANSPARENCY_CONDITION =
+  '@media (prefers-reduced-transparency: reduce)';
+
+/**
+ * Every (mode x preference) combination the palette can be resolved in.
+ *
+ * `forced-colors` overrides no colour at all - the user agent owns paint there -
+ * so its rows repeat the default palette on purpose. That is not padding: the
+ * combination exists so that the day someone DOES add a colour literal to the
+ * forced-colors block, it is already being resolved and rated.
+ */
+const PREFERENCE_CASES: ReadonlyArray<{
+  readonly name: string;
+  readonly mode: 'light' | 'dark';
+  readonly active: readonly string[];
+}> = [
+  { name: 'light', mode: 'light', active: [] },
+  { name: 'dark', mode: 'dark', active: [] },
+  {
+    name: 'light + more contrast',
+    mode: 'light',
+    active: [CONTRAST_CONDITION],
+  },
+  { name: 'dark + more contrast', mode: 'dark', active: [CONTRAST_CONDITION] },
+  {
+    name: 'light + forced colors',
+    mode: 'light',
+    active: [FORCED_COLORS_CONDITION],
+  },
+  {
+    name: 'dark + forced colors',
+    mode: 'dark',
+    active: [FORCED_COLORS_CONDITION],
+  },
+];
+
+/**
+ * The text-on-surface pairs the design contract actually produces, taken from
+ * `Design.md` sections 2, 6, 7.3-7.10 rather than from a cartesian product of
+ * every colour token. A product would rate pairs the design never draws, and
+ * "no exceptions are enumerated" would then have to become a list of them.
+ *
+ * `--themely-ghost-gray` is DELIBERATELY ABSENT and that absence is gated
+ * separately below, not waived here: measured against this palette it is
+ * 3.88:1 on Porcelain and 3.60:1 on Powder in dark mode, so it cannot carry
+ * text in this app at all. It stays declared for D-04 palette parity, its value
+ * unadjusted, and a separate assertion proves nothing paints text with it.
+ */
+const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
+  ['--themely-midnight-ink', '--themely-platinum'],
+  ['--themely-midnight-ink', '--themely-porcelain'],
+  ['--themely-midnight-ink', '--themely-powder'],
+  ['--themely-slate-blue', '--themely-platinum'],
+  ['--themely-slate-blue', '--themely-porcelain'],
+  ['--themely-slate-blue', '--themely-powder'],
+  ['--themely-nav-ink', '--themely-platinum'],
+  ['--themely-nav-ink', '--themely-porcelain'],
+  ['--themely-nav-ink', '--themely-powder'],
+  ['--destructive', '--themely-platinum'],
+  ['--destructive', '--themely-porcelain'],
+  ['--destructive', '--themely-powder'],
+  ['--destructive', '--destructive-tint'],
+  ['--success', '--success-tint'],
+  ['--warning', '--warning-tint'],
+  // Mode-invariant by declaration; rated in BOTH modes anyway, so a `.dark`
+  // redefinition would surface here as a failing ratio and not only as a
+  // firewall violation.
+  ['--themely-on-accent', '--accent-fill'],
+  ['--themely-on-accent', '--accent-fill-hover'],
+  ['--tooltip-text', '--tooltip-surface'],
+];
+
+/**
+ * Six mode-by-preference combinations times eighteen pairs, written as a
+ * LITERAL and deliberately not derived from the two tables above.
+ *
+ * `PREFERENCE_CASES.length * TEXT_ON_SURFACE_PAIRS.length` reads like the same
+ * claim and is not one: emptying either table would move the expectation with
+ * the matrix and leave the count "correct" at zero. That is the exact vacuous
+ * pass this assertion exists to prevent, and it was measured - the first probe
+ * against this matrix, run with the derived form, failed only on a secondary
+ * table-length check while the row count itself stayed green at zero rows.
+ */
+const EXPECTED_CONTRAST_ROWS = 108;
+
+describe('Phase 3 contrast matrix (assertion 19)', (): void => {
+  /**
+   * The whole point of this shape is that a token contract asserts a
+   * RELATIONSHIP, not a shape. `expect(token).not.toContain('rgba')` was green
+   * through the 1.0:1 defect, because a light hex satisfies it perfectly.
+   *
+   * It also asserts its own row count. A matrix that iterates whatever it finds
+   * can resolve to nothing and still pass, which is this repo's recurring
+   * "gate that cannot fail" shape - and it is the exact failure mode a
+   * cascade-resolving matrix invites, because a selector that stops matching
+   * silently yields an empty set rather than an error.
+   *
+   * There are NO enumerated exceptions. The draft contract carried one for the
+   * Export label in dark mode; the owner removed it and chose a mode-invariant
+   * `--accent-fill` instead, so adding an exception back is a change to the
+   * contract rather than a fix to this test.
+   */
+  it('meets AA for every text-on-surface pair in every mode and preference', (): void => {
+    let rows = 0;
+
+    PREFERENCE_CASES.forEach((preference): void => {
+      const tokens = resolvePaletteTokens(preference.mode, preference.active);
+
+      expect(
+        tokens.size,
+        `${preference.name}: the palette resolved to nothing.`,
+      ).toBeGreaterThan(0);
+
+      TEXT_ON_SURFACE_PAIRS.forEach(([textToken, surfaceToken]): void => {
+        const text = resolveTokenValue(tokens, textToken);
+        const surface = resolveTokenValue(tokens, surfaceToken);
+
+        expect(
+          parseHexColor(surface),
+          `${preference.name}: "${surfaceToken}" resolves to "${surface}", ` +
+            'which is not an opaque colour and cannot be rated.',
+        ).not.toBeNull();
+
+        const ratio = contrastRatio(text, surface);
+        expect(
+          ratio,
+          `${preference.name}: ${textToken} (${text}) on ${surfaceToken} ` +
+            `(${surface}) is ${ratio.toFixed(2)}:1.`,
+        ).toBeGreaterThanOrEqual(WCAG_AA_BODY_RATIO);
+
+        rows += 1;
+      });
+    });
+
+    expect(rows).toBe(EXPECTED_CONTRAST_ROWS);
+    expect(PREFERENCE_CASES).toHaveLength(6);
+    expect(TEXT_ON_SURFACE_PAIRS).toHaveLength(18);
+  });
+
+  /**
+   * The ghost gray exclusion above, converted from a paragraph into a gate.
+   *
+   * Recording "this token cannot carry text" in a document and then leaving
+   * nothing to enforce it is how the tertiary meta role ends up at 3.60:1 two
+   * plans from now, with the matrix still green because the pair was never in
+   * it. The token keeps its verbatim Themely value; what is forbidden is
+   * painting text with it.
+   */
+  it('paints no text with the palette token that misses AA', (): void => {
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.filter(isRenderingRule).forEach((rule): void => {
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (property !== 'color' && property !== '-webkit-text-fill-color') {
+            return;
+          }
+          expect(
+            value.includes('--themely-ghost-gray'),
+            `${file}: "${rule.selector}" paints text with ` +
+              '--themely-ghost-gray, which measures 3.88:1 on Porcelain and ' +
+              '3.60:1 on Powder in dark mode. Use --themely-slate-blue for ' +
+              'tertiary meta; the ghost value stays declared for palette parity.',
+          ).toBe(false);
+        });
+      });
+    });
+  });
+
+  /**
+   * The structural backstop for the same defect the matrix rates. A preference
+   * block is authored AFTER the palette at equal specificity, so a `:root`
+   * literal inside `prefers-contrast` wins in dark mode too unless the same
+   * at-rule answers it for `.dark`. That is the defect that once painted a
+   * light bar under light text at 1.0:1 for the user who asked for contrast.
+   *
+   * Only colour-carrying overrides are compared: `--border-width: 2px` is
+   * mode-independent and requiring a `.dark` copy of it would be noise that
+   * teaches the next reader to ignore this gate.
+   */
+  it('answers every preference colour override for both modes in the same at-rule', (): void => {
+    const isColourOverride = (token: string, value: string): boolean =>
+      token.startsWith('--themely-') ||
+      parseHexColor(value) !== null ||
+      value.includes('var(--themely-');
+
+    let atRulesChecked = 0;
+
+    [
+      CONTRAST_CONDITION,
+      FORCED_COLORS_CONDITION,
+      REDUCED_TRANSPARENCY_CONDITION,
+    ].forEach((condition): void => {
+      const overriddenIn = (selector: string): string[] =>
+        themeRules()
+          .filter(
+            (rule): boolean =>
+              rule.selector === selector &&
+              rule.conditions.length === 1 &&
+              rule.conditions[0] === condition,
+          )
+          .flatMap((rule): string[] =>
+            [...tokensOf(rule).entries()]
+              .filter(([token, value]): boolean => isColourOverride(token, value))
+              .map(([token]): string => token),
+          )
+          .sort();
+
+      expect(
+        overriddenIn('.dark'),
+        `${condition}: the light and dark blocks override different colour ` +
+          'tokens. A literal answered for only one mode silently wins in the ' +
+          'other.',
+      ).toStrictEqual(overriddenIn(':root'));
+
+      atRulesChecked += 1;
+    });
+
+    expect(atRulesChecked).toBe(3);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 8 - no colour literal in a component, closed exemption
+ * ------------------------------------------------------------------ */
+
+const COLOR_LITERAL_PATTERN = /#[0-9A-Fa-f]{3,8}\b|rgba?\(/u;
+
+/**
+ * A CLOSED list of exactly one file, with its reason recorded here rather than
+ * only in a comment inside the component. `LegendOverlay.tsx` hard-codes
+ * `THEME_COLORS` and the swatch stroke because those values are EXPORT-FIXED:
+ * they are serialised into the PNG, so they must not follow the editor theme,
+ * and `--swatch-border: #9ca3af` mirrors the last of them.
+ *
+ * Note the name collision recorded in P-3: the legend's `light` / `dark` is a
+ * creator-chosen LEGEND THEME, not the app's colour scheme. A future reader who
+ * conflates the two would "fix" this file into following the app theme and
+ * change every creator's exported pixels.
+ */
+const COLOR_LITERAL_EXEMPTIONS: ReadonlyArray<readonly [string, string]> = [
+  [
+    'components/LegendOverlay.tsx',
+    'THEME_COLORS and the swatch stroke are export-fixed values serialised ' +
+      'into the PNG; they must not follow the editor theme.',
+  ],
+];
+
+/** Component source only. A test asserting a colour value is doing its job. */
+function productionComponentSources(): ReadonlyArray<readonly [string, string]> {
+  return COMPONENT_SOURCES.filter(
+    ([name]): boolean => !name.endsWith('.test.tsx'),
+  );
+}
+
+/**
+ * Block comments and whole-line `//` comments only. A partial-line strip would
+ * need to know about string literals, and getting that wrong would silently
+ * remove real code from the scan - the failure mode is a gate that stops
+ * seeing violations, which is worse than one that reports a comment.
+ */
+function stripSourceComments(source: string): string {
+  return source
+    .replaceAll(/\/\*[\S\s]*?\*\//gu, '')
+    .split('\n')
+    .filter((line): boolean => !/^\s*\/\//u.test(line))
+    .join('\n');
+}
+
+describe('Phase 3 component colour literals (assertion 8)', (): void => {
+  it('keeps every colour literal out of component source, bar the closed exemption', (): void => {
+    const offenders = productionComponentSources()
+      .filter(([, source]): boolean =>
+        COLOR_LITERAL_PATTERN.test(stripSourceComments(source)),
+      )
+      .map(([name]): string => name)
+      .sort();
+
+    expect(
+      offenders,
+      'a component hard-codes a colour. Chrome colours come from tokens; the ' +
+        'only file allowed a literal is the one whose literals are exported ' +
+        'into the PNG.',
+    ).toStrictEqual(
+      COLOR_LITERAL_EXEMPTIONS.map(([name]): string => name).sort(),
+    );
+  });
+
+  /**
+   * An exemption for a file that no longer carries a literal is a licence
+   * nobody is using, and the next literal added to it would inherit the
+   * licence silently. Both directions are checked.
+   */
+  it('keeps the exemption list closed, current, and reasoned', (): void => {
+    expect(COLOR_LITERAL_EXEMPTIONS).toHaveLength(1);
+
+    COLOR_LITERAL_EXEMPTIONS.forEach(([name, reason]): void => {
+      const entry = productionComponentSources().find(
+        ([file]): boolean => file === name,
+      );
+      expect(entry, `${name} is exempted but does not exist`).toBeDefined();
+      expect(
+        COLOR_LITERAL_PATTERN.test(
+          stripSourceComments((entry as readonly [string, string])[1]),
+        ),
+        `${name} no longer carries a colour literal, so its exemption is a ` +
+          'standing licence for the next one. Remove it.',
+      ).toBe(true);
+      expect(reason.length).toBeGreaterThan(40);
+    });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 9 - the type-role consumer exemption is closed at two
+ * ------------------------------------------------------------------ */
+
+const TYPE_ROLES = [
+  '--text-display',
+  '--text-h1',
+  '--text-h2',
+  '--text-h3',
+  '--text-subheading',
+  '--text-body',
+  '--text-body-sm',
+  '--text-caption',
+  '--text-eyebrow',
+  '--text-stat',
+] as const;
+
+/**
+ * A CLOSED set of exactly two. There is no marketing hero and no stat card in
+ * this app, but D-09 vendors the whole Themely scale, so these two are declared
+ * with the reason recorded and nothing else may join them.
+ *
+ * This is also why `theme.css` ships a `.text-<role>` class for eight roles and
+ * not for ten: a class for all ten would make every role trivially "consumed"
+ * and this assertion would pass no matter what.
+ */
+const TYPE_ROLE_CONSUMER_EXEMPTIONS = ['--text-display', '--text-stat'] as const;
+
+/** The four tokens a role bundles, matched exactly so siblings cannot count. */
+function roleTokenFamily(role: string): string[] {
+  return [role, `${role}-line-height`, `${role}-weight`, `${role}-tracking`];
+}
+
+describe('Phase 3 type-role consumers (assertion 9)', (): void => {
+  it('declares no type role without a consumer, bar the closed exemption', (): void => {
+    const renderingSource = ALL_RULES.flatMap(([, rules]): string[] =>
+      rules.filter(isRenderingRule).map((rule): string => rule.body),
+    ).join('\n');
+
+    const unconsumed = TYPE_ROLES.filter(
+      (role): boolean =>
+        !roleTokenFamily(role).some((token): boolean =>
+          renderingSource.includes(`var(${token})`),
+        ),
+    ).sort();
+
+    expect(
+      unconsumed,
+      'a declared token needs a consumer, or its contract assertion is ' +
+        'theatre. The exemption is a closed set of exactly two roles - adding ' +
+        'a third is a change to the design contract, not a test fix.',
+    ).toStrictEqual([...TYPE_ROLE_CONSUMER_EXEMPTIONS].sort());
+
+    expect(TYPE_ROLES).toHaveLength(10);
+    expect(TYPE_ROLE_CONSUMER_EXEMPTIONS).toHaveLength(2);
+  });
+
+  it('declares all four parts of every role bundle', (): void => {
+    const root = unconditionedRootTokens();
+
+    TYPE_ROLES.forEach((role): void => {
+      roleTokenFamily(role).forEach((token): void => {
+        expect(root.has(token), `${token} is missing from the role bundle`).toBe(
+          true,
+        );
+      });
+    });
+  });
+});
