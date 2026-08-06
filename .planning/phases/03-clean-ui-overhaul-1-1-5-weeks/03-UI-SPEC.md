@@ -1,10 +1,12 @@
 ---
 phase: 3
 slug: clean-ui-overhaul
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-08-06
+approved: 2026-08-06
+checker_flags_resolved: 7
 upstream_design_system: /Users/matul/claudeprojects/themely/Design.md (sibling repo, read-only)
 ---
 
@@ -23,9 +25,11 @@ upstream_design_system: /Users/matul/claudeprojects/themely/Design.md (sibling r
   `03-CONTEXT.md` § Claude's Discretion: *"exact per-surface application of the Themely recipes
   to CountriesIRL-specific chrome that Themely has no analog for — colour swatch grid, legend
   editor rows, the map's own `--map-*` tokens, saved-map row anatomy"*, plus icon selection.
-- **Rows tagged `[EXCEPTION]`** record a measured consequence of a locked decision that does not
-  meet a project standard. They are recorded, not hidden, and each names the change that would
-  clear it.
+- **There are no `[EXCEPTION]` rows.** The draft carried one — a 3.02:1 white-on-accent label in
+  dark mode — and the owner resolved it during checker review rather than accepting it, by making
+  the Export fill mode-invariant. Every text-on-surface pair in this contract meets WCAG AA in
+  both modes. If a future revision must accept a standard it cannot meet, tag the row
+  `[EXCEPTION]`, give it a measured value, and name the change that would clear it.
 - `03-01` produces CountriesIRL's own `Design.md` (D-02). **This file is that document's source
   brief**, not its replacement: `Design.md` vendors the token table verbatim and carries the
   Tailwind→CSS translation notes; this file carries the contract the gates assert.
@@ -163,6 +167,12 @@ viewer's theme — a defect no rendering test catches (`coding-rules/frontend.md
 | `--tooltip-shadow` | `0 4px 12px -2px rgba(6, 27, 49, 0.10)` | re-toned to the popover tier (D-06) | |
 | `--map-frame-edge` | `rgba(6, 27, 49, 0.55)` | **new** **[SPEC]** | D-32 export-frame hairline |
 | `--map-frame-scrim` | `rgba(6, 27, 49, 0.06)` | **new** **[SPEC]** | D-32 out-of-frame dim |
+| `--accent-fill` | `#0071e3` | **new** (owner-decided) | the `Export PNG` fill. Fixed so white-on-accent stays at 4.70:1 in both modes — see § The Export fill is mode-invariant |
+| `--accent-fill-hover` | `#005db8` | **new** (owner-decided) | hover pair for the above |
+
+The last two are chrome, not export, and are listed here because they share the *mechanism*
+(declared once in `:root`, never in `.dark`) for a different reason: accessibility rather than
+export independence. Assertion 4 covers the export family; assertion 26 covers these two.
 
 **`--map-border-focus` re-tone [SPEC].** `#0f766e` is the retired teal. Leaving it on the map's
 focus stroke would keep a second saturated hue alive in the product, which D-05 forbids
@@ -184,7 +194,7 @@ for floating chrome).
 
 | Surface | Its **one** Apple Blue element | Everything else on that surface |
 |---|---|---|
-| Tool rail (56px) | **`Export PNG`** filled button in the footer (D-13) | Active tool row = Powder background + Nav Ink. Theme toggle = **neutral** (D-30). Undo/Redo = neutral |
+| Tool rail (56px) | **`Export PNG`** filled button in the footer (D-13), filled from the mode-invariant `--accent-fill` | Active tool row = Powder background + Nav Ink. Theme toggle = **neutral** (D-30). Undo/Redo = neutral |
 | Tool panel (280px) | the panel's **single primary action**, where it has one (`Apply Color`, `Save Map`) | Selected/active states use Powder + Midnight Ink. A panel with no primary action carries **no** accent |
 | Canvas region | **none** (D-21 — the accent belongs to Export) | Floating controls, export frame, and legend chrome are neutral with Stone Gray hairlines |
 | Tooltip | **none** (D-22) | dark ink chip |
@@ -198,15 +208,34 @@ here so the exemption cannot silently widen to hover or active states.
 **Second semantic colour:** `--themely-red` only, and only for destructive actions and error
 states. No third status hue exists — info is Apple Blue or no colour at all.
 
-**[EXCEPTION] White-on-accent contrast in dark mode.** `--themely-on-accent: #ffffff` on
-`--themely-apple-blue: #2997ff` measures **3.02:1** — below WCAG AA's 4.5:1 for normal text.
-D-08 locks the token to white in both modes and D-13 locks Export to an Apple Blue fill, so this
-is a consequence of two locked decisions, not a choice available here. Scope: **exactly one
-element — the `Export PNG` label in dark mode.** The rewritten contract test must carry this pair
-as an *enumerated exception with its measured value*, never as a silent omission, so it cannot
-spread to a second element. The change that would clear it: a darker dark-mode accent fill
-(e.g. `#1a7fd4` at 4.18:1, still short) or a non-filled Export button — both require an owner
-decision against D-08/D-13.
+### The Export fill is mode-invariant — and why (owner-decided 2026-08-06)
+
+**`Export PNG`'s fill is `--accent-fill: #0071e3` in BOTH modes**, consumed from its own
+mode-invariant token rather than from the flipping `--themely-apple-blue`.
+
+| Pair | Ratio | Verdict |
+|---|---|---|
+| `#ffffff` on `#0071e3` (the shipped fill, both modes) | **4.70:1** | ✅ AA for normal text |
+| `#ffffff` on `#2997ff` (what the flipping token would give in dark) | **3.02:1** | ❌ below AA's 4.5:1 |
+| `#ffffff` on `#1a7fd4` (`--themely-apple-blue-hover` dark) | **4.18:1** | ❌ still short |
+
+**Why this is not a change to any locked decision.** D-13 holds — Export is still a filled Apple
+Blue primary and still the rail's one accent surface. D-08 is untouched — `--themely-apple-blue`
+still flips to `#2997ff` for every other consumer (focus rings, panel primary actions, the
+onboarding CTA, accent-tinted chips). This is **one surface consuming a fixed value**, which is
+the same mode-invariant pattern this contract already uses for `--tooltip-surface`,
+`--tooltip-text`, `--map-border-focus`, and the `--map-*` family.
+
+**Do not "simplify" this back onto the flipping token.** Pointing `--accent-fill` at
+`--themely-apple-blue` looks tidier and silently reintroduces a 3.02:1 white-on-blue label in
+dark mode — a failure no rendering test catches. `--accent-fill` is declared **exactly once, in
+the unconditioned `:root`**, appears in no `.dark` block, and joins the mode-invariant set in
+§ The mode-invariant (fixed) token set. Its hover pair is `--accent-fill-hover: #005db8`, also
+fixed. Guarded by assertion 26.
+
+There is **no contrast exception in this contract.** The matrix asserts every text-on-surface pair
+at AA in both modes, and it still asserts its own row count so it cannot silently resolve to
+nothing.
 
 ### Typography (D-09, D-10)
 
@@ -225,7 +254,7 @@ Each role bundles size + line-height + weight + tracking, as a CSS class the way
 | `--text-h1` | 30px | 1.20 | 600 | -0.02em | `FatalErrorState` heading |
 | `--text-h2` | 24px | 1.25 | 600 | -0.015em | Save form heading inside the Saved Maps panel |
 | `--text-h3` | 18px | 1.40 | 600 | -0.01em | tool panel title; HUD composition name; empty-state heading |
-| `--text-subheading` | 16px | 1.40 | 500 | 0 | sub-section headings inside a panel ("Legend entries") |
+| `--text-subheading` | 16px | 1.40 | 500 | 0 | onboarding banner heading; fatal-error lead line. **Never inside the 280px tool panel** — see § Legend editor rows |
 | `--text-body` | 15px | 1.55 | 400 | 0 | prose: empty-state body, confirmation prompts, onboarding |
 | `--text-body-sm` | 14px | 1.50 | 400 | 0 | **the workhorse** — rail rows, buttons, inputs, list rows |
 | `--text-caption` | 12px | 1.40 | 400 | 0 | meta, helper text, field errors, swatch labels |
@@ -236,6 +265,13 @@ Each role bundles size + line-height + weight + tracking, as a CSS class the way
 `--text-h3` (titles), `--text-body-sm` (rows, buttons, inputs), `--text-caption` (meta), and
 `--text-eyebrow` (pills). Weights in chrome: 400, 500, 600. The remaining roles serve dialogs,
 prose, and error states.
+
+**Near-size adjacency rule.** `--text-body-sm` (14), `--text-body` (15), and `--text-subheading`
+(16) sit within 2px of each other — inherited from Themely's scale, where a wider layout keeps
+them apart. Inside the **280px tool panel** at most **two** of the three may appear, and a
+hierarchy step within the panel is carried by **weight**, not by a 1–2px size difference. In
+practice the panel uses `--text-body-sm` (400 for rows, 500 for sub-headings) and `--text-body`
+(prose only, in empty states and confirmations); `--text-subheading` does not appear there at all.
 
 **Consumer exemption, closed set.** `coding-rules/frontend.md` records that *"a declared token
 needs a consumer, or its contract assertion is theatre."* `--text-display` and `--text-stat` have
@@ -315,9 +351,26 @@ approved-surface allowlist and it cannot rot.
 
 `.dark` swaps `--popover-shadow` to `0 4px 12px -2px rgba(0, 0, 0, 0.45)`, matching
 `themely/globals.css:357`. **No shadow token may be referenced by anything the export clone
-carries** — a hairline is still a `box-shadow`, and html2canvas rasterises it differently than the
-browser paints it. The export-unsafe-CSS guard (`phase2CssContract.test.ts:947-994`) carries
-forward at high priority precisely because D-06 makes hairline `box-shadow` pervasive.
+carries** — a hairline is still a `box-shadow`.
+
+The export-unsafe-CSS guard (`phase2CssContract.test.ts:947-994`) carries forward at **high
+priority**, and its stated reason must be rewritten when it moves: the Phase 2 wording —
+*"html2canvas rasterises it differently than the browser paints it"* — **goes false the moment
+`03-01` lands**, because D-34 removes html2canvas entirely. The true post-D-34 reason is
+stronger, not weaker:
+
+> Under D-34 the clone is serialised with `XMLSerializer` into a `data:image/svg+xml` URL and
+> rasterised as an `<img>`. That image is an **isolated document**: it sees none of the host
+> page's stylesheets. A `box-shadow`, `filter`, `backdrop-filter`, `mask`, or `clip-path` applied
+> through an external CSS rule does not render "differently" — it renders **not at all**, and the
+> only signal is a PNG that quietly lost an effect the editor shows on screen. Anything an
+> exported surface needs must be an inline attribute or an inline style inside the serialised
+> subtree. `sanitizeExportClone` hard-sets stroke and stroke-width inline for exactly this reason;
+> it does **not** neutralise an inherited effect.
+
+D-06 makes hairline `box-shadow` pervasive across chrome, so the guard is more load-bearing after
+this phase than before it. `EXPORT_CONTENT_PATTERN` must stay bound back to `MapCanvas.tsx`
+source — `.map-unit-path` was once omitted from that pattern for a whole phase.
 
 ### Motion (D-26)
 
@@ -595,7 +648,7 @@ Pinned at the bottom of the rail, **always visible regardless of panel or scroll
 
 | Control | Treatment |
 |---|---|
-| `Export PNG` | **the rail's one Apple Blue surface.** Filled `--themely-apple-blue`, label `--themely-on-accent` at `--text-body-sm` weight 500, `--radius-control`, hover `--themely-apple-blue-hover`, disabled 40 % opacity with no pointer events. Icon-only at 56px (glyph `download`, 20px) with its label in the hover/focus tooltip; full `[icon] Export PNG` when the panel is open. Busy label swaps exactly: `Export PNG` ⇄ `Exporting PNG…`, with native `disabled` + `aria-busy` — never `aria-disabled` on a still-clickable button |
+| `Export PNG` | **the rail's one Apple Blue surface.** Filled **`--accent-fill`** (mode-invariant `#0071e3` — **not** `--themely-apple-blue`; see § The Export fill is mode-invariant), label `--themely-on-accent` at `--text-body-sm` weight 500, `--radius-control`, hover `--accent-fill-hover`, disabled 40 % opacity with no pointer events. Icon-only at 56px (glyph `download`, 20px) with its label in the hover/focus tooltip; full `[icon] Export PNG` when the panel is open. Busy label swaps exactly: `Export PNG` ⇄ `Exporting PNG…`, with native `disabled` + `aria-busy` — never `aria-disabled` on a still-clickable button |
 | Theme toggle | **neutral** icon control (D-30). Ghost treatment: transparent background, `--themely-nav-ink` glyph, hover `--themely-porcelain`. Glyph `sun` in light, `moon` in dark. Accessible name states the destination: `Switch to dark theme` / `Switch to light theme`, with `aria-pressed` reflecting the current mode |
 
 - `Export PNG` is the only filled action in the composed DOM — **exactly one**
@@ -747,7 +800,10 @@ read goes through `resolveLegendPosition` / `resolveLegendRender`.
 | Invalid | the existing `data-legend-validation="invalid"` hook stays; an invalid row gets a `--themely-red` left edge (2px inset, **not** a positional selector — keyed on the data attribute) and its message at `--text-caption` in `--themely-red` |
 
 **Style controls** (theme, text size, border, position) are four `<fieldset>`s, each a Porcelain
-card with a `--text-subheading` legend. Their options are **pills**: neutral (Porcelain + Slate
+card whose `<legend>` is **`--text-body-sm` at weight 500** — deliberately *not* `--text-subheading`.
+16px and 14px are only 2px apart, which reads as an accident rather than a hierarchy when both
+land in the same 280px column; the weight bump carries the hierarchy instead. Applies to every
+`<fieldset>` legend and sub-section heading **inside the tool panel**. Their options are **pills**: neutral (Porcelain + Slate
 Blue) when unselected, **Powder + Midnight Ink** when selected. **No accent** — the `legend` panel
 has no primary action, so per D-05 it carries no Apple Blue at all.
 
@@ -794,12 +850,36 @@ plan — recorded, not silent** (the roadmap `03-06` gate already says this).
 | Row | `--themely-porcelain` card, `--radius-card`, `--hairline`, `px 16 / py 12`, `--space-sm` gap. Hover `--themely-powder`, **instant** |
 | Chip | 32×32 `--radius-control`, `--themely-platinum` background, `--hairline` ring, `map` glyph in `--themely-slate-blue`. Chips step **up** from the Porcelain card |
 | Name | `--text-body-sm`, `--themely-midnight-ink`, one line, ellipsis |
-| Meta | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`. Consumes the `SavedMapSummary` projection — **a period label resolves only through `SNAPSHOT_CATALOG`**, so a stored record can never name a deferred snapshot |
+| Meta | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`. Consumes the `SavedMapSummary` projection; the period short label resolves through `SNAPSHOT_CATALOG` and never through manifest text — **but see the correction below, which this restyle must not paper over** |
 | `Load This Map` | ghost button: transparent, `--themely-midnight-ink`, `--hairline` border, hover `--themely-porcelain`. Accessible name `Load This Map: <name>` (unchanged) |
 | `Delete Saved Map` | **destructive**: `--themely-red` text on transparent, hover `--themely-red` at 10 % background. Accessible name `Delete Saved Map: <name>` (unchanged). **Never one-shot** — always paired with the inline confirmation |
 | Confirm state | the row's actions swap to the confirmation pair (`Delete Map: <name>` filled `--themely-red` with `--themely-on-accent` text, `Keep Map: <name>` ghost) plus the prompt at `--text-caption` |
 | Empty state | the compact empty-state recipe, copy unchanged |
 | Save form | name input + `Save Map` — the `saved` panel's **one** Apple Blue element |
+
+**Correction — a saved-map row *can* name a deferred snapshot today, and this is pre-existing
+Phase 2 behavior, not something Phase 3 introduces.** The inference *"the catalog is the only
+label source, **therefore** a stored record can never name a deferred period"* does not follow,
+and it is written into the source as a comment at `SaveLoad.tsx:127-131`. Verified this session:
+
+- `storage.ts:61-63` builds `SNAPSHOT_IDS` from **all five** `SNAPSHOT_CATALOG` entries, and the
+  record validator at `:483-484` admits any id in that set — so a hand-crafted `localStorage`
+  record carrying `"snapshotId": "1914"` validates.
+- `getPeriodShortLabel` (`SaveLoad.tsx:132-137`) then looks that id up in the same five-entry
+  registry and returns `1914`.
+
+The label is still catalog-derived (Live Invariant 6 is intact — manifest text never reaches the
+UI), and reaching it requires hand-editing browser storage, so this is a **weak, local**
+exposure, not a path by which a deferred snapshot becomes *reachable*. Phase 3 must not restate
+the false inference in the restyled row, and **must not silently fix it either** — a behavior
+change to the storage validator is out of a chrome phase's scope.
+
+**Recommendation for the planner (stronger than narrowing the wording):** add an **approved-id
+filter** to the short-label resolver — resolve through the ids the approved manifest actually
+yields (the same source `resolvePeriodOptions` uses), returning `null` otherwise. That makes the
+original claim *true* rather than merely narrower, is a few lines, and is RED-provable by
+planting a `1914` record and asserting the row shows no period label. Record it as a deliberate
+decision either way; do not leave the false comment standing.
 
 ### 9. Tooltip — dark ink chip (D-22)
 
@@ -937,12 +1017,42 @@ source files copied from a sibling repository.
 | `themely/src/lib/motion/tokens.ts` | the six motion constants | **read in full this session (2026-08-06) — no flags.** Pure constants; no `fetch`, no `process.env`, no dynamic execution |
 | `themely/src/components/app-sidebar.tsx` | `PrimaryNavRow` / `DisabledNavRow` recipe (translated, not copied) | **read lines 560-667 this session (2026-08-06) — no flags** |
 | `themely/src/components/ui/search.tsx` | the vendored animated-icon **shape** (one exemplar) | **read in full this session (2026-08-06) — no flags.** Confirms the contract: `forwardRef` + a structurally identical `*IconHandle` (`{ startAnimation, stopAnimation }` via `useImperativeHandle`), size via the **`size` prop**, and the `strokeWidth` 2→1.5 patch carrying its marker comment |
-| `themely/src/components/ui/{message-square-more,sparkles,square-pen}.tsx` | remaining upstream animated icons, if any are taken | **pending — read each file at vendor time.** Not reviewed this session; no claim is made about them |
+| `themely/src/components/ui/{message-square-more,sparkles,square-pen}.tsx` | remaining upstream animated icons, if any are taken | **PENDING — not reviewed this session; no claim is made about them.** Closing this row is a **plan task**, not a note: see § Two planner requirements below |
 | New map-specific icons (`palette`, `list`, `layers`, `folder`, `download`, `undo-2`, `redo-2`, `sun`, `moon`, `map`, `check`, `plus`, `minus`, `crosshair`) | authored in-repo from lucide glyph paths in the exemplar's shape | **authored, not fetched.** No registry install, no network at build or run time. The `strokeWidth` 2→1.5 patch and its marker comment must be re-applied on any re-vendor |
 
 **Runtime network rule, unchanged:** no runtime third-party request exists or may be added. The
 font is same-origin bundled bytes; the export path embeds it inline as base64, which is not a
 fetch.
+
+### Two planner requirements — these are tasks, not prose
+
+Both were carried as narrative above; neither survives as a gate unless it is a plan task with an
+owner. `/gsd:plan-phase 3` must author both in `03-01`.
+
+**R-V1 — the `motion` install is an owner gate.** `03-01` carries an explicit
+`checkpoint:human-verify` with **`autonomous: false`**, placed **before** the install command, not
+after it. It states the SUS verdict and its reasoning verbatim:
+
+> `motion` is flagged **SUS** with the single reason `too-new`. The signal derives from the most
+> recent publish date, not the package's age: 17.5M weekly downloads, source repo
+> `github.com/motiondivision/motion`, `postinstall: null`. The strongest legitimacy signal
+> available is that it is the sibling repo's own declared dependency and the vendored icon files
+> import from it directly. **Do not take `motion@latest` — `13.0.0` shipped 2026-08-05** and its
+> React peer range was not checked. Pin exact **`12.40.0`**, never a caret range, so a fresh
+> `npm install` cannot silently pull `13.x`.
+
+An automated result may not be substituted for this checkpoint, and a blanket, in-advance,
+sight-unseen approval authorizes *proceeding* — it is not a content review and it is not
+hash-bound. Record which one is actually held.
+
+**R-V2 — every vendored icon file carries dated review evidence.** `03-01` carries a task that,
+for each file taken from the sibling repo or authored from lucide glyph paths, reads the file in
+full and records a provenance line in the same evidence shape the three reviewed rows above
+already use: `read in full — {no flags | flags listed} — {YYYY-MM-DD}`. Scanned for: `fetch(`,
+`XMLHttpRequest`, `navigator.sendBeacon`, `process.env`, `eval(`, `Function(`, dynamic imports
+from external URLs, and obfuscated identifiers. **A file with no provenance line may not be
+vendored** — enforced by assertion 28, so the evidence set and the file set cannot drift apart.
+This closes the three `PENDING` rows above with evidence rather than with assumption.
 
 ---
 
@@ -967,24 +1077,71 @@ work.**
 | 10 | `[data-panel-open]` is exactly `'true' \| 'false'`; the panel track resolves to `0px` closed and `280px` open | set a third value | `03-02` |
 | 11 | The `.map-frame` client rect equals the on-screen projection of the SVG's viewBox corners `(0,0)`/`(1080,1080)` via `getScreenCTM()` | inset the frame by 1px | `03-02` |
 | 12 | The floating cluster's rect does **not intersect** `.map-frame` at every spec'd viewport, at **every** legend preset | re-anchor the cluster to the frame's corner | `03-07` |
-| 13 | The period surface renders exactly the manifest-derived options, and **none** of the four historical labels appears anywhere in the DOM | render `SNAPSHOT_CATALOG` directly | `03-06` |
+| 13 | **Scoped to `.period-hud`:** the period surface renders exactly the manifest-derived options, and none of the four historical labels appears **within that surface** | render `SNAPSHOT_CATALOG` directly in the period surface | `03-06` |
 | 14 | The rehomed live region's exact markup string is present **and** the `aria-describedby` id resolves to an existing element | delete the region | `03-06` |
 | 15 | Exactly one `Reset View`, exactly one `Reset All Colors`, exactly one filled primary action in the **composed** DOM | render a second | `03-05` / `03-06` |
 | 16 | No positional selector (`:nth-child`, `:first-child`, `:last-child`) styles any `button`, `input`, `select`, `a`, or `summary` | style a rail row by index | `03-02` |
 | 17 | `backdrop-filter` appears nowhere; no `filter` / `box-shadow` / `text-shadow` / `mix-blend-mode` / `mask` / `clip-path` on exported content, with `EXPORT_CONTENT_PATTERN` still bound back to `MapCanvas.tsx` source | add a hairline `box-shadow` to `.map-canvas` | `03-03` |
 | 18 | `touch-action: none` on `svg.map-canvas` and nowhere else — assert the **ownership set** | add it to the bottom sheet | `03-08` |
-| 19 | The contrast matrix resolves through the real cascade for every (mode × preference) combination and **asserts its own assertion count**, with the dark on-accent pair carried as an enumerated exception at its measured `3.02:1` | let the matrix resolve to nothing | `03-01` / `03-03` |
+| 19 | The contrast matrix resolves through the real cascade for every (mode × preference) combination, **asserts its own row count**, and every text-on-surface pair meets AA in **both** modes — **no exceptions are enumerated** | let the matrix resolve to nothing | `03-01` / `03-03` |
 | 20 | Stylesheets are **globbed**, and the globbed file count equals the count imported by `main.tsx` | add a `.css` file that nothing imports | `03-09` |
 | 21 | The distinct-selector inventory is **at most** the recorded count, so growth fails | add a dead rule | `03-09` |
 | 22 | Every vendored icon exports a `forwardRef` component **and** a structurally identical `*IconHandle`, sizes via the `size` prop, and carries the `strokeWidth` 2→1.5 marker comment | drop the handle from one icon | `03-01` |
 | 23 | The `ToastRegion` allowlist and its positive-test count are **unchanged** by this phase | add a status message without a test | `03-06` |
 | 24 | The export PNG is identical across **`.dark` class toggling**, forced colors, and DPR — the rewritten form of `responsive.spec.ts:1025,1048` | make the export theme-sensitive on purpose (D-35) | `03-08` |
-| 25 | The exported legend renders in **Inter**, not a system fallback | remove the embedded font from the clone path (D-25/D-34) | export plan |
+| 25 | The exported legend renders in **Inter** — measured on **rasterised pixels**, never on markup. See § Assertion 25 below | export the same composition twice, once with `injectExportFontFace` disabled, and assert the two legend regions **differ** | export plan (Amendment 4) |
+| 26 | `--accent-fill` / `--accent-fill-hover` are declared **exactly once in the unconditioned `:root`** and appear in no `.dark` block; the `Export PNG` fill resolves to `#0071e3` in **both** modes | point `--accent-fill` at `var(--themely-apple-blue)` — the dark row of the contrast matrix drops to 3.02:1 and fails | `03-03` |
+| 27 | The composed DOM contains **exactly one** roving-tabindex writer | add a second writer in the rail | `03-05` |
+| 28 | Every vendored icon file has a recorded, dated "read in full — no flags" provenance line, and the recorded set equals the set of files under `src/components/icons/` | vendor a file without its provenance line | `03-01` |
 
 Assertions 4, 17, 24, and 25 are the export firewall. Assertion 24 is **not optional**: once the
 theme flip moves to a class, `page.emulateMedia({ colorScheme })` changes nothing, both exports
 become trivially identical, and Live Invariant 9 loses its only browser-level guard — this repo's
 fifth "gate that cannot fail" (D-35).
+
+Assertion 25's Plan column is deliberately unnumbered: **there is no export-pipeline plan in
+`ROADMAP.md` § Phase 3 yet.** It closes when **Roadmap Amendment 4** lands as a real `ROADMAP.md`
+edit during `/gsd:plan-phase 3` and the new plan gets its number. Until then this row has no
+owner, which is exactly the state Amendment 4 exists to fix.
+
+### Assertion 25 — what is measured, and why the obvious version cannot fail
+
+**The trap.** The cheap implementation asserts that `font-family: Inter` appears in the cloned
+SVG's serialised markup. That declaration is present **whether or not the font ever resolves** —
+`LegendOverlay.tsx:167` already names Inter today, and the legend already exports in a system
+fallback because no `@font-face` reaches the isolated SVG-as-image document. Such a test is green
+right now, before any work is done, and would stay green if `injectExportFontFace` were deleted.
+It is this repo's "gate that cannot fail" class, and it would be guarding a **change to exported
+pixels**.
+
+**What is measured instead — pixel inequality against a font-less control.** Chosen because it
+measures the rasterised output rather than an intention, needs no font-metric table, and cannot be
+satisfied by a declaration:
+
+1. Build one composition with a fixed legend label (a string with distinctive Inter advance
+   widths, e.g. `Wig 111 fjord`).
+2. Export it twice in the same browser context: once through the normal path, once with the
+   embedded `@font-face` deliberately suppressed via a test-only seam on
+   `injectExportFontFace`.
+3. Crop both PNGs to the legend region — which `resolveLegendRender` already yields in canvas
+   units, so the crop is derived, not hard-coded — and assert the two crops **differ** beyond a
+   noise threshold.
+4. Assert a **discrimination control** in the same test: both crops must be non-blank and must
+   differ from a third, deliberately blank crop. Without this, three empty regions satisfy the
+   inequality perfectly — the exact defect shape of the pixel probe this repo already shipped,
+   which asserted only cross-context *equality*.
+
+**RED probe:** delete the `@font-face` injection from the real (non-suppressed) path. The two
+crops become byte-identical and the assertion fails.
+
+**Alternative, if pixel cropping proves flaky:** measure a known label's rendered advance width in
+the clone against Inter's published metric for that string at that size, asserting a match within
+±1 %, with the same font-less control run asserting a *mismatch*. State whichever is chosen in the
+export plan — but the control run is not optional in either form.
+
+**This assertion is gated on OQ-1.** If the spike shows an inline base64 `@font-face` does not
+resolve inside SVG-as-image in installed Chrome, assertion 25 has nothing to assert and D-25 needs
+the owner descope, not a weaker test.
 
 ---
 
@@ -1028,28 +1185,55 @@ fifth "gate that cannot fail" (D-35).
 3. **`SaveLoad`'s dialog dissolving into the `saved` panel** is a real structural cost inside a
    phase specced as chrome-only, and it lands on nested-confirmation and focus-trap code. The
    `02-22` action-order semantics must be preserved or explicitly superseded **in writing**.
-4. **The dark on-accent contrast exception** (`3.02:1`, Export label only) is recorded, not
-   resolved. It needs an owner acknowledgement, or a decision that overrides D-08/D-13.
-5. **Roadmap Amendments 1–4** must land as explicit `ROADMAP.md` edits in the same commit series
-   — including Amendment 4, which adds an export-pipeline plan the § Plans list does not yet have.
-   `ROADMAP.md` § Out of scope must no longer read as though `src/utils/export.ts` internals are
-   untouched, and § Out of scope must drop "dark mode".
-6. **`ROADMAP.md` `03-02`'s "left HUD column (collapsible sections, one scroll container)"** is
+4. **The saved-map period short label** (§ Saved-map row anatomy) resolves through the five-entry
+   registry, so a hand-crafted storage record can name `1914`. **Pre-existing Phase 2 behavior,
+   not a Phase 3 regression.** Decide explicitly: adopt the recommended approved-id filter on the
+   resolver, or leave the behavior and delete the false comment at `SaveLoad.tsx:127-131`. Either
+   way it is recorded, not left standing as an untrue claim.
+5. **Two vendoring tasks** (§ Two planner requirements): R-V1's `autonomous: false`
+   `checkpoint:human-verify` before the `motion@12.40.0` install, and R-V2's per-file provenance
+   evidence for every vendored icon.
+6. **Roadmap Amendments 1–4** must land as explicit `ROADMAP.md` edits in the same commit series
+   — including Amendment 4, which adds the export-pipeline plan the § Plans list does not yet
+   have and which **owns assertion 25**. `ROADMAP.md` § Out of scope must no longer read as
+   though `src/utils/export.ts` internals are untouched, and must drop "dark mode".
+7. **`ROADMAP.md` `03-02`'s "left HUD column (collapsible sections, one scroll container)"** is
    superseded by the icon rail + flyout (Amendment 2). This spec's § Layout Contract is the
    replacement text.
+
+**Resolved during checker review (2026-08-06), no longer open:** the dark-mode white-on-accent
+contrast failure. The owner chose a mode-invariant `--accent-fill: #0071e3` for the Export button
+(4.70:1 in both modes) rather than an accepted exception — see § The Export fill is
+mode-invariant. D-08 and D-13 are both untouched, and there is now **no contrast exception in
+this contract**.
 
 ---
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: **PASS**
+- [x] Dimension 2 Visuals: **PASS**
+- [x] Dimension 3 Color: **PASS**
+- [x] Dimension 4 Typography: **PASS**
+- [x] Dimension 5 Spacing: **PASS**
+- [x] Dimension 6 Registry Safety: **PASS**
 
-**Approval:** pending
+**Approval: APPROVED 2026-08-06.** Verified by `gsd-ui-checker` with 7 non-blocking flags; all 7
+resolved in this revision.
+
+| Flag | Resolution |
+|---|---|
+| 1 — three type sizes within 2px | **Accepted as inherited from Themely's scale, mitigated where it bites.** Tool-panel `<fieldset>` legends and sub-headings drop to `--text-body-sm` weight 500, so 16px and 14px never co-occur in the 280px column. New § Near-size adjacency rule caps the panel at two of the three adjacent roles and carries hierarchy by weight |
+| 2 — `motion` gate was prose | **R-V1** — an `autonomous: false` `checkpoint:human-verify` before the install, with the `too-new` reasoning and the `13.0.0` warning carried verbatim |
+| 3 — three unvetted vendoring rows | **R-V2** — a plan task producing the same dated `read in full — no flags` evidence shape, enforced by new assertion 28 |
+| 4 — assertion 25 measured nothing rendered | **Bound to rasterised pixels.** New § Assertion 25 specifies a legend-region pixel-diff against a font-suppressed control run, plus a blank-crop discrimination control so three empty regions cannot satisfy it. Concrete RED probe stated. Gated on OQ-1 |
+| 5 — the §8 `SNAPSHOT_CATALOG` claim did not follow | **Corrected against source.** Assertion 13 narrowed to `.period-hud`, where it is true and load-bearing; §8 restates the real behavior, marks it **pre-existing Phase 2**, and recommends the approved-id filter that would make the original claim true. Now open item 4 |
+| 6 — html2canvas rationale goes false at `03-01` | **Reason rewritten for post-D-34.** The guard is retained and strengthened: in an SVG-as-image isolated document an externally-styled effect renders **not at all**, which is a harder failure than a rasterizer mismatch |
+| 7 — no roving-tabindex assertion | **New assertion 27** — exactly one writer in the composed DOM, RED probe "add a second writer in the rail" |
+
+**Owner decision recorded in the same pass:** the `[EXCEPTION]` this file carried at draft is
+**removed, not accepted** — Export's fill is mode-invariant `#0071e3` (4.70:1 in both modes),
+guarded by new assertion 26.
 
 ---
 
