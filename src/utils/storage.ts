@@ -33,7 +33,14 @@ import type {
 import { repairCameraState } from './camera';
 import { createEmptyColorMap, normalizeColor } from './colors';
 import { isSafeStableCountryId } from './countryIds';
-import { createDefaultLegendState, reconcileLegend } from './legend';
+import {
+  createDefaultLegendState,
+  LEGEND_BORDER_STYLES,
+  LEGEND_CORNERS,
+  LEGEND_TEXT_SIZES,
+  LEGEND_THEMES,
+  reconcileLegend,
+} from './legend';
 
 export const MAX_STORAGE_SERIALIZED_LENGTH = 1_000_000;
 export const MAX_STORAGE_JSON_DEPTH = 32;
@@ -54,23 +61,6 @@ const MAX_LEGEND_COORDINATE = WORLD_SIZE;
 const SNAPSHOT_IDS = new Set<string>(
   SNAPSHOT_CATALOG.map(({ id }) => id),
 );
-const LEGEND_THEMES = new Set<LegendTheme>(['light', 'dark', 'soft']);
-const LEGEND_TEXT_SIZES = new Set<LegendTextSize>([
-  'small',
-  'medium',
-  'large',
-]);
-const LEGEND_BORDER_STYLES = new Set<LegendBorderStyle>([
-  'none',
-  'hairline',
-  'strong',
-]);
-const LEGEND_CORNERS = new Set<LegendCorner>([
-  'top-left',
-  'top-right',
-  'bottom-left',
-  'bottom-right',
-]);
 
 export interface SaveMapValue {
   savedMap: SavedMap;

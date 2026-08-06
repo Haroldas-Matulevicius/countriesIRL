@@ -1,11 +1,13 @@
 import { DEFAULT_COLOR } from '../constants/colors';
 import type {
   EffectiveScene,
+  LegendBorderStyle,
   LegendCorner,
   LegendEntryState,
   LegendPosition,
   LegendState,
   LegendTextSize,
+  LegendTheme,
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
 import { normalizeColor } from './colors';
@@ -42,10 +44,25 @@ export const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
 });
 export const DEFAULT_LEGEND_BACKGROUND_OPACITY = 90;
 
-const LEGEND_THEMES = new Set(['light', 'dark', 'soft']);
-const LEGEND_TEXT_SIZES = new Set(['small', 'medium', 'large']);
-const LEGEND_BORDER_STYLES = new Set(['none', 'hairline', 'strong']);
-const LEGEND_CORNERS = new Set([
+// The one home for the legend vocabulary. Storage validation and the
+// composition reducer import these; a value added in only one place is a drift
+// bug, not a feature.
+export const LEGEND_THEMES: ReadonlySet<LegendTheme> = new Set([
+  'light',
+  'dark',
+  'soft',
+]);
+export const LEGEND_TEXT_SIZES: ReadonlySet<LegendTextSize> = new Set([
+  'small',
+  'medium',
+  'large',
+]);
+export const LEGEND_BORDER_STYLES: ReadonlySet<LegendBorderStyle> = new Set([
+  'none',
+  'hairline',
+  'strong',
+]);
+export const LEGEND_CORNERS: ReadonlySet<LegendCorner> = new Set([
   'top-left',
   'top-right',
   'bottom-left',

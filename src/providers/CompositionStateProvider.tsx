@@ -6,27 +6,27 @@ import {
 } from 'react';
 import type { PropsWithChildren } from 'react';
 
-import {
-  INITIAL_WORLD_CAMERA,
-  MAX_ZOOM,
-  MERCATOR_MAX_LATITUDE,
-  MIN_ZOOM,
-} from '../constants/camera';
+import { INITIAL_WORLD_CAMERA } from '../constants/camera';
 import type {
   CameraState,
   Composition,
   CompositionState,
-  LegendBorderStyle,
   LegendEntryState,
   LegendPosition,
   LegendState,
-  LegendTextSize,
-  LegendTheme,
   SnapshotId,
   VisibleCompositionSettings,
 } from '../types/composition';
+import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
-import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
+import {
+  createDefaultLegendState,
+  LEGEND_BORDER_STYLES,
+  LEGEND_CORNERS,
+  LEGEND_TEXT_SIZES,
+  LEGEND_THEMES,
+  reconcileLegend,
+} from '../utils/legend';
 
 const DEFAULT_SNAPSHOT_ID: SnapshotId = 'modern';
 const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
@@ -43,8 +43,6 @@ const DEFAULT_SETTINGS: VisibleCompositionSettings = Object.freeze({
 const MIN_LEGEND_BACKGROUND_OPACITY = 70;
 const MAX_LEGEND_BACKGROUND_OPACITY = 100;
 const MIN_LEGEND_ORDER = 0;
-const FULL_LONGITUDE_SPAN = 360;
-const HALF_LONGITUDE_SPAN = 180;
 
 const SNAPSHOT_IDS = new Set<SnapshotId>([
   'modern',
@@ -52,23 +50,6 @@ const SNAPSHOT_IDS = new Set<SnapshotId>([
   '1700',
   '1815',
   '1914',
-]);
-const LEGEND_THEMES = new Set<LegendTheme>(['light', 'dark', 'soft']);
-const LEGEND_TEXT_SIZES = new Set<LegendTextSize>([
-  'small',
-  'medium',
-  'large',
-]);
-const LEGEND_BORDER_STYLES = new Set<LegendBorderStyle>([
-  'none',
-  'hairline',
-  'strong',
-]);
-const LEGEND_PRESETS = new Set<Exclude<LegendPosition['preset'], null>>([
-  'top-left',
-  'top-right',
-  'bottom-left',
-  'bottom-right',
 ]);
 
 export type LegendStyleState = Pick<
@@ -127,38 +108,9 @@ function canonicalizeFiniteNumber(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function canonicalizeLongitude(longitude: number): number {
-  const finiteLongitude = canonicalizeFiniteNumber(
-    longitude,
-    INITIAL_WORLD_CAMERA.centerLongitude,
-  );
-
-  return (
-    ((finiteLongitude + HALF_LONGITUDE_SPAN) % FULL_LONGITUDE_SPAN +
-      FULL_LONGITUDE_SPAN) %
-      FULL_LONGITUDE_SPAN -
-    HALF_LONGITUDE_SPAN
-  );
-}
-
-function canonicalizeCamera(camera: CameraState): CameraState {
-  return {
-    zoom: clamp(
-      canonicalizeFiniteNumber(camera.zoom, INITIAL_WORLD_CAMERA.zoom),
-      MIN_ZOOM,
-      MAX_ZOOM,
-    ),
-    centerLongitude: canonicalizeLongitude(camera.centerLongitude),
-    centerLatitude: clamp(
-      canonicalizeFiniteNumber(
-        camera.centerLatitude,
-        INITIAL_WORLD_CAMERA.centerLatitude,
-      ),
-      -MERCATOR_MAX_LATITUDE,
-      MERCATOR_MAX_LATITUDE,
-    ),
-  };
-}
+// Camera repair has one home: `repairCameraState` in `utils/camera` applies
+// the same zoom/latitude clamps and longitude wrap the camera controller uses.
+const canonicalizeCamera = repairCameraState;
 
 function canonicalizeSnapshotId(snapshotId: SnapshotId): SnapshotId {
   return SNAPSHOT_IDS.has(snapshotId) ? snapshotId : DEFAULT_SNAPSHOT_ID;
@@ -221,7 +173,7 @@ function canonicalizeLegendPosition(
     x: canonicalizeFiniteNumber(position.x, fallback.x),
     y: canonicalizeFiniteNumber(position.y, fallback.y),
     preset:
-      position.preset !== null && LEGEND_PRESETS.has(position.preset)
+      position.preset !== null && LEGEND_CORNERS.has(position.preset)
         ? position.preset
         : null,
   };
