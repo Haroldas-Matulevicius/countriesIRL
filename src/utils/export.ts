@@ -15,7 +15,7 @@ const MAX_FILENAME_NAME_TOKEN_LENGTH = 60;
 const PNG_MIME_TYPE = 'image/png';
 const SVG_VIEWBOX = `0 0 ${EXPORT_SIZE} ${EXPORT_SIZE}`;
 const SVG_PRESERVE_ASPECT_RATIO = 'xMidYMid meet';
-const EXPORT_BORDER_WIDTH = '1';
+const EXPORT_BORDER_WIDTH = '0.75';
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 
 const CAMERA_LAYER_SELECTOR = '[data-layer="camera"]';
@@ -210,8 +210,8 @@ function sanitizeExportClone(svg: SVGSVGElement): void {
       // PNG while the screen still showed a hairline - the borders looked
       // "super thick" in the download only. Pinning the vector effect makes the
       // stroke resolve in viewport space: EXPORT_BORDER_WIDTH user units at the
-      // 540px frame is one CSS pixel, which scale 2 rasterizes to a crisp 2px
-      // line at 1080 regardless of how far the creator zoomed in.
+      // 540px frame is EXPORT_BORDER_WIDTH CSS pixels, which scale 2 rasterizes
+      // to a crisp line at 1080 regardless of how far the creator zoomed in.
       path.setAttribute('vector-effect', 'non-scaling-stroke');
       path.style.stroke = DEFAULT_BORDER_COLOR;
       path.style.strokeWidth = EXPORT_BORDER_WIDTH;

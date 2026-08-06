@@ -123,7 +123,7 @@
 
 /*
  * Borders are black at every state, so the state hierarchy is carried by
- * stroke-width alone: 1.25 resting, 2 hover, 2.5 selected. `non-scaling-stroke`
+ * stroke-width alone: 0.75 resting, 1.5 hover, 2 selected. `non-scaling-stroke`
  * (set on the path in MapCanvas) means these are screen pixels at any camera
  * zoom - a country at 24x does not grow a fat outline.
  */
@@ -131,7 +131,7 @@
   cursor: pointer;
   stroke: var(--map-border-default);
   stroke-linejoin: round;
-  stroke-width: 1.25px;
+  stroke-width: 0.75px;
   transition:
     fill var(--motion-fast) var(--easing-control),
     stroke var(--motion-fast) var(--easing-control),
@@ -142,12 +142,12 @@
  * geometry is rasterized differently by the export clone than it is painted. */
 .country-path.hovered:not(.focused) {
   stroke: var(--map-border-hover);
-  stroke-width: 2px;
+  stroke-width: 1.5px;
 }
 
 .country-path.selected:not(.focused) {
   stroke: var(--map-border-selected);
-  stroke-width: 2.5px;
+  stroke-width: 2px;
 }
 
 /*
@@ -167,7 +167,7 @@
 .map-export-source[data-export-mode="true"] .country-path {
   stroke: var(--map-border-default);
   stroke-dasharray: none;
-  stroke-width: 1.25px;
+  stroke-width: 0.75px;
   transition: none;
 }
 

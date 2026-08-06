@@ -505,7 +505,7 @@ describe('exportMapPng', (): void => {
     const clonedPath = clonedSvg?.querySelector('path.country-path');
     expect(clonedPath?.getAttribute('fill')).toBe('#DC2626');
     expect(clonedPath?.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
-    expect(clonedPath?.getAttribute('stroke-width')).toBe('1');
+    expect(clonedPath?.getAttribute('stroke-width')).toBe('0.75');
     // Pinned: without this the camera's `scale(zoom)` multiplies the border
     // width and the PNG ships fat outlines the screen never showed.
     expect(clonedPath?.getAttribute('vector-effect')).toBe('non-scaling-stroke');
@@ -665,7 +665,7 @@ describe('exportMapPng', (): void => {
     wrapped.forEach((path: FakeElement): void => {
       expect(path.getAttribute('d')).not.toBeNull();
       expect(path.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
-      expect(path.getAttribute('stroke-width')).toBe('1');
+      expect(path.getAttribute('stroke-width')).toBe('0.75');
       expect(path.getAttribute('vector-effect')).toBe('non-scaling-stroke');
       expect(path.getAttribute('aria-hidden')).toBeNull();
       expect(path.getAttribute('focusable')).toBeNull();

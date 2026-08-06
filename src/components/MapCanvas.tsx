@@ -73,8 +73,8 @@ const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
 // Presentation attributes; `MapCanvas.css` wins over them on screen. They exist
 // so a serialized path (export clone) carries the same weights the CSS paints.
-const DEFAULT_STROKE_WIDTH = '1.25';
-const SELECTED_STROKE_WIDTH = '2.5';
+const DEFAULT_STROKE_WIDTH = '0.75';
+const SELECTED_STROKE_WIDTH = '2';
 const WRAP_OFFSETS = [-MAP_VIEWBOX_SIZE, 0, MAP_VIEWBOX_SIZE] as const;
 
 interface MapTooltipContent {

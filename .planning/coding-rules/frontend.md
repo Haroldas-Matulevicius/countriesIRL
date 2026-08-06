@@ -346,7 +346,7 @@ chrome accent flips with the OS theme; the square does not.
 
 **Country border state is carried by stroke-*width*, not stroke colour.** Every boundary is
 black (`--map-border-default` / `-hover` / `-selected` are all `#000000`), so hover and
-selection have nowhere darker to go: 1.25px resting → 2px hover → 2.5px selected, with focus
+selection have nowhere darker to go: 0.75px resting → 1.5px hover → 2px selected, with focus
 the one exception (teal `--map-border-focus`, dashed, 3px, because it must read against a
 selected country). Do not "fix" the identical colour tokens by lightening the resting border —
 the three names stay separate so a future re-tint has a seam to open at, and the export reads
@@ -821,7 +821,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-07-27 — black country borders: state is carried by stroke-width (1.25/2/2.5) rather than colour, and map widths are screen pixels only because the path keeps `non-scaling-stroke` inside the camera's scale group.*
-*Last updated: 2026-07-26 — wave789 review rules and the inspector redesign: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity; screen-sized chrome may not overlay canvas-positioned content, stacked controls in the 376px column, derived grid tracks over fixed counts, empty-state chips, sticky inspector offset summed from tokens.*
+*Last updated: 2026-08-06 — border weights toned down to 0.75/1.5/2 (focus stays 3px) and the export normalizes to 0.75; weight-state system unchanged.*
+*Last updated: 2026-07-26/27 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*
