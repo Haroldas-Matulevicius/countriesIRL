@@ -214,13 +214,24 @@ app-bar + right-inspector arrangement — with a **super-clean minimal studio**:
 scrollable/pannable map canvas with a Google-Maps-like feel, and **one left-side tool HUD**
 holding every tool (coloring, palettes, legend, text, export, saved maps, period). Neutral
 near-white chrome, one restrained accent, clean typography, no visual noise, no "techy"
-density. Nothing about map *content* rendering changes in this phase — this is chrome,
-layout, and tokens only.
+density. The design system is **adopted wholesale from the sibling Themely repo** (D-01…D-03).
+
+> **Amended 2026-08-06 (Amendment 3).** This phase was originally specced as "chrome, layout,
+> and tokens only," with "nothing about map *content* rendering changes." **That is no longer
+> true, deliberately.** Three expansions were authorized during `/gsd:discuss-phase 3` and a
+> fourth after `/gsd:plan-phase 3` research. Two runtime dependencies enter the phase (`motion`
+> v12 and vendored lucide-animated icons, D-27/D-28), and the legend adopts Themely typography
+> (D-25) — and because the legend renders **inside the export-bearing composition**, that
+> **changes exported PNG pixels**. Export fixtures must therefore be re-baselined as a
+> deliberate, recorded act, never a silently updated fixture. Full detail:
+> `phases/03-clean-ui-overhaul-1-1-5-weeks/03-CONTEXT.md` § Roadmap Amendments.
 
 **Depends on:** Phase 2 engineering (complete). Does not wait for owner gates `02-25`/`02-28`
 to be *closed*, but must not disturb their evidence: the acceptance matrix binds `fe5f946`,
 so if `02-28` is still pending when Phase 3 lands, the owner performs the matrix against the
-preserved tag/commit, not against the restyled HEAD.
+preserved tag/commit, not against the restyled HEAD. **`03-01` therefore opens by creating an
+annotated git tag on `fe5f946` (D-31)** so the pre-restyle build stays trivially reachable;
+the matrix itself is untouched and the gate stays OPEN.
 
 **Transition-readiness constraint (binding for every Phase 3 plan):** the restyled editor is
 built **embed-ready** for the planned Themely transition (~1–2 months out) without doing any
@@ -233,7 +244,11 @@ coexist with a host app's stylesheet. No auth/entitlement awareness is added —
 the future host. Plans `03-02`/`03-04` carry the boundary; `/gsd:plan-phase 3` turns each point
 into a RED-provable gate (e.g. a grep gate on hard-coded `/data/` literals outside the config
 home). Embedding itself remains outside scope and needs new explicit authorization
-(§ Beyond v1.1).
+(§ Beyond v1.1). **Already largely discharged:** `StorageAdapter` exists (`storage.ts:71-88`)
+with exactly **one** production `localStorage` site (`storage.ts:142`), and hard-coded `/data/`
+literals number **three** in production fetch paths (`useGeoData.ts:11-12`, `snapshots.ts:7`).
+Two further literals in `historicalValidation.ts:1098,1190` are **safety predicates and must be
+exempted, not parameterised** — parameterising them would quietly widen the approval chain.
 
 **Plans (excruciating breakdown — final wording at `/gsd:plan-phase 3`):**
 
@@ -242,12 +257,22 @@ home). Embedding itself remains outside scope and needs new explicit authorizati
    neutral system (surfaces, text scale, one accent, borders, radii, shadows ≈ none/hairline),
    define the HUD anatomy and spacing grid. *Gate:* `themeTokens.test.ts` updated to the new
    set and proven RED against the old palette (re-add `--accent: #0f766e` → test fails).
-2. `03-02` **Layout contract.** Specify the target DOM: full-bleed canvas layer + left HUD
-   column (collapsible sections, one scroll container) + minimal floating map controls
-   (zoom/reset, bottom-right, Google-Maps idiom) + toast region. Breakpoint behavior: HUD
-   becomes a bottom drawer under the existing narrow-width breakpoint. *Gate:* a rewritten
-   `phase2CssContract.test.ts` (or successor `uiContract.test.ts`) asserting the new
-   selectors/tokens, each assertion broken once and observed RED before landing.
+2. `03-02` **Layout contract.** *(**Amendment 2** — this plan originally specified a "left HUD
+   **column** (collapsible sections, one scroll container)"; the HUD is now an **icon rail +
+   single flyout panel**, D-16.)* Specify the target DOM: full-bleed canvas layer + a ~56px
+   always-present icon rail that opens **one 280px tool panel at a time** (the VS Code / Figma
+   idiom, not an accordion) + minimal floating map controls (zoom/reset, bottom-right,
+   Google-Maps idiom) + toast region. The panel **reserves layout space** — the canvas reflows;
+   it does not overlay the map (D-19). Per **D-32** the map is a full-bleed *surface* carrying a
+   centred **1:1 export frame** so the creator sees exactly what lands in the PNG; the SVG
+   `viewBox` stays `0 0 1080 1080` and the frame is `data-editor-only`. Breakpoint behavior:
+   below the existing narrow breakpoint the rail becomes a **bottom bar** and a tapped tool
+   raises a **bottom sheet** (D-20). *Gate:* a rewritten `phase2CssContract.test.ts` (successor
+   `uiContract.test.ts`) asserting the new selectors/tokens, each assertion broken once and
+   observed RED before landing.
+   - *No `ResizeObserver` is required:* `useCameraController.ts:310-313` pins d3-zoom's `extent`
+     to `[[0,0],[1080,1080]]` and `MapCanvas.tsx:839-840` fixes the `viewBox`, so a panel reflow
+     cannot disturb the projection, the camera lease, or the export.
 3. `03-03` **Token replacement in `theme.css`.** Land the new token values; delete retired
    tokens rather than aliasing them so stale references fail loudly at the contract test.
    *Gate:* contract test green; `npm run lint && npm test` clean; zero references to retired
@@ -272,24 +297,69 @@ home). Embedding itself remains outside scope and needs new explicit authorizati
    if the neutral-unit copy regresses to a color readout.
 8. `03-08` **Responsive + reduced-preference pass.** 360px/200%-equivalent containment,
    `prefers-reduced-motion`/`-transparency` behavior re-verified in the new chrome.
-   *Gate:* `responsive.spec.ts` green on Chrome + Edge.
+   *Gate:* `responsive.spec.ts` green on **Chrome** (see the Edge note under `03-11`).
 9. `03-09` **CSS mass + dead-style sweep.** Delete orphaned rules (the 1128-line
    `Controls.css` is split per-surface); comment density matched to the new files.
    *Gate:* contract test's selector inventory shrinks — asserted, so growth fails.
-10. `03-10` **Independent non-author review of the aggregate diff + full gate.** Reviewer is
-    not the executor of 03-01…03-09. *Gate:* `npm run lint && npm test && npm run build` +
-    full `npm run test:e2e` on Chrome and Edge; findings fixed and re-reviewed.
+10. `03-10` **Export pipeline: own the SVG→PNG path.** *(**Amendment 4** — a plan the original
+    breakdown did not contain at all.)* Remove `html2canvas` and render the frozen clone
+    directly: serialise → embed required fonts inline as base64 `@font-face` in the SVG's
+    `<defs><style>` → `Image` → `drawImage` onto a 1080×1080 canvas → `toBlob` (**D-34**). The
+    font-embedding step is built **generalised** ("collect the fonts this composition uses"),
+    used only for Inter here, so Phase 4's text tools need not re-open the chokepoint
+    (**D-34a**). *Why:* the whole composition is a single SVG, and `html2canvas` only
+    `XMLSerializer`s it and rasterises it as an `<img>` — an isolated document that sees no
+    host `@font-face`. That is why `LegendOverlay.tsx:167` names Inter while the repo has **zero**
+    `@font-face` rules: **the legend already exports in a system fallback today.**
+    - **Blocking spike first (OQ-1):** prove an inline base64 `@font-face` actually renders
+      inside SVG-as-image in installed Chrome, **before** legend typography is locked.
+    - *Gate:* the 1080×1080 size contract, the clone contract, every existing refusal reason
+      (disconnected / multi-SVG / sibling-legend), `sanitizeExportClone`'s strip list, and
+      `data-editor-only` exclusion all preserved and RED-proven against the **new** path.
+      UI-SPEC assertion 25 must measure **rendered pixels** — a legend-region diff against a
+      font-suppressed control run, with a blank-crop discrimination control so three empty
+      regions cannot satisfy the inequality. Asserting `font-family: Inter` appears in the
+      clone's markup is **green today, before any work**, and is not acceptable evidence.
+    - ⚠ `src/utils/export.ts` is the most safety-critical file in the repo. This is Phase 3's
+      largest single risk and earns the `03-11` review on its own.
+11. `03-11` **Independent non-author review of the aggregate diff + full gate.** Reviewer is
+    not the executor of `03-01`…`03-10`. *Gate:* `npm run lint && npm test && npm run build` +
+    full `npm run test:e2e`.
+    - **Browser scope (D-33):** the gate runs **Chrome only**, and its evidence must state
+      **"Edge not certified — not installed"** rather than omit it or infer a pass. Microsoft
+      Edge is not installed on this machine, so the `msedge` Playwright project cannot launch.
+      ⚠ This contradicts `STATE.md`'s "Edge 150 — 71/71" record at `fe5f946`. That record is
+      **immutable Phase 2 evidence — annotate, never rewrite**; resolving it is filed against
+      Phase 2 and is **not** Phase 3 work. Phase 3 must not cite or repeat it.
 
-**Key decisions at plan time:** app bar dissolves vs. shrinks; HUD section order; whether the
-narrow-width drawer is bottom-sheet or overlay; accent hue for the new chrome.
+**Key decisions — all resolved before planning** (`03-CONTEXT.md` D-01…D-35): the app bar
+**dissolves entirely** (D-11); the narrow-width treatment is a **bottom sheet** over a bottom
+bar (D-20); the accent is **Apple Blue `#0071e3`**, reserved for one element per surface
+(D-05). Rail/panel widths, section order, and per-surface recipes are fixed in
+`03-UI-SPEC.md`.
 
-**Out of scope (Phase 3):** any change to map fills, palettes, borders, legend *content*
-model, bands/text tools (Phase 4); any data features (Phase 5); dark mode.
+**Out of scope (Phase 3):** any change to map fills, palettes, borders, legend *content* model,
+bands/text tools (Phase 4); any data features (Phase 5).
+*(**Amendment 1** — **dark mode is now IN scope**, ported class-based from Themely's "Lights
+Out" palette. The flip mechanism moves from `prefers-color-scheme` to a **`.dark` class on the
+editor mount root** (D-08), set by a neutral toggle pinned in the rail footer and persisted
+through the storage-adapter interface (D-30). **No `prefers-color-scheme` read anywhere** — not
+even to seed a first-run default — so a future host controls the class with no OS listener to
+fight it.)*
 
-**Risks:** the CSS contract test is load-bearing for export fidelity — rewriting it without
-RED-proving each assertion recreates the "gate that cannot fail" failure mode; the
-`02-28` matrix binds `fe5f946`, so restyling before the owner runs it must not be allowed to
-confuse which build the matrix describes.
+**Risks:**
+- The CSS contract test is load-bearing for export fidelity — rewriting it without RED-proving
+  each assertion recreates the "gate that cannot fail" failure mode this repo has shipped three
+  times.
+- **The dark-mode switch silently disarms an existing gate (D-35).**
+  `tests/e2e/responsive.spec.ts:1025,1048` proves exported PNGs are identical across themes by
+  flipping `page.emulateMedia({ colorScheme })`. Once `.dark` drives the palette that emulation
+  is a **no-op**, both exports are trivially identical, and **Live Invariant 9 loses its only
+  browser-level guard**. The assertion must be rebound to toggling the class and RED-proven by
+  making the export theme-sensitive on purpose.
+- The `02-28` matrix binds `fe5f946`, so restyling before the owner runs it must not be allowed
+  to confuse which build the matrix describes — mitigated by D-31's tag.
+- `03-10` rewrites the export chokepoint. Highest-risk change in the phase.
 
 ---
 ## Phase 4: Visual & Cartographic System (1.5–2 weeks)
@@ -353,7 +423,8 @@ Ramp model (`04-01`) is deliberately first — Phase 5's classing engine binds t
     the downloaded 1080×1080 PNG. *Gate:* the discrimination controls from `02-27` reused so
     a blank export cannot pass.
 11. `04-11` **Independent non-author aggregate review + full gate** (lint/test/tsc/build +
-    Chrome/Edge e2e), same bar as `03-10`.
+    Chrome e2e), same bar as `03-11`. *(Edge is not installed on this machine — see D-33; state
+    the browser scope plainly rather than inferring an Edge pass.)*
 
 **Key decisions at plan time:** exact ramp hex sets; whether hover/selected weight lives on
 the mesh or a duplicate highlight path; band gradient stops; text font stack (system vs.
@@ -572,10 +643,17 @@ reversals (insets, LLM import, deployment) are added mid-phase.
 3. **Decide the NFR3 warm-switch timing threshold** — set one from the advisory samples already
    recorded in `tests/e2e/history.spec.ts`, or explicitly extend D-63 into Phase 2. D-63 retired
    timing gates for **Phase 1 only** and does not carry forward on its own.
-4. **Run `/gsd:plan-phase 3`** once the gates are resolved — Phase 3 is fully specified above
-   and has no other prerequisite.
-5. **Do not dispatch any historical plan.** The material does not exist; approval cannot create it.
-6. **Deployment stays closed.** If hosting is ever wanted, it needs a new explicit authorization.
+4. ~~**Run `/gsd:plan-phase 3`**~~ **DONE 2026-08-06.** Phase 3 is planned: 11 plans, four
+   roadmap amendments landed above, and `03-UI-SPEC.md` approved. Phase 3 does **not** wait on
+   the `02-25`/`02-28` gates — it only must not disturb their evidence, which D-31's tag on
+   `fe5f946` handles. ▶ Next: `/gsd:execute-phase 3`.
+5. **Resolve the Edge-certification contradiction against Phase 2, not Phase 3.** `STATE.md`
+   records "Edge 150 — 71/71" at `fe5f946`, but Microsoft Edge is **not installed** on this
+   machine. That record is immutable Phase 2 evidence: **annotate it, never rewrite it.** Until
+   it is explained, no phase may cite it. Phase 3's `03-11` gate is scoped to Chrome and says so
+   (D-33).
+6. **Do not dispatch any historical plan.** The material does not exist; approval cannot create it.
+7. **Deployment stays closed.** If hosting is ever wanted, it needs a new explicit authorization.
 
 ## Progress
 
@@ -585,7 +663,7 @@ reversals (insets, LLM import, deployment) are added mid-phase.
 |---|---|---|---|---|
 | 1 | Foundation & Modern Map | ✅ **CLOSED** 2026-07-22 | 22/22 | 73/73 active must-haves verified; 7 deployment-only must-haves deferred (01-16, 01-17); 18/18 requirements satisfied. Chrome 150 + Edge 150 accepted, localhost-only. → [archive](milestones/v1.0/ROADMAP-ARCHIVE.md#phase-1-foundation--modern-map-115-weeks) · [phase dir](milestones/v1.0/phases/01-foundation-modern-map-1-1-5-weeks/) |
 | 2 | Region Variants & Advanced Features | 🔄 **EXECUTING** — engineering complete, 2 owner gates open | 26/36 | World canvas, camera, Locate, legend, composition persistence, export transaction. Historical snapshots **deferred** → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md) |
-| 3 | Clean UI Overhaul | ⏳ **PENDING** (v1.1) | 0/0 | Full-bleed canvas + left tool HUD, neutral token system, Design.md. Starts after the v1.0 owner gates resolve. |
+| 3 | Clean UI Overhaul | 📋 **PLANNED** (v1.1) — ready to execute | 0/11 | Full-bleed canvas + icon rail/flyout HUD, Themely token system, Design.md, dark mode, owned SVG→PNG export path. **4 roadmap amendments landed 2026-08-06.** Context `03-CONTEXT.md` (D-01…D-35) · research `03-RESEARCH.md` · design contract `03-UI-SPEC.md` (28 RED-provable assertions). |
 | 4 | Visual & Cartographic System | ⏳ **PENDING** (v1.1) | 0/0 | Sequential ramps, water presets, interior-border mesh, gradient bands, text tools, legend overhaul. |
 | 5 | Data-Driven Maps | ⏳ **PENDING** (v1.1) | 0/0 | CSV import, classed choropleth engine, value labels, auto range legend. LLM import owner-gated, not scheduled. |
 | 6 | Polish & Launch | ⏳ **PENDING** (v1.1) | 0/0 | Onboarding, shortcuts, WCAG, perf, guide, v1.1 acceptance. Deployment/insets/LLM are explicit owner decisions. |
