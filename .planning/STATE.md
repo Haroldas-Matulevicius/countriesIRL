@@ -90,6 +90,12 @@ Per-plan chronology →
 [`02-ACTIVITY-LOG.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md)
 and the `02-NN-SUMMARY.md` files. One line per event here.
 
+- 2026-08-06 — **Pipeline restructured toward the classed-choropleth product vision.** The old
+  Phase 3 "Polish & Launch" stub was replaced by Phases 3–6 (Clean UI Overhaul → Visual &
+  Cartographic System → Data-Driven Maps → Polish & Launch), grouped as milestone **v1.1**;
+  v1.0 closes at Phase 2 acceptance. Phase 1/2 records, counts, owner gates, and deferral
+  language untouched. LLM data import and inset boxes recorded as explicit owner-gated
+  decisions, not scheduled work.
 - 2026-07-26 — **Documentation pass.** The invariants/constraints triplication across `STATE.md`,
   `HANDOFF.json`, and `.continue-here.md` was resolved: contracts moved to
   `coding-rules/general.md`, counts to the `ROADMAP.md` Progress table, resumption to
@@ -141,6 +147,9 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 ### Pending Todos
 
 - Hand `02-28` to the owner, bound to `fe5f946`.
+- When v1.0 closes (both owner gates resolved), add the **v1.1 — Clean Studio & Data-Driven
+  Maps** entry (Phases 3–6) to `MILESTONES.md` and update its "Phases:" line and
+  "Last phase number" footer; the roadmap already carries the v1.1 structure (2026-08-06).
 - ~~Diagnose the intermittent `historicalPreparationCli` failures.~~ **RESOLVED 2026-07-26**
   (commit `2f08050`). Root cause was not a flaky test: `fs.stat` was called without
   `{ bigint: true }`, truncating the NTFS 64-bit file ID to a JS double, so two distinct files

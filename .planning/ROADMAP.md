@@ -1,7 +1,9 @@
 # Roadmap: CountriesIRL Map Generator
 
 > **Status:** v1.0 — MVP — open 2026-07-21. Phase 2 executing: engineering complete, two owner
-> gates open. **The [Progress](#progress) table below is canonical for status and counts.**
+> gates open. Pipeline restructured 2026-08-06 toward the classed-choropleth product vision
+> (Phases 3–6, milestone v1.1). **The [Progress](#progress) table below is canonical for status
+> and counts.**
 > **Pointers:** [`STATE.md`](STATE.md) (live position) · [`MILESTONES.md`](MILESTONES.md)
 > (milestone outcomes + deferrals) · [`ARCHIVES.md`](ARCHIVES.md) (archive navigation) ·
 > [`CODING_RULES.md`](CODING_RULES.md) → [`coding-rules/general.md`](coding-rules/general.md)
@@ -9,28 +11,49 @@
 > [`milestones/v1.0/`](milestones/v1.0/) (in-flight capsule).
 > ────────────────────────────────────────
 
-**Target:** MVP in 4–6 weeks. **Browser-only, localhost-only — no deployment is authorized.**
-**Focus:** a locally complete Europe release, then one unified world composition platform
+**Target product:** a browser-only map studio in which a creator — with zero GIS or design
+skill — produces a publication-grade classed choropleth (the Eurostat house style is the
+reference bar): a clean full-bleed world canvas, hue-family sequential palettes, coastline-quiet
+borders, a title band and footer band with real text tools, an editable range legend with a
+"no data" class, per-country value labels, and a CSV upload that auto-fills and
+proportionally shades the whole map — exported as an exact 1080×1080 PNG.
+**Browser-only, localhost-only — no deployment is authorized.**
 
 ## Overview
 
 CountriesIRL is a browser-only choropleth map generator for Instagram creators. Phase 1
 shipped the Europe foundation — selection, coloring, bounded undo/redo, local persistence,
-and exact 1080×1080 PNG export. Phase 2 transforms that fixed-Europe editor into a single
+and exact 1080×1080 PNG export. Phase 2 transformed that fixed-Europe editor into a single
 horizontally wrapping full-world composition canvas with pan/zoom, Locate across 195 core
 states, a catalog-driven period selector, an export-safe in-canvas legend, and complete
-composition save/load. Phase 3 is polish and launch.
+composition save/load. The remaining pipeline turns that engine into the target product in
+four steps: **Phase 3** strips the editor down to a clean, minimal studio (full-bleed canvas,
+one left tool HUD); **Phase 4** builds the visual and cartographic system (sequential palette
+ramps, water presets, interior-only borders, title/footer gradient bands, text tools, legend
+overhaul); **Phase 5** makes maps data-driven (CSV import, classed choropleth engine, value
+labels, auto legend); **Phase 6** polishes and launches.
 
 **Historical borders are deferred out of v1.0.** The engine — validation, scene
 composition, modern fallback, approval-aware promotion — ships and is tested. The
 rights-cleared archival geometry does not exist and is a data-acquisition problem, not an
 engineering one. See
 [`phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md).
+No phase in this roadmap promises historical geometry.
 
 ## Milestones
 
-- **v1.0 — MVP** — Phases 1–3 (opened 2026-07-21). Per-phase status and counts live in the
+- **v1.0 — MVP** — Phases 1–2 (opened 2026-07-21). Closes when the two open Phase 2 owner
+  gates (`02-25`, `02-28`) are resolved. Per-phase status and counts live in the
   **Progress table below** (canonical — don't duplicate counts here).
+- **v1.1 — Clean Studio & Data-Driven Maps** — Phases 3–6 (defined 2026-08-06, not yet
+  started). The classed-choropleth product vision: clean UI, cartographic visual system,
+  CSV-driven maps, polish/launch.
+
+**Why v1.0 closes at Phase 2:** every piece of v1.0 evidence — requirements annotations,
+acceptance records, the archive capsule — binds Phases 1–2; the old "Phase 3: Polish &
+Launch" stub had zero plans and zero evidence, so moving launch into v1.1 rewrites nothing.
+`MILESTONES.md` gets its v1.1 entry when v1.0 actually closes (recorded as a pending todo in
+[`STATE.md`](STATE.md)).
 
 Full milestone detail: [`MILESTONES.md`](MILESTONES.md).
 
@@ -182,61 +205,290 @@ Cross-cutting constraints:
 - SVG export, cloud sync, authentication, sharing URLs, analytics, public deployment, backend/API/server infrastructure, and environment secrets
 
 ---
-## Phase 3: Polish & Launch (1–1.5 weeks)
+## Phase 3: Clean UI Overhaul (1–1.5 weeks)
 
-**Goal:** Production-ready MVP, documentation, user testing.
+**Goal:** Replace the current editor chrome — the slate/teal token system (`--accent: #0f766e`,
+`--text-primary: #111827`, `--border-strong: #1f2937`, the heavy `--shadow-inspector`/
+`--shadow-navigation` panels, and the retired-in-name-only `--glass-*` family) and the
+app-bar + right-inspector arrangement — with a **super-clean minimal studio**: a full-bleed,
+scrollable/pannable map canvas with a Google-Maps-like feel, and **one left-side tool HUD**
+holding every tool (coloring, palettes, legend, text, export, saved maps, period). Neutral
+near-white chrome, one restrained accent, clean typography, no visual noise, no "techy"
+density. Nothing about map *content* rendering changes in this phase — this is chrome,
+layout, and tokens only.
 
-### Deliverables
+**Depends on:** Phase 2 engineering (complete). Does not wait for owner gates `02-25`/`02-28`
+to be *closed*, but must not disturb their evidence: the acceptance matrix binds `fe5f946`,
+so if `02-28` is still pending when Phase 3 lands, the owner performs the matrix against the
+preserved tag/commit, not against the restyled HEAD.
 
-- UI refinement & visual polish
-- Responsive design for tablets
-- Tooltips & onboarding flow
-- User guide / FAQ
-- Keyboard shortcuts
-- Accessibility audit (WCAG AA)
-- Performance optimization
-- Comprehensive error handling
-- Deploy to public URL (GitHub Pages, Vercel, Netlify) — **requires a new explicit owner authorization; none exists**
-- Sharing link for team (write-up for creators)
+**Plans (excruciating breakdown — final wording at `/gsd:plan-phase 3`):**
+
+1. `03-01` **Design.md + design-token specification.** Create `Design.md` (CLAUDE.md already
+   anticipates it): audit and name every current token being retired, define the replacement
+   neutral system (surfaces, text scale, one accent, borders, radii, shadows ≈ none/hairline),
+   define the HUD anatomy and spacing grid. *Gate:* `themeTokens.test.ts` updated to the new
+   set and proven RED against the old palette (re-add `--accent: #0f766e` → test fails).
+2. `03-02` **Layout contract.** Specify the target DOM: full-bleed canvas layer + left HUD
+   column (collapsible sections, one scroll container) + minimal floating map controls
+   (zoom/reset, bottom-right, Google-Maps idiom) + toast region. Breakpoint behavior: HUD
+   becomes a bottom drawer under the existing narrow-width breakpoint. *Gate:* a rewritten
+   `phase2CssContract.test.ts` (or successor `uiContract.test.ts`) asserting the new
+   selectors/tokens, each assertion broken once and observed RED before landing.
+3. `03-03` **Token replacement in `theme.css`.** Land the new token values; delete retired
+   tokens rather than aliasing them so stale references fail loudly at the contract test.
+   *Gate:* contract test green; `npm run lint && npm test` clean; zero references to retired
+   token names (`grep` gate wired into the contract test so it can fail).
+4. `03-04` **Workspace restructure.** `MapWorkspace` re-slotted: canvas becomes full-bleed;
+   the typed `legendSlot`/`navigationSlot` contract and export-membership semantics preserved
+   verbatim; the inspector column retired as a *container* (its tools move, not die).
+   *Gate:* `tests/e2e/responsive.spec.ts` updated + RED-proven; export e2e still green
+   (placement still decides export membership).
+5. `03-05` **Left HUD shell + coloring/palette tools migration.** HUD component with
+   collapsible sections; move color presets, custom hex, bulk apply, undo/redo into it.
+   `Controls` keeps its single-component `variant` rule — a HUD variant is added, never a
+   copy. *Gate:* color-workflow e2e slice green; keyboard/focus order proven in e2e.
+6. `03-06` **Legend, saved maps, period, export migration + app-bar declutter.** Remaining
+   tools move into HUD sections; the app bar reduces to identity + save state + export (or
+   dissolves entirely — plan-time decision). Status allowlist (`ToastRegion`) untouched.
+   *Gate:* persistence + export e2e slices green; the `02-22` action-order semantics either
+   preserved or explicitly superseded in the plan (recorded, not silent).
+7. `03-07` **Map chrome polish.** Floating zoom/reset controls, hover states, cursor
+   discipline (colorable = pointer, neutral units = default — carries the Kosovo fix
+   forward), tooltip restyle. *Gate:* camera e2e slice green; a tooltip assertion that fails
+   if the neutral-unit copy regresses to a color readout.
+8. `03-08` **Responsive + reduced-preference pass.** 360px/200%-equivalent containment,
+   `prefers-reduced-motion`/`-transparency` behavior re-verified in the new chrome.
+   *Gate:* `responsive.spec.ts` green on Chrome + Edge.
+9. `03-09` **CSS mass + dead-style sweep.** Delete orphaned rules (the 1128-line
+   `Controls.css` is split per-surface); comment density matched to the new files.
+   *Gate:* contract test's selector inventory shrinks — asserted, so growth fails.
+10. `03-10` **Independent non-author review of the aggregate diff + full gate.** Reviewer is
+    not the executor of 03-01…03-09. *Gate:* `npm run lint && npm test && npm run build` +
+    full `npm run test:e2e` on Chrome and Edge; findings fixed and re-reviewed.
+
+**Key decisions at plan time:** app bar dissolves vs. shrinks; HUD section order; whether the
+narrow-width drawer is bottom-sheet or overlay; accent hue for the new chrome.
+
+**Out of scope (Phase 3):** any change to map fills, palettes, borders, legend *content*
+model, bands/text tools (Phase 4); any data features (Phase 5); dark mode.
+
+**Risks:** the CSS contract test is load-bearing for export fidelity — rewriting it without
+RED-proving each assertion recreates the "gate that cannot fail" failure mode; the
+`02-28` matrix binds `fe5f946`, so restyling before the owner runs it must not be allowed to
+confuse which build the matrix describes.
+
+---
+## Phase 4: Visual & Cartographic System (1.5–2 weeks)
+
+**Goal:** Give the studio a real cartographic language: **hue-family sequential palette
+ramps** (reds, blues, purples, greens — ordered light→dark shades with a stable
+value→shade-index API, replacing the flat 10-swatch `COLOR_PRESETS`), **water/ocean shading
+presets**, an **interior-borders-only stroke system** so country outlines all but disappear
+against water, **title/footer white gradient bands**, **export-safe text tools**, and a
+**legend overhaul** with range-style entries and a "no data" row. Everything lands in the
+SVG composition layer and survives the html2canvas export clone byte-for-byte.
+
+**Depends on:** Phase 3 (tools live in the HUD; band/text editing needs its sections).
+Ramp model (`04-01`) is deliberately first — Phase 5's classing engine binds to it.
+
+**Plans:**
+
+1. `04-01` **Ramp data model.** Pure module: a ramp = hue family + N ordered shades +
+   `shadeForIndex(i, n)` / `shadeForValue(t)` accessors; serialization stable for
+   persistence. *Gate:* unit tests including order monotonicity (shuffle a ramp → RED).
+2. `04-02` **Ramp presets + palette UI.** Curated red/blue/purple/green/neutral ramps
+   (Eurostat-grade, light→dark), WCAG-checked label contrast per shade; HUD palette section
+   renders ramps as ordered strips; manual per-country coloring keeps custom hex. *Gate:*
+   a contrast assertion that fails if any shade/label pairing drops below threshold.
+3. `04-03` **Water & background presets.** `--map-surface` becomes a creator-facing choice
+   (paper white, cool tint, soft grey, light blue); opaque, export-safe, persisted. *Gate:*
+   export e2e samples PNG background pixels — preset change must change bytes (RED-provable
+   by pinning the wrong preset).
+4. `04-04` **Interior-border mesh (build-time).** Extend the mapshaper pipeline to derive a
+   shared-interior-borders line layer from the world asset (edges present in exactly two
+   polygons); hash-recorded in `world-manifest.json` beside the polygon asset;
+   `npm run data:world:check` extended to verify it. *Gate:* the check fails on a mesh whose
+   hash or edge count drifts from the manifest (mutate one byte → RED).
+5. `04-05` **Border rendering rework.** Fills keep no/hairline stroke; the interior mesh is
+   drawn as its own non-interactive layer inside the camera transform, weight states
+   (hover/selected) re-expressed on it; coastlines therefore render effectively unstroked.
+   `non-scaling-stroke` pinning in the export clone preserved. *Gate:* export e2e asserts a
+   coastline sample point has no dark stroke while an inland border sample does — each
+   direction broken once and observed RED.
+6. `04-06` **Title/footer gradient bands.** Optional top band (default on) and bottom band
+   (default off): white→transparent vertical gradients anchored to the square's edges,
+   height creator-adjustable up to a hard cap of **1/7 of the export square** each; rendered
+   as composition-layer SVG rects with gradient fills (no CSS `filter`/`backdrop-filter` —
+   export-unsafe). *Gate:* unit test on the cap (request 1/5 → clamped, and a clamp-removal
+   mutation goes RED); export e2e verifies band pixels in the PNG.
+7. `04-07` **Text tools.** Title / subtitle / attribution text boxes: SVG `<text>` in the
+   composition layer, HUD editing (content, size step, weight, alignment, position within
+   band), sanitized input, sensible length bounds. *Gate:* export e2e proves text lands in
+   PNG bytes; a refusal path for text overflowing the square (mirrors legend overflow
+   blocking).
+8. `04-08` **Legend overhaul.** Fix the editability gaps found in UAT (labels, order,
+   position, style must be *reachably* editable from the HUD); add range-entry mode
+   ("6.0–10.0") alongside label mode; add an optional "no data" row bound to the
+   neutral-unit grey. *Gate:* e2e drives every editing affordance; the "no data" row must
+   fail RED if the neutral color and the row's swatch diverge.
+9. `04-09` **Persistence V3.** Compositions persist ramp/water/border choices, bands, and
+   text boxes; V2 migrates in memory; the same pre-parse raw/depth/node bounds extended and
+   re-tested. *Gate:* storage unit suite (bounds, migration, round-trip) + persistence e2e.
+10. `04-10` **Composition export integration.** One e2e that builds the full reference-style
+    frame — ramp fills, quiet coastlines, top band, title, range legend — and byte-inspects
+    the downloaded 1080×1080 PNG. *Gate:* the discrimination controls from `02-27` reused so
+    a blank export cannot pass.
+11. `04-11` **Independent non-author aggregate review + full gate** (lint/test/tsc/build +
+    Chrome/Edge e2e), same bar as `03-10`.
+
+**Key decisions at plan time:** exact ramp hex sets; whether hover/selected weight lives on
+the mesh or a duplicate highlight path; band gradient stops; text font stack (system vs.
+bundled — bundled needs license care and export embedding).
+
+**Out of scope (Phase 4):** value→class binding and any data import (Phase 5); pattern
+fills; inset boxes; label auto-placement beyond the fixed band positions.
+
+**Risks:** the mesh layer must never drift from the polygon asset (hash-bind both, verify in
+`data:world:check`); gradient/text rendering under html2canvas is the highest-fidelity risk —
+prove PNG bytes early (`04-06`/`04-07`), not at the end; ramp contrast vs. white value labels
+is an accessibility trap (owned by `04-02`'s gate).
+
+---
+## Phase 5: Data-Driven Maps (1–1.5 weeks)
+
+**Goal:** A creator uploads a CSV of countries and values, and the map fills itself: a
+**classed choropleth engine** (quantile / equal-interval / manual breaks, adjustable class
+count) maps values onto a Phase 4 ramp with proportional shading, unmatched countries fall to
+the "no data" class, optional **per-country value labels** render export-safe, and the range
+**legend generates itself** from the breaks. Deterministic and fully client-side — no
+network, no LLM (see the owner-gated subsection).
+
+**Depends on:** Phase 4 (`04-01` ramp API, `04-08` range legend, neutral "no data"
+treatment) and Phase 3 (HUD slot for the Data section).
+
+**Plans:**
+
+1. `05-01` **CSV parser.** Client-side, bounded before parse (size/row/field caps in the
+   spirit of `storage.ts`), quoted-field/RFC-4180 tolerant, typed result contract
+   (`parsed | refused(reason)`), zero dependencies or one vetted parser — plan-time
+   decision. *Gate:* unit suite over malformed fixtures (unterminated quote, BOM, CRLF,
+   10MB bomb → refused), each refusal RED-provable.
+2. `05-02` **Country matcher.** Column mapping UI + matcher: exact ISO-3 first, then
+   case/diacritic-insensitive name match against the 195-core catalog + alias table
+   ("Czechia"/"Czech Republic", "Türkiye"/"Turkey"); ambiguous or unmatched rows go to an
+   explicit report, never silently dropped; neutral units (Kosovo et al.) are reported as
+   "not colorable", not matched. *Gate:* unit fixtures for alias, ambiguity, and
+   neutral-unit rows; a silent-drop mutation must go RED.
+3. `05-03` **Classing engine.** Pure functions: quantile, equal-interval, and manual break
+   arrays; adjustable class count (3–9); stable tie/edge handling; missing → "no data".
+   *Gate:* property-style unit tests (every value lands in exactly one class; class edges
+   verified against hand-computed fixtures).
+4. `05-04` **Ramp binding + apply transaction.** Class index → `shadeForIndex`; applying a
+   dataset is **one undoable action** in colors-only history (fits the existing reducer);
+   re-applying with new breaks replaces, not stacks. *Gate:* unit + e2e undo/redo across an
+   apply.
+5. `05-05` **Data HUD section.** Upload, column mapping, break method/count controls, live
+   preview, unmatched-row report surface; refusals routed through the `ToastRegion`
+   allowlist. *Gate:* e2e drives the full happy path and one refusal path.
+6. `05-06` **Value labels.** Optional per-country labels (the dataset value): formatting
+   (decimals, `%`, thousands), centroid-anchored with the existing label-point logic,
+   automatic light/dark text per underlying shade (uses `04-02` contrast machinery), small
+   countries elide below a zoom-dependent threshold; export-safe SVG text. *Gate:* export
+   e2e finds label glyph pixels in the PNG; contrast assertion RED-provable.
+7. `05-07` **Auto legend from breaks.** Classing output feeds `04-08` range entries +
+   "no data" row automatically; regenerates on break changes; stays hand-editable after.
+   *Gate:* e2e asserts legend ranges equal engine breaks (mutating the wiring → RED).
+8. `05-08` **Persistence + integration + independent review.** Dataset bindings persist
+   (bounded); one integration e2e reproduces the full Eurostat-style reference frame from a
+   fixture CSV and byte-inspects the PNG; independent non-author aggregate review + full
+   gate.
+
+**Owner-gated (NOT scheduled — requires new explicit authorization):** LLM-assisted messy-data
+import ("paste anything, the model maps it"). It requires network egress and an API key, which
+violates the standing browser-only/localhost-only/no-secrets constraint — the same
+authorization class as deployment. The deterministic CSV path above is the deliverable; this
+item may not be started, stubbed, or implied shipped without a recorded owner decision.
+
+**Key decisions at plan time:** vendored parser vs. hand-rolled; alias table source;
+label elision threshold; whether a dataset re-apply prompts when manual colors would be
+overwritten.
+
+**Out of scope (Phase 5):** multi-dataset overlays, time series/animation, diverging ramps
+(sequential only in v1.1), API/URL data sources, LLM import (owner-gated above).
+
+**Risks:** name-matching errors silently coloring the wrong country is the credibility
+killer — the unmatched/ambiguous report is a hard requirement, not polish; large-CSV
+performance (bound before parse, like storage); undo semantics across bulk apply must not
+flood the 50-action history.
+
+---
+## Phase 6: Polish & Launch (1–1.5 weeks)
+
+**Goal:** Production-ready product, documentation, user testing — the v1.1 close-out.
+
+**Depends on:** Phases 3–5 complete; the v1.0 owner gates resolved.
+
+**Plans (sketch — final breakdown at plan time):**
+
+1. `06-01` Onboarding flow + tooltips for the HUD tool set
+2. `06-02` Keyboard shortcut system + reference sheet
+3. `06-03` WCAG AA audit across the new chrome, ramps, labels, and bands; fixes
+4. `06-04` Performance pass (large-CSV apply, label rendering, export latency) with
+   measured before/after numbers — no self-comparing gates
+5. `06-05` Error-handling and refusal-copy sweep (every path through the `ToastRegion`
+   allowlist, creator-safe language)
+6. `06-06` User guide / FAQ for creators (map workflow, CSV format spec, export tips)
+7. `06-07` Load testing (100+ map loads, rapid color changes, repeated CSV applies) +
+   export quality verification + offline functionality test
+8. `06-08` Launch decision package for the owner (see below) + final exact-SHA gate +
+   human acceptance matrix for v1.1, same evidence bar as `02-27`/`02-28`
+
+**Owner-decision items (explicitly NOT scheduled until decided):**
+
+- **Deployment to a public URL** (GitHub Pages / Vercel / Netlify) — **requires a new
+  explicit owner authorization; none exists.** Localhost-only remains the standing state.
+- **Malta/Liechtenstein-style inset boxes** — a deliberate **scope reversal** of Phase 2's
+  "artificial small-island markers, inset maps" exclusion; needs an owner decision before
+  any plan references it.
+- **LLM-assisted data import** — carried from Phase 5's owner-gated subsection; same
+  authorization class as deployment.
 
 ### Testing
 
-- Deferred compatibility certification for Firefox, Safari, and previous browser versions when those environments become available. **No phase has claimed these passed, and none may.**
-- Load testing (100+ map loads, rapid color changes)
-- Historical border accuracy spot-check — **only if the deferred snapshots have shipped by then; they have not**
-- Export quality verification
-- Offline functionality test
+- Deferred compatibility certification for Firefox, Safari, and previous browser versions
+  when those environments become available. **No phase has claimed these passed, and none
+  may.**
+- Historical border accuracy spot-check — **only if the deferred snapshots have shipped by
+  then; they have not.**
 
-### Out of Scope (Phase 3)
+### Out of Scope (Phase 6)
 
-- Non-European regions beyond the unified world canvas delivered in Phase 2
+- Historical geometry in any form (still a data-acquisition problem)
 - Advanced analytics/tracking
 - User authentication
 
 ---
 
-## Phase 4 (Post-MVP, Future)
+## Beyond v1.1 (Future, unscheduled)
 
-**Goal:** Expand tool capabilities and user base.
-
-### Potential Features
-
+- Historical border data acquisition — the preserved `02-33` → `02-13`–`02-16` → `02-34` →
+  `02-35` → `02-17` chain runs unchanged **when rights-cleared archival material exists**
 - Non-European historical borders (Asia, Africa, Americas)
-- Real-time collaboration (multiple users on same map)
-- Advanced styling (patterns, hatching, labels)
-- Animated transitions between time periods
-- Mobile app version
-- AI color palette suggestions
-- Batch export (multiple maps at once)
-- Community border repository (users submit custom historical borders)
-- Discord/API integration for team sharing
+- Diverging and categorical palette ramps; pattern/hatching fills
+- Real-time collaboration; community border repository
+- Animated transitions between time periods; batch export
+- Mobile app version; Discord/API integration
 
 ---
 
-## Success Metrics (MVP)
+## Success Metrics (v1.0 + v1.1)
 
 - [ ] Tool used by 3+ creators in the group
 - [ ] Average map creation time: <5 minutes
+- [ ] **CSV → finished shaded map in <2 minutes** with zero unreported mismatches
+- [ ] **A creator reproduces the Eurostat-style reference frame** (ramp, bands, title,
+      range legend, labels) without assistance
 - [ ] 95%+ user satisfaction (basic survey)
 - [ ] Zero crashes in first 100 uses per creator
 - [ ] Export quality rated "ready for Instagram" by testers
@@ -250,8 +502,12 @@ Cross-cutting constraints:
 | Historical border data sparse/inaccurate | High | Use deterministic source manifests, exact hashes/licenses, cross-checks, six-region review atlases, and blocking factual approval before production promotion |
 | Map rendering performance varies by browser/machine | Medium | Generate paths once, move the camera by transform only, cache snapshots, preserve diagnostics, and block only on the explicit warm-switch NFR3 plus functional stability |
 | Wrapped camera/export parity drifts | High | Use one constrained camera transform, synchronous freeze/finalize transaction, Pacific/date-line E2E, and exact downloaded PNG inspection |
-| Browser storage quota/corruption | Low | Preserve max-10 typed partial recovery, bounded nested validation, V1 in-memory migration, and explicit creator feedback |
-| Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phase 2/3 and iterate within the locked product boundary |
+| Browser storage quota/corruption | Low | Preserve max-10 typed partial recovery, bounded nested validation, V1/V2 in-memory migration, and explicit creator feedback |
+| Ramp/label contrast fails accessibility | Medium | WCAG contrast assertions land with the ramps (`04-02`) and labels (`05-06`), not in a later audit |
+| CSV mis-matching colors the wrong country | High | ISO-3-first matching, alias table, mandatory unmatched/ambiguous report, neutral units reported not matched — silent drops are gate-tested |
+| Interior-border mesh drifts from the world asset | High | Mesh is hash-recorded in `world-manifest.json` and verified by `npm run data:world:check` in the same run as the polygon asset |
+| Bands/text render differently in export clone | High | Composition-layer SVG only, no CSS filters; PNG byte inspection lands in the same plan as each feature |
+| Users don't adopt tool | Medium | Gather feedback from 2–3 creators during Phases 3–5 and iterate within the locked product boundary |
 
 ---
 
@@ -260,9 +516,10 @@ Cross-cutting constraints:
 - **GeoJSON libraries:** D3 geo APIs and `@types/geojson`
 - **UI framework:** React 18
 - **Export library:** html2canvas
-- **Build-time data:** exact-pinned mapshaper
+- **Build-time data:** exact-pinned mapshaper (polygon asset + interior-border mesh)
 - **Browser validation:** exact-pinned Playwright Test using installed Chrome and Edge channels
 - **Data sources:** Natural Earth 5.1.1 plus source/license/reviewer-approved historical evidence
+- **CSV:** client-side parsing only; parser choice decided in `05-01`
 
 ---
 
@@ -270,12 +527,19 @@ Cross-cutting constraints:
 
 ```
 Week 1–2:   Phase 1 (Foundation) — complete
-Week 2–3.5: Phase 2 engineering platform and integration
+Week 2–3.5: Phase 2 engineering platform and integration — complete; owner gates pending
+v1.1 from Phase 2 acceptance:
+  ~1–1.5 wk  Phase 3 (Clean UI Overhaul)
+  ~1.5–2 wk  Phase 4 (Visual & Cartographic System)
+  ~1–1.5 wk  Phase 5 (Data-Driven Maps)
+  ~1–1.5 wk  Phase 6 (Polish & Launch)
 Additional: Historical asset curation/review as evidence availability requires
-Week 3.5–5: Phase 3 polish/launch after Phase 2 acceptance
 ```
 
-The original 1.5–2 week Phase 2 estimate applies to the engineering platform only. It is not a truthful fixed estimate for four source-complete, licensed, factually reviewed historical snapshots across six regions.
+The original 1.5–2 week Phase 2 estimate applies to the engineering platform only. It is not
+a truthful fixed estimate for four source-complete, licensed, factually reviewed historical
+snapshots across six regions. v1.1 estimates are engineering estimates and assume no scope
+reversals (insets, LLM import, deployment) are added mid-phase.
 
 ---
 
@@ -283,14 +547,16 @@ The original 1.5–2 week Phase 2 estimate applies to the engineering platform o
 
 1. **Hand `02-28` to the owner.** The matrix is prepared and bound to `fe5f946`; the automatable
    cells are pre-filled with cited evidence. Every physical cell is `PENDING` and must stay that
-   way until a human performs the check.
+   way until a human performs the check. **This precedes Phase 3.**
 2. **Close `02-25` honestly, or leave it open.** Both patches are applied, but the approval on
    file is blanket and sight-unseen. Do not retro-describe it as hash-bound.
 3. **Decide the NFR3 warm-switch timing threshold** — set one from the advisory samples already
    recorded in `tests/e2e/history.spec.ts`, or explicitly extend D-63 into Phase 2. D-63 retired
    timing gates for **Phase 1 only** and does not carry forward on its own.
-4. **Do not dispatch any historical plan.** The material does not exist; approval cannot create it.
-5. **Deployment stays closed.** If hosting is ever wanted, it needs a new explicit authorization.
+4. **Run `/gsd:plan-phase 3`** once the gates are resolved — Phase 3 is fully specified above
+   and has no other prerequisite.
+5. **Do not dispatch any historical plan.** The material does not exist; approval cannot create it.
+6. **Deployment stays closed.** If hosting is ever wanted, it needs a new explicit authorization.
 
 ## Progress
 
@@ -300,7 +566,10 @@ The original 1.5–2 week Phase 2 estimate applies to the engineering platform o
 |---|---|---|---|---|
 | 1 | Foundation & Modern Map | ✅ **CLOSED** 2026-07-22 | 22/22 | 73/73 active must-haves verified; 7 deployment-only must-haves deferred (01-16, 01-17); 18/18 requirements satisfied. Chrome 150 + Edge 150 accepted, localhost-only. → [archive](milestones/v1.0/ROADMAP-ARCHIVE.md#phase-1-foundation--modern-map-115-weeks) · [phase dir](milestones/v1.0/phases/01-foundation-modern-map-1-1-5-weeks/) |
 | 2 | Region Variants & Advanced Features | 🔄 **EXECUTING** — engineering complete, 2 owner gates open | 26/36 | World canvas, camera, Locate, legend, composition persistence, export transaction. Historical snapshots **deferred** → [`02-DESCOPE-DECISION.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-DESCOPE-DECISION.md) |
-| 3 | Polish & Launch | ⏳ **PENDING** | 0/0 | Not yet planned. Deployment remains optional and requires explicit authorization. |
+| 3 | Clean UI Overhaul | ⏳ **PENDING** (v1.1) | 0/0 | Full-bleed canvas + left tool HUD, neutral token system, Design.md. Starts after the v1.0 owner gates resolve. |
+| 4 | Visual & Cartographic System | ⏳ **PENDING** (v1.1) | 0/0 | Sequential ramps, water presets, interior-border mesh, gradient bands, text tools, legend overhaul. |
+| 5 | Data-Driven Maps | ⏳ **PENDING** (v1.1) | 0/0 | CSV import, classed choropleth engine, value labels, auto range legend. LLM import owner-gated, not scheduled. |
+| 6 | Polish & Launch | ⏳ **PENDING** (v1.1) | 0/0 | Onboarding, shortcuts, WCAG, perf, guide, v1.1 acceptance. Deployment/insets/LLM are explicit owner decisions. |
 
 ### Phase 2 plan ledger
 
