@@ -194,11 +194,31 @@ async function expectDesktopWorkspaceShell(page: Page): Promise<void> {
     page.locator('.tool-panel__body > header .controls--app-bar'),
   ).toHaveCount(1);
   await expect(page.locator('.workspace__actions')).toHaveCount(0);
+  /*
+   * Scroll containment, relocated rather than dropped. `03-05` retired the
+   * inspector as a CONTAINER: it is no longer a sticky card with its own
+   * overflow, so the tool column's scroll container is the panel body. The
+   * claim - a flick inside the tools does not chain out and scroll something
+   * else - is asserted where it now lives, and the inspector is asserted to
+   * have stopped being a scroll container, so the pair cannot both be true of
+   * an element that scrolls nothing.
+   */
+  const panelBody = page.locator('.tool-panel__body');
   expect(
-    await inspector.evaluate((element): string =>
+    await panelBody.evaluate((element): string =>
       globalThis.getComputedStyle(element).overscrollBehaviorY,
     ),
   ).toBe('contain');
+  expect(
+    await panelBody.evaluate((element): string =>
+      globalThis.getComputedStyle(element).overflowY,
+    ),
+  ).toBe('auto');
+  expect(
+    await inspector.evaluate((element): string =>
+      globalThis.getComputedStyle(element).overflowY,
+    ),
+  ).toBe('visible');
   await expect(page.locator('svg.map-canvas')).toHaveCount(1);
 }
 
