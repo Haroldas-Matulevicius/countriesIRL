@@ -257,7 +257,7 @@ test.describe('PNG export', (): void => {
     // Seam-free borders: the selected country's wrapped repeats are normalized
     // to the same default border as its primary copy.
     expect(clone.strokes).toEqual([DEFAULT_BORDER_COLOR]);
-    expect(clone.strokeWidths).toEqual(['1']);
+    expect(clone.strokeWidths).toEqual(['0.75']);
     // Every scene path keeps `non-scaling-stroke`. The camera layer wraps them
     // in `scale(zoom)`; without it a border is drawn `zoom` user units wide and
     // a composition framed at 8x downloads outlines eight times heavier than
