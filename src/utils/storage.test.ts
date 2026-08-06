@@ -2,9 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
 import {
+  LAST_OPEN_TOOL_KEY,
   MAX_MAP_NAME_LENGTH,
+  MAX_PREFERENCE_VALUE_LENGTH,
   ONBOARDING_DISMISSED_KEY,
   STORAGE_KEY,
+  THEME_MODE_KEY,
 } from '../constants/config';
 import type {
   CompositionSnapshot,
@@ -830,5 +833,218 @@ describe('createStorageAdapter', () => {
       reason: 'snapshot-unavailable',
     });
     expect(storage.setCalls).toBe(0);
+  });
+});
+
+/*
+ * D-18 / D-30: the two Phase 3 preference keys.
+ *
+ * They follow the ONBOARDING_DISMISSED_KEY precedent - a small SEPARATE key,
+ * never a new field on the composition record. The composition record is the
+ * creator's map: it is saved, loaded, and exported under a name, and widening
+ * it would make every saved map carry the panel state that happened to be open
+ * when it was written.
+ */
+describe('the last-open-tool preference (D-18)', () => {
+  it('round-trips every tool in the rail inventory', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    (['colors', 'countries', 'legend', 'saved'] as const).forEach((tool) => {
+      expect(adapter.setLastOpenTool(tool)).toEqual({
+        ok: true,
+        value: tool,
+        warnings: [],
+      });
+      expect(storage.values.get(LAST_OPEN_TOOL_KEY)).toBe(tool);
+      expect(adapter.getLastOpenTool()).toEqual({
+        ok: true,
+        value: tool,
+        warnings: [],
+      });
+    });
+  });
+
+  it('resolves an ABSENT key to closed', () => {
+    const adapter = createStorageAdapter(new FakeStorage());
+
+    /*
+     * The load-bearing half of D-18: a first run is a full-bleed world map
+     * plus a quiet icon strip, not a panel the creator never opened. Absent is
+     * not corrupt, so it carries no warning either.
+     */
+    expect(adapter.getLastOpenTool()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [],
+    });
+  });
+
+  it('stores a closed panel explicitly and reads it back as closed', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    // Distinct from absent on purpose: a creator who CLOSED the panel and
+    // reloaded must get it back closed, and "absent" already means "never
+    // chose". Both resolve to closed; only one of them is a decision.
+    expect(adapter.setLastOpenTool(null)).toEqual({
+      ok: true,
+      value: null,
+      warnings: [],
+    });
+    expect(storage.values.get(LAST_OPEN_TOOL_KEY)).toBe('closed');
+    expect(adapter.getLastOpenTool()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [],
+    });
+  });
+
+  it('resolves an unrecognised or over-bound stored id to closed, with a warning', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    // A tool id this build does not render would open a panel with nothing in
+    // it, which is worse than a closed one.
+    storage.values.set(LAST_OPEN_TOOL_KEY, 'periods');
+    expect(adapter.getLastOpenTool()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [{ code: 'corrupt-data' }],
+    });
+
+    storage.values.set(LAST_OPEN_TOOL_KEY, JSON.stringify({ tool: 'colors' }));
+    expect(adapter.getLastOpenTool()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [{ code: 'corrupt-data' }],
+    });
+
+    // Bounded BEFORE the value is interpreted, on the raw string. Measured
+    // against the declared bound rather than a literal, and the length is one
+    // past it so the assertion moves with the constant instead of pinning a
+    // number that used to be right.
+    storage.values.set(
+      LAST_OPEN_TOOL_KEY,
+      'colors'.padEnd(MAX_PREFERENCE_VALUE_LENGTH + 1, 'x'),
+    );
+    expect(adapter.getLastOpenTool()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [{ code: 'corrupt-data' }],
+    });
+  });
+
+  it('returns a typed reason instead of throwing when storage is blocked', () => {
+    const blockedStorage = new FakeStorage();
+    blockedStorage.getError = new DOMException('blocked', 'SecurityError');
+    blockedStorage.setError = new DOMException('blocked', 'SecurityError');
+
+    // A blocked preference is a typed outcome, never an exception: the panel
+    // and the theme are cosmetic and neither may take the editor down.
+    expect(createStorageAdapter(blockedStorage).getLastOpenTool()).toEqual({
+      ok: false,
+      reason: 'storage-unavailable',
+    });
+    expect(createStorageAdapter(blockedStorage).setLastOpenTool('colors')).toEqual({
+      ok: false,
+      reason: 'storage-unavailable',
+    });
+    expect(createStorageAdapter(null).getLastOpenTool()).toEqual({
+      ok: false,
+      reason: 'storage-unavailable',
+    });
+  });
+});
+
+describe('the theme preference (D-30)', () => {
+  it('round-trips both modes', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    (['dark', 'light'] as const).forEach((mode) => {
+      expect(adapter.setThemeMode(mode)).toEqual({
+        ok: true,
+        value: mode,
+        warnings: [],
+      });
+      expect(storage.values.get(THEME_MODE_KEY)).toBe(mode);
+      expect(adapter.getThemeMode()).toEqual({
+        ok: true,
+        value: mode,
+        warnings: [],
+      });
+    });
+  });
+
+  it('reports "no stored choice" for an absent key rather than a default', () => {
+    /*
+     * The adapter is a storage boundary, not a policy engine. Baking `light`
+     * in here would make `MapEditor`'s `initialThemeMode` prop dead code for
+     * every host that mounts the editor with storage available. The standalone
+     * app's boundary default IS `light`, so an absent key still resolves to
+     * light one layer up - and no operating-system preference is read on
+     * either path.
+     */
+    expect(createStorageAdapter(new FakeStorage()).getThemeMode()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [],
+    });
+  });
+
+  it('resolves an unrecognised or over-bound stored mode to no choice, with a warning', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    // `auto` is the specific value worth naming: it is what a build that DID
+    // read the operating-system preference would have written, and D-30
+    // forbids that mode existing at all.
+    storage.values.set(THEME_MODE_KEY, 'auto');
+    expect(adapter.getThemeMode()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [{ code: 'corrupt-data' }],
+    });
+
+    storage.values.set(
+      THEME_MODE_KEY,
+      'dark'.padEnd(MAX_PREFERENCE_VALUE_LENGTH + 1, 'x'),
+    );
+    expect(adapter.getThemeMode()).toEqual({
+      ok: true,
+      value: null,
+      warnings: [{ code: 'corrupt-data' }],
+    });
+  });
+
+  it('returns a typed reason instead of throwing when storage is blocked', () => {
+    const blockedStorage = new FakeStorage();
+    blockedStorage.getError = new DOMException('blocked', 'SecurityError');
+    blockedStorage.setError = new DOMException('blocked', 'SecurityError');
+
+    expect(createStorageAdapter(blockedStorage).getThemeMode()).toEqual({
+      ok: false,
+      reason: 'storage-unavailable',
+    });
+    expect(createStorageAdapter(blockedStorage).setThemeMode('dark')).toEqual({
+      ok: false,
+      reason: 'storage-unavailable',
+    });
+  });
+
+  it('never widens the composition record', () => {
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage);
+
+    adapter.setThemeMode('dark');
+    adapter.setLastOpenTool('legend');
+
+    // Three separate keys, and the composition record is untouched by both.
+    expect([...storage.values.keys()].sort()).toEqual([
+      LAST_OPEN_TOOL_KEY,
+      THEME_MODE_KEY,
+    ]);
+    expect(storage.values.has(STORAGE_KEY)).toBe(false);
   });
 });

@@ -418,12 +418,47 @@ Both new Phase 3 keys — **D-18**'s last-open tool and **D-30**'s theme — fol
 | **Absent-tolerant**, with the default decided in advance | a returning creator has neither key, and a first run must not look like a failure. Panel **closed** (D-18) and **light** (D-30). Never read an operating-system preference to fill either — Live Invariant 9 and `uiContract.test.ts` assertion 1 forbid a second writer of the theme |
 | A failed read or write is a typed reason, never a throw | the theme and the panel are cosmetic; neither may take the editor down when site data is blocked |
 
+### What `03-06` actually landed, and the two places it refines the shape above
+
+`LAST_OPEN_TOOL_KEY` and `THEME_MODE_KEY` are in `src/constants/config.ts` beside
+`ONBOARDING_DISMISSED_KEY`, and `StorageAdapter` gained exactly four methods:
+`getLastOpenTool` / `setLastOpenTool` / `getThemeMode` / `setThemeMode`. The composition record's
+shape is unchanged.
+
+**The bound is checked on the RAW string, before the value is interpreted at all.** Neither key is
+ever `JSON.parse`d — they hold short enum words — so there is no parse to guard. The rule still
+applies and `MAX_PREFERENCE_VALUE_LENGTH` (32) enforces it, because *"stored bytes are untrusted
+and bounded first"* is exactly the discipline that quietly stops being applied on the small keys.
+Over-bound, unrecognised, and structurally wrong values all resolve to the default **and raise a
+`corrupt-data` warning**; only an absent key resolves to the default silently.
+
+**`closed` is a real stored value, not an absent key.** A creator who closes the panel and reloads
+must get it back closed, and "absent" already means *never chose*. Both resolve to closed; only one
+of them is a decision, and conflating them would have made "restore the last-open tool" unable to
+restore *closed*.
+
+**`getThemeMode` returns `EditorThemeMode | null`, and `null` means "no stored choice".** The
+adapter does **not** apply the `light` default. It is a storage boundary, not a policy engine, and
+baking the default in here would make `MapEditor`'s `initialThemeMode` prop dead code for every
+host that mounts the editor with storage available. The default lives at the one layer that knows
+it — `DEFAULT_EDITOR_CONFIG.initialThemeMode = 'light'` — so **an absent key still resolves to
+light for the standalone app**, a host that mounts in dark still opens in dark on a first run, and
+**no operating-system preference is consulted on either path** (D-30). `getLastOpenTool` needs no
+equivalent, because closed is the only default and no prop competes for it.
+
+**Preference reads do NOT go through `recordResult` in `useLocalStorage`.** A failed read of either
+key must not set the storage error that drives `isPersistenceAvailable` and the
+storage-unavailable toast: the panel state and the theme are cosmetic, and a blocked backend must
+leave the editor fully usable with Export enabled and produce **no creator-facing message**. They
+fall back silently. That is the contract, not an oversight — `ToastRegion` stays the allowlist
+boundary and this phase introduces no new message.
+
 ---
 
-*Last updated: 2026-08-06 — added § Phase 3 Amendments: the one-production-storage-site gate, the
+*Last updated: 2026-08-06 — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before it is interpreted (there is no parse to guard, which is why the rule needed restating); `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a storage boundary and `MapEditor`'s `initialThemeMode` prop is not dead code; and preference reads deliberately kept out of `recordResult` so a blocked backend produces no creator-facing message (plan 03-06).
 adapter arriving through `MapEditor`'s props boundary as a factory, and the shape the two new
 D-18 / D-30 keys must follow — separate small key, bounded V2, absent-tolerant, defaults closed and
 light (plan 03-05, transition-readiness b).*
-*Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25). Earlier, 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
+*Last updated: 2026-08-06 — added § Phase 3 Amendments: the one-production-storage-site gate, the Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25). Earlier, 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

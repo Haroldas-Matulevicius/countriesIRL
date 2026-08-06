@@ -54,7 +54,6 @@ import type {
 } from './hooks/useCompositionLoadTransaction';
 import { useCompositionSaveTransaction } from './hooks/useCompositionSaveTransaction';
 import type { CompositionSaveTransactionOutcome } from './hooks/useCompositionSaveTransaction';
-import { useEditorConfig } from './providers/EditorConfigProvider';
 import { useCompositionState } from './hooks/useCompositionState';
 import { useGeoData } from './hooks/useGeoData';
 import { useInspectorUiState } from './hooks/useInspectorUiState';
@@ -171,7 +170,6 @@ export default function App(): JSX.Element {
     markSaved,
     restoreState: restoreCompositionState,
   } = useCompositionState();
-  const { initialThemeMode } = useEditorConfig();
   const geoData = useGeoData();
   const {
     onboardingDismissed,
@@ -180,6 +178,10 @@ export default function App(): JSX.Element {
     saveComposition,
     loadComposition: loadStoredComposition,
     dismissOnboarding,
+    initialLastOpenTool,
+    initialThemeMode,
+    persistLastOpenTool,
+    persistThemeMode,
   } = useLocalStorage();
   const layout = useResponsiveLayout();
   const snapshotCatalog = useSnapshotCatalog();
@@ -210,17 +212,21 @@ export default function App(): JSX.Element {
    * - never absent, never a third value - and nothing else may write that
    * attribute (assertion 10).
    *
-   * D-18: first run opens CLOSED. `03-06` reads the stored last-open tool here
-   * once storage lands in its own task; an absent key resolves to closed.
+   * D-18: first run opens CLOSED, and thereafter the rail restores the last
+   * tool the creator had open. The stored value crosses `StorageAdapter`, an
+   * absent key resolves to closed, and an id the rail no longer renders does
+   * too - a panel opened onto nothing is worse than a closed one.
    */
-  const [openTool, setOpenTool] = useState<ToolId | null>(null);
+  const [openTool, setOpenTool] = useState<ToolId | null>(initialLastOpenTool);
   const toolRowsRef = useRef(new Map<ToolId, HTMLButtonElement | null>());
   const openedByToolRef = useRef<ToolId | null>(null);
   /**
    * D-30: the creator's explicit theme choice, and the only writer of the
-   * mount root's `.dark` class. It is SEEDED from the boundary prop rather
-   * than from an operating-system query - there is no OS listener anywhere in
-   * the dark path, so a host that owns `.dark` has nothing here to fight.
+   * mount root's `.dark` class. It is seeded from the stored preference,
+   * which itself falls back to the value that crossed `MapEditor`'s props
+   * boundary - never from an operating-system query. There is no OS listener
+   * anywhere in the dark path, so a host that owns `.dark` has nothing here
+   * to fight.
    */
   const [themeMode, setThemeMode] = useState<EditorThemeMode>(initialThemeMode);
   const [savedColorsBaseline, setSavedColorsBaseline] = useState<ColorMap>(
@@ -683,29 +689,35 @@ export default function App(): JSX.Element {
    * "wherever focus happened to be" is how a keyboard user ends up back at the
    * top of the document.
    */
-  const handleSelectTool = useCallback((tool: ToolId): void => {
-    setOpenTool((current): ToolId | null => {
-      if (current === tool) {
-        openedByToolRef.current = null;
-        return null;
-      }
-      openedByToolRef.current = tool;
-      return tool;
-    });
-  }, []);
+  const handleSelectTool = useCallback(
+    (tool: ToolId): void => {
+      setOpenTool((current): ToolId | null => {
+        const next = current === tool ? null : tool;
+        openedByToolRef.current = next;
+        persistLastOpenTool(next);
+        return next;
+      });
+    },
+    [persistLastOpenTool],
+  );
 
   const handleToggleTheme = useCallback((): void => {
-    setThemeMode((mode): EditorThemeMode => (mode === 'dark' ? 'light' : 'dark'));
-  }, []);
+    setThemeMode((mode): EditorThemeMode => {
+      const next = mode === 'dark' ? 'light' : 'dark';
+      persistThemeMode(next);
+      return next;
+    });
+  }, [persistThemeMode]);
 
   const handleCloseToolPanel = useCallback((): void => {
     const openedBy = openedByToolRef.current;
     openedByToolRef.current = null;
     setOpenTool(null);
+    persistLastOpenTool(null);
     if (openedBy !== null) {
       toolRowsRef.current.get(openedBy)?.focus();
     }
-  }, []);
+  }, [persistLastOpenTool]);
 
   const handleSelectCountry = useCallback(
     (countryId: CountryId): void => {

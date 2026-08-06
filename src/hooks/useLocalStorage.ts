@@ -7,11 +7,13 @@ import type {
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
 import type {
+  EditorThemeMode,
   SavedMap,
   SavedMapSummary,
   StorageErrorReason,
   StorageResult,
   StorageWarning,
+  ToolId,
 } from '../types/ui';
 import { useEditorConfig } from '../providers/EditorConfigProvider';
 import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
@@ -31,6 +33,16 @@ export interface UseLocalStorageValue {
   loadComposition: (name: string) => StorageResult<CompositionLoadOutcome>;
   deleteMap: (name: string) => StorageResult<ReadonlyArray<SavedMap>>;
   dismissOnboarding: () => StorageResult<boolean>;
+  /**
+   * The two Phase 3 preference reads, taken ONCE at mount and returned as
+   * resolved values rather than as callbacks. They are read at mount because
+   * they seed state that must not flicker, and they are the only entry points
+   * here that do not record their outcome (see below).
+   */
+  initialLastOpenTool: ToolId | null;
+  initialThemeMode: EditorThemeMode;
+  persistLastOpenTool: (tool: ToolId | null) => void;
+  persistThemeMode: (mode: EditorThemeMode) => void;
 }
 
 /**
@@ -57,11 +69,34 @@ export function useLocalStorage(): UseLocalStorageValue {
   // Transition-readiness (b): persistence arrives through `MapEditor`'s props
   // boundary as an adapter. The default factory builds the browser-backed one,
   // so the standalone app is unchanged, but nothing here knows that.
-  const { createStorage } = useEditorConfig();
+  const { createStorage, initialThemeMode: fallbackThemeMode } =
+    useEditorConfig();
   const [adapter] = useState<StorageAdapter>(() => createStorage());
   const [initialOnboardingResult] = useState(() =>
     adapter.getOnboardingDismissed(),
   );
+  /*
+   * D-18 / D-30. Read once, at mount, and DELIBERATELY not passed through
+   * `recordResult`: a failed preference read must not set the storage error
+   * that drives `isPersistenceAvailable` and the storage-unavailable toast.
+   * The panel state and the theme are cosmetic - neither may take the editor
+   * down, disable Export, or produce a creator-facing message when site data
+   * is blocked. It falls back silently, which is the whole contract.
+   *
+   * The theme falls back to the value that crossed `MapEditor`'s props
+   * boundary rather than to a literal, so a host that mounts the editor in
+   * dark still opens in dark when storage is unreadable. The standalone app's
+   * boundary default is `light`, so an absent key still resolves to light and
+   * no operating-system preference is consulted on either path.
+   */
+  const [initialLastOpenTool] = useState<ToolId | null>(() => {
+    const result = adapter.getLastOpenTool();
+    return result.ok ? result.value : null;
+  });
+  const [initialThemeMode] = useState<EditorThemeMode>(() => {
+    const result = adapter.getThemeMode();
+    return result.ok ? (result.value ?? fallbackThemeMode) : fallbackThemeMode;
+  });
   const [savedMapSummaries, setSavedMapSummaries] = useState<
     ReadonlyArray<SavedMapSummary>
   >([]);
@@ -152,6 +187,20 @@ export function useLocalStorage(): UseLocalStorageValue {
     return result;
   }, [adapter, recordResult]);
 
+  const persistLastOpenTool = useCallback(
+    (tool: ToolId | null): void => {
+      adapter.setLastOpenTool(tool);
+    },
+    [adapter],
+  );
+
+  const persistThemeMode = useCallback(
+    (mode: EditorThemeMode): void => {
+      adapter.setThemeMode(mode);
+    },
+    [adapter],
+  );
+
   return {
     savedMapSummaries,
     onboardingDismissed,
@@ -163,5 +212,9 @@ export function useLocalStorage(): UseLocalStorageValue {
     loadComposition,
     deleteMap,
     dismissOnboarding,
+    initialLastOpenTool,
+    initialThemeMode,
+    persistLastOpenTool,
+    persistThemeMode,
   };
 }

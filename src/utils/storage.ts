@@ -1,11 +1,15 @@
 import { INITIAL_WORLD_CAMERA, WORLD_SIZE } from '../constants/camera';
 import { DEFAULT_COLOR } from '../constants/colors';
 import {
+  LAST_OPEN_TOOL_KEY,
   MAX_MAP_NAME_LENGTH,
+  MAX_PREFERENCE_VALUE_LENGTH,
   MAX_SAVED_MAPS,
   ONBOARDING_DISMISSED_KEY,
   STORAGE_KEY,
+  THEME_MODE_KEY,
 } from '../constants/config';
+import { CLOSED_TOOL_VALUE, isToolId } from '../constants/tools';
 import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import type {
   CameraState,
@@ -25,10 +29,12 @@ import type {
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
 import type {
+  EditorThemeMode,
   SavedMap,
   SavedMapSummary,
   StorageResult,
   StorageWarning,
+  ToolId,
 } from '../types/ui';
 import { repairCameraState } from './camera';
 import { createEmptyColorMap, normalizeColor } from './colors';
@@ -85,6 +91,28 @@ export interface StorageAdapter {
   delete: (name: string) => StorageResult<ReadonlyArray<SavedMap>>;
   getOnboardingDismissed: () => StorageResult<boolean>;
   dismissOnboarding: () => StorageResult<boolean>;
+  /**
+   * D-18. `null` is the CLOSED panel and it is a real stored value, not an
+   * absent key: a creator who closes the panel and reloads must get it back
+   * closed, while an absent key means "never chose" and also resolves to
+   * closed (a first run is a full-bleed map plus a quiet icon strip).
+   *
+   * An unrecognised stored id resolves to closed. Stored strings are untrusted
+   * whatever wrote them.
+   */
+  getLastOpenTool: () => StorageResult<ToolId | null>;
+  setLastOpenTool: (tool: ToolId | null) => StorageResult<ToolId | null>;
+  /**
+   * D-30. `null` means the creator has made no stored choice - absent key or a
+   * value this build does not recognise. The DEFAULT is deliberately not
+   * applied here: the adapter is a storage boundary, not a policy engine, and
+   * baking `light` in would make `MapEditor`'s `initialThemeMode` prop dead
+   * code for every host that ever mounts the editor with storage available.
+   * The standalone app's boundary default is `light`, so an absent key still
+   * resolves to light, and no operating-system preference is read on any path.
+   */
+  getThemeMode: () => StorageResult<EditorThemeMode | null>;
+  setThemeMode: (mode: EditorThemeMode) => StorageResult<EditorThemeMode>;
 }
 
 type JsonParser = (serialized: string) => unknown;
@@ -1073,6 +1101,85 @@ export function createStorageAdapter(
     return { ok: true, value: true, warnings: [] };
   }
 
+  /**
+   * The bound is applied to the RAW string, before the value is interpreted at
+   * all. These two keys hold short enum words and are never `JSON.parse`d, so
+   * there is no parse to guard - but the rule that stored bytes are untrusted
+   * and bounded *first* is the same one, and a preference key is exactly where
+   * it would quietly stop being applied.
+   */
+  function readPreference(key: string): StorageResult<string | null> {
+    const readResult = read(key);
+    if (!readResult.ok) {
+      return readResult;
+    }
+
+    if (readResult.value === null) {
+      return { ok: true, value: null, warnings: [] };
+    }
+
+    if (readResult.value.length > MAX_PREFERENCE_VALUE_LENGTH) {
+      return { ok: true, value: null, warnings: [createCorruptWarning()] };
+    }
+
+    return { ok: true, value: readResult.value, warnings: [] };
+  }
+
+  function getLastOpenTool(): StorageResult<ToolId | null> {
+    const readResult = readPreference(LAST_OPEN_TOOL_KEY);
+    if (!readResult.ok) {
+      return readResult;
+    }
+
+    if (readResult.value === null || readResult.value === CLOSED_TOOL_VALUE) {
+      return { ok: true, value: null, warnings: readResult.warnings };
+    }
+
+    if (isToolId(readResult.value)) {
+      return { ok: true, value: readResult.value, warnings: [] };
+    }
+
+    // An id the rail no longer renders would open a panel with nothing in it.
+    return { ok: true, value: null, warnings: [createCorruptWarning()] };
+  }
+
+  function setLastOpenTool(tool: ToolId | null): StorageResult<ToolId | null> {
+    const writeResult = write(
+      LAST_OPEN_TOOL_KEY,
+      tool === null ? CLOSED_TOOL_VALUE : tool,
+    );
+    if (!writeResult.ok) {
+      return writeResult;
+    }
+
+    return { ok: true, value: tool, warnings: [] };
+  }
+
+  function getThemeMode(): StorageResult<EditorThemeMode | null> {
+    const readResult = readPreference(THEME_MODE_KEY);
+    if (!readResult.ok) {
+      return readResult;
+    }
+
+    if (readResult.value === 'dark' || readResult.value === 'light') {
+      return { ok: true, value: readResult.value, warnings: [] };
+    }
+
+    // Absent is not corrupt: a returning creator may simply never have chosen.
+    return readResult.value === null
+      ? { ok: true, value: null, warnings: readResult.warnings }
+      : { ok: true, value: null, warnings: [createCorruptWarning()] };
+  }
+
+  function setThemeMode(mode: EditorThemeMode): StorageResult<EditorThemeMode> {
+    const writeResult = write(THEME_MODE_KEY, mode);
+    if (!writeResult.ok) {
+      return writeResult;
+    }
+
+    return { ok: true, value: mode, warnings: [] };
+  }
+
   return {
     list,
     listSummaries,
@@ -1081,5 +1188,9 @@ export function createStorageAdapter(
     delete: deleteMap,
     getOnboardingDismissed,
     dismissOnboarding,
+    getLastOpenTool,
+    setLastOpenTool,
+    getThemeMode,
+    setThemeMode,
   };
 }

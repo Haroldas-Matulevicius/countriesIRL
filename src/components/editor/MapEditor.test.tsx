@@ -64,6 +64,13 @@ const PROBE_STORAGE: StorageAdapter = {
   delete: () => ({ ok: false, reason: 'storage-unavailable' }),
   getOnboardingDismissed: () => ({ ok: true, value: true, warnings: [] }),
   dismissOnboarding: () => ({ ok: true, value: true, warnings: [] }),
+  getLastOpenTool: () => ({ ok: true, value: null, warnings: [] }),
+  setLastOpenTool: (tool) => ({ ok: true, value: tool, warnings: [] }),
+  // `null` is "the creator has made no stored choice", so the boundary prop
+  // decides - which is what makes `initialThemeMode` a real contract rather
+  // than a value storage always overrides.
+  getThemeMode: () => ({ ok: true, value: null, warnings: [] }),
+  setThemeMode: (mode) => ({ ok: true, value: mode, warnings: [] }),
 };
 
 function stubHostEnvironment(): void {
