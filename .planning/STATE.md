@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 3 SHIPPED (code level) 2026-08-06 -- 12/12 plans, 637/637 unit, Chrome e2e 103/103, build+lint clean. ENGINEERING COMPLETE AND PHYSICALLY UNVERIFIED: nobody has looked at the restyled editor, either theme, the rail, the flyout, the tooltips, or a single exported PNG. Verification status is human_needed at 18/19 must-haves. Next action: work 03-UAT.md (12 items). TWO of those are DECISIONS, not checks: (1) F-1, the legend-label export ceiling -- labels over 20/14/12 chars are now export-blocked and the default medium ceiling fell from effectively unreachable to 14; (2) what happens to already-saved compositions that now load cleanly but refuse to export. If F-1 is rejected the phase moves to gaps_found and needs a closure plan. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25 documentation approval, blanket/sight-unseen/not hash-bound; 02-28 human acceptance matrix, bound to fe5f946 with every physical cell PENDING). Phase 3 execution left phases/02-.../ byte-unchanged. Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them."
+stopped_at: "Phase 3 COMPLETE 2026-08-06 -- 12/12 plans; 637/637 unit, Chrome e2e 103/103, lint+build clean (Chrome 151 only; Edge not installed). CLOSED BY THE OWNER on a free exploration of the running dev server: they looked at it, exercised it, and judged it good enough to ship, explicitly SKIPPING the structured UAT. READ THIS CAREFULLY BEFORE CITING THE PHASE: nine of the twelve UAT cells were NOT PERFORMED and are recorded as skipped, not passed -- there is NO screen-reader pass, NO touch-target check, NO physical 200% zoom, NO latin-ext diacritic export, and NO dedicated dark-theme review anywhere in this phase, and none may be reported as verified or cited by a later phase. THREE OPEN FOLLOW-UPS, all deferred by owner choice, not resolved: G-3 the colors flyout (2nd column) needs heavy work -- owner: 'too squished, not organized well, hate the multi boxes within' -- a DESIGN REWORK and the largest open item, likely deserving its own plan; G-1 the legend sits too high ( fixing it moves exported pixels, so it is D-25 territory and needs deliberate fixture re-baselining), and G-2 the saved-composition export break is still untested by human or machine (owner had no pre-restyle saved map with a 15-32 char label). F-1, the 14-char default legend-label export ceiling, ships ACCEPTED-AS-DEFERRED -- the verifier's three grounds against it stand unrebutted. Next action: Phase 4, or pick up G-3/G-1/G-2. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25, 02-28). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them."
 last_updated: "2026-08-06T23:00:00.000Z"
 last_activity: "2026-08-06 -- Phase 3 EXECUTED end to end and closed at code level. 12 sequential waves, one executor per plan, 94 commits, 181 files, +39,234/-6,832 against tag acceptance-02-28. Shipped: full-bleed canvas + 56px icon rail with one-at-a-time 280px flyout; Themely token system with an explicit .dark toggle and ZERO prefers-color-scheme reads (D-30); Design.md authored at repo root; 14 in-repo icons; MapEditor mountable behind an explicit props boundary (storage as a factory, asset base path as a prop) for the future Themely transition -- seam only, NOTHING embedded, embedding still needs new owner authorization; Controls.css 1438 lines split into 8 per-surface sheets; html2canvas REMOVED and the SVG->PNG path owned outright (D-34/D-34a), bundle 689,445 -> 555,717 B. phase2CssContract.test.ts retired into uiContract.test.ts. SEVEN assertions that could not fail were caught and fixed during the phase, plus two in 03-12-PLAN.md's own verify block; the approved 03-UI-SPEC.md was also found to carry a WRONG placement formula, RED-proved by 03-08. Every blocking gate answered under a BLANKET, IN-ADVANCE, SIGHT-UNSEEN PROCEED-AUTHORIZATION dated 2026-08-06 -- NOT a content review, NOT hash-bound (Immutable Safety Constraint 8). Independent non-author review (03-12-REVIEW.md) and goal-backward verification (03-VERIFICATION.md) both re-ran every gate rather than copying numbers; honesty audit found ZERO overclaims. Chrome 151.0.7922.75 only -- Edge is NOT installed and no Edge result was produced."
 progress:
@@ -16,11 +16,17 @@ progress:
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-08-06):** Phase 3 — **SHIPPED (code level); engineering complete and
-> PHYSICALLY UNVERIFIED.** Nobody has looked at the restyled editor, either theme, the rail,
-> the flyout, the tooltips, or a single exported PNG. Every result in the phase is automated.
-> ▶ **Next: work [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) — 12 items,
-> two of which are owner *decisions*, not checks.**
+> **Status (2026-08-06):** Phase 3 — **COMPLETE.** Closed by the owner on a free exploration of
+> the running editor: they looked at it, exercised it, and judged it good enough to ship,
+> **deliberately skipping the structured UAT.**
+> ⚠️ **Skipped is not passed.** Nine of the twelve UAT cells were never performed — there is **no
+> screen-reader pass, no touch-target check, no physical 200% zoom, no latin-ext export, and no
+> dedicated dark-theme review** in this phase. Never report or cite them as verified.
+> **Three open follow-ups, deferred by choice:** **`G-3` the colors panel needs heavy work**
+> ("too squished, not organized well, hate the multi boxes within" — a design rework, the biggest
+> item) · `G-1` the legend sits too high · `G-2` the saved-composition export break is untested.
+> All three in [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) § Gaps.
+> ▶ **Next: Phase 4, or pick up G-3 / G-1 / G-2.**
 > Phase 2 remains engineering-complete at `fe5f946` with **two owner gates still OPEN**;
 > Phase 3 execution left its directory byte-unchanged. Historical snapshots stay **deferred**
 > because the rights-cleared archival source material does not exist — missing *material*, not
@@ -46,20 +52,35 @@ progress:
 
 ## Current Position
 
-Phase: **03** (Clean UI Overhaul) — **SHIPPED (code level) 2026-08-06 · 12/12 plans ·
-verification `human_needed` at 18/19 must-haves.**
+Phase: **03** (Clean UI Overhaul) — **COMPLETE 2026-08-06 · 12/12 plans.**
 Gate at close: lint clean · **637/637** unit · build clean · **Chrome e2e 103/103** ·
 `data:world:check` PASS. **Chrome 151.0.7922.75 only; Edge not installed, not certified.**
-▶ **Next: work [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) — 12 items.**
+Automated verification closed at `human_needed`, 18/19 must-haves; the owner then closed the phase
+on a free exploration rather than working the structured UAT.
 
-**Two of those are owner DECISIONS, not checks:**
+**What the owner actually verified — and what nobody did:**
 
-| # | Decision | Why it is open |
+| | |
+|---|---|
+| ✅ **Verified by a human** | The running editor was opened, explored, and judged good enough to ship. Nothing appeared broken relative to the pre-restyle build. This is a real verdict on the phase-goal predicate. |
+| ⛔ **Never performed** | Screen-reader pass · touch targets · physical 200% zoom · latin-ext diacritic export · dedicated dark-theme review · dedicated exported-PNG inspection · `Design.md` § 7 review · D-5 ≥1200px confirmation. **Nine cells, recorded as `skipped`. Skipped is not passed — do not cite them.** |
+
+**Three open follow-ups, deferred by owner choice rather than resolved:**
+
+| # | Item | Note |
 |---|---|---|
-| **F-1** | The legend-label export ceiling | Labels over 20/14/12 chars (small/medium/large) are now export-blocked. At the **default** `medium` the effective ceiling fell from *effectively unreachable* (36, against a 32-char input cap) to **14**. The bound derives from worst-case-uniform glyph width and over-estimates line count ~1.8×. **If rejected, this phase moves to `gaps_found`.** |
-| **F-1b** | Already-saved compositions that can no longer export | `storage.ts:57` still caps at 32 (OPEN ITEM 4, deliberately untouched), so a Phase-2-era saved map with a 15–32 char label **loads cleanly then refuses to export**. Untested, and cuts against Live Invariant 8's repair-and-report philosophy. |
+| **G-3** | **The colors panel needs heavy work** — *"too squished, not organized well, hate the multi boxes within"* | **The largest open item; a design rework, not a tweak.** The `colors` flyout (second column) was migrated into the 280px panel by 03-07 without a layout redesign for the narrower column. Three separable complaints: density, information architecture, and nested bordered boxes — the last is arguably already **off-contract**, since 03-04 moved the system to flat hairline elevation. Start at `ColorPicker.tsx` + `src/styles/controls/colorPicker.css` inside `ToolPanel.tsx`; the legend and countries panels use the card-row/option-pill vocabulary the owner did **not** complain about, so they are the working reference. Panel chrome stays **out** of export membership — not D-25, must not move exported pixels. |
+| **G-1** | **The legend sits too high** | Legend geometry is *inside* the exported PNG, so fixing it **moves exported pixels** — D-25 territory, needing deliberate itemised fixture re-baselining. Start at `resolveLegendPosition` / `resolveLegendRender` in `src/utils/legend.ts` (the only readers of legend position) or `LegendOverlay.tsx`'s placement math. |
+| **G-2** | **Saved-composition export break, untested** | A pre-restyle saved map with a 15–32 char label should load cleanly then refuse to export. Owner had no such map; no automated test covers it either. Cheapest first move is a unit test constructing the stored record directly. |
 
-Full detail: [`03-VERIFICATION.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-VERIFICATION.md) ·
+**F-1 — the 14-char default legend-label export ceiling — ships ACCEPTED-AS-DEFERRED.** That is the
+owner electing to live with it for now, **not** a finding that the bound is correct: the verifier's
+three grounds against it stand unrebutted (worst-case-uniform derivation over-estimating line count
+~1.8×; the saved-composition break; and the repo's own fixture shortened `'Imperial lands'` →
+`'Empire lands'` to keep the suite green).
+
+Full detail: [`03-UAT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UAT.md) ·
+[`03-VERIFICATION.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-VERIFICATION.md) ·
 [`03-12-REVIEW.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-12-REVIEW.md) ·
 [v1.1 archive](milestones/v1.1/ROADMAP-ARCHIVE.md).
 
@@ -114,11 +135,12 @@ Per-plan chronology →
 [`02-ACTIVITY-LOG.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md)
 and the `02-NN-SUMMARY.md` files. One line per event here.
 
-- 2026-08-06 — **Phase 3 SHIPPED (code level)** — 12/12 plans; 94 commits, 181 files,
-  +39,234/−6,832. `html2canvas` removed and the SVG→PNG path owned outright; Themely token system
-  with an explicit `.dark` toggle; editor made mountable behind a props boundary (seam only).
-  **Carry-forward: physically unverified — 12 items in `03-UAT.md`, two of them owner decisions
-  (F-1 label ceiling, saved-composition export break).**
+- 2026-08-06 — **Phase 3 COMPLETE** — 12/12 plans; 94 commits, 181 files, +39,234/−6,832.
+  `html2canvas` removed and the SVG→PNG path owned outright; Themely token system with an explicit
+  `.dark` toggle; editor made mountable behind a props boundary (seam only). Closed by the owner on
+  a free exploration; **structured UAT skipped, 9 cells never performed.** Carry-forwards: **`G-3`
+  colors panel needs heavy work (design rework)** · `G-1` legend too high · `G-2` saved-composition
+  export break untested · `F-1` label ceiling accepted-as-deferred.
   → [archive](milestones/v1.1/ROADMAP-ARCHIVE.md#phase-3-clean-ui-overhaul-11-5-weeks)
 - 2026-08-06 — **Pipeline restructured toward the classed-choropleth product vision.** The old
   Phase 3 "Polish & Launch" stub was replaced by Phases 3–6 (Clean UI Overhaul → Visual &
@@ -202,13 +224,20 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ### Pending Todos
 
-- **Work `03-UAT.md` (12 items).** Phase 3 is physically unverified. Two items are decisions, not
-  checks — see § Current Position.
-- **Decide F-1: the legend-label export ceiling.** If rejected, Phase 3 moves to `gaps_found` and
-  needs a closure plan. Evidence that the bound is too tight: the repo's own fixture was shortened
-  `'Imperial lands'` → `'Empire lands'` (`fdd1714`) to keep the suite green.
-- **Decide what happens to already-saved compositions that now load but cannot export** (F-1b).
-  No test covers this path.
+- **`G-3` — the colors panel needs heavy work.** *"Too squished, not organized well, hate the multi
+  boxes within."* **The biggest open item — a design rework, not a tweak**, and a strong candidate
+  for its own plan rather than a drive-by fix. The nested-box complaint may already be off-contract
+  against 03-04's flat hairline elevation.
+- **`G-1` — the legend sits too high.** Deferred by choice, not resolved. Fixing it **moves exported
+  pixels** (D-25 territory) and needs deliberate itemised fixture re-baselining.
+- **`G-2` — the saved-composition export break is untested** by human or machine. A pre-restyle
+  saved map with a 15–32 char label should load cleanly then refuse to export.
+- **`F-1` — the 14-char default legend-label export ceiling ships accepted-as-deferred.** Revisit
+  when convenient; the verifier's three grounds against the bound are unrebutted.
+- **Nine UAT cells were never performed** (screen reader, touch targets, physical 200% zoom,
+  latin-ext export, dark-theme review, exported-PNG inspection, `Design.md` § 7, D-5 ≥1200px).
+  Recorded as `skipped`. **If any later phase needs one of these, it must be performed then — it
+  cannot be inherited from Phase 3.**
 - **Two todos filed by `03-12` that it could not write itself** (STATE.md is orchestrator-held):
   the Phase 2 Edge-record contradiction (below — **annotate, never rewrite**), and the OPEN ITEM 4
   residual (the storage validator still admits all five snapshot ids; **only presentation is

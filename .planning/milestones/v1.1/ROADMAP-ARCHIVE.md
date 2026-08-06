@@ -266,5 +266,27 @@ certifies nothing about the visual outcome. Full evidence:
 [`03-12-REVIEW.md`](../../phases/03-clean-ui-overhaul-1-1-5-weeks/03-12-REVIEW.md) ·
 [`deferred-items.md`](../../phases/03-clean-ui-overhaul-1-1-5-weeks/deferred-items.md).
 
+> **Owner acceptance — appended 2026-08-06, after the Outcome above was written.** The owner started
+> the dev server, explored the restyled editor freely, and **closed the phase as COMPLETE**,
+> deliberately skipping the structured UAT: *"I kind of freely explored it and it seemed good enough
+> for now, we can come back and fix any of it later, so im going to skip UAT, its good enough"*.
+> That **partly** discharges the "physically unverified" carry-forward recorded above — a human has
+> now seen and exercised the editor and judged it good enough to ship, which is a real verdict on
+> the phase-goal predicate. **It does not discharge the nine UAT cells recorded as `skipped`, which
+> were never performed: no screen-reader pass, no touch-target check, no physical 200% zoom, no
+> latin-ext diacritic export, no dedicated dark-theme review, no dedicated exported-PNG inspection,
+> no `Design.md` § 7 review, no D-5 >=1200px confirmation. Skipped is not passed; none may be cited
+> by a later phase.** The exploration surfaced two defects. **`G-3`: the colors flyout (the second
+> column) needs heavy work** — *"too squished, not organized well, hate the multi boxes within"* —
+> is a **design rework and the largest open item**; its nested-box complaint may already be
+> off-contract against 03-04's move to flat hairline elevation, and the legend/countries panels are
+> the working reference since the owner did not complain about them. And **`G-1`: the legend sits
+> too high** —
+> deferred by choice; note that legend geometry is inside the exported PNG, so fixing it moves
+> exported pixels (D-25). **`G-2`**, the saved-composition export break, remains untested by human
+> or machine: the owner had no pre-restyle saved map with a 15-32 character label. **`F-1`**, the
+> 14-character default export ceiling, ships **accepted-as-deferred** — the owner electing to live
+> with it, not a finding that the bound is correct; the verifier's three grounds stand unrebutted.
+
 ---
 
