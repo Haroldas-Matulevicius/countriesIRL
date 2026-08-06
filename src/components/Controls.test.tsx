@@ -168,7 +168,7 @@ describe('Controls is one component with a declared variant', (): void => {
   });
 
   it('fills the export from the mode-invariant accent, never the flipping one', (): void => {
-    const controlsCss = readSource('../styles/Controls.css');
+    const controlsCss = readSource('../styles/controls/controls.css');
     const primaryRule =
       /\.controls__action--primary \{(?<body>[^}]*)\}/u.exec(controlsCss)?.groups
         ?.body ?? '';

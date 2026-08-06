@@ -1,0 +1,293 @@
+/*
+ * `SaveLoad` - the `saved` panel: the name form, the saved-map rows, and the
+ * two inline confirmations.
+ *
+ * The modal overlay, the dialog frame, its entrance animation, and the
+ * header/footer close pair retired WITH the dialog in `03-07`; their rules were
+ * still here, unreachable, until the 03-10 sweep deleted them.
+ *
+ * The name field and the error paragraph are declared here rather than shared
+ * with the colour picker: this surface has a narrow-width rule for the error,
+ * so a base rule in the other file would leave one element anchored in two.
+ */
+
+.save-load {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+/*
+ * Sub-section headings inside the tool panel are `--text-body-sm` at weight
+ * 500, deliberately NOT `--text-subheading`: 16px and 14px in the same 280px
+ * column read as an accident rather than a hierarchy, so the weight bump
+ * carries it (UI-SPEC 7).
+ */
+.save-load-section h3 {
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  letter-spacing: var(--text-body-sm-tracking);
+  line-height: var(--text-body-sm-line-height);
+}
+
+.save-load input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.5;
+}
+
+.save-load input[aria-invalid="true"] {
+  border-color: var(--destructive);
+  background: var(--destructive-tint);
+}
+
+.save-load-error {
+  margin-bottom: 0;
+  padding: var(--space-sm);
+  border-radius: var(--radius-control);
+  background: var(--destructive-tint);
+  color: var(--destructive);
+}
+
+.save-load form button,
+.saved-map-actions button {
+  padding: var(--space-sm) var(--space-md);
+}
+
+.save-load-warning {
+  padding: var(--space-sm);
+  border-radius: var(--radius-control);
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.save-load form {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+/*
+ * `Save Map` - the `saved` panel's ONE Apple Blue surface (D-05), filled from
+ * the mode-invariant `--accent-fill` for the same AA reason Export is, and
+ * keyed on its own role class rather than on form position.
+ */
+.save-load-submit:not(:disabled) {
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--themely-on-accent);
+  font-weight: var(--text-subheading-weight);
+}
+
+.save-load-submit:not(:disabled):hover {
+  border-color: var(--accent-fill-hover);
+  background: var(--accent-fill-hover);
+}
+
+/*
+ * The compact empty-state recipe: dashed Stone Gray at 70%, Porcelain at 40%,
+ * centred, with a 40x40 Apple-Blue-at-10% chip. Copy unchanged.
+ */
+.saved-maps-empty {
+  padding: var(--space-lg);
+  border: var(--border-width) dashed
+    color-mix(in srgb, var(--themely-stone-gray) 70%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--themely-porcelain) 40%, transparent);
+  text-align: center;
+}
+
+.saved-maps-empty__chip {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--themely-apple-blue) 10%, transparent);
+  color: var(--themely-slate-blue);
+  place-items: center;
+}
+
+.saved-maps-empty h4 {
+  margin-bottom: var(--space-sm);
+}
+
+.saved-maps-empty p {
+  margin-bottom: 0;
+  color: var(--themely-slate-blue);
+}
+
+/* The list reset used to be shared with the country list; see that file. */
+.saved-maps-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: var(--space-sm);
+  list-style: none;
+}
+
+/*
+ * UI-SPEC 8 row anatomy. The vertical padding is `--space-sm` rather than the
+ * SPEC's raw 12px: application spacing comes from the token scale (a landed
+ * gate), and 12px is not on it.
+ */
+.saved-map-row {
+  display: grid;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+  box-shadow: var(--hairline);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+/* Instant, like every hoverable row and tile in the editor (D-29). */
+.saved-map-row:hover {
+  background: var(--themely-powder);
+}
+
+.saved-map-details {
+  display: grid;
+  align-items: start;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+/* The 32x32 chip steps UP to Platinum from the Porcelain card. */
+.saved-map-chip {
+  display: grid;
+  width: var(--space-xl);
+  height: var(--space-xl);
+  border-radius: var(--radius-control);
+  background: var(--themely-platinum);
+  box-shadow: var(--hairline);
+  color: var(--themely-slate-blue);
+  place-items: center;
+}
+
+.saved-map-text {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.saved-map-text strong {
+  overflow: hidden;
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-body-sm-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saved-map-text time {
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-caption-line-height);
+}
+
+.saved-map-metadata {
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-caption-line-height);
+  overflow-wrap: anywhere;
+}
+
+.saved-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.saved-map-actions--confirm {
+  align-items: center;
+}
+
+.saved-map-delete-prompt,
+.saved-map-load-prompt {
+  flex-basis: 100%;
+  margin-bottom: 0;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
+  text-align: right;
+}
+
+/*
+ * The dirty-load confirmation, inline in the row. `tabIndex={-1}` on the
+ * element is what keeps a mouse-down on the prompt text from dropping focus to
+ * `document.body`; the outline is suppressed only for that programmatic focus,
+ * never for `:focus-visible`.
+ */
+.saved-map-load-confirm {
+  outline: none;
+}
+
+.saved-map-load-confirm h4 {
+  flex-basis: 100%;
+  margin-bottom: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
+  text-align: right;
+}
+
+/*
+ * Destructive treatment (UI-SPEC 8): red text on transparent; the committed
+ * step is filled red with on-accent text. Both keyed on role classes.
+ */
+.saved-map-delete {
+  border-color: transparent;
+  color: var(--destructive);
+}
+
+.saved-map-delete:hover:not(:disabled) {
+  background: var(--destructive-tint);
+}
+
+/*
+ * Filled from the mode-invariant `--destructive-fill`, not `--destructive`:
+ * white on the dark-mode destructive (`--themely-red` #ff6b6b) is 2.78:1.
+ */
+.saved-map-delete--confirm {
+  border-color: var(--destructive-fill);
+  background: var(--destructive-fill);
+  color: var(--themely-on-accent);
+}
+
+@media (max-width: 767px) {
+  .saved-map-row {
+    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    flex-direction: column;
+  }
+
+  .saved-map-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .save-load-warning,
+  .save-load-error {
+    margin-right: var(--space-md);
+    margin-left: var(--space-md);
+  }
+
+  .saved-map-actions button {
+    width: 100%;
+  }
+}

@@ -25,15 +25,24 @@ import * as motionTokens from './tokens';
  * nothing read. Every count below is checked against an independent source.
  */
 
+interface DirectoryEntry {
+  readonly name: string;
+  isDirectory: () => boolean;
+}
+
 interface FileSystemModule {
   readFileSync: (path: URL, encoding: 'utf8') => string;
+  readdirSync: (
+    path: URL,
+    options: { readonly withFileTypes: true },
+  ) => DirectoryEntry[];
 }
 
 interface NodeProcess {
   getBuiltinModule: (name: 'fs') => FileSystemModule;
 }
 
-function readRepoFile(relativePath: string): string {
+function fileSystem(): FileSystemModule {
   const nodeProcess = Reflect.get(globalThis, 'process') as
     | NodeProcess
     | undefined;
@@ -42,18 +51,49 @@ function readRepoFile(relativePath: string): string {
     throw new Error('Expected the Vitest Node process.');
   }
 
-  return nodeProcess
-    .getBuiltinModule('fs')
-    .readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  return nodeProcess.getBuiltinModule('fs');
+}
+
+function readRepoFile(relativePath: string): string {
+  return fileSystem().readFileSync(
+    new URL(relativePath, import.meta.url),
+    'utf8',
+  );
+}
+
+/**
+ * Every stylesheet under `src/styles`, discovered by walking the directory.
+ *
+ * This list used to be four hard-coded filenames, which is the same defect
+ * `uiContract.test.ts` records against the retired Phase 2 contract test: the
+ * consumer check below would have gone on passing while a token's only `var()`
+ * lived in a file nobody added to the list. `03-10` split one of those four
+ * into eight, so the list would have gone stale in the same commit.
+ */
+function collectStyleSheets(directory: URL): string[] {
+  return fileSystem()
+    .readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry): string[] => {
+      if (entry.isDirectory()) {
+        return collectStyleSheets(new URL(`${entry.name}/`, directory));
+      }
+      return entry.name.endsWith('.css')
+        ? [
+            fileSystem().readFileSync(
+              new URL(entry.name, directory),
+              'utf8',
+            ),
+          ]
+        : [];
+    });
 }
 
 const THEME_CSS = readRepoFile('../../styles/theme.css');
 const TOKENS_SOURCE = readRepoFile('./tokens.ts');
 const MOTION_UTILS_SOURCE = readRepoFile('../../utils/motion.ts');
-const APP_CSS = readRepoFile('../../styles/App.css');
-const CONTROLS_CSS = readRepoFile('../../styles/Controls.css');
-const MAP_CANVAS_CSS = readRepoFile('../../styles/MapCanvas.css');
-const EDITOR_CSS = readRepoFile('../../styles/editor.css');
+const STYLE_SHEETS = collectStyleSheets(
+  new URL('../../styles/', import.meta.url),
+);
 
 /**
  * The number of rows the mirror is supposed to have, written independently of
@@ -300,14 +340,12 @@ describe('motion token lockstep (theme.css :root <-> lib/motion/tokens.ts)', () 
    * in `utils/motion.ts`, nothing else.
    */
   it('gives every declared --motion-* token a consumer', () => {
-    const styleSheets = [
-      THEME_CSS,
-      APP_CSS,
-      CONTROLS_CSS,
-      MAP_CANVAS_CSS,
-      EDITOR_CSS,
-    ].join('\n');
+    const styleSheets = STYLE_SHEETS.join('\n');
 
+    // A walk that found nothing would make every token below vacuously
+    // unconsumed, which fails loudly - but a walk that found only theme.css
+    // would fail QUIETLY, on tokens whose consumer moved. Assert the shape.
+    expect(STYLE_SHEETS.length).toBeGreaterThan(4);
     expect(DECLARED.size).toBeGreaterThan(0);
 
     [...DECLARED.keys()].forEach((token): void => {

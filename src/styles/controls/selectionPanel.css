@@ -1,0 +1,80 @@
+/*
+ * `SelectionPanel` - the Colors panel's summary block: what is selected, what
+ * colour it currently carries, and the clear action.
+ *
+ * The swatch chip rule below is shared with `ColorPicker`'s custom preview and
+ * is homed here because the selection summary is where that chip's treatment is
+ * defined; `controls/colorPicker.css` carries the second selector's surface.
+ */
+
+.selection-panel p {
+  margin-bottom: var(--space-md);
+  color: var(--themely-slate-blue);
+  overflow-wrap: anywhere;
+}
+
+.selection-panel__summary p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.selection-panel__current-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  margin-bottom: var(--space-md);
+  gap: var(--space-sm);
+}
+
+.selection-panel__color-label {
+  flex: 1 1 auto;
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-body-sm-line-height);
+}
+
+.selection-panel__color-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  gap: var(--space-sm);
+  overflow-wrap: anywhere;
+}
+
+.selection-panel__color-preview,
+.color-picker__custom-swatch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: var(--space-2xl);
+  height: var(--space-2xl);
+  overflow: hidden;
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  background: var(--map-fill-default);
+}
+
+.selection-panel__mixed-half {
+  position: absolute;
+  inset: 0;
+}
+
+.selection-panel__mixed-half--light {
+  background: var(--themely-porcelain);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.selection-panel__mixed-half--dark {
+  background: var(--themely-slate-blue);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.selection-panel > button {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+}

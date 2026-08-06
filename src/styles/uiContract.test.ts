@@ -1661,7 +1661,8 @@ describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
   it('resolves the Export fill to the light Apple Blue in both modes', (): void => {
     const primary = new Map(
       declarationsOf(
-        findRule(rulesOf('Controls.css'), '.controls__action--primary').body,
+        findRule(rulesOf('controls/controls.css'), '.controls__action--primary')
+          .body,
       ),
     );
 

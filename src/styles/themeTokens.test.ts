@@ -13,15 +13,24 @@ import { describe, expect, it } from 'vitest';
  * `--destructive`).
  */
 
+interface DirectoryEntry {
+  readonly name: string;
+  isDirectory: () => boolean;
+}
+
 interface FileSystemModule {
   readFileSync: (path: URL, encoding: 'utf8') => string;
+  readdirSync: (
+    path: URL,
+    options: { readonly withFileTypes: true },
+  ) => DirectoryEntry[];
 }
 
 interface NodeProcess {
   getBuiltinModule: (name: 'fs') => FileSystemModule;
 }
 
-function readStyleSheet(relativePath: string): string {
+function fileSystem(): FileSystemModule {
   const nodeProcess = Reflect.get(globalThis, 'process') as
     | NodeProcess
     | undefined;
@@ -30,10 +39,53 @@ function readStyleSheet(relativePath: string): string {
     throw new Error('Expected the Vitest Node process.');
   }
 
-  return nodeProcess
-    .getBuiltinModule('fs')
-    .readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  return nodeProcess.getBuiltinModule('fs');
 }
+
+function readStyleSheet(relativePath: string): string {
+  return fileSystem().readFileSync(
+    new URL(relativePath, import.meta.url),
+    'utf8',
+  );
+}
+
+/**
+ * Every stylesheet under `src/styles` EXCEPT `theme.css`, keyed by its path.
+ *
+ * Walked, never listed. The colour-literal sweep below used to name two files;
+ * `03-10` split one of them into eight, and a two-name list would have gone on
+ * passing while six new files went unscanned - which is the same defect the
+ * retired Phase 2 contract test shipped.
+ */
+function collectStyleSheets(
+  directory: URL,
+  prefix = '',
+): Array<[string, string]> {
+  return fileSystem()
+    .readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry): Array<[string, string]> => {
+      if (entry.isDirectory()) {
+        return collectStyleSheets(
+          new URL(`${entry.name}/`, directory),
+          `${prefix}${entry.name}/`,
+        );
+      }
+      if (!entry.name.endsWith('.css')) {
+        return [];
+      }
+      return [
+        [
+          `${prefix}${entry.name}`,
+          fileSystem().readFileSync(new URL(entry.name, directory), 'utf8'),
+        ],
+      ];
+    })
+    .sort(([left], [right]): number => left.localeCompare(right));
+}
+
+const COMPONENT_STYLE_SHEETS = collectStyleSheets(
+  new URL('./', import.meta.url),
+).filter(([name]): boolean => name !== 'theme.css');
 
 function stripComments(css: string): string {
   return css.replaceAll(/\/\*[\S\s]*?\*\//gu, '');
@@ -402,7 +454,7 @@ describe('component theme tokens', (): void => {
    * track wide enough for the longest name, and nothing clips.
    */
   it('sizes preset columns from a minimum track and never clips a label', (): void => {
-    const controlsCss = readStyleSheet('./Controls.css');
+    const controlsCss = readStyleSheet('./controls/colorPicker.css');
     const gridRule =
       controlsCss.match(/\.color-picker__preset-grid\s*\{([^}]*)\}/u)?.[1] ?? '';
     const presetRule =
@@ -436,11 +488,17 @@ describe('component theme tokens', (): void => {
    * would make writing the reason down the thing that fails.
    */
   it('keeps component colors tokenized while fixed colors stay in theme.css', (): void => {
-    const mapCanvasCss = stripComments(readStyleSheet('./MapCanvas.css'));
-    const controlsCss = stripComments(readStyleSheet('./Controls.css'));
+    /*
+     * A walk that resolved to nothing would satisfy every `not.toMatch` below
+     * without reading a byte, so the discovered set is asserted first. The
+     * bound is the eight surface sheets `03-10` produced plus the three that
+     * predate them, minus `theme.css`.
+     */
+    expect(COMPONENT_STYLE_SHEETS.length).toBeGreaterThan(4);
 
-    expect(mapCanvasCss).not.toMatch(COMPONENT_COLOR_LITERAL);
-    expect(controlsCss).not.toMatch(COMPONENT_COLOR_LITERAL);
+    COMPONENT_STYLE_SHEETS.forEach(([name, css]): void => {
+      expect(stripComments(css), name).not.toMatch(COMPONENT_COLOR_LITERAL);
+    });
 
     MODE_INVARIANT.forEach(([token]): void => {
       expect(THEME_CSS).toContain(`${token}:`);

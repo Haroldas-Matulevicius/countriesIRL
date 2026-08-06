@@ -1,0 +1,100 @@
+/*
+ * `ToastRegion` - the one creator-facing status surface.
+ *
+ * An eighth file rather than a home inside `editor.css`: the toast is a
+ * component surface like the six panels beside it, and its base rule and its
+ * layout-scoped rule have to stay in ONE file. `03-09` recorded that
+ * requirement after measuring the two collisions below; splitting them across
+ * the shell sheet and a surface sheet is how a placement ends up
+ * half-overridden.
+ */
+
+.map-editor > section[role="status"],
+.map-editor > section[role="alert"] {
+  position: fixed;
+  right: max(var(--space-md), env(safe-area-inset-right));
+  bottom: max(var(--space-md), env(safe-area-inset-bottom));
+  left: max(var(--space-md), env(safe-area-inset-left));
+  z-index: 110;
+  width: fit-content;
+  max-width: min(560px, calc(100vw - (var(--space-xl) * 2)));
+  margin: 0 auto;
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
+  box-shadow: var(--popover-shadow);
+}
+
+/*
+ * D-20: the toast sits ABOVE the bottom bar, not on top of it.
+ *
+ * Pinned to the viewport's bottom edge it covered the bar's controls outright -
+ * measured, not predicted: at 360x740 the dismiss button intercepted every
+ * click aimed at a tool row, and nothing failed except the one e2e that tried
+ * to open a tool after a status message. The fix is placement, not a z-index
+ * fight: the toast joins the grid in the CANVAS row and aligns to its end, so
+ * the bar's own row is untouchable by construction and a bar that wraps to two
+ * lines moves the toast with it.
+ *
+ * It clears the OPEN SHEET too, by reading the same registered
+ * `--panel-height` the sheet is sized from - so the toast rides up with the
+ * sheet on the same curve instead of landing on the controls inside it. That
+ * was also measured: parked at the row's end it covered the legend position
+ * grid and every click aimed at a preset hit the toast.
+ *
+ * Authored beside the base rule above, and that adjacency is the point.
+ */
+.map-editor[data-layout="compact"] > section[role="status"],
+.map-editor[data-layout="compact"] > section[role="alert"] {
+  position: relative;
+  z-index: 120;
+  grid-row: 1;
+  grid-column: 1;
+  align-self: end;
+  justify-self: center;
+  inset: auto;
+  margin-block-end: calc(
+    var(--panel-height) + max(var(--space-md), env(safe-area-inset-bottom))
+  );
+}
+
+.map-editor > section[data-severity="success"] {
+  border-color: var(--success);
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+.map-editor > section[data-severity="warning"] {
+  border-color: var(--warning);
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.map-editor > section[data-severity="error"] {
+  border-color: var(--destructive);
+  background: var(--destructive-tint);
+  color: var(--destructive);
+}
+
+.map-editor > section[role="status"] > div,
+.map-editor > section[role="alert"] > div {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+  gap: var(--space-sm);
+}
+
+.map-editor > section[role="status"] button,
+.map-editor > section[role="alert"] button {
+  padding: var(--space-sm) var(--space-md);
+}
+
+@media (max-width: 767px) {
+  .map-editor > section[role="status"],
+  .map-editor > section[role="alert"] {
+    width: auto;
+    max-width: none;
+  }
+}

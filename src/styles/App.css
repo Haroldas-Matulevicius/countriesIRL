@@ -1,9 +1,24 @@
+/*
+ * What is left of the app-level sheet after the 03-10 split: the host's mount
+ * element and the selection announcer.
+ *
+ * Everything else that lived here has a better home. The onboarding card moved
+ * to `editor.css`, beside the canvas-region block that places it. `.workspace`
+ * was deleted: `03-06` moved the layout modifier classes onto the panel track,
+ * so no element carried the bare class any more and the rule matched nothing.
+ */
+
 #root {
   min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
 }
 
+/*
+ * `App`'s own selection announcer, distinct from the period status region
+ * rehomed in `03-07`. Deleting it would silently drop an accessibility
+ * guarantee that nothing renders differently without.
+ */
 .selection-live-region {
   position: fixed;
   top: 0;
@@ -13,100 +28,4 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-/*
- * D-11/D-12: the panel header is retired with the app bar it was the remains
- * of. `03-05` parked the product identity and `Show Help` there until this plan
- * gave each of them a home: the identity is now the rail's HUD header (visually
- * hidden, so the document keeps exactly one `h1`), and `Show Help` travels with
- * the onboarding card it controls, into the canvas region (UI-SPEC 10).
- * Relocated, not deleted - losing a control between two plans is T-03-20.
- */
-.onboarding {
-  width: calc(100% - (var(--space-md) * 2));
-  margin: 0 auto var(--space-md);
-  padding: var(--space-md);
-  border: var(--border-width) solid var(--hairline-color);
-  border-radius: var(--radius-card);
-  background: var(--themely-porcelain);
-}
-
-/*
- * The accent-tinted surface and the accent left edge are both gone. D-05 gives
- * this banner exactly ONE Apple Blue element and that element is its CTA; a
- * tinted card plus an accent rule plus a filled button is three.
- */
-.onboarding h2 {
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-subheading);
-  font-weight: var(--text-subheading-weight);
-  letter-spacing: var(--text-subheading-tracking);
-  line-height: var(--text-subheading-line-height);
-}
-
-.onboarding p,
-.onboarding ol {
-  margin-bottom: var(--space-md);
-}
-
-.onboarding ol {
-  padding-left: var(--space-lg);
-}
-
-.onboarding li + li {
-  margin-top: var(--space-xs);
-}
-
-.onboarding__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-sm);
-}
-
-.onboarding__action {
-  padding: var(--space-sm) var(--space-md);
-}
-
-/*
- * Keyed on the action's own role class. `button:first-child` styled whichever
- * action happened to be first, so reordering the banner would have silently
- * moved the accent onto `Dismiss Help` with nothing failing.
- */
-.onboarding__action--accent {
-  border-color: var(--themely-apple-blue);
-  background: var(--themely-apple-blue);
-  color: var(--themely-on-accent);
-}
-
-.onboarding__action--accent:hover:not(:disabled) {
-  border-color: var(--themely-apple-blue-hover);
-  background: var(--themely-apple-blue-hover);
-}
-
-/*
- * D-11/D-17: the inspector column is gone, and so is the flat stack `03-05`
- * left in its place. Each of its sections is now one rail tool's panel content,
- * so the workspace landmark holds exactly one section at a time and needs no
- * separators between siblings that no longer exist.
- *
- * The `--desktop` / `--compact` modifier classes stay on the element because
- * `03-09` still keys the responsive suite on them and owns their replacement.
- * They carry no container styling here: retiring the container is the change,
- * renaming the hook it hangs on is not.
- */
-.workspace {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-.workspace__selection-color,
-.workspace__legend,
-.workspace__country-list,
-.workspace__saved-maps {
-  min-width: 0;
-  max-width: 100%;
 }

@@ -1,0 +1,96 @@
+/*
+ * The global action strip - `Controls` in every declared variant.
+ *
+ * The rail variant's rules are NOT here: they live in `editor.css` beside the
+ * HUD footer that composes them, because their subject is the rail's geometry
+ * rather than the action's own treatment. What is here is what an action looks
+ * like wherever it is composed.
+ */
+
+/*
+ * UI-SPEC 8: on the app bar the actions are one wrapping row, not the compact
+ * strip's three-row grid. `grid-column: 1 / -1` on the primary action is inert
+ * in a flex container, so `Export PNG` stays a normal-width button here and
+ * still spans the full width of the compact strip.
+ */
+.controls--app-bar .controls__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/*
+ * The heading is the section's accessible name (`aria-labelledby`), so it is
+ * hidden visually and never with `display: none`, which would strip the name
+ * from the landmark. On the app bar the actions themselves are the label.
+ */
+.controls--app-bar .controls__heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * Keyed on the action's own class, never on its position: the strip's order is
+ * a copy decision (UI-SPEC section 8) and a `:nth-child` rule silently repaints
+ * a different button the next time that order changes.
+ */
+.controls__action--destructive {
+  color: var(--destructive);
+}
+
+/*
+ * `Export PNG`. The fill is `--accent-fill`, NOT the flipping accent: white on
+ * `#0071e3` is 4.70:1, while `--themely-apple-blue` would give white on
+ * `#2997ff` = 3.02:1 in dark. Pointing this at the flipping token looks tidier
+ * and silently ships a label below AA that no rendering test catches.
+ */
+.controls__action--primary {
+  grid-column: 1 / -1;
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--themely-on-accent);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-subheading-weight);
+}
+
+/*
+ * A token, not `filter: brightness()`: a filter on a chrome control is one
+ * copy-paste away from a filter on exported content, and the contract test
+ * bans the property outright on export selectors.
+ */
+.controls__action--primary:hover:not(:disabled) {
+  border-color: var(--accent-fill-hover);
+  background: var(--accent-fill-hover);
+}
+
+/* Keyed on the action class, so the busy spinner survives both compositions. */
+.controls__action[aria-busy="true"]::before {
+  display: inline-block;
+  width: var(--space-md);
+  height: var(--space-md);
+  margin-right: var(--space-sm);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: text-bottom;
+  animation: export-spin 800ms linear infinite;
+  content: "";
+}
+
+@keyframes export-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls__action[aria-busy="true"]::before {
+    border-right-color: currentColor;
+    animation: none;
+  }
+}

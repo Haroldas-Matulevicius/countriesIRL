@@ -633,6 +633,81 @@
 }
 
 /*
+ * The panel's content sections, dissolved here by the 03-10 split.
+ *
+ * They arrived from `Controls.css`, where they were the last remains of the
+ * retired inspector column: `.workspace` itself matched no element after `03-06`
+ * moved the modifier classes onto the panel track, and `.workspace__actions`
+ * matched none after `03-05`. Both were deleted. What survives is the four
+ * wrappers `App` still renders, and they live with the panel rather than with a
+ * surface file because the section card IS the panel's surface (UI-SPEC 5) and
+ * three different surfaces share it.
+ */
+.workspace__selection-color,
+.workspace__legend,
+.workspace__country-list,
+.workspace__saved-maps {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.workspace__selection-color {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* UI-SPEC 11: the desktop home of `Reset All Colors`. */
+.workspace__selection-color > .controls__action {
+  padding: var(--space-sm) var(--space-md);
+}
+
+/*
+ * UI-SPEC 5: the panel body is Platinum and its sections are Porcelain cards at
+ * `--radius-card`. `03-05`'s transparent-pane neutralisers are gone with the
+ * inspector shell that needed them - inside a Platinum panel the card IS the
+ * stacking mechanism, not a card inside a card.
+ */
+.selection-panel,
+.color-picker,
+.country-list {
+  min-width: 0;
+  padding: var(--space-lg);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+}
+
+.selection-panel h2,
+.color-picker h2,
+.country-list h2 {
+  margin-bottom: var(--space-md);
+}
+
+/*
+ * UI-SPEC 4.1: panel section padding is 24px on desktop and 16px in the narrow
+ * sheet, where the sections are full-bleed rather than in a 280px track.
+ *
+ * Re-keyed off `data-layout` by `03-09`. The `@media (max-width: 1199px)` query
+ * this carried was a SECOND copy of the layout breakpoint, and D-20 turns that
+ * from a tidiness point into a real hazard: the shell now collapses at the same
+ * number, so the two copies drifting would move the layout and the padding
+ * apart with nothing failing. `useResponsiveLayout.ts` owns the only copy.
+ *
+ * Authored directly beneath the rule it overrides, for the reason the toast's
+ * two rules stay together: one element, one file.
+ *
+ * `.locate-country` is deliberately absent: inside the panel it is a
+ * hairline-divided pane with no padding of its own at either width, and a
+ * layout-scoped rule here would outrank that and give it one back.
+ */
+.map-editor[data-layout='compact'] .selection-panel,
+.map-editor[data-layout='compact'] .color-picker,
+.map-editor[data-layout='compact'] .country-list {
+  padding: var(--space-md);
+}
+
+/*
  * UI-SPEC 5: the title row does not scroll. It sticks to the top of the ONE
  * scroll container rather than living outside it - hoisting it out would move
  * the scroll container down to the content and leave the landed
@@ -719,4 +794,71 @@
 
 .editor-help__toggle {
   padding: var(--space-sm) var(--space-md);
+}
+
+/*
+ * The onboarding card itself, dissolved out of `App.css` by the 03-10 split.
+ * Its only placement is the help block directly above, so the two now sit
+ * together; `App.css` is left holding the host's mount element and the
+ * selection announcer, which are the app's, not the canvas region's.
+ */
+.onboarding {
+  width: calc(100% - (var(--space-md) * 2));
+  margin: 0 auto var(--space-md);
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-card);
+  background: var(--themely-porcelain);
+}
+
+/*
+ * The accent-tinted surface and the accent left edge are both gone. D-05 gives
+ * this banner exactly ONE Apple Blue element and that element is its CTA; a
+ * tinted card plus an accent rule plus a filled button is three.
+ */
+.onboarding h2 {
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-subheading);
+  font-weight: var(--text-subheading-weight);
+  letter-spacing: var(--text-subheading-tracking);
+  line-height: var(--text-subheading-line-height);
+}
+
+.onboarding p,
+.onboarding ol {
+  margin-bottom: var(--space-md);
+}
+
+.onboarding ol {
+  padding-left: var(--space-lg);
+}
+
+.onboarding li + li {
+  margin-top: var(--space-xs);
+}
+
+.onboarding__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-sm);
+}
+
+.onboarding__action {
+  padding: var(--space-sm) var(--space-md);
+}
+
+/*
+ * Keyed on the action's own role class. `button:first-child` styled whichever
+ * action happened to be first, so reordering the banner would have silently
+ * moved the accent onto `Dismiss Help` with nothing failing.
+ */
+.onboarding__action--accent {
+  border-color: var(--themely-apple-blue);
+  background: var(--themely-apple-blue);
+  color: var(--themely-on-accent);
+}
+
+.onboarding__action--accent:hover:not(:disabled) {
+  border-color: var(--themely-apple-blue-hover);
+  background: var(--themely-apple-blue-hover);
 }

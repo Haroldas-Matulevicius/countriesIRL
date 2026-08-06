@@ -9,12 +9,26 @@ import { FatalErrorState } from './components/FatalErrorState';
 import './styles/theme.css';
 import './styles/App.css';
 import './styles/MapCanvas.css';
-import './styles/Controls.css';
 /*
- * Last, so the shell's structural rules win over the page-measure rules the
- * app bar and inspector still carry. Note for 03-10: the successor contract
- * test globs `src/styles/**` and its assertion 20 compares that count with the
- * imports here - a stylesheet added to one and not the other is the defect.
+ * The seven surfaces `Controls.css` split into, plus the toast, in the order
+ * the single file declared them. Order is pinned rather than incidental: two
+ * rules of equal specificity are decided by source order, so an alphabetised
+ * or reshuffled list is a silent restyle. Where a rule crossed two surfaces the
+ * split gave it ONE home, so nothing here depends on a rule in a later file.
+ */
+import './styles/controls/controls.css';
+import './styles/controls/selectionPanel.css';
+import './styles/controls/colorPicker.css';
+import './styles/controls/countryList.css';
+import './styles/controls/saveLoad.css';
+import './styles/controls/toast.css';
+import './styles/controls/legendEditor.css';
+import './styles/controls/locateCountry.css';
+/*
+ * Last, so the shell's structural rules win over the surface rules above it.
+ * Assertion 20 in `src/styles/uiContract.test.ts` compares this list against a
+ * recursive walk of `src/styles` AS SETS - a stylesheet in one and not the
+ * other is the defect, in either direction.
  */
 import './styles/editor.css';
 

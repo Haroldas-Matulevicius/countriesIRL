@@ -1,0 +1,191 @@
+/*
+ * `CountryList` - the 195-row browser, its filter, and the bulk actions.
+ *
+ * Two rules below are shared with `LocateCountry`, which sits in the same
+ * column and needs the same hint and label treatment; they are homed here
+ * because the list is where both were authored, and `controls/locateCountry.css`
+ * owns everything else about that block.
+ */
+
+/*
+ * A stack, never a row. `Countries | Search countries [input] | Select Visible |
+ * Clear Selection` laid out as a flex row needed roughly 412px inside the 376px
+ * inspector: the two actions were clipped to their first letter and the whole
+ * column grew a horizontal scrollbar. There is no width at which four
+ * full-phrase controls fit one line here, so they get their own lines.
+ */
+.country-list__header {
+  display: grid;
+  margin-bottom: var(--space-md);
+  gap: var(--space-md);
+}
+
+.country-list__intro {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.country-list__header h2 {
+  margin-bottom: 0;
+}
+
+.country-list__search {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+/*
+ * The list filter and Locate are two different jobs sharing one column, so each
+ * carries a line saying which. Muted and small: it is orientation, not content.
+ */
+.country-list__hint,
+.locate-country__hint {
+  margin-bottom: 0;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
+}
+
+.country-list__search-label,
+.locate-country__label {
+  color: var(--themely-slate-blue);
+  font-size: var(--text-body-sm);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-body-sm-line-height);
+}
+
+.country-list__search input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
+  font: inherit;
+}
+
+/*
+ * Equal-width tracks rather than `flex-wrap` + `justify-content: flex-end`:
+ * wrapping put one action per line at a ragged right edge, and the two actions
+ * are a pair.
+ */
+.country-list__bulk-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.country-list__bulk-actions button {
+  padding: var(--space-sm) var(--space-md);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * No inner scroll container: at 195 rows the PANEL BODY is the single scroll
+ * container (UI-SPEC 7). The inspector-era fixed cap existed to keep Locate
+ * reachable below the list; in the panel, Locate scrolls with the body.
+ *
+ * The list reset it used to share with `.saved-maps-list` is folded in here
+ * instead: that grouped rule plus this one gave the saved list two anchoring
+ * files after the split, which is how a rule ends up half-overridden.
+ */
+.country-list__items {
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  list-style: none;
+}
+
+.country-list__item + .country-list__item {
+  border-top: var(--border-width) solid var(--hairline-color);
+}
+
+/* Hover paint is INSTANT on every row in the editor (D-29). */
+.country-list__label {
+  display: grid;
+  align-items: center;
+  min-height: var(--space-2xl);
+  padding: var(--space-sm);
+  grid-template-columns: var(--space-lg) minmax(0, 1fr) var(--space-lg);
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.country-list__label:hover {
+  background: var(--themely-powder);
+}
+
+.country-list__label:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--themely-apple-blue);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+
+.country-list__label:has(input:checked) {
+  box-shadow: inset var(--space-xs) 0 0 var(--themely-slate-blue);
+}
+
+.country-list__label input {
+  width: var(--space-lg);
+  height: var(--space-lg);
+  margin: 0;
+  accent-color: var(--themely-slate-blue);
+}
+
+.country-list__name {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.country-list__label:has(input:disabled) {
+  cursor: not-allowed;
+  color: var(--themely-slate-blue);
+}
+
+.country-list__unavailable {
+  grid-column: 2 / -1;
+  font-size: var(--text-caption);
+  color: var(--themely-slate-blue);
+}
+
+.country-list__color-swatch {
+  display: block;
+  width: var(--space-lg);
+  height: var(--space-lg);
+  border: var(--border-width) solid var(--swatch-border);
+  border-radius: var(--radius-control);
+}
+
+/*
+ * `canonicalizeColorMap` drops any entry equal to DEFAULT_COLOR, so white and
+ * "not coloured yet" are one state in this model. A filled chip on all 195 rows
+ * made an untouched map read as fully coloured - loudest in dark mode, where
+ * every row was a bright white square. Unset rows are an empty outline instead;
+ * only a real color fills.
+ */
+.country-list__color-swatch--unset {
+  border-style: dashed;
+  border-color: var(--hairline-color);
+  background: transparent;
+}
+
+/*
+ * The two bulk actions each take the full width at mobile. The `saved` panel's
+ * row actions do the same, and 03-10 split that pair into its own file rather
+ * than carrying one grouped rule across two surfaces - the distinct-selector
+ * count is identical either way, and each surface now reads whole.
+ */
+@media (max-width: 767px) {
+  .country-list__bulk-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
