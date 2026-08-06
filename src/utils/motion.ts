@@ -19,8 +19,9 @@
 
 import {
   CAMERA_MOTION_DURATION_MS,
+  EASE_OUT,
   SCENE_CROSSFADE_DURATION_MS,
-} from '../constants/camera';
+} from '../lib/motion/tokens';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -61,10 +62,15 @@ export function parseMotionDuration(value: string): number | null {
 
 export const EASING_CAMERA_TOKEN = '--easing-camera';
 
-/** UI-SPEC 4.4: the camera and scene-completion curve. */
-const FALLBACK_EASING: readonly [number, number, number, number] = [
-  0.22, 1, 0.36, 1,
-];
+/**
+ * UI-SPEC 4.4: the camera and scene-completion curve.
+ *
+ * Read from the Phase 3 mirror rather than restated. `--easing-camera` is
+ * byte-identical to `--motion-ease-out` (D-26), and keeping a second literal of
+ * the same four control points here is exactly the drift the lockstep test
+ * exists to prevent.
+ */
+const FALLBACK_EASING: readonly [number, number, number, number] = EASE_OUT;
 
 function bezierAxis(
   progress: number,

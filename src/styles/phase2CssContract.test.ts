@@ -718,7 +718,22 @@ describe('Phase 2 glass and preference contract', (): void => {
    * token must have a consumer - a CSS `var()` or a named read in `motion.ts`.
    */
   it('gives every motion token a consumer', (): void => {
-    const motionSource = readStyleSheet('../utils/motion.ts');
+    /*
+     * Phase 3 (D-26) adds `src/lib/motion/tokens.ts` as a second named-read
+     * home: it is the TS mirror of the `--motion-*` tokens and is what the
+     * lockstep gate compares against. It is added to this consumer set, never
+     * substituted for it - `utils/motion.ts` is still the module that reads a
+     * token at runtime.
+     *
+     * Recorded honestly: for `--motion-ease-snappy`, `--motion-ease-in`, and
+     * `--motion-duration-slow` the mirror is currently the ONLY consumer, so
+     * for those three this assertion is weaker than it is for the rest until
+     * `03-04` lands their `var()` call sites with the stylesheet rewrite.
+     */
+    const motionSource = [
+      readStyleSheet('../utils/motion.ts'),
+      readStyleSheet('../lib/motion/tokens.ts'),
+    ].join('\n');
     const styleSheets = [THEME_CSS, APP_CSS, CONTROLS_CSS, MAP_CANVAS_CSS].join(
       '\n',
     );

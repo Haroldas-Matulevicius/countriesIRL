@@ -458,6 +458,48 @@ accent CTA with `button:first-child`, so reordering it would have moved the acce
 
 ---
 
+## The Motion Token Mirror (Phase 3, D-26)
+
+**CSS is the runtime source of truth; `src/lib/motion/tokens.ts` is a TS mirror, never a second
+source.** `theme.css` declares the `--motion-*` custom properties, and the mirror exists only so
+`motion/react` call sites and d3 transitions can read the same numbers without a second copy of
+them. `src/lib/motion/tokens.test.ts` reads `theme.css` as text and fails when either layer moves
+alone — that lockstep is the only thing keeping the two honest, because nothing renders differently
+when they disagree by 10ms.
+
+**The lockstep test asserts its own row count, three independent ways, and both set memberships
+two-way.** A gate that iterates only what it happens to find proves nothing when a row disappears;
+that is precisely how three motion tokens were once declared, reduced-motion-gated, and read by
+nothing while a test read as proof. Concretely the gate pins: the mirror's row count against a
+literal written beside it, every export of `tokens.ts` classified as either mirrored or explicitly
+derived (a closed list), and the declared `--motion-*` / `--easing-*` set equal to the accounted-for
+set in **both** directions.
+
+**A rename and a retime look identical in a diff, so each reconciliation is a checked claim, not a
+comment.** `--motion-fast` / `--motion-camera` / `--easing-camera` are **absorbed byte-identically**
+by `--motion-duration-fast` / `--motion-duration-base` / `--motion-ease-out`, and the test asserts
+the pairs are *equal*. `--easing-control: ease-out` maps onto `--motion-ease-snappy` and is a
+**deliberate retime** (research assumption A8) — the test asserts those two are *different*, so
+"simplifying" them into one cannot ship a visible timing change disguised as a cleanup.
+
+**A duration that is close to a token but is not that token stays local, with its reason in the
+file.** `--motion-scene` / `SCENE_CROSSFADE_DURATION_MS` is 160ms and is never retimed onto the
+150ms token — Themely's do-not-snap idiom. The test asserts both the value and the presence of the
+recorded reason, because the value alone invites the next reader to tidy it.
+
+**Derive a duplicate, never restate it.** `CAMERA_MOTION_DURATION_MS` is `DURATION_BASE * 1000`,
+not a literal `240`. A `240` sitting beside a `0.24` gives a later reader no way to tell a mirror
+from a coincidence, and the gate rejects the literal form outright.
+
+**Known interim weakness, recorded rather than hidden.** `--motion-ease-snappy`,
+`--motion-ease-in`, and `--motion-duration-slow` currently have **no `var()` consumer** — the TS
+mirror is their only reader until `03-04` lands the stylesheet rewrite. The consumer assertion in
+`phase2CssContract.test.ts` was widened to accept a named read in `src/lib/motion/tokens.ts`
+*in addition to* `utils/motion.ts`, never instead of it. That is genuinely weaker for those three
+tokens than Phase 2's rule was, and `03-04` closes it.
+
+---
+
 ## Responsive Composition (Phase 2)
 
 **`overflow-x: hidden` belongs on `body`, never on `.app` or any other element.** On a
@@ -832,7 +874,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-08-06 — border weights toned down to 0.75/1.5/2 (focus stays 3px, export normalizes to 0.75); null-owner units fill with `NEUTRAL_UNIT_COLOR` in both color resolvers, get `.map-unit-path` rules and an honest tooltip, and stay out of legend/export effective colors.*
-*Last updated: 2026-07-26/27 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens.*
+*Last updated: 2026-08-06 — §The Motion Token Mirror (D-26): CSS is the source of truth and `src/lib/motion/tokens.ts` is a mirror pinned by a self-counting, two-way lockstep gate; absorbed names are asserted equal and the one deliberate retime is asserted different; derive a duplicate rather than restate it; the three consumer-less new tokens are recorded as an interim weakness `03-04` closes (plan 03-02).*
+*Last updated: 2026-07-26/27 + 2026-08-06 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign (both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens); border weights toned down to 0.75/1.5/2 and null-owner units given `NEUTRAL_UNIT_COLOR` in both resolvers with an honest tooltip.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

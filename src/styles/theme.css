@@ -45,6 +45,33 @@
   --easing-control: ease-out;
   --easing-camera: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /*
+   * Phase 3 motion contract (D-26). Added ADDITIVELY beside the Phase 2 names,
+   * removing nothing: `03-04` owns the retirement of the absorbed names, and a
+   * deletion here would collide with its retired-token gate.
+   *
+   * `src/lib/motion/tokens.ts` is the TS mirror; `tokens.test.ts` pins the two
+   * layers in lockstep and fails when either moves alone.
+   *
+   * Three deliberate reconciliations, named so a later reader does not read a
+   * rename as a retime:
+   *   - `--motion-ease-out` ABSORBS `--easing-camera`      - byte-identical.
+   *   - `--motion-duration-fast` ABSORBS `--motion-fast`   - byte-identical.
+   *   - `--motion-duration-base` ABSORBS `--motion-camera` - byte-identical.
+   *   - `--motion-ease-snappy` absorbs `--easing-control: ease-out`, and this
+   *     is NOT byte-equal. It is a deliberate RETIME of control micro-feedback
+   *     onto Themely's snappy curve (research assumption A8), not a rename.
+   *   - `--motion-scene` stays LOCAL at 160ms and is NOT retimed to 150ms.
+   *     Themely's "do-not-snap" idiom; retiming the scene crossfade is a
+   *     visible change to the map nobody asked for.
+   */
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-duration-fast: 150ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 360ms;
+
   --focus-width: 2px;
   --focus-offset: 2px;
   --border-width: 1px;
@@ -337,6 +364,9 @@ legend {
     --motion-fast: 0ms;
     --motion-scene: 0ms;
     --motion-camera: 0ms;
+    --motion-duration-fast: 0ms;
+    --motion-duration-base: 0ms;
+    --motion-duration-slow: 0ms;
   }
 
   *,
