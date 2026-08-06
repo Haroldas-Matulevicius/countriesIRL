@@ -1,5 +1,6 @@
 import { DEFAULT_BORDER_COLOR } from '../constants/colors';
 import {
+  EXPORT_FONT_FACE_SUPPRESSION_FLAG,
   EXPORT_FRAME_SIZE,
   EXPORT_SCALE,
   EXPORT_SIZE,
@@ -60,12 +61,12 @@ const ARIA_ATTRIBUTE_PREFIX = 'aria-';
  * (tests/e2e/export.spec.ts) exports the same composition twice — once
  * normally, once with the embedded `@font-face` suppressed — and asserts the
  * two rasters differ; without this seam that gate cannot go RED. Nothing in
- * the product writes this flag: it is set only by a Playwright
+ * the product writes the flag: it is set only by a Playwright
  * `addInitScript`/`evaluate`, it is not read from storage, and no
- * creator-facing control reaches it.
+ * creator-facing control reaches it. The flag NAME lives in
+ * `constants/config.ts` so specs can import it without the font bytes.
  */
-export const EXPORT_FONT_FACE_SUPPRESSION_FLAG =
-  '__COUNTRIESIRL_TEST_ONLY_SUPPRESS_EXPORT_FONT_FACE__';
+export { EXPORT_FONT_FACE_SUPPRESSION_FLAG } from '../constants/config';
 
 function isExportFontFaceSuppressed(): boolean {
   return (

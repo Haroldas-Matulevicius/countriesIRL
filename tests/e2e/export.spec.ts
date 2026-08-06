@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { expect, test, type Download, type Page } from '@playwright/test';
 
+import { EXPORT_FONT_FACE_SUPPRESSION_FLAG } from '../../src/constants/config';
 import {
   LEGEND_CHARACTERS_PER_LINE,
   resolveLegendRender,
@@ -24,9 +26,16 @@ const UNNAMED_FILENAME = 'CountriesIRL_2026-07-21.png';
 const LEGEND_LABEL = 'Pacific route';
 const DATE_LINE_COUNTRY = 'FJI';
 
+interface CloneFontStyleSummary {
+  readonly isFirstChild: boolean;
+  readonly hasFontFace: boolean;
+  readonly hasWoff2DataUrl: boolean;
+}
+
 interface CloneSummary {
   readonly svgCount: number;
   readonly frameBackgroundColor: string;
+  readonly fontStyle: CloneFontStyleSummary | null;
   readonly layerOrder: ReadonlyArray<string | null>;
   readonly cameraTransform: string | null;
   readonly legendTransform: string | null;
@@ -456,6 +465,291 @@ test.describe('PNG export', (): void => {
 
     expect(await page.evaluate((): number => window.__exportFixture.bodyFrameCount)).toBe(0);
     expect(await page.evaluate((): number => window.__exportFixture.anchorCount)).toBe(0);
+  });
+
+  test('assertion 25: the exported legend renders in Inter, measured on rasterised pixels', async ({
+    page,
+  }): Promise<void> => {
+    /*
+     * The cheap version — "the clone's markup names Inter" — is green whether
+     * or not the font resolves; the legend has named Inter since Phase 2
+     * while the export silently fell back. So the gate is two-part, and the
+     * pixel half is the load-bearing one.
+     */
+    await openExportFixture(page);
+    // A label with distinctive Inter advance widths (the OQ-1 probe string).
+    const probeLabel = 'Wig 111 fjord';
+    await page.evaluate((label: string): void => {
+      window.__exportFixture.setLegendLabel(label);
+    }, probeLabel);
+    await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+      probeLabel,
+    );
+
+    // Export 1 — the normal path.
+    const normalDownload = page.waitForEvent('download');
+    expect((await runExport(page)).ok).toBe(true);
+    const normalBytes = await saveDownload(
+      await normalDownload,
+      `assertion25-font-${UNNAMED_FILENAME}`,
+    );
+
+    // Part 1 — structural, via the fixture's MutationObserver on the REAL
+    // clone: svg.map-canvas > style, first child, @font-face with inline
+    // woff2 bytes. Soft, so a single injection deletion reports BOTH parts
+    // red in one run instead of aborting before the pixel half.
+    const normalClone = await readClone(page);
+    expect
+      .soft(normalClone.fontStyle)
+      .toEqual({
+        isFirstChild: true,
+        hasFontFace: true,
+        hasWoff2DataUrl: true,
+      });
+
+    // Export 2 — the SAME browser context, with the embedded @font-face
+    // suppressed through the test-only seam.
+    await page.evaluate((flag: string): void => {
+      Reflect.set(window, flag, true);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+    const suppressedDownload = page.waitForEvent('download');
+    expect((await runExport(page)).ok).toBe(true);
+    const suppressedBytes = await saveDownload(
+      await suppressedDownload,
+      `assertion25-suppressed-${UNNAMED_FILENAME}`,
+    );
+    const suppressedClone = await readClone(page);
+    expect(suppressedClone.fontStyle).toBeNull();
+    await page.evaluate((flag: string): void => {
+      Reflect.deleteProperty(window, flag);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+
+    // Part 2 — crop both PNGs to the legend region, derived from
+    // resolveLegendRender applied to the live legend state. Never hard-coded.
+    const legendState = await page.evaluate(
+      (): LegendState => window.__exportFixture.legendState,
+    );
+    const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
+    const region: LegendRegion = {
+      x: render.position.x,
+      y: render.position.y,
+      width: render.bounds.width,
+      height: render.bounds.height,
+    };
+
+    const measured = await page.evaluate(
+      async ({ normal, suppressed, box, threshold }) => {
+        const decode = async (base64: string): Promise<ImageData> => {
+          const binary = atob(base64);
+          const buffer = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) {
+            buffer[index] = binary.charCodeAt(index);
+          }
+          const bitmap = await createImageBitmap(
+            new Blob([buffer], { type: 'image/png' }),
+          );
+          const canvas = document.createElement('canvas');
+          canvas.width = box.width;
+          canvas.height = box.height;
+          const context = canvas.getContext('2d');
+          if (context === null) {
+            throw new Error('2D context is unavailable for PNG inspection.');
+          }
+          // Crop to the legend region while drawing.
+          context.drawImage(
+            bitmap,
+            box.x,
+            box.y,
+            box.width,
+            box.height,
+            0,
+            0,
+            box.width,
+            box.height,
+          );
+          return context.getImageData(0, 0, box.width, box.height);
+        };
+
+        const countInk = (crop: ImageData): number => {
+          let ink = 0;
+          for (let offset = 0; offset < crop.data.length; offset += 4) {
+            if (
+              crop.data[offset] < threshold ||
+              crop.data[offset + 1] < threshold ||
+              crop.data[offset + 2] < threshold
+            ) {
+              ink += 1;
+            }
+          }
+          return ink;
+        };
+
+        const countDiff = (left: ImageData, right: ImageData): number => {
+          let differing = 0;
+          for (let offset = 0; offset < left.data.length; offset += 4) {
+            if (
+              Math.abs(left.data[offset] - right.data[offset]) > 8 ||
+              Math.abs(left.data[offset + 1] - right.data[offset + 1]) > 8 ||
+              Math.abs(left.data[offset + 2] - right.data[offset + 2]) > 8
+            ) {
+              differing += 1;
+            }
+          }
+          return differing;
+        };
+
+        const normalCrop = await decode(normal);
+        const suppressedCrop = await decode(suppressed);
+        // The deliberately blank crop: an all-white buffer of the same size,
+        // run through the SAME counting machinery. It validates the
+        // instrument — a counter that reads ink into anything fails on it —
+        // and it is what the two real crops must both differ from.
+        const blankCrop = new ImageData(box.width, box.height);
+        blankCrop.data.fill(255);
+
+        return {
+          inkNormal: countInk(normalCrop),
+          inkSuppressed: countInk(suppressedCrop),
+          inkBlank: countInk(blankCrop),
+          diffNormalVsSuppressed: countDiff(normalCrop, suppressedCrop),
+          diffNormalVsBlank: countDiff(normalCrop, blankCrop),
+          diffSuppressedVsBlank: countDiff(suppressedCrop, blankCrop),
+        };
+      },
+      {
+        normal: normalBytes.toString('base64'),
+        suppressed: suppressedBytes.toString('base64'),
+        box: region,
+        threshold: INK_CHANNEL_THRESHOLD,
+      },
+    );
+
+    // Content floor FIRST: two blank corners satisfy "they differ" perfectly,
+    // and that exact defect shape has shipped here once.
+    expect(
+      measured.inkNormal,
+      'the Inter-embedded legend crop is blank',
+    ).toBeGreaterThan(500);
+    expect(
+      measured.inkSuppressed,
+      'the font-suppressed legend crop is blank',
+    ).toBeGreaterThan(500);
+
+    // The load-bearing inequality: suppressing the embedded @font-face must
+    // CHANGE the rasterised legend pixels. If Chrome ignored the data-URI
+    // font, both runs fall back identically and this reads ~0.
+    expect(
+      measured.diffNormalVsSuppressed,
+      'the embedded @font-face did not change the rasterised legend — ' +
+        'Inter never resolved in the exported PNG',
+    ).toBeGreaterThan(200);
+
+    // Blank-crop discrimination control: the counting machinery reads the
+    // blank as blank, and both real crops differ from it.
+    expect(measured.inkBlank).toBe(0);
+    expect(measured.diffNormalVsBlank).toBeGreaterThan(500);
+    expect(measured.diffSuppressedVsBlank).toBeGreaterThan(500);
+  });
+
+  test('CF-2: a latin-ext glyph falls back mid-string — observed, documented behaviour', async ({
+    page,
+  }): Promise<void> => {
+    /*
+     * The vendored Inter subset is latin-only (stops at U+00FF). This test
+     * pins the consequence as an observed fact rather than a surprise:
+     * embedding the font changes latin glyphs ('sss') and does NOT change
+     * latin-ext glyphs ('ššš') — 'š' falls back to the same generic face
+     * with or without the embedded font. No full-Unicode claim is made.
+     */
+    await page.goto('/');
+    const fontBase64 = readFileSync(
+      resolve('src/assets/inter-latin-variable.woff2'),
+    ).toString('base64');
+
+    const measured = await page.evaluate(
+      async (base64: string) => {
+        const rasterise = async (
+          label: string,
+          withFont: boolean,
+        ): Promise<Uint8ClampedArray> => {
+          const styleBlock = withFont
+            ? `<style>@font-face{font-family:'CF2Probe';` +
+              `src:url(data:font/woff2;base64,${base64}) format('woff2');` +
+              `font-weight:100 900;font-style:normal;}</style>`
+            : '';
+          const markup =
+            `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="96" viewBox="0 0 512 96">` +
+            styleBlock +
+            `<rect width="512" height="96" fill="#ffffff"/>` +
+            `<text x="8" y="64" font-family="'CF2Probe', serif" font-size="48" fill="#000">${label}</text>` +
+            `</svg>`;
+          const image = new Image();
+          await new Promise<void>((resolveLoad, rejectLoad) => {
+            image.onload = (): void => resolveLoad();
+            image.onerror = (): void => rejectLoad(new Error('load failed'));
+            image.src = `data:image/svg+xml,${encodeURIComponent(markup)}`;
+          });
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 96;
+          const context = canvas.getContext('2d');
+          if (context === null) {
+            throw new Error('2d context unavailable');
+          }
+          context.drawImage(image, 0, 0);
+          return context.getImageData(0, 0, 512, 96).data;
+        };
+
+        const countDiff = (
+          a: Uint8ClampedArray,
+          b: Uint8ClampedArray,
+        ): number => {
+          let differing = 0;
+          for (let index = 0; index < a.length; index += 4) {
+            if (
+              Math.abs(a[index] - b[index]) > 8 ||
+              Math.abs(a[index + 1] - b[index + 1]) > 8 ||
+              Math.abs(a[index + 2] - b[index + 2]) > 8
+            ) {
+              differing += 1;
+            }
+          }
+          return differing;
+        };
+
+        const countInk = (raster: Uint8ClampedArray): number => {
+          let ink = 0;
+          for (let index = 0; index < raster.length; index += 4) {
+            if (raster[index] < 200) {
+              ink += 1;
+            }
+          }
+          return ink;
+        };
+
+        const latinWith = await rasterise('sss', true);
+        const latinWithout = await rasterise('sss', false);
+        const latinExtWith = await rasterise('ššš', true);
+        const latinExtWithout = await rasterise('ššš', false);
+
+        return {
+          latinDiff: countDiff(latinWith, latinWithout),
+          latinExtDiff: countDiff(latinExtWith, latinExtWithout),
+          latinExtInk: countInk(latinExtWith),
+        };
+      },
+      fontBase64,
+    );
+
+    // The subset covers latin: embedding the font CHANGES 's'.
+    expect(measured.latinDiff).toBeGreaterThan(200);
+    // The subset does NOT cover latin-ext: 'š' renders the same with or
+    // without the embedded font — it falls back either way. This is the
+    // recorded CF-2 limitation, asserted so a future subset change is
+    // noticed here.
+    expect(measured.latinExtDiff).toBeLessThan(50);
+    // And the fallback genuinely renders glyphs (not blank tofu-nothing).
+    expect(measured.latinExtInk).toBeGreaterThan(200);
   });
 
   test('a maximum-length large label stays inside the legend region in the rendered export', async ({

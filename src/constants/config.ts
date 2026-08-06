@@ -32,4 +32,14 @@ export const EXPORT_FRAME_SIZE = 540;
 export const EXPORT_SCALE = 2;
 export const EXPORT_SIZE = 1080;
 
+/**
+ * TEST-ONLY: the globalThis sentinel that suppresses the export @font-face
+ * injection (see src/utils/export.ts `injectExportFontFace`). It lives here —
+ * a dependency-free constants module — so the Playwright specs can import the
+ * name without pulling the inlined font bytes through their transpiler.
+ * Nothing in the product writes it; only assertion 25's control run sets it.
+ */
+export const EXPORT_FONT_FACE_SUPPRESSION_FLAG =
+  '__COUNTRIESIRL_TEST_ONLY_SUPPRESS_EXPORT_FONT_FACE__';
+
 export const TOOLTIP_SPACING = 8;

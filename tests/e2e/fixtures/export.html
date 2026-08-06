@@ -77,10 +77,23 @@
         const legend = svg.querySelector('[data-layer="legend"]');
         const camera = svg.querySelector('[data-layer="camera"]');
         const { ariaAttributes, ids } = summarizeAttributeUse(svg);
+        // Assertion 25 Part 1: the injected export @font-face, observed on the
+        // real clone as it lands in the body — never by stubbing.
+        const fontStyle = svg.querySelector('style');
 
         return {
           svgCount: svgs.length,
           frameBackgroundColor: frame.style.backgroundColor,
+          fontStyle:
+            fontStyle === null
+              ? null
+              : {
+                  isFirstChild: svg.firstElementChild === fontStyle,
+                  hasFontFace: /@font-face/.test(fontStyle.textContent ?? ''),
+                  hasWoff2DataUrl: /src:\s*url\(data:font\/woff2;base64,/.test(
+                    fontStyle.textContent ?? '',
+                  ),
+                },
           layerOrder: [...svg.children].map((child) =>
             child.getAttribute('data-layer'),
           ),
