@@ -219,6 +219,60 @@ describe('the data asset base path has one home', (): void => {
 });
 
 /**
+ * Transition-readiness (b). Persistence is an ADAPTER, reached through
+ * `MapEditor`'s props boundary, and exactly one production file under `src/`
+ * knows what it is backed by.
+ *
+ * The rule is not aesthetic. `storage.ts` checks the bounded V2 limits -
+ * `MAX_STORAGE_SERIALIZED_LENGTH`, `MAX_STORAGE_JSON_DEPTH`,
+ * `MAX_STORAGE_JSON_NODES` - BEFORE it parses, and returns typed
+ * `storage-unavailable` / `quota-exceeded` reasons instead of throwing. A raw
+ * write somewhere else gets none of that, and it is a write a host cannot
+ * redirect.
+ *
+ * Test injection sites and the browser-context `page.evaluate` sites under
+ * `tests/e2e/` are deliberately out of scope: they are test setup, not app
+ * code, and widening this gate to chase them is how it stops being a gate.
+ */
+const STORAGE_SITE = 'utils/storage.ts';
+
+describe('browser storage has exactly one production site (transition-readiness b)', (): void => {
+  it('is reached from src/utils/storage.ts and nowhere else', (): void => {
+    const files = [
+      ...new Set(
+        matchesIn(/\blocalStorage\b|\bsessionStorage\b/u).map(
+          (match): string => match.file,
+        ),
+      ),
+    ].sort();
+
+    expect(
+      files,
+      'browser storage is an implementation detail of the adapter. A second ' +
+        'production file here is a write that skips the bounded V2 limits and ' +
+        'that a host cannot substitute.',
+    ).toStrictEqual([STORAGE_SITE]);
+  });
+
+  it('keeps the bounded V2 limits on the file that owns the storage site', (): void => {
+    const source = fileSystem().readFileSync(
+      new URL(STORAGE_SITE, SOURCE_DIRECTORY),
+      'utf8',
+    );
+
+    [
+      'MAX_STORAGE_SERIALIZED_LENGTH',
+      'MAX_STORAGE_JSON_DEPTH',
+      'MAX_STORAGE_JSON_NODES',
+    ].forEach((limit): void => {
+      expect(source, `${limit} is what makes the one site a safe one.`).toContain(
+        limit,
+      );
+    });
+  });
+});
+
+/**
  * Transition-readiness (e). A theme class written to the host page's root
  * element is a second writer of the theme that no control inside the editor can
  * override, and no host can either. The class goes on the editor mount root.

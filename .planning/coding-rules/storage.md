@@ -392,7 +392,38 @@ stale. A save that stored it would be the stale-save bug. Assert
 
 ---
 
-*Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25).*
-*Last updated: 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
+## Phase 3 Amendments — the adapter is the boundary
+
+**Exactly one production file under `src/` may name browser storage, and it is `src/utils/storage.ts`.**
+Enforced by `src/config/editorConfig.test.ts`, in both directions, and RED-proven. Everything else
+goes through `StorageAdapter`. Test injection sites and the `page.evaluate` sites under `tests/e2e/`
+are out of scope — they are test setup, not app code, and widening the gate to chase them is how it
+stops being a gate.
+
+**The adapter arrives through `MapEditor`'s props boundary as a FACTORY, not an instance.** The
+default factory builds the browser-backed adapter; a host substituting its own changes nothing else
+in the app. It is a factory because constructing the default at module scope binds the decision at
+import time, before a test — or a host — has installed the environment the editor runs in.
+
+### The shape `03-06` and `03-07`'s two new keys must follow
+
+Both new Phase 3 keys — **D-18**'s last-open tool and **D-30**'s theme — follow the
+`ONBOARDING_DISMISSED_KEY` precedent, and each rule below has a reason:
+
+| Rule | Why |
+|---|---|
+| Reached through `StorageAdapter`, never a raw write | the gate above; and a raw write gets none of the typed reasons |
+| A small **separate** key, not a new field on the composition record | the composition record is the creator's *map*. Editor UI state does not belong in a document that gets saved, loaded, and exported under a name; widening it makes every saved map carry the panel state that happened to be open when it was written |
+| Respect the bounded V2 contract | `MAX_STORAGE_SERIALIZED_LENGTH`, `MAX_STORAGE_JSON_DEPTH`, `MAX_STORAGE_JSON_NODES`, all checked **before** `JSON.parse`. Stored bytes are untrusted whatever wrote them |
+| **Absent-tolerant**, with the default decided in advance | a returning creator has neither key, and a first run must not look like a failure. Panel **closed** (D-18) and **light** (D-30). Never read an operating-system preference to fill either — Live Invariant 9 and `uiContract.test.ts` assertion 1 forbid a second writer of the theme |
+| A failed read or write is a typed reason, never a throw | the theme and the panel are cosmetic; neither may take the editor down when site data is blocked |
+
+---
+
+*Last updated: 2026-08-06 — added § Phase 3 Amendments: the one-production-storage-site gate, the
+adapter arriving through `MapEditor`'s props boundary as a factory, and the shape the two new
+D-18 / D-30 keys must follow — separate small key, bounded V2, absent-tolerant, defaults closed and
+light (plan 03-05, transition-readiness b).*
+*Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25). Earlier, 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

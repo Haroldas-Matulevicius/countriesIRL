@@ -288,7 +288,7 @@ const SLOT_DECLARATIONS = [
   'navigationSlot?: ReactNode;',
 ] as const;
 
-function readWorkspaceSource(): string {
+function readSource(fileName: string): string {
   const nodeProcess = Reflect.get(globalThis, 'process') as
     | {
         getBuiltinModule: (name: 'fs') => {
@@ -303,9 +303,20 @@ function readWorkspaceSource(): string {
 
   return nodeProcess
     .getBuiltinModule('fs')
-    .readFileSync(new URL('./MapWorkspace.tsx', import.meta.url), 'utf8');
+    .readFileSync(new URL(`./${fileName}`, import.meta.url), 'utf8');
 }
 
+function readWorkspaceSource(): string {
+  return readSource('MapWorkspace.tsx');
+}
+
+/**
+ * The legend slot is modelled by the element `LegendOverlay` actually renders,
+ * not by a bare marker: the composition contract is that the legend layer lands
+ * inside the canonical SVG, and a fixture that drops the layer attribute would
+ * be asserting about the fixture. `LegendOverlay.tsx` is read below so the
+ * fixture cannot drift away from the component it stands in for.
+ */
 function renderReadyWorkspace(): string {
   return renderToStaticMarkup(
     <MapWorkspace
@@ -317,7 +328,7 @@ function renderReadyWorkspace(): string {
       colors={{}}
       selectedIds={new Set()}
       exportSourceRef={{ current: null }}
-      legendSlot={<g data-legend-slot="true" />}
+      legendSlot={<g data-layer="legend" data-legend-slot="true" />}
       navigationSlot={<div data-navigation-slot="true" />}
       onSelectCountry={vi.fn()}
       onClearSelection={vi.fn()}
@@ -398,6 +409,91 @@ describe('MapWorkspace export frame (D-32)', (): void => {
     expect(markup.indexOf('data-navigation-slot="true"')).toBeGreaterThan(
       findClosingDivIndex(markup, markup.indexOf('class="map-workspace__canvas"')),
     );
+  });
+});
+
+/**
+ * D-24, as a regression guard rather than a description.
+ *
+ * The restructure in `03-05` moves containers around the canvas. Placement in
+ * these two typed slots is what decides export membership - `data-editor-only`
+ * is the second line of defence, not the first - so a control that drifted
+ * across the boundary would keep working, keep looking right, and start
+ * appearing in (or vanishing from) every exported PNG with nothing failing.
+ */
+describe('MapWorkspace slot contract regression guard (D-24)', (): void => {
+  it('puts the legend layer inside the canonical SVG, after the camera layer', (): void => {
+    const markup = renderReadyWorkspace();
+
+    const svgStart = markup.indexOf('<svg class="map-canvas"');
+    const svgEnd = markup.indexOf('</svg>', svgStart);
+    const cameraLayerIndex = markup.indexOf('data-layer="camera"');
+    const legendLayerIndex = markup.indexOf('data-layer="legend"');
+
+    expect(svgStart).toBeGreaterThanOrEqual(0);
+    expect(cameraLayerIndex).toBeGreaterThan(svgStart);
+    expect(cameraLayerIndex).toBeLessThan(svgEnd);
+
+    expect(
+      legendLayerIndex > svgStart && legendLayerIndex < svgEnd,
+      'the legend layer has to be inside the canonical SVG. The export clones ' +
+        'that SVG, so a legend beside it is a silently legend-less PNG - or, ' +
+        'once the refusal fires, a permanently blocked export.',
+    ).toBe(true);
+
+    /*
+     * Order, not just membership. `isPreservedComposition` in `export.ts`
+     * depends on the camera layer coming first, so a legend hoisted above it
+     * survives every containment check above and still fails the export.
+     */
+    expect(
+      cameraLayerIndex,
+      'the camera layer precedes the legend layer; that order is the shape ' +
+        'the export refusal check reads.',
+    ).toBeLessThan(legendLayerIndex);
+  });
+
+  it('binds the legend fixture back to the component it stands in for', (): void => {
+    // A fixture that re-implements the wiring under test can only make claims
+    // about the fixture. This is the one line that ties the marker above to the
+    // real overlay.
+    expect(readSource('LegendOverlay.tsx')).toContain('data-layer="legend"');
+  });
+
+  it('keeps the navigation slot outside the canonical SVG entirely', (): void => {
+    const markup = renderReadyWorkspace();
+
+    const svgStart = markup.indexOf('<svg class="map-canvas"');
+    const svgEnd = markup.indexOf('</svg>', svgStart);
+    const navigationIndex = markup.indexOf('data-navigation-slot="true"');
+
+    expect(navigationIndex).toBeGreaterThanOrEqual(0);
+    expect(
+      navigationIndex > svgStart && navigationIndex < svgEnd,
+      'the camera cluster is editor-only chrome. Inside the canonical SVG it ' +
+        'is cloned into every exported PNG, on top of a top-left legend.',
+    ).toBe(false);
+    expect(navigationIndex).toBeGreaterThan(svgEnd);
+  });
+
+  it('keeps the frame a sibling, editor-only, and not a slot', (): void => {
+    const markup = renderReadyWorkspace();
+    const source = readWorkspaceSource();
+
+    const exportSourceEnd = findClosingDivIndex(
+      markup,
+      markup.indexOf('class="map-export-source"'),
+    );
+    const frameIndex = markup.indexOf('class="map-frame"');
+
+    expect(frameIndex).toBeGreaterThan(exportSourceEnd);
+    expect(/<div class="map-frame"[^>]*data-editor-only="true"/u.test(markup)).toBe(
+      true,
+    );
+    // The frame is rendered by this component, not handed in - a caller that
+    // could replace it could remove the only signal of what the PNG crops to.
+    expect(source).toContain('className="map-frame"');
+    expect(source).not.toContain('frameSlot');
   });
 });
 

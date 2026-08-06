@@ -18,10 +18,11 @@ import { createStorageAdapter, type StorageAdapter } from '../utils/storage';
 export interface EditorConfigValue {
   readonly assetUrls: EditorAssetUrls;
   /**
-   * A factory, not an instance. The default adapter reads `window.localStorage`
-   * through `storage.ts`, and constructing it at module scope would bind the
-   * decision at import time - before a test (or a host) has installed the
-   * environment the editor is supposed to run in.
+   * A factory, not an instance. The default adapter reaches browser storage
+   * through `storage.ts` - the one production file allowed to know what backs
+   * it - and constructing it at module scope would bind that decision at import
+   * time, before a test (or a host) has installed the environment the editor is
+   * supposed to run in.
    */
   readonly createStorage: () => StorageAdapter;
   readonly initialThemeMode: EditorThemeMode;
