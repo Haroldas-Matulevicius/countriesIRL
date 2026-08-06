@@ -168,9 +168,24 @@ tears a seam through the exported map.
 
 **Normalize borders across `path.scene-path`, not `path.country-path`.** Wrapped repeats carry
 `scene-path country-path--decorative`; the `.country-path` selector does **not** match them.
-Normalizing only `country-path` leaves the selection border (`#111827`, 2px) baked onto every
-wrapped copy of a selected country while the primary copy renders the default 1px `#9CA3AF` —
-a visible seam in the PNG.
+Normalizing only `country-path` leaves the selection border (2.5px) baked onto every wrapped
+copy of a selected country while the primary copy renders the default 1.25px — a visible seam
+in the PNG.
+
+**Keep `vector-effect="non-scaling-stroke"` on every scene path in the clone.** The camera
+layer wraps the geometry in `scale(zoom)`, and `zoom` runs to 24. A plain `stroke-width: 1`
+inside that group is *1 user unit × zoom*, so the frame the creator set decided how heavy their
+borders came out: a hairline on screen downloaded as an ~8px outline at 8x. Pinning the vector
+effect resolves the stroke in viewport space instead — `EXPORT_BORDER_WIDTH` (1) at the 540px
+frame is one CSS pixel, which `EXPORT_SCALE` 2 rasterizes to a crisp 2px line at 1080 at every
+zoom. `sanitizeExportClone` **sets** the attribute rather than inheriting it, and sets
+`style.vectorEffect` too, because external CSS is not serialized into the `html2canvas` SVG
+image. It removed the attribute from Phase 1 until 2026-07-27; that removal was the bug.
+
+The gate is `clone.vectorEffects === WRAPPED_PATH_COUNT` in `tests/e2e/export.spec.ts` — a
+count, not a `> 0`, so a path that loses the effect fails. Its unit twin only bites if the
+fixture paths *lack* the attribute, so `export.test.ts` deliberately omits it from the source
+paths: inheriting it would make the assertion pass with the exporter doing nothing.
 
 **`id` stripping is reference-aware, and must stay that way.** An id nothing points at is
 editor semantics; an id something points at is **paint**. Before removing any `id`, collect
@@ -527,7 +542,7 @@ const images = await exportTimelapsePngs({
 
 ---
 
-*Last updated: 2026-07-26 — cross-domain journey rules from plan 02-27: region-disjoint colour counting, a discrimination control beside every cross-export equality, exported bytes must follow the history position, and the journey spec owns interactions rather than re-asserting the focused specs.*
-*Last updated: 2026-07-26 — removed the "recommend refreshing the page" mitigation that contradicted this file's own no-refresh rule; marked the Phase 1 `alert()` error handling and the unbuilt timelapse sketch as superseded/deferred; the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
+*Last updated: 2026-07-27 — the clone keeps `vector-effect="non-scaling-stroke"`; removing it let the camera zoom multiply every border width, so a framed-in composition downloaded outlines the screen never showed.*
+*Last updated: 2026-07-26 — cross-domain journey rules from plan 02-27 plus a correctness pass: region-disjoint colour counting, a discrimination control beside every cross-export equality, exported bytes must follow the history position, the journey spec owns interactions rather than re-asserting the focused specs; removed the "recommend refreshing the page" mitigation that contradicted this file's own no-refresh rule, marked the Phase 1 `alert()` error handling and the unbuilt timelapse sketch as superseded/deferred, and the Phase 2 legend ships inside the canonical SVG (plan 02-25).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

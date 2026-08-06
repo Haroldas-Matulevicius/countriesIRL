@@ -1,15 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  DEFAULT_BORDER_COLOR,
-  SELECTED_BORDER_COLOR,
-} from '../constants/colors';
+import { DEFAULT_BORDER_COLOR } from '../constants/colors';
 import {
   EXPORT_FRAME_SIZE,
   EXPORT_SCALE,
   EXPORT_SIZE,
 } from '../constants/config';
 import { createExportFilename, exportMapPng } from './export';
+
+/*
+ * Deliberately NOT `SELECTED_BORDER_COLOR`. Every map border is black now, so a
+ * fixture painted with the selection token would equal `DEFAULT_BORDER_COLOR`
+ * and both directions of the stroke contract - "the clone is normalized" and
+ * "the live composition is untouched" - would pass without the code doing
+ * anything. This sentinel is a colour the exporter must overwrite in the clone
+ * and must never write back to the source.
+ */
+const SOURCE_STROKE_SENTINEL = '#0F766E';
 
 const html2canvasMock = vi.hoisted(() => vi.fn());
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
@@ -323,9 +330,8 @@ function createSource(): FakeSource {
   sourcePath.setAttribute('id', 'country-FR');
   sourcePath.setAttribute('d', 'M0 0 L10 0 L10 10 Z');
   sourcePath.setAttribute('fill', '#DC2626');
-  sourcePath.setAttribute('stroke', SELECTED_BORDER_COLOR);
+  sourcePath.setAttribute('stroke', SOURCE_STROKE_SENTINEL);
   sourcePath.setAttribute('stroke-width', '3');
-  sourcePath.setAttribute('vector-effect', 'non-scaling-stroke');
   sourcePath.setAttribute('data-path-kind', 'logical');
   sourcePath.setAttribute('data-country-id', 'FR');
   sourcePath.setAttribute('role', 'option');
@@ -345,9 +351,8 @@ function createSource(): FakeSource {
   wrappedPath.setAttribute('class', 'scene-path country-path--decorative selected');
   wrappedPath.setAttribute('d', 'M0 0 L10 0 L10 10 Z');
   wrappedPath.setAttribute('fill', '#DC2626');
-  wrappedPath.setAttribute('stroke', SELECTED_BORDER_COLOR);
+  wrappedPath.setAttribute('stroke', SOURCE_STROKE_SENTINEL);
   wrappedPath.setAttribute('stroke-width', '2');
-  wrappedPath.setAttribute('vector-effect', 'non-scaling-stroke');
   wrappedPath.setAttribute('transform', WRAPPED_OFFSET_TRANSFORM);
   wrappedPath.setAttribute('data-path-kind', 'decorative');
   wrappedPath.setAttribute('aria-hidden', 'true');
@@ -501,6 +506,9 @@ describe('exportMapPng', (): void => {
     expect(clonedPath?.getAttribute('fill')).toBe('#DC2626');
     expect(clonedPath?.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
     expect(clonedPath?.getAttribute('stroke-width')).toBe('1');
+    // Pinned: without this the camera's `scale(zoom)` multiplies the border
+    // width and the PNG ships fat outlines the screen never showed.
+    expect(clonedPath?.getAttribute('vector-effect')).toBe('non-scaling-stroke');
     expect(clonedPath?.getAttribute('class')).toBe('scene-path country-path');
     expect(clonedPath?.getAttribute('d')).toBe('M0 0 L10 0 L10 10 Z');
     expect(clonedPath?.getAttribute('role')).toBeNull();
@@ -543,7 +551,7 @@ describe('exportMapPng', (): void => {
 
     expect(sourceElement.isConnected).toBe(true);
     expect(sourcePath.getAttribute('class')).toContain('selected');
-    expect(sourcePath.getAttribute('stroke')).toBe(SELECTED_BORDER_COLOR);
+    expect(sourcePath.getAttribute('stroke')).toBe(SOURCE_STROKE_SENTINEL);
   });
 
   it('keeps the ids that paint references and strips the rest', async (): Promise<void> => {
@@ -658,7 +666,7 @@ describe('exportMapPng', (): void => {
       expect(path.getAttribute('d')).not.toBeNull();
       expect(path.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
       expect(path.getAttribute('stroke-width')).toBe('1');
-      expect(path.getAttribute('vector-effect')).toBeNull();
+      expect(path.getAttribute('vector-effect')).toBe('non-scaling-stroke');
       expect(path.getAttribute('aria-hidden')).toBeNull();
       expect(path.getAttribute('focusable')).toBeNull();
       expect(path.getAttribute('tabindex')).toBeNull();
@@ -694,7 +702,7 @@ describe('exportMapPng', (): void => {
 
     expect(sourcePath.getAttribute('role')).toBe('option');
     expect(sourcePath.getAttribute('tabindex')).toBe('0');
-    expect(sourcePath.getAttribute('stroke')).toBe(SELECTED_BORDER_COLOR);
+    expect(sourcePath.getAttribute('stroke')).toBe(SOURCE_STROKE_SENTINEL);
     expect(sourcePath.querySelector('title')).not.toBeNull();
     expect(wrappedPath.getAttribute('aria-hidden')).toBe('true');
     expect(camera.getAttribute('transform')).toBe(CAMERA_TRANSFORM);

@@ -84,9 +84,9 @@
 
   --map-surface: #ffffff;
   --map-fill-default: #ffffff;
-  --map-border-default: #9ca3af;
-  --map-border-hover: #4b5563;
-  --map-border-selected: #111827;
+  --map-border-default: #000000;
+  --map-border-hover: #000000;
+  --map-border-selected: #000000;
   --map-border-focus: #0f766e;
   --map-fixed-text: #111827;
   --map-skeleton-fill: #e5e7eb;

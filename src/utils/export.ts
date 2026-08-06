@@ -204,9 +204,18 @@ function sanitizeExportClone(svg: SVGSVGElement): void {
     (path: SVGPathElement): void => {
       path.setAttribute('stroke', DEFAULT_BORDER_COLOR);
       path.setAttribute('stroke-width', EXPORT_BORDER_WIDTH);
-      path.removeAttribute('vector-effect');
+      // The camera layer wraps this path in `scale(zoom)`. Without
+      // `non-scaling-stroke` the border width is multiplied by that zoom, so a
+      // composition framed at 8x exported ~8px-wide boundaries into the 1080
+      // PNG while the screen still showed a hairline - the borders looked
+      // "super thick" in the download only. Pinning the vector effect makes the
+      // stroke resolve in viewport space: EXPORT_BORDER_WIDTH user units at the
+      // 540px frame is one CSS pixel, which scale 2 rasterizes to a crisp 2px
+      // line at 1080 regardless of how far the creator zoomed in.
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
       path.style.stroke = DEFAULT_BORDER_COLOR;
       path.style.strokeWidth = EXPORT_BORDER_WIDTH;
+      path.style.vectorEffect = 'non-scaling-stroke';
       path.style.strokeDasharray = 'none';
       path.style.transition = 'none';
       path.style.filter = 'none';

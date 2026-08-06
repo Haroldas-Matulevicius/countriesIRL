@@ -344,6 +344,20 @@ accidental override hides in) and asserts each export token is declared exactly 
 **A focus or selection stroke on map geometry uses a `--map-*` token, not `--accent`.** The
 chrome accent flips with the OS theme; the square does not.
 
+**Country border state is carried by stroke-*width*, not stroke colour.** Every boundary is
+black (`--map-border-default` / `-hover` / `-selected` are all `#000000`), so hover and
+selection have nowhere darker to go: 1.25px resting → 2px hover → 2.5px selected, with focus
+the one exception (teal `--map-border-focus`, dashed, 3px, because it must read against a
+selected country). Do not "fix" the identical colour tokens by lightening the resting border —
+the three names stay separate so a future re-tint has a seam to open at, and the export reads
+`DEFAULT_BORDER_COLOR` from `src/constants/colors.ts`, which must stay in sync with the token.
+Adding a fourth state means adding a weight, not a colour.
+
+**Widths on map geometry are screen pixels only because the path carries
+`vector-effect="non-scaling-stroke"`** (set on `enter` in `MapCanvas`, re-asserted by
+`sanitizeExportClone`). Inside the camera's `scale(zoom)` group a bare `stroke-width` is
+multiplied by the zoom — see `coding-rules/export.md` for the PNG this shipped.
+
 **Glass is progressive enhancement over an opaque `:root` value.** The translucent value lives
 only under `@supports (backdrop-filter: blur(1px))`, and `prefers-reduced-transparency`,
 `prefers-contrast: more`, and `forced-colors: active` each restore the opaque baseline and zero
@@ -807,7 +821,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-07-26 — wave789 review rules: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity.*
-*Last updated: 2026-07-26 — inspector redesign: screen-sized chrome may not overlay canvas-positioned content, stacked controls in the 376px column, derived grid tracks over fixed counts, empty-state chips, sticky inspector offset summed from tokens.*
+*Last updated: 2026-07-27 — black country borders: state is carried by stroke-width (1.25/2/2.5) rather than colour, and map widths are screen pixels only because the path keeps `non-scaling-stroke` inside the camera's scale group.*
+*Last updated: 2026-07-26 — wave789 review rules and the inspector redesign: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity; screen-sized chrome may not overlay canvas-positioned content, stacked controls in the 376px column, derived grid tracks over fixed counts, empty-state chips, sticky inspector offset summed from tokens.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

@@ -11,7 +11,9 @@ const VISIBLE_MODERN_UNIT_COUNT = 248;
 // Every visible unit is drawn three times (-360°, 0°, +360°) so a Pacific
 // composition has no seam at the date line.
 const WRAPPED_PATH_COUNT = VISIBLE_MODERN_UNIT_COUNT * 3;
-const DEFAULT_BORDER_COLOR = '#9CA3AF';
+// Mirrors `src/constants/colors.ts`. Restated here so the E2E asserts the
+// literal the PNG must carry rather than importing the value under test.
+const DEFAULT_BORDER_COLOR = '#000000';
 const UNNAMED_FILENAME = 'CountriesIRL_2026-07-21.png';
 const LEGEND_LABEL = 'Pacific route';
 const DATE_LINE_COUNTRY = 'FJI';
@@ -256,7 +258,11 @@ test.describe('PNG export', (): void => {
     // to the same default border as its primary copy.
     expect(clone.strokes).toEqual([DEFAULT_BORDER_COLOR]);
     expect(clone.strokeWidths).toEqual(['1']);
-    expect(clone.vectorEffects).toBe(0);
+    // Every scene path keeps `non-scaling-stroke`. The camera layer wraps them
+    // in `scale(zoom)`; without it a border is drawn `zoom` user units wide and
+    // a composition framed at 8x downloads outlines eight times heavier than
+    // the ones on screen.
+    expect(clone.vectorEffects).toBe(WRAPPED_PATH_COUNT);
     expect(clone.selectionClasses).toBe(0);
 
     // Semantics: no duplicate accessibility tree, no editor state, no outgoing

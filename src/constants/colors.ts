@@ -1,8 +1,12 @@
 import type { ColorPreset } from '../types/ui';
 
 export const DEFAULT_COLOR = '#FFFFFF';
-export const DEFAULT_BORDER_COLOR = '#9CA3AF';
-export const SELECTED_BORDER_COLOR = '#111827';
+// Country boundaries are black at every state. Once the resting border is
+// black, hover and selection cannot differentiate by going darker - they
+// differentiate by weight, and the CSS stroke-widths carry that hierarchy.
+// Keep these in sync with `--map-border-default` / `--map-border-selected`.
+export const DEFAULT_BORDER_COLOR = '#000000';
+export const SELECTED_BORDER_COLOR = '#000000';
 
 export const COLOR_PRESETS = [
   { name: 'Red', value: '#DC2626' },
