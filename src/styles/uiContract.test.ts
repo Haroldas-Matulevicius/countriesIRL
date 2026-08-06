@@ -299,11 +299,11 @@ function contrastRatio(foreground: string, background: string): number {
 /*
  * The one deliberate change to the ported infrastructure: the Phase 2 file
  * hard-coded four stylesheet filenames, so a stylesheet added after it was
- * written escaped every assertion in it. `03-10` splits `Controls.css` into
- * `src/styles/controls/*.css`, which is exactly that failure waiting to happen,
- * so discovery is a directory walk from here on. Assertion 20 (this set's size
- * equals the import count in the entry module) lands in `03-10` on top of this
- * seam.
+ * written escaped every assertion in it. `03-10` split `Controls.css` into
+ * eight files under `src/styles/controls/`, which is exactly that failure
+ * waiting to happen, so discovery is a directory walk from here on. Assertion
+ * 20 below closes the other direction, comparing this set against the entry
+ * module's import list AS SETS.
  */
 function collectFiles(directory: URL, extension: string): string[] {
   return fileSystem()
@@ -463,6 +463,115 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
     const raw = rawStyleSheetImports();
 
     expect(raw[raw.length - 1]).toBe(`${STYLES_IMPORT_PREFIX}editor.css`);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 21 - the distinct-selector inventory is a ceiling
+ * ------------------------------------------------------------------ */
+
+/**
+ * Measured after the `03-10` sweep, on the eight files `Controls.css` split
+ * into plus the four that were already here. The pre-sweep number was **339**;
+ * thirteen distinct selectors were deleted and none was added, so the shrink is
+ * a stated number rather than an impression.
+ *
+ * **It is a ceiling, not an equality.** An exact match forces a test edit on
+ * every legitimate deletion, which trains people to bump the number reflexively
+ * - and a number that gets bumped reflexively stops being a gate. A ceiling
+ * fails only on GROWTH, which is the behaviour worth catching.
+ *
+ * **Maintenance rule** (also recorded in `coding-rules/frontend.md`): lower it
+ * when rules are deleted; raise it only with a stated reason in the commit that
+ * raises it.
+ */
+const SELECTOR_INVENTORY_CEILING = 326;
+
+/**
+ * Every selector a rule declares, one per comma-separated part.
+ *
+ * Counting parts rather than rules is what makes the metric independent of how
+ * a rule happens to be grouped: `03-10` both split grouped selectors apart and
+ * folded others together, and a rule count would have moved on that alone.
+ *
+ * `@keyframes` steps are excluded. `to` and `0%` parse as rule selectors here
+ * because the walk does not special-case at-rules, but a keyframe step is not
+ * something the stylesheet styles.
+ */
+function selectorsOf(rules: readonly CssRule[]): string[] {
+  return rules
+    .filter(
+      (rule): boolean =>
+        !rule.conditions.some((condition): boolean =>
+          condition.startsWith('@keyframes'),
+        ),
+    )
+    .flatMap((rule): string[] => rule.selector.split(','))
+    .map((selector): string => selector.trim().replaceAll(/\s+/gu, ' '))
+    .filter((selector): boolean => selector.length > 0);
+}
+
+function distinctSelectorInventory(): string[] {
+  return [
+    ...new Set(ALL_RULES.flatMap(([, rules]): string[] => selectorsOf(rules))),
+  ].sort();
+}
+
+describe('Phase 3 selector inventory is a ceiling (assertion 21)', (): void => {
+  it('keeps the distinct-selector inventory at or below the recorded ceiling', (): void => {
+    const inventory = distinctSelectorInventory();
+
+    /*
+     * A ceiling is satisfied by ZERO, so the floor is asserted structurally
+     * rather than as a second magic number: every discovered stylesheet must
+     * contribute at least one selector. A walk that silently resolved to
+     * nothing, or a parser that consumed a whole file, fails here instead of
+     * reporting a very tidy inventory.
+     */
+    STYLE_SHEET_NAMES.forEach((name): void => {
+      expect(
+        selectorsOf(rulesOf(name)).length,
+        `${name} contributed no selectors, so the inventory below is not ` +
+          'measuring it.',
+      ).toBeGreaterThan(0);
+    });
+
+    expect(
+      inventory.length,
+      `The distinct-selector inventory is ${inventory.length}, above the ` +
+        `recorded ceiling of ${SELECTOR_INVENTORY_CEILING}. CSS mass ` +
+        're-accumulates one reasonable rule at a time. Delete something, or ' +
+        'raise the ceiling in the same commit and say why.',
+    ).toBeLessThanOrEqual(SELECTOR_INVENTORY_CEILING);
+  });
+
+  /**
+   * The count is taken from the parser, which strips comments, and NOT from a
+   * text scan. A raw `grep -c` over a stylesheet counts comment text: a header
+   * comment naming a class would inflate this number, and - the real hazard -
+   * a comment naming a token or property that a neighbouring negative gate
+   * greps for would satisfy or defeat that gate. This asserts the mechanism
+   * directly, so swapping the parser for a text scan fails here rather than
+   * quietly changing what every number in this file means.
+   */
+  it('counts parsed selectors and never comment text', (): void => {
+    const fixture = [
+      '/* .commented-out-selector { color: red; } */',
+      '.real-one,',
+      '.real-two {',
+      '  color: inherit;',
+      '}',
+      '@keyframes probe-spin {',
+      '  to {',
+      '    transform: rotate(1turn);',
+      '  }',
+      '}',
+    ].join('\n');
+
+    expect(selectorsOf(parseRules(fixture))).toStrictEqual([
+      '.real-one',
+      '.real-two',
+    ]);
   });
 });
 
