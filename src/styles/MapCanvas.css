@@ -163,6 +163,18 @@
   stroke-width: 3px;
 }
 
+/*
+ * Non-colorable units (null color owner: disputed/neutral territories and
+ * Antarctica). No pointer affordance - clicks are swallowed by design - and a
+ * lighter boundary so they recede behind the colorable states. Solid
+ * properties only: this class reaches the export clone, so export-unsafe
+ * effects are banned here (enforced by phase2CssContract.test.ts).
+ */
+.map-unit-path {
+  cursor: default;
+  stroke-width: 0.5px;
+}
+
 [aria-hidden="true"] .country-path,
 .map-export-source[data-export-mode="true"] .country-path {
   stroke: var(--map-border-default);

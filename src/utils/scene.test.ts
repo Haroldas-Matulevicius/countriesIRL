@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { EffectiveScene, SnapshotId } from '../types/composition';
 import type { ColorMap, CountryId, SceneFeature } from '../types/map';
 import {
@@ -133,11 +134,15 @@ describe('composeEffectiveScene', (): void => {
 
     expect([...scene.selectableEntityIds]).toEqual(['FRA']);
     expect(getSelectableEntityIds(scene.features)).toEqual(new Set(['FRA']));
+    // The neutral unit renders the neutral fill (never white), and because its
+    // owner is null it must stay out of the effective colors the legend and
+    // export gate read.
     expect(scene.features.map((feature) => getEffectiveFeatureColor(feature, colors))).toEqual([
       '#DC2626',
       '#DC2626',
-      '#FFFFFF',
+      NEUTRAL_UNIT_COLOR,
     ]);
+    expect(NEUTRAL_UNIT_COLOR).not.toBe('#FFFFFF');
     expect(getEffectiveSceneColors(scene, colors)).toEqual(['#DC2626', '#DC2626']);
   });
 

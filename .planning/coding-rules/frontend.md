@@ -353,6 +353,17 @@ the three names stay separate so a future re-tint has a seam to open at, and the
 `DEFAULT_BORDER_COLOR` from `src/constants/colors.ts`, which must stay in sync with the token.
 Adding a fourth state means adding a weight, not a colour.
 
+**Non-colorable units are visibly different from uncolored countries.** A unit whose
+`colorOwnerId` is `null` (disputed/neutral territories - Kosovo, Western Sahara, Antarctica -
+12 units in the modern world) fills with `NEUTRAL_UNIT_COLOR`, a solid light grey, in **both**
+color resolvers - `getEffectiveFeatureColor` in `utils/scene` and `getSceneFeatureColor` in
+`MapCanvas`; fixing only one lets the render-side copy silently win. White made Kosovo read as
+a broken colorable country. The neutral fill is a solid color, never a CSS `filter` (export-unsafe),
+and it can never reach the legend or the export gate because `getEffectiveSceneColors` excludes
+null-owner features. `.map-unit-path` carries `cursor: default` and a lighter stroke; the tooltip
+says "Not colorable in this map" instead of announcing a current color. The browser/Locate catalog
+stays exactly the 195 core states - neutral units are map-visible, not searchable.
+
 **Widths on map geometry are screen pixels only because the path carries
 `vector-effect="non-scaling-stroke"`** (set on `enter` in `MapCanvas`, re-asserted by
 `sanitizeExportClone`). Inside the camera's `scale(zoom)` group a bare `stroke-width` is
@@ -821,7 +832,7 @@ belongs in the Chrome E2E suite.
 
 ---
 
-*Last updated: 2026-08-06 — border weights toned down to 0.75/1.5/2 (focus stays 3px) and the export normalizes to 0.75; weight-state system unchanged.*
+*Last updated: 2026-08-06 — border weights toned down to 0.75/1.5/2 (focus stays 3px, export normalizes to 0.75); null-owner units fill with `NEUTRAL_UNIT_COLOR` in both color resolvers, get `.map-unit-path` rules and an honest tooltip, and stay out of legend/export effective colors.*
 *Last updated: 2026-07-26/27 — black country borders carried by stroke-width with `non-scaling-stroke` inside the camera's scale group; wave789 review rules and the inspector redesign: both-scheme preference queries, resolved-relationship token contracts, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, cleared composition identity, chrome off the square, stacked 376px controls, derived grid tracks, sticky inspector offset from tokens.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

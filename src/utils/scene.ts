@@ -1,4 +1,4 @@
-import { DEFAULT_COLOR } from '../constants/colors';
+import { DEFAULT_COLOR, NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { EffectiveScene, SnapshotId } from '../types/composition';
 import type {
   ColorMap,
@@ -131,10 +131,13 @@ export function getEffectiveFeatureColor(
   feature: SceneFeature,
   colors: ColorMap,
 ): string {
-  if (
-    feature.colorOwnerId === null ||
-    !isSafeStableCountryId(feature.colorOwnerId)
-  ) {
+  // A null owner is "nobody can color this", which must not read as the
+  // uncolored white a colorable country starts with. An unsafe owner id is a
+  // data defect and stays white rather than borrowing the neutral treatment.
+  if (feature.colorOwnerId === null) {
+    return NEUTRAL_UNIT_COLOR;
+  }
+  if (!isSafeStableCountryId(feature.colorOwnerId)) {
     return DEFAULT_COLOR;
   }
 

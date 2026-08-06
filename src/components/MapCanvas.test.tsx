@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import { NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { GeoFeature, SceneFeature } from '../types/map';
 import {
   createCameraController,
@@ -429,7 +430,7 @@ describe('wrapped effective scene model', (): void => {
 
     expect(getSceneFeatureColor(historical, colors)).toBe('#AA0000');
     expect(getSceneFeatureColor(dependency, colors)).toBe('#0000AA');
-    expect(getSceneFeatureColor(neutral, colors)).toBe('#FFFFFF');
+    expect(getSceneFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);
   });
 
   it('models the reviewed modern world as 195 logical options and 248 units', (): void => {

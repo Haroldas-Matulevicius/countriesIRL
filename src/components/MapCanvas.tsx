@@ -24,7 +24,7 @@ import type {
 } from '../types/map';
 import {
   DEFAULT_BORDER_COLOR,
-  DEFAULT_COLOR,
+  NEUTRAL_UNIT_COLOR,
   SELECTED_BORDER_COLOR,
 } from '../constants/colors';
 import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
@@ -82,6 +82,11 @@ interface MapTooltipContent {
   countryId: CountryId;
   countryName: string;
   color: string;
+  /**
+   * False for null-owner units (disputed/neutral territories). The tooltip
+   * then says so instead of announcing a "current color" nobody can change.
+   */
+  isColorable: boolean;
   /** Exact boundary provenance line (UI-SPEC section 19). */
   boundaryLine: string;
   position: {
@@ -275,8 +280,10 @@ export function getSceneFeatureColor(
   feature: SceneFeature,
   colors: ColorMap,
 ): string {
+  // Mirrors `getEffectiveFeatureColor` in `utils/scene`: a null owner renders
+  // the neutral fill. If the two disagree, this render-side copy silently wins.
   return feature.colorOwnerId === null
-    ? DEFAULT_COLOR
+    ? NEUTRAL_UNIT_COLOR
     : getEffectiveCountryColor(colors, feature.colorOwnerId);
 }
 
@@ -286,11 +293,13 @@ export function pointerTooltipData(
   color: string,
   boundaryLine: string,
   countryId: CountryId = feature.id,
+  isColorable = true,
 ): MapTooltipData {
   return {
     countryId,
     countryName: feature.properties.name,
     color,
+    isColorable,
     boundaryLine,
     inputMethod: 'pointer',
     position: {
@@ -306,6 +315,7 @@ export function keyboardTooltipData(
   color: string,
   boundaryLine: string,
   countryId: CountryId = feature.id,
+  isColorable = true,
 ): MapTooltipData {
   const bounds = pathElement.getBoundingClientRect();
 
@@ -313,6 +323,7 @@ export function keyboardTooltipData(
     countryId,
     countryName: feature.properties.name,
     color,
+    isColorable,
     boundaryLine,
     inputMethod: 'keyboard',
     anchorElement: pathElement,
@@ -330,9 +341,17 @@ export function pointerLeaveTooltipData(
   color: string,
   boundaryLine: string,
   countryId: CountryId = feature.id,
+  isColorable = true,
 ): MapTooltipData | null {
   return activeElement === pathElement
-    ? keyboardTooltipData(pathElement, feature, color, boundaryLine, countryId)
+    ? keyboardTooltipData(
+        pathElement,
+        feature,
+        color,
+        boundaryLine,
+        countryId,
+        isColorable,
+      )
     : null;
 }
 
@@ -586,6 +605,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               getSceneFeatureColor(path.feature, colorsRef.current),
               getBoundaryLine(path.feature.boundaryMode, snapshotId),
               getInteractionId(path.feature),
+              path.feature.colorOwnerId !== null,
             ),
           );
         })
@@ -597,6 +617,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               getSceneFeatureColor(path.feature, colorsRef.current),
               getBoundaryLine(path.feature.boundaryMode, snapshotId),
               getInteractionId(path.feature),
+              path.feature.colorOwnerId !== null,
             ),
           );
         })
@@ -611,6 +632,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
                 getSceneFeatureColor(path.feature, colorsRef.current),
                 getBoundaryLine(path.feature.boundaryMode, snapshotId),
                 getInteractionId(path.feature),
+                path.feature.colorOwnerId !== null,
               ),
             );
             return;
@@ -631,6 +653,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               getSceneFeatureColor(path.feature, colorsRef.current),
               getBoundaryLine(path.feature.boundaryMode, snapshotId),
               path.entityId,
+              path.feature.colorOwnerId !== null,
             ),
           );
         })

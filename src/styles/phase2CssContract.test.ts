@@ -919,12 +919,12 @@ const EXPORT_CONTENT_PATTERN =
 
 /**
  * Every path class `MapCanvas` can put on a rendered element. All of them reach
- * the export clone, so all of them must be in `EXPORT_CONTENT_PATTERN`. Today
- * only `.country-path` carries any rules at all - `.scene-path` and
- * `.map-unit-path` have none - which is exactly why the omission was invisible:
- * a future `.map-unit-path { filter: brightness(0.98) }` to dim non-selectable
- * units would rasterize differently under html2canvas than the browser paints
- * it, and the guard would not fire.
+ * the export clone, so all of them must be in `EXPORT_CONTENT_PATTERN`.
+ * `.country-path` and `.map-unit-path` carry rules; `.scene-path` has none -
+ * and the classes without rules are exactly why the pattern lists them anyway:
+ * a future `.scene-path { filter: brightness(0.98) }` would rasterize
+ * differently under html2canvas than the browser paints it, and an
+ * unlisted selector would let the guard sleep through it.
  */
 const EXPORTED_PATH_CLASSES = [
   'scene-path',
