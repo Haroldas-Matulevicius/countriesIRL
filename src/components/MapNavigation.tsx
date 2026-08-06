@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type CSSProperties } from 'react';
 
 import { MAX_ZOOM, MIN_ZOOM } from '../constants/camera';
+import { PERIOD_COPY } from '../utils/periods';
 
 export const MAP_NAVIGATION_ZOOM_FACTOR = 1.5;
 export const MAP_NAVIGATION_PAN_FRACTION = 0.125;
@@ -25,6 +26,12 @@ interface MapNavigationProps {
     direction: MapPanDirection,
     viewportFraction: number,
   ) => void;
+  /**
+   * CAMERA reset, and the cluster is its only home (D-21). `Reset All Colors`
+   * is CONTENT reset and lives in the Colors panel; the two never sit together,
+   * and exactly one `Reset View` may exist in the composed DOM.
+   */
+  readonly onResetView: () => void;
 }
 
 export interface MapNavigationDisabledState {
@@ -41,6 +48,20 @@ export function getMapNavigationDisabledState(
   };
 }
 
+/**
+ * The floating camera cluster (D-21, D-05): ONE bordered neutral surface in the
+ * letterbox gutter holding four 44x44 icon buttons, in the Google-Maps idiom.
+ * No accent anywhere - D-05 spends the accent on `Export PNG` in the rail, and
+ * the canvas region's entry in the accent budget is literally `none`. No scale
+ * bar: it is misleading on a Mercator world map, and cartography is Phase 4.
+ *
+ * `Move Map` and its pan popover are a DELIBERATE fourth control against
+ * D-21's three. They are the only keyboard pan affordance in the app, so
+ * dropping them would regress NFR11 and the keyboard-navigation acceptance
+ * cells. `03-UI-SPEC.md` Open Items item 2 flagged the retention for owner
+ * awareness rather than deciding it silently; a three-control cluster needs a
+ * keyboard pan replacement FIRST.
+ */
 export function MapNavigation({
   currentZoom,
   isMoveMapOpen,
@@ -48,6 +69,7 @@ export function MapNavigation({
   onZoomIn,
   onZoomOut,
   onPan,
+  onResetView,
 }: MapNavigationProps): JSX.Element {
   const navigationRef = useRef<HTMLDivElement>(null);
   const moveMapButtonRef = useRef<HTMLButtonElement>(null);
@@ -182,6 +204,31 @@ export function MapNavigation({
             focusable="false"
           >
             <path d="M10 2v16M2 10h16M10 2 7 5M10 2l3 3M18 10l-3-3M18 10l-3 3M10 18l-3-3M10 18l3-3M2 10l3-3M2 10l3 3" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="map-navigation__control"
+          aria-label={PERIOD_COPY.resetView}
+          title={PERIOD_COPY.resetView}
+          data-editor-only="true"
+          style={CONTROL_STYLE}
+          onClick={onResetView}
+        >
+          <svg
+            width={MAP_NAVIGATION_ICON_SIZE}
+            height={MAP_NAVIGATION_ICON_SIZE}
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <circle cx="10" cy="10" r="5" />
+            <path d="M10 1v3M10 16v3M1 10h3M16 10h3" />
           </svg>
         </button>
       </div>

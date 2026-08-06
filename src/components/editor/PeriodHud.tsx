@@ -31,9 +31,7 @@ interface PeriodHudProps {
   selectedPeriodId: SnapshotId;
   statusMessage: string;
   isPeriodDisabled: boolean;
-  isResetViewDisabled: boolean;
   onPeriodChange: (snapshotId: SnapshotId) => void;
-  onResetView: () => void;
   /** Present only while a period load has failed and can be retried. */
   onRetryPeriod?: (() => void) | undefined;
 }
@@ -41,8 +39,13 @@ interface PeriodHudProps {
 /**
  * The `.period-hud` surface in the CANVAS region (D-14, D-15). `CompositionBar`
  * dissolved here: identity went to the HUD header in `03-06`; the period
- * surface, the preview label, `Reset View` (interim - `03-08` moves it into the
- * floating cluster), and the period status live region land here.
+ * surface, the preview label, and the period status live region land here.
+ *
+ * `Reset View` was an INTERIM tenant of this surface and left in `03-08` for
+ * the floating cluster, which is its D-21 home. Nothing in this file may
+ * reintroduce it: `Reset View` is camera chrome and belongs beside the other
+ * camera controls, and a second copy would break the singleton assertion 15
+ * counts.
  *
  * It lives in the canvas region, NOT in the rail, because the status region is
  * an `aria-describedby` target as well as a live region and must sit next to
@@ -59,9 +62,7 @@ export function PeriodHud({
   selectedPeriodId,
   statusMessage,
   isPeriodDisabled,
-  isResetViewDisabled,
   onPeriodChange,
-  onResetView,
   onRetryPeriod,
 }: PeriodHudProps): JSX.Element {
   const handlePeriodChange = useCallback(
@@ -123,15 +124,6 @@ export function PeriodHud({
             </select>
           </div>
         )}
-
-        <button
-          type="button"
-          className="period-hud__reset-view"
-          disabled={isResetViewDisabled}
-          onClick={onResetView}
-        >
-          {PERIOD_COPY.resetView}
-        </button>
       </div>
 
       <p

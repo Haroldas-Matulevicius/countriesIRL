@@ -633,9 +633,23 @@ describe('App composition root', () => {
         countOccurrences(markup, `data-tool-panel="${tool}"`),
         `${tool}: its panel body did not open from the stored preference`,
       ).toBe(1);
-      expect(markup.match(/Reset View/gu), `${tool}: Reset View`).toHaveLength(
-        1,
-      );
+      /*
+       * `Reset View` moved from the period HUD into the floating cluster in
+       * `03-08`, where it is icon-only. The singleton claim is therefore
+       * counted on the ACCESSIBLE NAME, which is what every locator and every
+       * e2e `getByRole` keys on - a second control anywhere fails here. The
+       * raw-occurrence count is pinned alongside it at exactly 2, because the
+       * one control spells the copy twice (`aria-label` and `title`) and a
+       * third occurrence means a second surface started naming it.
+       */
+      expect(
+        countOccurrences(markup, 'aria-label="Reset View"'),
+        `${tool}: Reset View`,
+      ).toBe(1);
+      expect(
+        markup.match(/Reset View/gu),
+        `${tool}: Reset View occurrences`,
+      ).toHaveLength(2);
       expect(
         countOccurrences(markup, 'data-action="reset-colors"'),
         `${tool}: Reset All Colors exists exactly once, in the Colors panel`,

@@ -213,7 +213,7 @@ test.describe('world period surface', (): void => {
     await expect(page.locator('svg.map-canvas')).toHaveCount(1);
   });
 
-  test('disables Reset View while the world map is loading, behind an inert pill', async ({
+  test('withholds every camera control while the world map is loading, behind an inert pill', async ({
     page,
   }): Promise<void> => {
     let releaseWorld = (): void => undefined;
@@ -228,16 +228,31 @@ test.describe('world period surface', (): void => {
     await page.goto('/');
 
     await expect(page.getByText('Loading world map…')).toBeVisible();
-    // The Modern-only surface is an inert pill: there is no select to
-    // disable, so the loading state disables Reset View alone.
+    // The Modern-only surface is an inert pill: there is no select to disable.
     await expect(page.locator('.period-hud__pill')).toHaveCount(1);
     await expect(page.locator('.period-hud select')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Reset View' })).toBeDisabled();
+
+    /*
+     * `Reset View` used to be the one control this state disabled, because it
+     * lived in the always-rendered period HUD. `03-08` moved it into the camera
+     * cluster, which renders only for a READY scene - so the loading state
+     * withholds all four camera controls outright. Absent is a stronger claim
+     * than disabled: a disabled control can be re-enabled by a stray prop, an
+     * absent one cannot be activated at all.
+     */
+    await expect(page.locator('.map-navigation__cluster')).toHaveCount(0);
+    for (const name of ['Reset View', 'Zoom In', 'Zoom Out', 'Move Map']) {
+      await expect(
+        page.getByRole('button', { name }),
+        `${name} rendered while there was no camera to drive`,
+      ).toHaveCount(0);
+    }
 
     releaseWorld();
     await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
       LOGICAL_CORE_COUNT,
     );
+    await expect(page.locator('.map-navigation__cluster')).toHaveCount(1);
     await expect(
       page.getByRole('button', { name: 'Reset View' }),
     ).toBeEnabled();

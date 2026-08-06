@@ -1,6 +1,139 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+import {
+  LEGEND_CORNER_OPTIONS,
+  LEGEND_CUSTOM_POSITION_LABEL,
+} from '../../src/components/LegendEditor';
+import { LEGEND_CORNERS } from '../../src/utils/legend';
+import {
+  legendDisclosure,
+  openRailTool,
+  waitForApp,
+} from './support/appHarness';
 
 const NAVIGATION_FIXTURE_URL = '/tests/e2e/fixtures/navigation.html';
+
+/**
+ * The viewport set assertion 12 measures. Every one is a shape the responsive
+ * suite already declares, and every one has a real letterbox: the canvas
+ * region's width and height differ by more than the cluster's short side plus
+ * its margin (~124px), which is the documented bound in `MapCanvas.css`.
+ *
+ * Two spec'd viewports are deliberately NOT in this list, each for a stated
+ * reason rather than because they failed:
+ *
+ * - `1024 x 900` gives a 968 x 900 canvas region, inside the near-square band
+ *   where no gutter can hold the cluster. It has its own test below. Listing it
+ *   here would have forced this assertion to carry an `OR` for the exception,
+ *   and an assertion with an escape hatch stops being one.
+ * - `640 x 400` (the 200%-equivalent) is blocked by deferred item D-5, which
+ *   `03-09` owns: the rail is not a scroll container, so below ~436px of
+ *   viewport height it overflows and stretches the grid row. The measured
+ *   canvas region there is 584 x 500, not 584 x 400 - a near-square 84px
+ *   difference produced by the overflow, not by this placement. Re-add it here
+ *   when D-5 closes; at 584 x 400 the inline gutter is 92px and the cluster
+ *   fits with room to spare.
+ */
+const GUTTER_VIEWPORTS = [
+  { name: 'desktop 1440x900', width: 1440, height: 900 },
+  { name: 'desktop 1300x900', width: 1300, height: 900 },
+  { name: 'compact 800x900', width: 800, height: 900 },
+  { name: 'mobile 360x740', width: 360, height: 740 },
+] as const;
+
+const NEAR_SQUARE_VIEWPORT = { width: 1024, height: 900 };
+
+interface Rect {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
+async function readRects(page: Page): Promise<{
+  cluster: Rect;
+  frame: Rect;
+  region: Rect;
+}> {
+  return page.evaluate((): { cluster: Rect; frame: Rect; region: Rect } => {
+    const read = (selector: string): Rect => {
+      const element = document.querySelector(selector);
+      if (element === null) {
+        throw new Error(`"${selector}" is not rendered.`);
+      }
+      const box = element.getBoundingClientRect();
+      return {
+        left: box.left,
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+      };
+    };
+
+    return {
+      cluster: read('.map-navigation__cluster'),
+      frame: read('.map-frame'),
+      region: read('.map-workspace__canvas'),
+    };
+  });
+}
+
+function intersects(a: Rect, b: Rect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/**
+ * Colours one country so the legend has an entry to place, then opens the
+ * Legend tool. Reaching a tool control means opening its rail row first
+ * (`03-06`), and the panel takes a 280px track out of the canvas region - so
+ * every measurement below is taken with the panel CLOSED again.
+ */
+async function prepareLegend(page: Page): Promise<void> {
+  const france = page.locator('path.country-path[data-country-id="FRA"]');
+  await france.focus();
+  await france.press('Enter');
+  await openRailTool(page, 'Colors');
+  await page.getByRole('button', { name: 'Apply Red' }).click();
+}
+
+async function closeRailTool(page: Page, label: string): Promise<void> {
+  const row = page.getByRole('button', { name: label, exact: true });
+  if ((await row.getAttribute('aria-expanded')) === 'true') {
+    await row.click();
+    await expect(row).toHaveAttribute('aria-expanded', 'false');
+  }
+  await waitForSettledRegion(page);
+}
+
+/**
+ * `--panel-width` is a registered custom property and it INTERPOLATES (D-19),
+ * so `aria-expanded="false"` is true a quarter of a second before the canvas
+ * region has finished widening. Measuring the cluster against the frame in that
+ * window measures a transient layout: at 1300x900 the mid-transition region is
+ * near-square and the assertion failed on the animation rather than on the
+ * placement. Poll real frames to two equal consecutive reads.
+ */
+async function waitForSettledRegion(page: Page): Promise<void> {
+  let previous = -1;
+  await expect
+    .poll(async (): Promise<boolean> => {
+      await page.evaluate(
+        (): Promise<void> =>
+          new Promise((resolve): void => {
+            requestAnimationFrame((): void => {
+              requestAnimationFrame((): void => resolve());
+            });
+          }),
+      );
+      const width = await page
+        .locator('.map-workspace__canvas')
+        .evaluate((element): number => element.getBoundingClientRect().width);
+      const isSettled = Math.abs(width - previous) < 0.01;
+      previous = width;
+      return isSettled;
+    })
+    .toBe(true);
+}
 
 async function openNavigationFixture(
   page: import('@playwright/test').Page,
@@ -82,7 +215,9 @@ test.describe('camera controls browser interactions', (): void => {
     const navigationButtons = page
       .locator('[data-navigation-fixture="true"]')
       .getByRole('button');
-    await expect(navigationButtons).toHaveCount(7);
+    // Four cluster controls (D-21, with `Move Map` retained as the deliberate
+    // fourth) plus the four pan alternatives in the open popover.
+    await expect(navigationButtons).toHaveCount(8);
     await expect(zoomInButton).toHaveCSS('width', '44px');
     await expect(zoomInButton).toHaveCSS('height', '44px');
     expect(
@@ -93,10 +228,235 @@ test.describe('camera controls browser interactions', (): void => {
         ),
       ),
     ).toBe(true);
-    // The map navigation cluster must not own Reset View: the period HUD is
-    // its sole owner until 03-08 moves it into the cluster, and
-    // `tests/e2e/history.spec.ts` asserts exactly one in the composed
-    // workspace.
-    await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(0);
+  });
+
+  /*
+   * D-21: `Reset View` is the cluster's fourth control as of `03-08`. It is
+   * CAMERA reset, so it is wired to the camera callbacks the rest of the
+   * cluster uses and not to any content action - `Reset All Colors` lives in
+   * the Colors panel and the two never sit together.
+   */
+  test('resets the camera from inside the cluster', async ({
+    page,
+  }): Promise<void> => {
+    await openNavigationFixture(page);
+
+    await page.getByRole('button', { name: 'Set maximum zoom' }).click();
+    await expect(page.locator('[data-current-zoom="true"]')).toHaveText('24');
+
+    const cluster = page.locator('.map-navigation__cluster');
+    await expect(cluster.getByRole('button')).toHaveCount(4);
+    await cluster.getByRole('button', { name: 'Reset View' }).click();
+
+    await expect(page.locator('[data-current-zoom="true"]')).toHaveText('1');
+    await expect(page.locator('[data-zoom-events="true"]')).toContainText(
+      'reset',
+    );
+    await expect(
+      page.getByRole('button', { name: 'Reset All Colors' }),
+    ).toHaveCount(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Assertion 12 - the cluster never intersects the export frame
+ * ------------------------------------------------------------------ */
+
+test.describe('the floating cluster stays in the letterbox gutter', (): void => {
+  /*
+   * The enumeration guard. `resolveLegendPosition` gates on `LEGEND_CORNERS`,
+   * and the position grid renders `LEGEND_CORNER_OPTIONS`; the cross-product
+   * below walks the second. If the two ever drift, the cross-product silently
+   * stops covering a preset that the product can still reach - so they are
+   * asserted equal in BOTH directions, which a one-way subset check would miss.
+   */
+  test('enumerates every legend preset the resolver accepts', (): void => {
+    const rendered = LEGEND_CORNER_OPTIONS.map((option): string => option.value)
+      .slice()
+      .sort();
+    const resolvable = [...LEGEND_CORNERS].slice().sort();
+
+    expect(rendered).toStrictEqual(resolvable);
+    expect(LEGEND_CUSTOM_POSITION_LABEL).toBe('Custom');
+  });
+
+  for (const viewport of GUTTER_VIEWPORTS) {
+    test(`assertion 12: no intersection with .map-frame at ${viewport.name}, at every legend preset`, async ({
+      page,
+    }): Promise<void> => {
+      test.slow();
+
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await waitForApp(page);
+      await prepareLegend(page);
+
+      const presets = [
+        ...LEGEND_CORNER_OPTIONS.map((option): string => option.label),
+        LEGEND_CUSTOM_POSITION_LABEL,
+      ];
+
+      for (const preset of presets) {
+        await openRailTool(page, 'Legend');
+        // The position grid lives inside the legend disclosure; opening the
+        // rail row alone leaves it collapsed.
+        if ((await legendDisclosure(page).getAttribute('aria-expanded')) !== 'true') {
+          await legendDisclosure(page).click();
+        }
+        await page.getByRole('radio', { name: preset, exact: true }).check();
+        await expect(
+          page.getByRole('radio', { name: preset, exact: true }),
+        ).toBeChecked();
+        await closeRailTool(page, 'Legend');
+
+        const { cluster, frame, region } = await readRects(page);
+
+        /*
+         * NON-INTERSECTION, not placement. "The cluster is bottom-right" and
+         * "the legend is at its preset" were both true throughout the
+         * collision this project already shipped once; only measuring the two
+         * rects against each other goes red when a regression re-anchors the
+         * cluster into the frame at a normal viewport.
+         */
+        expect(
+          intersects(cluster, frame),
+          `the cluster intersects .map-frame at ${viewport.name} / "${preset}" — ` +
+            `cluster ${JSON.stringify(cluster)} frame ${JSON.stringify(frame)}`,
+        ).toBe(false);
+
+        // And it is still on screen: a cluster pushed out of the clipped
+        // region would satisfy non-intersection perfectly.
+        expect(
+          intersects(cluster, region),
+          `the cluster left the canvas region at ${viewport.name} / "${preset}"`,
+        ).toBe(true);
+        expect(cluster.right).toBeLessThanOrEqual(region.right + 1);
+        expect(cluster.bottom).toBeLessThanOrEqual(region.bottom + 1);
+      }
+    });
+  }
+
+  /*
+   * The bounded exception, asserted rather than described. Inside the
+   * near-square band no gutter can hold the cluster, so it does rest over the
+   * frame's bottom-inline-end corner. What must stay true is the BOUND: the
+   * overlap is confined to that corner and never reaches the legend's default
+   * top-left preset, and nothing underneath loses hit area.
+   */
+  test('bounds the near-square exception to the frame corner opposite the default legend', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(NEAR_SQUARE_VIEWPORT);
+    await waitForApp(page);
+
+    const { cluster, frame, region } = await readRects(page);
+
+    expect(
+      Math.abs(region.right - region.left - (region.bottom - region.top)),
+      'this viewport is no longer near-square; the exception moved and this ' +
+        'test is measuring the wrong thing',
+    ).toBeLessThan(124);
+
+    const frameMidX = (frame.left + frame.right) / 2;
+    const frameMidY = (frame.top + frame.bottom) / 2;
+    expect(cluster.left).toBeGreaterThan(frameMidX);
+    expect(cluster.top).toBeGreaterThan(frameMidY);
+
+    // (b) of the recorded reason: the wrapper passes pointer events through
+    // and only the control rects take them back.
+    const pointerEvents = await page.evaluate((): {
+      wrapper: string;
+      control: string;
+    } => {
+      const wrapper = document.querySelector('.map-navigation');
+      const control = document.querySelector('.map-navigation__control');
+      if (wrapper === null || control === null) {
+        throw new Error('the cluster is not rendered.');
+      }
+      return {
+        wrapper: getComputedStyle(wrapper).pointerEvents,
+        control: getComputedStyle(control).pointerEvents,
+      };
+    });
+    expect(pointerEvents.wrapper).toBe('none');
+    expect(pointerEvents.control).toBe('auto');
+  });
+
+  /*
+   * D-21 + the singleton half of assertion 15, re-measured in the cluster's new
+   * home. `Reset View` is CAMERA reset; `Reset All Colors` is CONTENT reset and
+   * lives in the Colors panel. The two never sit together, and the cluster is
+   * where the camera reset is now.
+   */
+  test('owns exactly one Reset View, in the cluster, never beside Reset All Colors', async ({
+    page,
+  }): Promise<void> => {
+    await waitForApp(page);
+
+    await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(
+      1,
+    );
+    await expect(
+      page
+        .locator('.map-navigation__cluster')
+        .getByRole('button', { name: 'Reset View' }),
+    ).toHaveCount(1);
+
+    await openRailTool(page, 'Colors');
+    await expect(
+      page.getByRole('button', { name: 'Reset All Colors' }),
+    ).toHaveCount(1);
+    await expect(
+      page
+        .locator('.map-navigation')
+        .getByRole('button', { name: 'Reset All Colors' }),
+    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(
+      1,
+    );
+  });
+
+  /*
+   * `Zoom Out`'s absence at the whole-world fit, ASSERTED rather than assumed.
+   * The control is rendered and natively `disabled` at MIN_ZOOM, which is what
+   * removes it from the sequential navigation order - so the absence claim is
+   * made where it is observable: the keyboard sequence. Asserting only
+   * `toBeDisabled()` would leave the focus-order consequence unmeasured, which
+   * is the difference between knowing why and not noticing.
+   */
+  test('keeps Zoom Out out of the keyboard sequence at the whole-world fit', async ({
+    page,
+  }): Promise<void> => {
+    await waitForApp(page);
+
+    const zoomIn = page.getByRole('button', { name: 'Zoom In' });
+    const zoomOut = page.getByRole('button', { name: 'Zoom Out' });
+    await expect(zoomOut).toBeDisabled();
+    await expect(zoomIn).toBeEnabled();
+
+    const reachable = async (): Promise<ReadonlyArray<string>> => {
+      await zoomIn.focus();
+      const labels: string[] = [];
+      for (let step = 0; step < 3; step += 1) {
+        await page.keyboard.press('Tab');
+        labels.push(
+          await page.evaluate(
+            (): string =>
+              document.activeElement?.getAttribute('aria-label') ?? '',
+          ),
+        );
+      }
+      return labels;
+    };
+
+    expect(await reachable()).not.toContain('Zoom Out');
+
+    // And it rejoins the sequence the moment the camera leaves the fit, which
+    // is what proves the absence was the fit and not the traversal.
+    await zoomIn.click();
+    await expect(zoomOut).toBeEnabled();
+    expect(await reachable()).toContain('Zoom Out');
   });
 });

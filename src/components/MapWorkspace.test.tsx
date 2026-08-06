@@ -9,6 +9,7 @@ import {
   type PeriodOption,
 } from '../utils/periods';
 import { PeriodHud } from './editor/PeriodHud';
+import { MapNavigation } from './MapNavigation';
 import { MapWorkspace } from './MapWorkspace';
 
 const READY_GEO_DATA = {
@@ -35,8 +36,20 @@ function createPeriodHud(
       selectedPeriodId="modern"
       statusMessage="Modern borders worldwide."
       isPeriodDisabled={false}
-      isResetViewDisabled={false}
       onPeriodChange={vi.fn()}
+    />
+  );
+}
+
+function createNavigationSlot(): JSX.Element {
+  return (
+    <MapNavigation
+      currentZoom={1}
+      isMoveMapOpen={false}
+      onMoveMapOpenChange={vi.fn()}
+      onZoomIn={vi.fn()}
+      onZoomOut={vi.fn()}
+      onPan={vi.fn()}
       onResetView={vi.fn()}
     />
   );
@@ -241,17 +254,22 @@ describe('MapWorkspace navigation placement', (): void => {
     expect(slotIndex).toBeGreaterThan(exportSourceEnd);
 
     /*
-     * And outside the square itself. As an overlay at the square's top-left the
-     * cluster rendered on top of a `top-left` legend, which is the default
-     * legend position. That collision cannot be fixed by moving the legend: the
-     * cluster is measured in screen pixels and the legend is placed in
-     * 1080-unit canvas space, so its canvas-space footprint changes with the
-     * square's width and no fixed rectangle in the export's coordinate system
-     * can reserve room for it.
+     * And INSIDE the canvas region, which `03-08` requires: the region is the
+     * `container-type: size` box `.map-frame` measures itself against, so the
+     * cluster's inset math and the frame's `min(100cqw, 100cqh)` are one shared
+     * container query rather than two that happen to agree. A cluster rendered
+     * as a sibling of the region resolves its `cq` units against something
+     * else entirely and drifts silently.
+     *
+     * As an overlay at the square's top-left the cluster rendered on top of a
+     * `top-left` legend, which is the default legend position. That collision
+     * cannot be fixed by moving the legend: the cluster is measured in screen
+     * pixels and the legend is placed in 1080-unit canvas space, so its
+     * canvas-space footprint changes with the square's width and no fixed
+     * rectangle in the export's coordinate system can reserve room for it. The
+     * cluster is anchored in the letterbox gutter instead.
      */
-    expect(slotIndex).toBeGreaterThan(
-      findClosingDivIndex(markup, squareIndex),
-    );
+    expect(slotIndex).toBeLessThan(findClosingDivIndex(markup, squareIndex));
   });
 
   it('renders no navigation overlay while the scene is unavailable', (): void => {
@@ -429,9 +447,12 @@ describe('MapWorkspace export frame (D-32)', (): void => {
     expect(legendIndex).toBeGreaterThan(svgStart);
     expect(legendIndex).toBeLessThan(svgEnd);
 
-    // The navigation cluster renders outside the export source, after the
-    // canvas region, so it can never reach the PNG.
-    expect(markup.indexOf('data-navigation-slot="true"')).toBeGreaterThan(
+    // The navigation cluster renders outside the export source but INSIDE the
+    // canvas region: after `</svg></div>` it can never reach the PNG, and
+    // inside the region it shares the frame's container query (`03-08`).
+    const navigationIndex = markup.indexOf('data-navigation-slot="true"');
+    expect(navigationIndex).toBeGreaterThan(markup.indexOf('</svg></div>'));
+    expect(navigationIndex).toBeLessThan(
       findClosingDivIndex(markup, markup.indexOf('class="map-workspace__canvas"')),
     );
   });
@@ -528,6 +549,7 @@ describe('composed workspace period HUD', (): void => {
       <MapWorkspace
         geoData={READY_GEO_DATA}
         periodHud={createPeriodHud()}
+        navigationSlot={createNavigationSlot()}
         snapshotId="modern"
         periodLabel={MODERN_PERIOD_OPTION.label}
         features={[]}
@@ -540,7 +562,32 @@ describe('composed workspace period HUD', (): void => {
       />,
     );
 
-    expect(markup.match(/Reset View/gu)).toHaveLength(1);
+    /*
+     * D-21 moved `Reset View` out of the period HUD and into the floating
+     * cluster in `03-08`. The claim the workspace still has to make is the
+     * SINGLETON one, so it is counted by accessible name across the whole
+     * composed region rather than by which child renders it - a second copy in
+     * either child fails here.
+     */
+    expect(markup.match(/aria-label="Reset View"/gu)).toHaveLength(1);
+    expect(markup.match(/Reset View/gu)).toHaveLength(2);
+    expect(markup).not.toContain('period-hud__reset-view');
+
+    /*
+     * Placement, not an attribute, is what keeps the cluster out of the PNG:
+     * it renders INSIDE the canvas region (so its inset math shares the
+     * frame's container query) and AFTER `div.map-export-source`, never
+     * within it. Asserting the index relationship is what a
+     * `data-editor-only` check cannot do.
+     */
+    const exportSourceIndex = markup.indexOf('class="map-export-source"');
+    const canvasRegionIndex = markup.indexOf('class="map-workspace__canvas"');
+    const clusterIndex = markup.indexOf('class="map-navigation"');
+    expect(canvasRegionIndex).toBeGreaterThanOrEqual(0);
+    expect(exportSourceIndex).toBeGreaterThan(canvasRegionIndex);
+    expect(clusterIndex).toBeGreaterThan(exportSourceIndex);
+    expect(markup.slice(exportSourceIndex, clusterIndex)).toContain('</svg>');
+
     expect(markup).toContain('1080 × 1080 composition preview');
     expect(markup).not.toContain('1080 × 1080 PNG preview');
     expect(markup).toContain('Map period');
@@ -614,9 +661,7 @@ describe('composed workspace period HUD', (): void => {
         selectedPeriodId="modern"
         statusMessage="We couldn't load 1700 — Post-Westphalia Europe. The previous map period is still shown. Try again."
         isPeriodDisabled={false}
-        isResetViewDisabled={false}
         onPeriodChange={vi.fn()}
-        onResetView={vi.fn()}
         onRetryPeriod={vi.fn()}
       />,
     );
@@ -628,23 +673,42 @@ describe('composed workspace period HUD', (): void => {
     );
   });
 
-  it('disables Reset View while the world is loading, with nothing else to disable', (): void => {
-    // The one-option surface is an inert pill: there is no select to disable,
-    // so the only disabled control in the loading state is Reset View.
-    const markup = renderToStaticMarkup(
-      <PeriodHud
-        periods={MODERN_ONLY_PERIODS}
-        selectedPeriodId="modern"
-        statusMessage="Modern borders worldwide."
-        isPeriodDisabled
-        isResetViewDisabled
-        onPeriodChange={vi.fn()}
-        onResetView={vi.fn()}
+  it('withholds every camera control while the world is loading, behind an inert pill', (): void => {
+    /*
+     * `Reset View` used to be the one control the loading state disabled,
+     * because it lived in the always-rendered period HUD. `03-08` moved it into
+     * the camera cluster, which the workspace renders only for a READY scene -
+     * so the loading state now withholds all four camera controls outright.
+     * Absent is a stronger claim than disabled: a disabled control can be
+     * re-enabled by a stray prop, an absent one cannot be clicked at all.
+     */
+    const loadingMarkup = renderToStaticMarkup(
+      <MapWorkspace
+        geoData={{ status: 'loading' }}
+        periodHud={createPeriodHud()}
+        navigationSlot={createNavigationSlot()}
+        snapshotId="modern"
+        periodLabel={MODERN_PERIOD_OPTION.label}
+        features={null}
+        colors={{}}
+        selectedIds={new Set()}
+        exportSourceRef={{ current: null }}
+        onSelectCountry={vi.fn()}
+        onClearSelection={vi.fn()}
+        onReload={vi.fn()}
       />,
     );
 
-    expect(markup.match(/disabled=""/gu)).toHaveLength(1);
-    expect(markup).not.toContain('<select');
+    ['Reset View', 'Zoom In', 'Zoom Out', 'Move Map'].forEach((name): void => {
+      expect(loadingMarkup, `${name} rendered without a camera`).not.toContain(
+        `aria-label="${name}"`,
+      );
+    });
+    // The one-option surface is an inert pill, so there is nothing left in the
+    // loading state to disable at all.
+    expect(loadingMarkup).toContain('period-hud__pill');
+    expect(loadingMarkup).not.toContain('<select');
+    expect(loadingMarkup.match(/disabled=""/gu)).toBeNull();
 
     // The select path still honours the disabled flag when it is reachable.
     const selectMarkup = renderToStaticMarkup(
@@ -656,11 +720,9 @@ describe('composed workspace period HUD', (): void => {
         selectedPeriodId="modern"
         statusMessage="Modern borders worldwide."
         isPeriodDisabled
-        isResetViewDisabled
         onPeriodChange={vi.fn()}
-        onResetView={vi.fn()}
       />,
     );
-    expect(selectMarkup.match(/disabled=""/gu)).toHaveLength(2);
+    expect(selectMarkup.match(/disabled=""/gu)).toHaveLength(1);
   });
 });

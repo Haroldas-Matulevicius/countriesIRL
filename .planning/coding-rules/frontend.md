@@ -1181,6 +1181,93 @@ inner scroll cap is gone (the locate combobox popup keeps its own bounded scroll
 transient listbox, not panel flow). Test fixtures that size an `svg` must scope the selector —
 a bare `svg` rule inflated the new 20px glyphs to 540px squares.
 
+## The Floating Camera Cluster (Phase 3, D-21 / D-05, plan 03-08)
+
+**The cluster is ONE bordered neutral surface with no accent, and it holds FOUR 44×44 icon-only
+controls.** `Zoom In`, `Zoom Out`, `Move Map`, `Reset View`. The controls carry no border and no
+fill of their own — the cluster owns both, which is the difference between one surface and four
+floating pills. D-05 spends the accent on `Export PNG` in the rail, so the canvas region's entry in
+the accent budget is literally `none`; the only Apple Blue that may appear is the global
+`:focus-visible` ring authored in `theme.css`. No scale bar (misleading on a Mercator world map,
+and cartography is Phase 4).
+
+**`Move Map` is a DELIBERATE fourth control against D-21's three.** It is the only keyboard pan
+affordance in the app, so dropping it would regress NFR11 and the keyboard-navigation acceptance
+cells. `03-UI-SPEC.md` § Open Items item 2 flagged the retention for owner awareness rather than
+letting it be decided silently. A three-control cluster needs a keyboard pan replacement **first**.
+
+**`Reset View` lives here and nowhere else.** It is CAMERA reset; `Reset All Colors` is CONTENT
+reset and lives in the Colors panel, and the two never sit together. It is icon-only, so it spells
+its copy exactly twice (`aria-label` + `title`) — assertion 15 counts the **accessible name**,
+which is what every locator and every `getByRole` keys on, and pins the raw occurrence count
+beside it so a third mention fails.
+
+**The camera cluster is gated on a READY scene, so the loading state withholds it entirely.**
+`Reset View` used to be the one control the loading state *disabled*, because it lived in the
+always-rendered period HUD. Absent is the stronger claim: a disabled control can be re-enabled by
+a stray prop, an absent one cannot be activated at all. Both the unit and the e2e loading
+assertions were rewritten to that claim rather than deleted.
+
+**The cluster renders INSIDE `.map-workspace__canvas`, after `div.map-export-source`.** Inside,
+because the region is the `container-type: size` box `.map-frame` measures itself against — so the
+cluster's inset math and the frame's `--frame-side: min(100cqw, 100cqh)` resolve against one
+container rather than two that happen to agree today. After the export source, because placement —
+not `data-editor-only` — is what decides export membership.
+
+**The UI-SPEC's published placement formula is WRONG and must not be restored.** As written,
+
+```css
+inset-inline-end: max(var(--space-lg), calc((100cqw - var(--frame-side)) / 2 + var(--space-sm)));
+inset-block-end:  max(var(--space-lg), calc((100cqh - var(--frame-side)) / 2 + var(--space-sm)));
+```
+
+adds the gutter to the inset, which pushes the cluster *away* from the region edge and lands it
+`--space-sm` **inside** the frame's bottom-inline-end corner — at every aspect ratio, which is
+precisely the defect assertion 12 exists to catch. RED-proven: applied verbatim it fails all four
+gate viewports. The landed rule anchors at `--space-sm` from the region's bottom-inline-end corner
+and lets the letterbox do the work.
+
+**The cluster lies ALONG the gutter it occupies, and that is a container query, not an observer.**
+`@container (aspect-ratio > 1)` stacks it into a 54px-wide column for an inline gutter; the default
+row is 54px tall for a block gutter. One fixed orientation fails at one of the two — a row needs
+~206px of block gutter (measured red at 800×900) and a column needs ~206px of inline gutter
+(measured red at 640×400).
+
+**The exception is BOUNDED, derived, and asserted — never described.** Non-intersection needs a
+gutter of at least 54 + 8 = 62px, i.e. a canvas region whose width and height differ by ~124px or
+more. The UI-SPEC's "~96px" is an estimate; the real number falls out of the cluster's own short
+side plus its margin, and the stylesheet states the derivation. Inside that band the cluster rests
+over the frame's bottom-inline-end corner, accepted because (a) it is editor-only chrome that never
+enters the PNG, (b) the wrapper is `pointer-events: none` with `auto` restored only on
+`.map-navigation__control`, and (c) the legend's default preset is the opposite corner. The
+exception has its own test asserting the **bound** — the overlap stays past both frame midlines —
+rather than an `OR` inside assertion 12, because an assertion with an escape hatch stops being one.
+
+**Assert NON-INTERSECTION, at every viewport × every legend preset, and enumerate the presets.**
+"The cluster is bottom-right" and "the legend is at its preset" were both true throughout the
+collision this project already shipped once. `navigation.spec.ts` walks `LEGEND_CORNER_OPTIONS`
+(exported from `LegendEditor.tsx`) plus `Custom`, and asserts that list equals `LEGEND_CORNERS`
+**in both directions** — a one-way subset check lets a new preset go uncovered. It also asserts the
+cluster is still *inside* the region, because a cluster pushed off-screen satisfies
+non-intersection perfectly.
+
+**Measure layout only after `--panel-width` has settled.** The registered custom property
+interpolates (D-19), so `aria-expanded="false"` is true a quarter second before the canvas region
+has finished widening. At 1300×900 the mid-transition region is near-square and the assertion
+failed on the animation rather than on the placement. Poll real frames to two equal consecutive
+reads.
+
+**No absolutely positioned banner may share a corner with floating chrome, and three of the four
+are taken:** the period HUD owns top-inline-start, `.editor-help` owns bottom-inline-start, and the
+cluster owns bottom-inline-end. `.map-workspace__warning` takes the one free corner, capped at a
+measure rather than run full width — a full-width bar at either edge lands under two of them.
+
+**The pan popover opens up and toward the inline start, and is deliberately outside assertion 12.**
+The region clips its overflow, so a popover opening down or outward puts the pad off-region and
+`Move Map` becomes unreachable. The pad is transient chrome that exists only while the creator
+holds it open; at a narrow gutter it does overlap the frame, and moving it out would put it
+off-region instead.
+
 ## The Period HUD (D-14, D-15)
 
 `src/components/editor/PeriodHud.tsx` is the `.period-hud` surface in the **canvas region, never
@@ -1208,7 +1295,7 @@ holds five labels elsewhere in the module graph.
 
 ---
 
-*Last updated: 2026-08-06 — §The Period HUD (D-14/D-15): `CompositionBar` deleted and rehomed as `.period-hud` in the canvas region (never the rail — the status region is an `aria-describedby` target and must sit next to its control); resolved manifest options only, never `SNAPSHOT_CATALOG`; one option renders as a visibly inert read-only pill with the interactive `<select>` path kept reachable in code; both ids byte-identical to Phase 2; assertion 13 scoped to `.period-hud`, assertion 14's load-bearing half asserting every `aria-describedby` id resolves. §Tool-panel content styling (UI-SPEC 7/8): weight-carried hierarchy at `--text-body-sm` 500, stacked labelled controls with 44px icon-only action rows and unchanged accessible names, option pills over visually hidden radios, the 3×3 position grid with a `Custom` cell, no accent and no ghost-gray text in the legend panel, `[data-entry-invalid]` for the red row edge, and the panel body as the single scroll container (plan 03-07).*
-*Last updated: 2026-08-06 + 2026-07-26/27 — earlier Phase 3 rules, condensed: §The Tool Rail and its Panel (D-12/D-13/D-16/D-17/D-18/D-29): 48px rows as a translation, not a copy, of Themely's `h-9`; background-only state with instant paint; rows as plain tab stops with no second roving-tabindex writer; no scroll container in the rail; HUD header/footer as pinned siblings whose fixed heights the panel body reserves; hide by truncation or visual hiding, never `display: none`; the panel track as the persistent `main` landmark; the title row sticky inside the one scroll container; `Controls` as one component with a three-value declared variant and exactly one mounted instance; `openRailTool`/`legendDisclosure` in the shared e2e harness (plan 03-06). §The Phase 3 Token System (D-03…D-10/D-26/D-30): verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token (`--accent-fill`, `--destructive`, ghost-gray text ban); class-based dark flip with no OS colour query; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned; flat hairline elevation; matrix row count as a literal; `uiContract.test.ts` as the only CSS contract test (plan 03-04). §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root over an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` two-valued with exactly one writer; animate the registered `--panel-width`, never the track list; `ResizeObserver` as an ownership set; the export frame as a sibling of the export source (plan 03-03). Earlier: borders by stroke-width with `non-scaling-stroke` in the camera scale group; wave789 inspector rules (both-scheme preference queries, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, chrome off the square, stacked 376px controls, derived grid tracks); `NEUTRAL_UNIT_COLOR` for null-owner units in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth, `src/lib/motion/tokens.ts` a mirror pinned by a two-way lockstep gate. §Vendored Animated Icons (D-28): authored in-repo, recipes translated never copied, `size` prop, forwardRef + `*IconHandle`, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
+*Last updated: 2026-08-06 — §The Floating Camera Cluster (D-21/D-05): one bordered accent-free surface of four 44×44 icon-only controls with `Move Map` retained as the deliberate fourth on NFR11 grounds and `Reset View` rehomed from the period HUD; the cluster rendered inside `.map-workspace__canvas` so its inset math and `.map-frame`'s share one container query; the UI-SPEC's published placement formula recorded as WRONG (it adds the gutter to the inset and lands the cluster inside the frame at every aspect ratio, RED-proven on all four gate viewports) with the corner anchor that replaces it; orientation as a container query rather than an observer; the ~124px exception band derived from the cluster's own short side and asserted as a BOUND in its own test rather than as an `OR` inside assertion 12; presets enumerated two-way from `LEGEND_CORNER_OPTIONS`/`LEGEND_CORNERS`; measure only after `--panel-width` settles; and the warning banner moved off the cluster's corner (plan 03-08).*
+*Last updated: 2026-08-06 + 2026-07-26/27 — earlier Phase 3 rules, condensed. §The Period HUD (D-14/D-15): `CompositionBar` deleted and rehomed as `.period-hud` in the canvas region (the status region is an `aria-describedby` target and must sit next to its control); resolved manifest options only, never `SNAPSHOT_CATALOG`; one option renders as a visibly inert read-only pill with the interactive `<select>` path kept reachable in code; both ids byte-identical to Phase 2; assertion 13 scoped to `.period-hud`, assertion 14's load-bearing half asserting every `aria-describedby` id resolves. §Tool-panel content styling (UI-SPEC 7/8): weight-carried hierarchy at `--text-body-sm` 500, stacked labelled controls with 44px icon-only action rows and unchanged accessible names, option pills over visually hidden radios, the 3×3 position grid with a `Custom` cell, no accent and no ghost-gray text in the legend panel, `[data-entry-invalid]` for the red row edge, and the panel body as the single scroll container (plan 03-07). §The Tool Rail and its Panel (D-12/D-13/D-16/D-17/D-18/D-29): 48px rows as a translation, not a copy, of Themely's `h-9`; background-only state with instant paint; rows as plain tab stops with no second roving-tabindex writer; no scroll container in the rail; HUD header/footer as pinned siblings whose fixed heights the panel body reserves; hide by truncation or visual hiding, never `display: none`; the panel track as the persistent `main` landmark; the title row sticky inside the one scroll container; `Controls` as one component with a three-value declared variant and exactly one mounted instance; `openRailTool`/`legendDisclosure` in the shared e2e harness (plan 03-06). §The Phase 3 Token System (D-03…D-10/D-26/D-30): verbatim `--themely-*` namespace with an allowlist gate; a surface that owes AA gets its own token (`--accent-fill`, `--destructive`, ghost-gray text ban); class-based dark flip with no OS colour query; Live Invariant 9 extended to `.dark`; delete-never-alias; `backdrop-filter` banned; flat hairline elevation; matrix row count as a literal; `uiContract.test.ts` as the only CSS contract test (plan 03-04). §The Editor Shell (D-11/D-16/D-19/D-32): `.map-editor` as the mount root over an unpainted `html`/`body`; one three-track grid; `[data-panel-open]` two-valued with exactly one writer; animate the registered `--panel-width`, never the track list; `ResizeObserver` as an ownership set; the export frame as a sibling of the export source (plan 03-03). Earlier: borders by stroke-width with `non-scaling-stroke` in the camera scale group; wave789 inspector rules (both-scheme preference queries, one rule per (selector, conditions) pair, tokens need consumers, per-layer tabIndex, awaited locks, chrome off the square, stacked 376px controls, derived grid tracks); `NEUTRAL_UNIT_COLOR` for null-owner units in both resolvers with an honest tooltip. §The Motion Token Mirror (D-26): CSS is the source of truth, `src/lib/motion/tokens.ts` a mirror pinned by a two-way lockstep gate. §Vendored Animated Icons (D-28): authored in-repo, recipes translated never copied, `size` prop, forwardRef + `*IconHandle`, and `PROVENANCE.md` as a two-way gate input (plans 03-01/03-02).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/frontend.md`.*

@@ -15,24 +15,44 @@ const DEFAULT_PROPS = {
   onZoomIn: vi.fn(),
   onZoomOut: vi.fn(),
   onPan: vi.fn(),
+  onResetView: vi.fn(),
 };
 
 describe('MapNavigation semantics', (): void => {
-  it('renders exactly the three editor-only camera actions with project-owned icons', (): void => {
+  it('renders exactly the four editor-only camera actions with project-owned icons', (): void => {
     const markup = renderToStaticMarkup(<MapNavigation {...DEFAULT_PROPS} />);
 
-    expect(markup.match(/<button/g)).toHaveLength(3);
+    expect(markup.match(/<button/g)).toHaveLength(4);
     expect(markup).toContain('aria-label="Zoom In"');
     expect(markup).toContain('aria-label="Zoom Out"');
     expect(markup).toContain('aria-label="Move Map"');
+    // D-21: `Reset View` is CAMERA reset and this cluster is its home as of
+    // `03-08`. It is icon-only, so it contributes exactly one accessible name
+    // and no visible text - assertion 15 counts the accessible name.
+    expect(markup).toContain('aria-label="Reset View"');
+    expect(markup.match(/aria-label="Reset View"/gu)).toHaveLength(1);
     expect(markup).toContain('data-editor-only="true"');
     expect(markup).toContain('inline-size:44px');
     expect(markup).toContain('block-size:44px');
-    expect(markup.match(/width="20"/g)).toHaveLength(3);
-    expect(markup.match(/height="20"/g)).toHaveLength(3);
-    // Reset View belongs to the period HUD (UI-SPEC section 4). Duplicating it
-    // here would give the composed workspace two Reset View controls.
-    expect(markup).not.toMatch(/Reset View/i);
+    expect(markup.match(/width="20"/g)).toHaveLength(4);
+    expect(markup.match(/height="20"/g)).toHaveLength(4);
+  });
+
+  /*
+   * D-05: the canvas region's entry in the accent budget is `none`. The one
+   * global exemption is the `:focus-visible` ring, which is authored in
+   * `theme.css` and never here - so a component-authored Apple Blue is always
+   * a regression, whatever state it claims to paint.
+   */
+  it('spends no accent anywhere in the cluster', (): void => {
+    const markup = renderToStaticMarkup(
+      <MapNavigation {...DEFAULT_PROPS} isMoveMapOpen />,
+    );
+
+    expect(markup).not.toMatch(/apple-blue/iu);
+    expect(markup).not.toMatch(/accent/iu);
+    expect(markup).not.toMatch(/#0071e3/iu);
+    expect(markup).not.toMatch(/#2997ff/iu);
   });
 
   it('renders exactly four pan alternatives in the controlled Move map popover', (): void => {
@@ -46,9 +66,9 @@ describe('MapNavigation semantics', (): void => {
     expect(markup).toContain('aria-label="Pan Right"');
     expect(markup).toContain('aria-label="Pan Down"');
     expect(markup).toContain('aria-label="Pan Left"');
-    expect(markup.match(/<button/g)).toHaveLength(7);
-    expect(markup.match(/inline-size:44px/g)).toHaveLength(7);
-    expect(markup.match(/block-size:44px/g)).toHaveLength(7);
+    expect(markup.match(/<button/g)).toHaveLength(8);
+    expect(markup.match(/inline-size:44px/g)).toHaveLength(8);
+    expect(markup.match(/block-size:44px/g)).toHaveLength(8);
   });
 
   it('derives truthful native zoom limits and exposes bounded camera steps', (): void => {

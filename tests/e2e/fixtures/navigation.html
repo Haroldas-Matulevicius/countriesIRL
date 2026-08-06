@@ -73,6 +73,11 @@
           setCurrentZoom((zoom) => Math.max(MINIMUM_ZOOM, zoom / factor));
         }, []);
 
+        const handleResetView = useCallback(() => {
+          setZoomEvents((events) => [...events, 'reset']);
+          setCurrentZoom(MINIMUM_ZOOM);
+        }, []);
+
         const handlePan = useCallback((direction, viewportFraction) => {
           setPanEvents((events) => [
             ...events,
@@ -113,6 +118,7 @@
               onZoomIn: handleZoomIn,
               onZoomOut: handleZoomOut,
               onPan: handlePan,
+              onResetView: handleResetView,
             }),
           ),
           h('output', { 'data-current-zoom': 'true' }, String(currentZoom)),

@@ -22,10 +22,10 @@ import { Tooltip } from './Tooltip';
 interface MapWorkspaceProps {
   geoData: WorldGeoDataState;
   /**
-   * The period HUD owns the preview label, the period surface, the only Reset
-   * View control (interim, until `03-08` moves it into the floating cluster),
-   * and the period status live region; it sits in the canvas region and
-   * outside the export subtree (UI-SPEC section 4).
+   * The period HUD owns the preview label, the period surface, and the period
+   * status live region; it sits in the canvas region and outside the export
+   * subtree (UI-SPEC section 4). `Reset View` left for the floating cluster in
+   * `03-08`.
    */
   periodHud: ReactNode;
   /**
@@ -51,10 +51,16 @@ interface MapWorkspaceProps {
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
   /**
-   * The editor-only camera cluster (UI-SPEC 10). It renders in the map column
-   * directly BELOW the square, never over it, and always as a SIBLING of the
-   * export source: the export clones `svg.map-canvas`, so nothing placed here
-   * can reach the PNG, and nothing here may be moved under `MapCanvas`.
+   * The editor-only camera cluster (D-21). It renders INSIDE
+   * `.map-workspace__canvas` and always as a SIBLING of the export source: the
+   * export clones `svg.map-canvas`, so nothing placed here can reach the PNG,
+   * and nothing here may be moved under `MapCanvas`.
+   *
+   * Inside the canvas region rather than beside it, because the region is the
+   * `container-type: size` box `.map-frame` measures itself against. Placing
+   * the cluster in the SAME container is what lets its inset math and the
+   * frame's `--frame-side: min(100cqw, 100cqh)` be one shared expression rather
+   * than two that happen to agree today.
    *
    * It used to overlay the square's top-left corner, which put it on top of a
    * `top-left` legend - the default position. That collision is not fixable by
@@ -65,9 +71,9 @@ interface MapWorkspaceProps {
    * the export's coordinate system can contain it, so the chrome moves off the
    * square instead of the legend moving out of the corner.
    *
-   * Below rather than above: UI-SPEC 20 orders the compact focus sequence
-   * period HUD -> map -> map navigation -> tools, and rendering the
-   * cluster ahead of the square would put the camera controls before the map.
+   * After the map rather than before it: UI-SPEC 20 orders the focus sequence
+   * period HUD -> map -> map navigation -> tools, and rendering the cluster
+   * ahead of the square would put the camera controls before the map.
    */
   navigationSlot?: ReactNode;
   onCameraCommit?: (camera: CameraState) => void;
@@ -174,12 +180,20 @@ export function MapWorkspace({
               data-editor-only="true"
               aria-hidden="true"
             />
+            {/*
+              The camera cluster, in the same container the frame measures
+              itself against and still a sibling of `div.map-export-source`.
+              It is gated on the ready scene with the frame and the tooltip:
+              there is no camera to zoom, pan, or reset before one exists, and
+              a disabled cluster floating over a loading skeleton would be
+              chrome for a map that is not there.
+            */}
+            {navigationSlot}
             <Tooltip data={tooltipData} />
           </>
         ) : null}
       </div>
 
-      {isSceneReady ? navigationSlot : null}
       {helpSlot}
     </section>
   );

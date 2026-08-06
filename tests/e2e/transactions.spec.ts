@@ -74,12 +74,14 @@ test('every camera callback reaches the one bound handle across the 1200px remou
   await stampCameraOwnerSentinel(page);
 
   await expectOneCameraOwner(page);
-  // UI-SPEC: Reset View belongs to the composition bar and nowhere else, and
-  // the navigation cluster exposes exactly three actions.
+  // D-21: `Reset View` is the cluster's own fourth control as of `03-08` and
+  // exists exactly once in the composed DOM. The cluster exposes four actions -
+  // `Move Map` is the deliberate fourth against D-21's three, retained as the
+  // only keyboard pan affordance in the app (NFR11).
   await expect(page.getByRole('button', { name: 'Reset View' })).toHaveCount(1);
   await expect(
     page.locator('[aria-label="Map navigation"]').getByRole('button'),
-  ).toHaveCount(3);
+  ).toHaveCount(4);
 
   const baseline = await waitForSettledCamera(page);
   await page.getByRole('button', { name: 'Zoom In' }).click();

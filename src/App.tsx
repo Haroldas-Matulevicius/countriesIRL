@@ -928,12 +928,15 @@ export default function App(): JSX.Element {
     />
   );
 
-  // UI-SPEC 10: the cluster is editor-only camera chrome handed to
-  // MapWorkspace's navigation slot rather than rendered in the inspector. It
-  // stays a sibling of the export source - the export clones `svg.map-canvas`,
-  // so it cannot reach the PNG - and it renders below the square rather than
-  // over it, because chrome on the square collides with the legend and the
+  // D-21: the cluster is editor-only camera chrome handed to MapWorkspace's
+  // navigation slot rather than rendered in a panel. It stays a SIBLING of the
+  // export source - the export clones `svg.map-canvas`, so it cannot reach the
+  // PNG - and it is anchored in the letterbox gutter rather than over the
+  // export frame, because chrome on the square collides with the legend and the
   // legend's coordinate system cannot reserve space for screen-sized chrome.
+  //
+  // `Reset View` moved here from the period HUD in `03-08`: it is CAMERA reset
+  // and belongs with the other camera controls.
   const mapNavigation = (
     <MapNavigation
       currentZoom={compositionState.camera.zoom}
@@ -942,6 +945,7 @@ export default function App(): JSX.Element {
       onZoomIn={handleZoomIn}
       onZoomOut={handleZoomOut}
       onPan={handlePan}
+      onResetView={handleResetView}
     />
   );
 
@@ -981,9 +985,7 @@ export default function App(): JSX.Element {
       selectedPeriodId={compositionState.snapshotId}
       statusMessage={periodStatusMessage}
       isPeriodDisabled={!isMapReady || periodLoad.status === 'loading'}
-      isResetViewDisabled={!isMapReady}
       onPeriodChange={handlePeriodChange}
-      onResetView={handleResetView}
       onRetryPeriod={
         periodLoad.status === 'error' ? handleRetryPeriod : undefined
       }

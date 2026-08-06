@@ -91,22 +91,6 @@
   font: inherit;
 }
 
-.period-hud__reset-view {
-  min-height: var(--space-2xl);
-  padding: 0 var(--space-md);
-  border: var(--border-width) solid var(--hairline-color);
-  border-radius: var(--radius-control);
-  background: var(--themely-porcelain);
-  color: var(--themely-midnight-ink);
-  font: inherit;
-  cursor: pointer;
-}
-
-.period-hud__reset-view:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 .period-hud__status {
   display: flex;
   flex-wrap: wrap;
@@ -263,26 +247,51 @@
 }
 
 /*
- * UI-SPEC 10: one flat surface holding three 44x44 icon-only controls, not
- * three floating pills. The 44px targets themselves are set by the component
- * and asserted in MapNavigation.test.tsx.
+ * D-21: the floating camera cluster. ONE bordered neutral surface holding four
+ * 44x44 icon-only controls, not four floating pills. The 44px targets are set
+ * by the component and asserted in MapNavigation.test.tsx.
  *
- * It is a toolbar row BELOW the square, not an overlay on it. As an overlay at
- * the top-left it sat on top of a `top-left` legend, which is the default
- * legend position, and the cluster is measured in screen pixels while the
- * legend is placed in 1080-unit canvas space - so no fixed rectangle in the
- * export's coordinate system can reserve room for it. The chrome moves; the
- * legend keeps the whole safe area.
+ * NO ACCENT. D-05 spends the accent on `Export PNG` in the rail, and the canvas
+ * region's entry in the accent budget is literally `none`. The one exemption is
+ * the global `:focus-visible` ring, which is transient and keyboard-only.
  *
- * `position: relative` only so the Move Map popover can be absolute and open
- * without pushing the inspector down.
+ * PLACEMENT - the cluster sits in the letterbox gutter, never over the frame.
+ * `.map-frame` is a square of side `min(100cqw, 100cqh)` centred in this same
+ * container, so the leftover space is a gutter on exactly one axis: an inline
+ * gutter of (cqw - side)/2 per side when the region is wider than it is tall,
+ * a block gutter of (cqh - side)/2 when it is taller. Anchoring the cluster at
+ * `--space-sm` from the region's bottom-inline-end corner puts it in whichever
+ * gutter exists, with no measurement and no observer - which is why the
+ * orientation below is a container query rather than a ResizeObserver.
+ *
+ * The exception is BOUNDED and stated rather than hidden. The cluster's short
+ * side is 54px (a 44px target plus `--space-xs` padding and the hairline), so
+ * non-intersection needs a gutter of at least 54 + 8 = 62px, i.e. a canvas
+ * region whose width and height differ by at least ~124px. Inside that band
+ * neither gutter fits and the cluster rests over the frame's bottom-inline-end
+ * corner. Accepted because (a) it is editor-only chrome that never enters the
+ * PNG - placement, not an attribute, is what keeps it out; (b) the wrapper is
+ * `pointer-events: none` with `auto` restored only on the control rects, so
+ * nothing underneath loses hit area; and (c) the legend's default preset is
+ * top-left, the opposite corner. `tests/e2e/navigation.spec.ts` asserts the
+ * NON-INTERSECTION at every spec'd viewport and every legend preset - asserting
+ * a position would pass against a cluster that happens to sit somewhere
+ * harmless.
+ *
+ * It used to overlay the square's top-left corner, on top of a `top-left`
+ * legend. That collision is not fixable on the legend side: the cluster is
+ * measured in screen pixels while the legend is placed in 1080-unit canvas
+ * space, so no fixed rectangle in the export's coordinate system can reserve
+ * room for it. The chrome moves; the legend keeps the whole safe area.
  */
 .map-navigation {
-  position: relative;
+  position: absolute;
   z-index: 3;
   display: flex;
   align-items: flex-start;
-  margin-top: var(--space-sm);
+  inset-block-end: var(--space-sm);
+  inset-inline-end: var(--space-sm);
+  pointer-events: none;
 }
 
 .map-navigation__cluster {
@@ -295,31 +304,63 @@
   box-shadow: var(--popover-shadow);
 }
 
+/*
+ * The cluster lies along the gutter it occupies. A wider-than-tall region has
+ * an INLINE gutter, so the cluster stacks into a 54px-wide column; a taller
+ * region has a BLOCK gutter, so it lies down into a 54px-tall row. A single
+ * fixed orientation fails at one of the two: a row needs ~206px of block gutter
+ * (measured red at 800x900) and a column needs ~206px of inline gutter
+ * (measured red at 640x400).
+ */
+@container (aspect-ratio > 1) {
+  .map-navigation__cluster {
+    flex-direction: column;
+  }
+}
+
+/*
+ * One surface, so the controls carry no border and no fill of their own - the
+ * cluster owns both. `pointer-events: auto` is restored HERE and not on the
+ * cluster, so the surface's own padding ring never steals hit area from the map
+ * paths underneath it.
+ */
 .map-navigation__control {
   display: grid;
   min-height: var(--target-compact);
   padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--themely-nav-ink);
+  pointer-events: auto;
   place-items: center;
 }
 
 /*
- * Absolute, opening downward from the toolbar: in flow it would push the whole
- * inspector down every time Move Map is toggled. Downward rather than upward so
- * it never lands back on the square, which is the collision this layout exists
- * to remove.
+ * Opening up and toward the inline start: the cluster is anchored at the
+ * region's bottom-inline-end corner and the region clips its overflow, so a
+ * popover opening down or outward would put the pad outside the clipped box and
+ * `Move Map` - the only keyboard pan affordance in the app - would become
+ * unreachable.
+ *
+ * The pad is transient chrome that exists only while the creator holds the
+ * popover open, so it is deliberately NOT covered by the non-intersection
+ * assertion: at a narrow gutter it does overlap the frame, and moving it out
+ * would put it off-region instead.
  */
 .map-navigation__popover {
   position: absolute;
-  top: calc(100% + var(--space-xs));
-  left: 0;
   z-index: 4;
   display: grid;
   padding: var(--space-xs);
   border: var(--border-width) solid var(--hairline-color);
   border-radius: var(--radius-control);
   background: var(--themely-porcelain);
+  inset-block: auto calc(100% + var(--space-xs));
+  inset-inline: auto 0;
   grid-template-columns: repeat(3, auto);
   gap: var(--space-xs);
+  pointer-events: auto;
   box-shadow: var(--popover-shadow);
 }
 
@@ -377,16 +418,19 @@
 }
 
 /*
- * Pinned to the bottom of the square, not the top: the navigation cluster now
- * overlays the top-left corner, and a full-width banner across the top would sit
- * under it and make Zoom In and Move Map unreachable.
+ * An absolutely positioned banner inside the canvas region may not share a
+ * corner with a floating chrome surface, and by D-21 three of the four are
+ * taken: the period HUD owns top-inline-start, `.editor-help` owns
+ * bottom-inline-start, and the camera cluster owns bottom-inline-end. The
+ * banner takes the one free corner and is capped at a measure rather than run
+ * full width, because a full-width bar at either edge lands under two of them.
  */
 .map-workspace__warning {
   position: absolute;
-  right: var(--space-md);
-  bottom: var(--space-md);
-  left: var(--space-md);
   z-index: 2;
+  max-inline-size: 360px;
+  inset-block-start: var(--space-md);
+  inset-inline-end: var(--space-md);
   margin-bottom: 0;
   padding: var(--space-sm) var(--space-md);
   border: var(--border-width) solid var(--warning);
@@ -446,8 +490,7 @@
   }
 
   .map-workspace__warning {
-    right: var(--space-sm);
-    bottom: var(--space-sm);
-    left: var(--space-sm);
+    inset-block-start: var(--space-sm);
+    inset-inline-end: var(--space-sm);
   }
 }

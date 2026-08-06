@@ -479,23 +479,20 @@
 
 /*
  * Editor-only chrome placed in the canvas region, never in the export source.
- * The period HUD is its `03-07` home (UI-SPEC 4); the floating cluster is
- * re-anchored to the letterbox gutter by 03-08. Both sit outside
+ * The period HUD is its `03-07` home (UI-SPEC 4). Both sit outside
  * `div.map-export-source`, which is what decides export membership.
+ *
+ * The floating cluster is NOT anchored here. `03-08` moved it inside
+ * `.map-workspace__canvas` so its inset math and `.map-frame`'s share one
+ * container query, and its whole rule set lives beside the frame's in
+ * `MapCanvas.css`. Two files anchoring the same element is how a placement
+ * ends up half-overridden.
  */
 .map-workspace > .period-hud {
   position: absolute;
   z-index: 3;
   inset-block-start: var(--space-lg);
   inset-inline-start: var(--space-lg);
-}
-
-.map-workspace > .map-navigation {
-  position: absolute;
-  z-index: 3;
-  inset-block-end: var(--space-lg);
-  inset-inline-end: var(--space-lg);
-  margin-top: 0;
 }
 
 /*
@@ -523,15 +520,4 @@
 
 .editor-help__toggle {
   padding: var(--space-sm) var(--space-md);
-}
-
-/*
- * The pan popover opened downward when the cluster sat above the inspector. In
- * the canvas region the cluster is at the bottom edge, so downward puts the pad
- * outside the clipped region and `Move Map` - the only keyboard pan affordance
- * in the app - becomes unreachable. It opens upward here for as long as the
- * cluster lives at the bottom.
- */
-.map-workspace > .map-navigation .map-navigation__popover {
-  inset-block: auto calc(100% + var(--space-xs));
 }

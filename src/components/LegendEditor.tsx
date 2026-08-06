@@ -63,7 +63,14 @@ const BORDER_OPTIONS: ReadonlyArray<{
   { value: 'hairline', label: 'Hairline' },
   { value: 'strong', label: 'Strong' },
 ];
-const CORNER_OPTIONS: ReadonlyArray<{
+/**
+ * Exported so a gate can ENUMERATE the position presets instead of restating
+ * them. `03-08`'s non-intersection assertion walks every legend preset, and a
+ * hard-coded list there would silently stop covering a preset added here.
+ * `navigation.spec.ts` also asserts this list and `LEGEND_CORNERS` are equal in
+ * both directions, so a corner added to one and not the other fails.
+ */
+export const LEGEND_CORNER_OPTIONS: ReadonlyArray<{
   value: LegendCorner;
   label: string;
 }> = [
@@ -72,7 +79,9 @@ const CORNER_OPTIONS: ReadonlyArray<{
   { value: 'bottom-left', label: 'Bottom left' },
   { value: 'bottom-right', label: 'Bottom right' },
 ];
-const CUSTOM_POSITION_LABEL = 'Custom';
+const CORNER_OPTIONS = LEGEND_CORNER_OPTIONS;
+export const LEGEND_CUSTOM_POSITION_LABEL = 'Custom';
+const CUSTOM_POSITION_LABEL = LEGEND_CUSTOM_POSITION_LABEL;
 const NUDGE_OPTIONS: ReadonlyArray<{
   direction: LegendNudgeDirection;
   label: string;
