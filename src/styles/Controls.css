@@ -1075,6 +1075,7 @@
  * working; the focus ring rides on the label through `:has`.
  */
 .legend-editor__pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1100,15 +1101,21 @@
   outline-offset: var(--focus-offset);
 }
 
+/*
+ * Visually hidden but CLICK-BEARING: the input covers its whole pill or cell
+ * at opacity 0 rather than being clipped to 1px. A clipped input sits under
+ * the label, which then intercepts the very pointer events a programmatic
+ * `.check()` - and a real click - aims at the input itself.
+ */
 .legend-editor__pill input[type="radio"],
 .legend-editor__position-cell input[type="radio"] {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
 }
 
 /*
