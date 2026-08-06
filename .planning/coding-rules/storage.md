@@ -453,12 +453,42 @@ leave the editor fully usable with Export enabled and produce **no creator-facin
 fall back silently. That is the contract, not an oversight — `ToastRegion` stays the allowlist
 boundary and this phase introduces no new message.
 
+## What `03-07` actually landed — Save/Load is panel content, and the confirmation contract survived the dialog
+
+**The Save/Load modal dialog dissolved into the `saved` tool panel.** The dialog role, the
+modality attribute, the overlay, the focus trap, the imperative `inert`, the opener button, and
+the opener-restore chain (`restoreSaveLoadFocus`) all retired **with** the dialog. The panel's own
+close (`Close Saved Maps`, now a unique accessible name — deferred item D-4 closed) and the tool
+panel's Escape handle dismissal; opening the `saved` rail row IS opening Save/Load.
+
+**The nested-confirmation contract survives verbatim — it was never about the modal:**
+- a confirmation renders as a **sibling** of the surface it interrupts (the row's action group
+  swaps in place), never a descendant of it;
+- it carries its own **`tabIndex={-1}`** — a mouse-down on its body text must not drop focus to
+  `document.body`, or the panel's keydown handler never fires and Escape dies with the prompt
+  stuck open;
+- `Escape` dismisses the **innermost** open confirmation, branching over every open layer in
+  order (load confirm, then delete confirm); only an Escape that closes nothing propagates to the
+  tool panel's own close;
+- focus returns to the control that opened the confirmation **from an effect, keyed by the stable
+  row key** (`name.length:name:timestamp`) — index keys break as soon as a row is deleted.
+
+**Deleting a saved map is never one-shot** (unchanged): the row's actions swap to
+`Delete Map: <name>` (filled from the mode-invariant `--destructive-fill` — white on the dark-mode
+`--themely-red` is 2.78:1, so the fill follows the `--accent-fill` precedent) + `Keep Map: <name>`.
+The dirty-load confirmation is the same inline shape now: heading, prompt, `Load Saved Map`,
+`Keep Editing`.
+
+**The saved-map row resolver filters through the APPROVED manifest ids (OPEN ITEM 4).**
+`getPeriodShortLabel(snapshotId, approvedPeriodIds)` returns `null` for any id the approved
+manifest does not yield, and the row renders **no period label**. The storage validator
+(`SNAPSHOT_IDS` over all five catalog entries) is **deliberately unchanged** — a behaviour change
+there alters what stored records are admitted, which is a data-layer decision, not a restyle.
+See `data.md` § the approved-id filter for the reasoning of record.
+
 ---
 
-*Last updated: 2026-08-06 — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before it is interpreted (there is no parse to guard, which is why the rule needed restating); `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a storage boundary and `MapEditor`'s `initialThemeMode` prop is not dead code; and preference reads deliberately kept out of `recordResult` so a blocked backend produces no creator-facing message (plan 03-06).
-adapter arriving through `MapEditor`'s props boundary as a factory, and the shape the two new
-D-18 / D-30 keys must follow — separate small key, bounded V2, absent-tolerant, defaults closed and
-light (plan 03-05, transition-readiness b).*
-*Last updated: 2026-08-06 — added § Phase 3 Amendments: the one-production-storage-site gate, the Last updated: 2026-07-26 — pre-parse bounded V2 storage limits, fallible localStorage with typed reasons, and the unbuilt cloud-sync sketch marked as having no backend (plan 02-25). Earlier, 2026-07-25 — Phase 2 amendments: summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence rules, and save-vs-load failure messaging (plan 02-20, wave 6 review LOW-8).*
+*Last updated: 2026-08-06 — §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
+*Last updated: 2026-08-06 + earlier, condensed — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

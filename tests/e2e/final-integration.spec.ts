@@ -299,21 +299,12 @@ test('a full creator session survives a browser reload and exports what the scre
   const authoredCamera = await waitForSettledCamera(page);
   expect(authoredCamera.k).toBeGreaterThan(1);
 
+  // The dialog dissolved into the `saved` panel (03-07); its close control is
+  // the panel's own, and the accessible name is unique again (D-4 closed).
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill(COMPOSITION_NAME);
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
-  /*
-   * Scoped to the dialog. `03-06` gives the `saved` TOOL PANEL a close control
-   * whose label is `Close Saved Maps` too (UI-SPEC's new-strings table), so an
-   * unscoped `.first()` would close the panel instead of the dialog. The two
-   * merge when `03-07` migrates the dialog's contents into the panel.
-   */
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
 
   /*
    * Invariant 4, at the only moment it matters: a legend rendered as a sibling
@@ -407,17 +398,13 @@ test('a full creator session survives a browser reload and exports what the scre
   );
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: `Load This Map: ${COMPOSITION_NAME}` })
     .click();
   // Nothing was authored since the reload, so the load is not destructive and
   // is never gated behind the replace confirmation.
   await expect(
-    page.getByRole('dialog', { name: 'Replace the current map?' }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
+    page.getByRole('heading', { name: 'Replace the current map?' }),
   ).toHaveCount(0);
 
   await expect(france).toHaveAttribute('fill', RED);

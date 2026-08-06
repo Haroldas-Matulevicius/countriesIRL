@@ -12,9 +12,15 @@ import {
   getSaveFailureMessage,
   getPeriodShortLabel,
   getSavedMapMetadata,
-  restoreSaveLoadFocus,
 } from './SaveLoad';
 import { ToastRegion } from './ToastRegion';
+
+/**
+ * The ids the approved manifest yields today: exactly `modern`. The catalog
+ * itself holds five label entries, which is the whole point of the resolver
+ * filter (OPEN ITEM 4).
+ */
+const APPROVED_MODERN_ONLY: ReadonlySet<string> = new Set(['modern']);
 
 function createSummary(
   overrides: Partial<SavedMapSummary> = {},
@@ -198,9 +204,10 @@ describe('SaveLoad save failure messages', () => {
       expect(message).not.toContain('could not be loaded');
     });
 
-    // The two reasons the dialog previously mislabelled.
+    // The two reasons the dialog previously mislabelled. The retry names the
+    // control that exists: the panel's submit is `Save Map` (UI-SPEC copy).
     expect(getSaveFailureMessage('map-canvas-unavailable')).toBe(
-      'This map could not be saved and nothing was written. Try Save Current Map again.',
+      'This map could not be saved and nothing was written. Try Save Map again.',
     );
     expect(getSaveFailureMessage('map-not-found')).toBe(
       'This saved map is no longer available. The saved-map list has been refreshed.',
@@ -219,41 +226,71 @@ describe('SaveLoad save failure messages', () => {
 
 describe('SaveLoad saved-row metadata', () => {
   it('builds the exact period, legend, and view metadata line', () => {
-    expect(getSavedMapMetadata(createSummary())).toBe(
+    expect(getSavedMapMetadata(createSummary(), APPROVED_MODERN_ONLY)).toBe(
       'Modern · 2 legend entries · Whole world view',
     );
     expect(
       getSavedMapMetadata(
         createSummary({ legendEntryCount: 1, isWholeWorldView: false }),
+        APPROVED_MODERN_ONLY,
       ),
     ).toBe('Modern · 1 legend entry · Custom view');
     expect(
-      getSavedMapMetadata(createSummary({ legendEntryCount: 0 })),
+      getSavedMapMetadata(
+        createSummary({ legendEntryCount: 0 }),
+        APPROVED_MODERN_ONLY,
+      ),
     ).toBe('Modern · No legend entries · Whole world view');
   });
 
-  it('uses the legacy line for V1 records and for unknown periods', () => {
+  it('uses the legacy line for V1 records only', () => {
     const legacyCopy = 'Legacy map · Opens with modern borders and whole-world view';
 
     expect(
       getSavedMapMetadata(
         createSummary({ sourceVersion: 1, snapshotId: null }),
+        APPROVED_MODERN_ONLY,
       ),
     ).toBe(legacyCopy);
-    // A stored id outside the approved catalog can never be named as a period.
+  });
+
+  /*
+   * OPEN ITEM 4. The storage validator admits any of the five catalog ids, so
+   * a hand-crafted record carrying `"snapshotId": "1914"` VALIDATES - and
+   * without this filter the label registry would name a deferred period on
+   * its row. A V2 record with an unapproved period is not a legacy map either
+   * (it does not open with modern borders; loading it refuses), so the row
+   * keeps its real metadata and simply renders no period label.
+   */
+  it('renders no period label for a stored id the approved manifest does not yield', () => {
+    expect(
+      getSavedMapMetadata(
+        createSummary({ snapshotId: '1914' }),
+        APPROVED_MODERN_ONLY,
+      ),
+    ).toBe('2 legend entries · Whole world view');
     expect(
       getSavedMapMetadata(
         createSummary({
           snapshotId: 'not-a-catalog-period' as SavedMapSummary['snapshotId'],
         }),
+        APPROVED_MODERN_ONLY,
       ),
-    ).toBe(legacyCopy);
+    ).toBe('2 legend entries · Whole world view');
   });
 
-  it('shortens catalog labels to the period token only', () => {
-    expect(getPeriodShortLabel('modern')).toBe('Modern');
-    expect(getPeriodShortLabel('1700')).toBe('1700');
-    expect(getPeriodShortLabel('9999')).toBeNull();
+  it('shortens approved catalog labels to the period token, and only approved ones', () => {
+    expect(getPeriodShortLabel('modern', APPROVED_MODERN_ONLY)).toBe('Modern');
+    // The filter is the subject: the same id resolves once approved and not
+    // before, so the null below is the filter working rather than a miss.
+    expect(getPeriodShortLabel('1700', APPROVED_MODERN_ONLY)).toBeNull();
+    expect(
+      getPeriodShortLabel('1700', new Set(['modern', '1700'])),
+    ).toBe('1700');
+    expect(getPeriodShortLabel('1914', APPROVED_MODERN_ONLY)).toBeNull();
+    // Approved but absent from the label registry still resolves to nothing:
+    // the registry stays the only label source (T-02-40).
+    expect(getPeriodShortLabel('9999', new Set(['9999']))).toBeNull();
   });
 
   it('pluralizes the legend entry count', () => {
@@ -352,28 +389,11 @@ describe('SaveLoad summary projection', () => {
   });
 });
 
-describe('SaveLoad focus restoration', () => {
-  it('focuses the current responsive control when the original opener disconnected', () => {
-    const originalOpener = { isConnected: false, focus: vi.fn() };
-    const currentControl = { isConnected: true, focus: vi.fn() };
-    const focusMap = vi.fn();
-
-    restoreSaveLoadFocus(originalOpener, currentControl, focusMap);
-
-    expect(originalOpener.focus).not.toHaveBeenCalled();
-    expect(currentControl.focus).toHaveBeenCalledOnce();
-    expect(focusMap).not.toHaveBeenCalled();
-  });
-
-  it('falls back to the map when neither control is connected', () => {
-    const originalOpener = { isConnected: false, focus: vi.fn() };
-    const currentControl = { isConnected: false, focus: vi.fn() };
-    const focusMap = vi.fn();
-
-    restoreSaveLoadFocus(originalOpener, currentControl, focusMap);
-
-    expect(originalOpener.focus).not.toHaveBeenCalled();
-    expect(currentControl.focus).not.toHaveBeenCalled();
-    expect(focusMap).toHaveBeenCalledOnce();
-  });
-});
+/*
+ * `restoreSaveLoadFocus` and its two tests retired WITH the modal dialog in
+ * `03-07`: the opener-restore chain existed only because a modal moved focus
+ * away from an opener that could disconnect across the 1200px transition. In
+ * the panel, focus never leaves the document flow - confirmations restore
+ * focus from effects keyed by stable row keys, and the tool panel's own close
+ * handler returns focus to the rail row that opened it.
+ */

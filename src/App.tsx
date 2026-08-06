@@ -204,7 +204,6 @@ export default function App(): JSX.Element {
   const [isHelpVisible, setIsHelpVisible] = useState(
     () => !onboardingDismissed,
   );
-  const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false);
   /**
    * D-17/D-19: at most ONE tool is open, and the panel RESERVES a layout track
    * rather than overlaying the map. This is the single source of the track's
@@ -345,6 +344,16 @@ export default function App(): JSX.Element {
       setLegendPosition,
     }),
     [setLegendEntry, setLegendOrder, setLegendPosition, setLegendStyle],
+  );
+  /*
+   * The snapshot ids the APPROVED manifest actually yields - the same source
+   * the period surface renders. The saved-map row resolver filters through
+   * this set so a hand-crafted stored record can never name a deferred period
+   * (OPEN ITEM 4); the storage validator is deliberately not involved.
+   */
+  const approvedPeriodIds = useMemo<ReadonlySet<string>>(
+    () => new Set(snapshotCatalog.options.map((option): string => option.id)),
+    [snapshotCatalog.options],
   );
 
   useLayoutEffect((): void => {
@@ -770,13 +779,17 @@ export default function App(): JSX.Element {
   const isDirty =
     isCompositionDirty || !areColorMapsEqual(colors, savedColorsBaseline);
 
+  /*
+   * The Save/Load dialog dissolved into the `saved` tool panel (03-07), so
+   * "open Save/Load" now means "open the saved tool". Only the unmounted
+   * `app-bar` / `strip` Controls variants still render an opener; the rail
+   * variant carries Export alone.
+   */
   const handleOpenSaveLoad = useCallback((): void => {
-    setIsSaveLoadOpen(true);
-  }, []);
-
-  const handleCloseSaveLoad = useCallback((): void => {
-    setIsSaveLoadOpen(false);
-  }, []);
+    setOpenTool('saved');
+    openedByToolRef.current = 'saved';
+    persistLastOpenTool('saved');
+  }, [persistLastOpenTool]);
 
   const handleReload = useCallback((): void => {
     window.location.reload();
@@ -1098,23 +1111,23 @@ export default function App(): JSX.Element {
     </div>
   );
   /*
-   * The `saved` tool's panel. `03-07` migrates the save form and the saved-map
-   * list into it; until then it holds the control that opens them, because a
-   * control whose new home is not built stays rendered rather than being
-   * deleted (T-03-20).
+   * The `saved` tool's panel: the save form and the saved-map list, migrated
+   * from the retired Save/Load dialog (03-07). The approved-id set crosses
+   * from the same resolved catalog the period surface reads, so a stored
+   * record can never name a deferred period on a row (OPEN ITEM 4).
    */
   const savedMapsControls = (
     <div key="saved" className="workspace__saved-maps">
-      <button
-        type="button"
-        data-action="save-load"
-        data-save-load-control="true"
-        className="controls__action"
-        onClick={handleOpenSaveLoad}
-        disabled={!isMapReady || !isPersistenceAvailable}
-      >
-        Save or Load Maps
-      </button>
+      <SaveLoad
+        isDirty={isDirty}
+        isMapReady={isMapReady}
+        approvedPeriodIds={approvedPeriodIds}
+        onSave={handleSaveComposition}
+        onLoad={handleLoadComposition}
+        onDeleted={handleCompositionDeleted}
+        onFocusMap={focusMap}
+        onStatus={showStatus}
+      />
     </div>
   );
 
@@ -1198,19 +1211,6 @@ export default function App(): JSX.Element {
       <ErrorBoundary fallback={<FatalErrorState onReload={handleReload} />}>
         {mapWorkspace}
       </ErrorBoundary>
-
-      {isSaveLoadOpen && isMapReady ? (
-        <SaveLoad
-          isDirty={isDirty}
-          onSave={handleSaveComposition}
-          onLoad={handleLoadComposition}
-          onCancelLoad={loadTransaction.cancel}
-          onDeleted={handleCompositionDeleted}
-          onClose={handleCloseSaveLoad}
-          onFocusMap={focusMap}
-          onStatus={showStatus}
-        />
-      ) : null}
 
       <p
         className="selection-live-region"

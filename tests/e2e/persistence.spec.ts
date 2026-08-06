@@ -10,7 +10,6 @@ const MODERN_MAP_LISTBOX_NAME =
 const PERSISTENCE_FIXTURE_URL = '/tests/e2e/fixtures/persistence.html';
 const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
-const SAVE_LOAD_CONTROL_SELECTOR = '[data-save-load-control="true"]';
 // The locate transition runs for 240ms, so a save at 120ms lands mid-flight
 // with roughly half of the eased travel already painted.
 const MID_MOTION_SAVE_DELAY_MS = 120;
@@ -390,10 +389,11 @@ test('real app saves and loads the complete composition after responsive rebindi
   await page.getByRole('button', { name: 'Pan Right' }).click();
   const savedTransform = await readCameraTransform(page);
 
+  // The dialog dissolved into the `saved` panel (03-07): opening the tool IS
+  // opening Save/Load.
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Integrated view');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
 
   const savedEvidence = await page.evaluate((storageKey) => {
     const raw = localStorage.getItem(storageKey);
@@ -443,12 +443,10 @@ test('real app saves and loads the complete composition after responsive rebindi
     page.getByRole('listitem').filter({ hasText: 'Integrated view' }),
   ).toContainText('Modern · 1 legend entry · Custom view');
 
-  // Scoped: the `saved` tool panel carries a `Close Saved Maps` control too.
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  // D-4 closed: `Close Saved Maps` is ONE control now - the panel's close.
+  await expect(
+    page.getByRole('button', { name: 'Close Saved Maps' }),
+  ).toHaveCount(1);
   await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await page.getByRole('button', { name: 'Zoom In' }).click();
@@ -474,17 +472,17 @@ test('real app saves and loads the complete composition after responsive rebindi
   await expect(page.locator('svg.map-canvas')).toHaveCount(1);
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Integrated view' })
     .click();
-  // The reset and the extra zoom left unsaved work, so the load is confirmed.
+  // The reset and the extra zoom left unsaved work, so the load is confirmed -
+  // inline in the row now, not in a modal.
   await expect(
-    page.getByRole('dialog', { name: 'Replace the current map?' }),
+    page.getByRole('heading', { name: 'Replace the current map?' }),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Load Saved Map' }).click();
   await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
+    page.getByRole('heading', { name: 'Replace the current map?' }),
   ).toHaveCount(0);
 
   const loadedTransform = await readCameraTransform(page);
@@ -527,7 +525,6 @@ test('Saved Maps rows describe stored compositions and never rewrite a V1 record
   );
   await waitForApp(page);
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
 
   const customRow = page
     .getByRole('listitem')
@@ -579,88 +576,59 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   const loadButton = page.getByRole('button', {
     name: 'Load This Map: Custom view map',
   });
   await loadButton.click();
 
-  const confirmDialog = page.getByRole('dialog', {
-    name: 'Replace the current map?',
-  });
-  await expect(confirmDialog).toContainText(
+  // The dirty-load confirmation swapped in place of the row's actions -
+  // a sibling of the surface it interrupts, never a modal.
+  const loadConfirm = page.locator('.saved-map-load-confirm');
+  await expect(loadConfirm).toContainText('Replace the current map?');
+  await expect(loadConfirm).toContainText(
     'Loading “Custom view map” will replace unsaved colors, view, period, and legend changes.',
   );
   const keepEditing = page.getByRole('button', { name: 'Keep Editing' });
   await expect(page.getByRole('button', { name: 'Load Saved Map' })).toBeFocused();
 
-  // The dialog behind the confirmation is inert, so a browse-mode screen-reader
-  // user cannot read past the confirmation and activate Delete or Close - the
-  // controls a sighted user is blocked from by the overlay.
-  await expect(page.locator('.save-load-dialog')).toHaveAttribute('inert', '');
+  // The row's own actions swapped OUT while its confirmation is open: the
+  // confirmation replaces them in place, so neither can be activated past it.
   await expect(
     page.getByRole('button', { name: 'Delete Saved Map: Custom view map' }),
   ).toHaveCount(0);
-  /*
-   * Scoped to the dialog. `03-06` gives the `saved` TOOL PANEL its own
-   * `Close Saved Maps` control (UI-SPEC's new-strings table), which is outside
-   * this dialog and unaffected by its `inert`. The duplicate accessible name is
-   * recorded as a known collision that `03-07` closes when the dialog's
-   * contents move into the panel and one of the two disappears.
-   */
   await expect(
-    page.locator('.save-load-dialog').getByRole('button', {
-      name: 'Close Saved Maps',
-    }),
+    page.getByRole('button', { name: 'Load This Map: Custom view map' }),
   ).toHaveCount(0);
-  await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveCount(0);
-  await expect(
-    page.getByRole('dialog', { name: 'Replace the current map?' }),
-  ).toBeVisible();
 
   await keepEditing.click();
-  await expect(page.locator('.save-load-dialog')).not.toHaveAttribute(
-    'inert',
-    '',
-  );
-  await expect(confirmDialog).toHaveCount(0);
+  await expect(loadConfirm).toHaveCount(0);
   await expect(loadButton).toBeFocused();
   await expect(francePath).toHaveAttribute('fill', '#DC2626');
 
-  // Escape declines the confirmation without closing Save/Load behind it.
+  // Escape declines the confirmation without closing the panel behind it.
   await loadButton.click();
-  await expect(confirmDialog).toBeVisible();
+  await expect(loadConfirm).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(confirmDialog).toHaveCount(0);
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
-  ).toBeVisible();
+  await expect(loadConfirm).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
+  await expect(loadButton).toBeFocused();
 
   /*
    * Clicking the confirmation's body text is the ordinary act of reading it.
-   * The confirmation carries `tabIndex={-1}` so mouse-down focus targeting stops
-   * there; without it focus falls to `document.body`, the overlay's `onKeyDown`
-   * never fires, and both Escape and the Tab trap go dead while only
-   * `.save-load-dialog` is inert - so Tab reaches the app bar behind the modal.
+   * The confirmation carries `tabIndex={-1}` so mouse-down focus targeting
+   * stops there; without it focus falls to `document.body`, the panel's
+   * `onKeyDown` never fires, and Escape goes dead with the prompt stuck open.
    */
   await loadButton.click();
-  await expect(confirmDialog).toBeVisible();
-  await confirmDialog.getByText('will replace unsaved colors').click();
+  await expect(loadConfirm).toBeVisible();
+  await loadConfirm.getByText('will replace unsaved colors').click();
   await expect(
-    page.locator('.save-load-confirm:focus, .save-load-confirm :focus'),
-  ).toHaveCount(1);
-
-  await page.keyboard.press('Tab');
-  await expect(
-    page.locator('.save-load-confirm :focus'),
-    'Tab escaped the confirmation into the non-inert page behind the modal.',
+    page.locator('.saved-map-load-confirm:focus, .saved-map-load-confirm :focus'),
   ).toHaveCount(1);
 
   await page.keyboard.press('Escape');
-  await expect(confirmDialog).toHaveCount(0);
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
-  ).toBeVisible();
+  await expect(loadConfirm).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
   await expect(francePath).toHaveAttribute('fill', '#DC2626');
 
   const deleteButton = page.getByRole('button', {
@@ -675,13 +643,11 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   });
   await expect(confirmDelete).toBeFocused();
 
-  // Escape cancels the innermost confirmation only: closing the whole modal
+  // Escape cancels the innermost confirmation only: closing the whole panel
   // would silently discard the delete prompt and force a reopen.
   await page.keyboard.press('Escape');
   await expect(confirmDelete).toHaveCount(0);
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
-  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
   await expect(deleteButton).toBeFocused();
 
   await deleteButton.click();
@@ -715,7 +681,7 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await expect(francePath).toHaveAttribute('fill', '#DC2626');
 });
 
-test('Saved Maps restore the responsive opener on close and focus the map after a load', async ({
+test('the saved panel closes back to its rail row and a load focuses the map', async ({
   page,
 }): Promise<void> => {
   await page.addInitScript(
@@ -727,41 +693,34 @@ test('Saved Maps restore the responsive opener on close and focus the map after 
   await page.setViewportSize({ width: 1300, height: 900 });
   await waitForApp(page);
 
-  await openRailTool(page, 'Saved Maps');
-  const opener = page.getByRole('button', { name: 'Save or Load Maps' });
-  await opener.click();
-  await page.keyboard.press('Escape');
-  await expect(opener).toBeFocused();
-
   /*
-   * `03-06` gives the opener ONE home - the `saved` tool panel - at every
-   * width, so it is no longer replaced by a compact twin while the dialog is
-   * open. The crossing is kept anyway: dismissal must still find the mounted
-   * control, and the single-instance claim below is what would go red if a
-   * second opener ever came back.
+   * The dialog and its opener retired in `03-07`: the `saved` panel IS
+   * Save/Load, so dismissal is the tool panel's own Escape, which returns
+   * focus to the rail row that opened it. With no confirmation open, Escape
+   * propagates past SaveLoad's innermost-first handler to the panel.
    */
-  await opener.click();
+  await openRailTool(page, 'Saved Maps');
+  await page.getByRole('textbox', { name: 'Map name' }).focus();
+  await page.keyboard.press('Escape');
+  const savedRow = page.getByRole('button', {
+    name: 'Saved Maps',
+    exact: true,
+  });
+  await expect(savedRow).toHaveAttribute('aria-expanded', 'false');
+  await expect(savedRow).toBeFocused();
+
+  // Survives the responsive crossing: one panel at every width.
+  await openRailTool(page, 'Saved Maps');
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(
     page.getByRole('main', { name: 'Map creator workspace' }),
   ).toHaveClass(/workspace--compact/);
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
-  await expect(page.locator(SAVE_LOAD_CONTROL_SELECTOR)).toHaveCount(1);
-  await expect(page.locator(SAVE_LOAD_CONTROL_SELECTOR)).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
 
   // A successful load is the intentional exception: focus goes to the map.
-  await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Custom view map' })
     .click();
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
-  ).toHaveCount(0);
   await expect
     .poll(async (): Promise<string | null> =>
       page.evaluate((): string | null => {
@@ -773,4 +732,43 @@ test('Saved Maps restore the responsive opener on close and focus the map after 
   await expect(
     page.locator('path.country-path[data-country-id="DEU"]'),
   ).toHaveAttribute('fill', '#DC2626');
+});
+
+/*
+ * OPEN ITEM 4, RED-provable: `storage.ts` builds `SNAPSHOT_IDS` from all five
+ * catalog entries and its record validator admits any id in that set, so this
+ * hand-crafted record VALIDATES. The approved-id filter on the short-label
+ * resolver is what keeps the deferred period off the row.
+ */
+test('a stored record naming a deferred period renders no period label on its row', async ({
+  page,
+}): Promise<void> => {
+  await page.addInitScript(
+    ({ storageKey, record }): void => {
+      localStorage.setItem(storageKey, JSON.stringify([record]));
+    },
+    {
+      storageKey: STORAGE_KEY,
+      record: {
+        ...createCustomViewRecord(),
+        name: 'Hand-crafted period map',
+        composition: {
+          ...(createCustomViewRecord().composition as Record<string, unknown>),
+          snapshotId: '1914',
+        },
+      },
+    },
+  );
+  await waitForApp(page);
+  await openRailTool(page, 'Saved Maps');
+
+  const row = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Hand-crafted period map' });
+  await expect(row).toContainText('1 legend entry · Custom view');
+  // The row must not name the deferred period, and it is not a legacy map
+  // either - it is a V2 record whose period the approved manifest does not
+  // yield.
+  await expect(row.locator('.saved-map-metadata')).not.toContainText('1914');
+  await expect(row).not.toContainText('Legacy map');
 });

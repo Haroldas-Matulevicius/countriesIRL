@@ -394,9 +394,7 @@ test.describe('responsive world workspace', (): void => {
       await expect(page.getByRole('button', { name })).toBeVisible();
     }
     await openRailTool(page, 'Saved Maps');
-    await expect(
-      page.getByRole('button', { name: 'Save or Load Maps' }),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
     await openRailTool(page, 'Colors');
     await expect(
       page.getByRole('button', { name: 'Reset All Colors' }),

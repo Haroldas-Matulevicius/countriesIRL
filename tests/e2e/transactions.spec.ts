@@ -261,7 +261,6 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await stampCameraOwnerSentinel(page);
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical composition' })
     .click();
@@ -294,15 +293,8 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await expect(legendText).toHaveText('#2563EB');
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Historical redo');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
-  // Scoped: the `saved` tool panel carries a `Close Saved Maps` control too.
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
 
   await page.setViewportSize(COMPACT_VIEWPORT);
   await expectLayout(page, 'compact');
@@ -317,18 +309,15 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await expect(legendText).toHaveCount(0);
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical redo' })
     .click();
-  const replaceDialog = page.getByRole('dialog', {
+  const replaceConfirm = page.getByRole('heading', {
     name: 'Replace the current map?',
   });
-  await expect(replaceDialog).toBeVisible();
+  await expect(replaceConfirm).toBeVisible();
   await page.getByRole('button', { name: 'Load Saved Map' }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Save or load maps' }),
-  ).toHaveCount(0);
+  await expect(replaceConfirm).toHaveCount(0);
 
   await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
   await expect(legendText).toHaveText('#2563EB');

@@ -649,14 +649,9 @@ test('real app export failure and frozen load both release without false success
   await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Freeze baseline');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
   await page.getByRole('button', { name: 'Zoom In' }).click();
   const beforeFrozenLoad = await readCameraTransform(page);
 
@@ -691,11 +686,10 @@ test('real app export failure and frozen load both release without false success
   );
   expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('button', { name: 'Load This Map: Freeze baseline' }).click();
   // The extra Zoom In after saving left unsaved work, so the load is confirmed
   // before it can reach the frozen camera.
-  await expect(page.getByRole('dialog', { name: 'Replace the current map?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Replace the current map?' })).toBeVisible();
   await page.getByRole('button', { name: 'Load Saved Map' }).click();
   await expect(page.getByText('Finish the current export before loading a saved composition.')).toBeVisible();
   expect(await readCameraTransform(page)).toEqual(beforeFrozenLoad);
@@ -703,11 +697,7 @@ test('real app export failure and frozen load both release without false success
   await expect(page.getByRole('button', { name: 'Export PNG' })).toBeVisible({
     timeout: 10_000,
   });
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
   await page.getByRole('button', { name: 'Zoom Out' }).click();
   await expect
     .poll(async (): Promise<number> => (await readCameraTransform(page)).k)
@@ -822,7 +812,6 @@ test('real app round-trips a historical scene with live catalog and exported leg
 
   await waitForApp(page);
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Load This Map: Historical composition' })
     .click();
@@ -890,9 +879,8 @@ test('real app round-trips a historical scene with live catalog and exported leg
   );
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page.getByRole('textbox', { name: 'Map name' }).fill('Historical resaved');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
   const roundTrip = await page.evaluate((storageKey) => {
     const raw = localStorage.getItem(storageKey);
     const records = raw === null
@@ -929,11 +917,7 @@ test('real app round-trips a historical scene with live catalog and exported leg
     settledCamera.centerLatitude,
     4,
   );
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
 
   await page.evaluate((): void => {
     const originalToBlob = HTMLCanvasElement.prototype.toBlob;
@@ -982,16 +966,11 @@ test('a saved composition exports under its sanitized name in the real app', asy
   expect(downloadNames[0]).toMatch(/^CountriesIRL_\d{4}-\d{2}-\d{2}\.png$/u);
 
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('textbox', { name: 'Map name' })
     .fill('Baltic  Tour /2026!');
-  await page.getByRole('button', { name: 'Save Current Map' }).click();
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Save Map' }).click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({
@@ -1006,7 +985,6 @@ test('a saved composition exports under its sanitized name in the real app', asy
    * `Baltic_Tour_2026_<date>.png` for a composition with no stored counterpart.
    */
   await openRailTool(page, 'Saved Maps');
-  await page.getByRole('button', { name: 'Save or Load Maps' }).click();
   await page
     .getByRole('button', { name: 'Delete Saved Map: Baltic Tour /2026!' })
     .click();
@@ -1014,11 +992,7 @@ test('a saved composition exports under its sanitized name in the real app', asy
     .getByRole('button', { name: 'Delete Map: Baltic Tour /2026!' })
     .click();
   await expect(page.getByText('Saved map deleted.')).toBeVisible();
-  await page
-    .locator('.save-load-dialog')
-    .getByRole('button', { name: 'Close Saved Maps' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'Close Saved Maps' }).click();
 
   await page.getByRole('button', { name: 'Export PNG' }).click();
   await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toBeVisible({

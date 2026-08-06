@@ -221,6 +221,14 @@
    * severity surfaces that consume them are restyled in `03-10`.
    */
   --destructive: #b42318;
+  /*
+   * The committed destructive step (`Delete Map`) is a FILLED surface, and it
+   * follows the `--accent-fill` precedent for the same measured reason: white
+   * on `--themely-red` is 3.19:1 light / 2.78:1 dark, below AA, while white on
+   * this fixed value is 6.57:1 in both modes. Declared once, not redefined in
+   * `.dark`.
+   */
+  --destructive-fill: #b42318;
   --destructive-tint: #fef3f2;
   --success: #067647;
   --success-tint: #ecfdf3;

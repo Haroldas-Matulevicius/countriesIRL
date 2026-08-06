@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 
 import type { CompositionLoadTransactionOutcome } from '../hooks/useCompositionLoadTransaction';
@@ -21,14 +15,7 @@ import type {
 import { MAX_MAP_NAME_LENGTH } from '../constants/config';
 import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-
-const SAVE_LOAD_CONTROL_SELECTOR = '[data-save-load-control="true"]';
-const FOCUSABLE_SELECTOR = [
-  'button:not([disabled])',
-  'input:not([disabled])',
-  '[href]',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
+import { MapIcon } from './icons/MapIcon';
 
 const MONTH_NAMES = [
   'Jan',
@@ -71,22 +58,29 @@ const MAP_NOT_FOUND_ERROR =
 const LOAD_FAILED_ERROR =
   'This saved composition could not be loaded. Your current map is unchanged.';
 const SAVE_FAILED_ERROR =
-  'This map could not be saved and nothing was written. Try Save Current Map again.';
+  'This map could not be saved and nothing was written. Try Save Map again.';
 const CAMERA_BUSY_ERROR =
   'Finish the current export before loading a saved composition.';
 const SNAPSHOT_UNAVAILABLE_ERROR =
-  'This saved map uses a period that is not available. Choose another saved map or close this window.';
+  'This saved map uses a period that is not available. Choose another saved map.';
 
 export type SaveLoadStatusSeverity = 'success' | 'warning';
 
 export interface SaveLoadProps {
   isDirty: boolean;
+  isMapReady: boolean;
+  /**
+   * The snapshot ids the APPROVED manifest actually yields, resolved by the
+   * owner from `useSnapshotCatalog` - the same source `resolvePeriodOptions`
+   * reads. A stored record can carry any id the storage validator admits
+   * (all five catalog ids), so the row resolver filters through this set
+   * rather than the label registry (OPEN ITEM 4).
+   */
+  approvedPeriodIds: ReadonlySet<string>;
   onSave: (name: string) => CompositionSaveTransactionOutcome;
   onLoad: (name: string) => Promise<CompositionLoadTransactionOutcome>;
-  onCancelLoad: () => void;
   /** A committed delete, so the owner can drop identity that named it. */
   onDeleted: (name: string) => void;
-  onClose: () => void;
   onFocusMap: () => void;
   onStatus: (message: string, severity?: SaveLoadStatusSeverity) => void;
 }
@@ -94,11 +88,6 @@ export interface SaveLoadProps {
 export interface LoadFeedback {
   message: string;
   severity: SaveLoadStatusSeverity;
-}
-
-export interface ModalFocusTarget {
-  isConnected: boolean;
-  focus: () => void;
 }
 
 interface FormattedSavedDate {
@@ -125,11 +114,24 @@ function getSavedMapFocusKey(savedMap: SavedMapSummary): string {
 }
 
 /**
- * UI-SPEC 15 asks for the "period short label", which is the leading token of
- * the catalog label (`Modern — current borders` -> `Modern`). The catalog stays
- * the only source, so a deferred period can never be named from a stored id.
+ * UI-SPEC 15 asks for the "period short label", the leading token of the
+ * catalog label (`Modern — current borders` -> `Modern`).
+ *
+ * The id is resolved through the APPROVED manifest ids first (OPEN ITEM 4):
+ * the storage validator admits any of the five catalog ids, so a hand-crafted
+ * record carrying `"snapshotId": "1914"` validates - and the label registry
+ * alone would then name a deferred period on the row. An id the approved
+ * manifest does not yield resolves to `null` and the row renders no period
+ * label. The label text itself still comes only from the approved registry,
+ * never from manifest text (T-02-40).
  */
-export function getPeriodShortLabel(snapshotId: string): string | null {
+export function getPeriodShortLabel(
+  snapshotId: string,
+  approvedPeriodIds: ReadonlySet<string>,
+): string | null {
+  if (!approvedPeriodIds.has(snapshotId)) {
+    return null;
+  }
   const entry = SNAPSHOT_CATALOG.find(
     (candidate): boolean => candidate.id === snapshotId,
   );
@@ -143,39 +145,28 @@ export function getLegendEntrySummary(entryCount: number): string {
   return entryCount === 1 ? '1 legend entry' : `${entryCount} legend entries`;
 }
 
-export function getSavedMapMetadata(savedMap: SavedMapSummary): string {
+export function getSavedMapMetadata(
+  savedMap: SavedMapSummary,
+  approvedPeriodIds: ReadonlySet<string>,
+): string {
   if (savedMap.sourceVersion === 1 || savedMap.snapshotId === null) {
     return LEGACY_ROW_METADATA;
   }
 
-  const periodLabel = getPeriodShortLabel(savedMap.snapshotId);
-  if (periodLabel === null) {
-    return LEGACY_ROW_METADATA;
-  }
+  const periodLabel = getPeriodShortLabel(
+    savedMap.snapshotId,
+    approvedPeriodIds,
+  );
 
+  // A V2 record whose period is not approved is NOT a legacy map - it will
+  // not "open with modern borders"; loading it refuses with the
+  // period-unavailable message. The row states what it can prove and simply
+  // renders no period label.
   return [
-    periodLabel,
+    ...(periodLabel === null ? [] : [periodLabel]),
     getLegendEntrySummary(savedMap.legendEntryCount),
     savedMap.isWholeWorldView ? 'Whole world view' : 'Custom view',
   ].join(' · ');
-}
-
-export function restoreSaveLoadFocus(
-  opener: ModalFocusTarget | null,
-  currentControl: ModalFocusTarget | null,
-  focusMap: () => void,
-): void {
-  if (opener?.isConnected) {
-    opener.focus();
-    return;
-  }
-
-  if (currentControl?.isConnected) {
-    currentControl.focus();
-    return;
-  }
-
-  focusMap();
 }
 
 export function getLoadFeedback(
@@ -202,9 +193,9 @@ export function getLoadFeedback(
 
 /**
  * A save failure must read as a save failure. Reporting `map-canvas-unavailable`
- * with the load copy told a creator who pressed Save Current Map that a
- * composition "could not be loaded", and `map-not-found` claimed the browser
- * blocks local saves.
+ * with the load copy told a creator who pressed Save Map that a composition
+ * "could not be loaded", and `map-not-found` claimed the browser blocks local
+ * saves.
  */
 export function getSaveFailureMessage(
   reason: CompositionSaveFailureReason,
@@ -244,13 +235,35 @@ function getStorageErrorMessage(
   }
 }
 
+/**
+ * The `saved` tool's panel content (UI-SPEC 8). The Phase 2 modal dialog
+ * dissolved here in `03-07`: the dialog role, the modality attribute, the
+ * overlay, the focus trap, and the imperative `inert` all retired WITH the
+ * dialog. (Named indirectly on purpose - the retirement gate is a plain text
+ * scan with no parser between the rule and this file.)
+ *
+ * What survives, verbatim, is the nested-confirmation contract - it was never
+ * about the modal:
+ * - a confirmation renders as a SIBLING of the surface it interrupts (the
+ *   row's action group swaps in place), never as a descendant of it;
+ * - it carries its own `tabIndex={-1}`: as a swapped-in block it has no
+ *   focusable ancestor of its own, so a mouse-down on its body text would
+ *   otherwise drop focus to `document.body` - and from there the panel's
+ *   keydown handler never fires, so Escape dies;
+ * - `Escape` dismisses the INNERMOST open confirmation, branching over every
+ *   open layer in order, and only an Escape that closes nothing propagates up
+ *   to the tool panel's own close handler;
+ * - focus returns to the control that opened the confirmation, from an
+ *   EFFECT, keyed by a stable row key - index keys break as soon as a row is
+ *   deleted.
+ */
 export function SaveLoad({
   isDirty,
+  isMapReady,
+  approvedPeriodIds,
   onSave,
   onLoad,
-  onCancelLoad,
   onDeleted,
-  onClose,
   onFocusMap,
   onStatus,
 }: SaveLoadProps): JSX.Element {
@@ -268,8 +281,6 @@ export function SaveLoad({
   const [isLoading, setIsLoading] = useState(false);
   const [pendingDeleteKey, setPendingDeleteKey] = useState<string | null>(null);
   const [pendingLoad, setPendingLoad] = useState<SavedMapSummary | null>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmLoadButtonRef = useRef<HTMLButtonElement>(null);
   const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
   const restoreDeleteFocusRef = useRef<string | null>(null);
@@ -277,9 +288,6 @@ export function SaveLoad({
   const deleteButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const nameInputRef = useRef<HTMLInputElement>(null);
   const savedMapsSectionRef = useRef<HTMLElement>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
-  const shouldRestoreOpenerRef = useRef(true);
-  const saveInProgressRef = useRef(false);
   const pendingDeleteFocusRef = useRef<string | 'map-name' | null>(null);
   const loadButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const headingId = useId();
@@ -302,29 +310,9 @@ export function SaveLoad({
     .filter((id): id is string => id !== null)
     .join(' ');
 
-  const requestClose = useCallback((): void => {
-    onCancelLoad();
-    onClose();
-  }, [onCancelLoad, onClose]);
-
-  useEffect((): (() => void) => {
-    openerRef.current =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+  useEffect((): void => {
     refreshSavedMaps();
-    nameInputRef.current?.focus();
-
-    return (): void => {
-      if (shouldRestoreOpenerRef.current) {
-        restoreSaveLoadFocus(
-          openerRef.current,
-          document.querySelector<HTMLElement>(SAVE_LOAD_CONTROL_SELECTOR),
-          onFocusMap,
-        );
-      }
-    };
-  }, [onFocusMap, refreshSavedMaps]);
+  }, [refreshSavedMaps]);
 
   useEffect((): void => {
     const pendingFocus = pendingDeleteFocusRef.current;
@@ -350,31 +338,11 @@ export function SaveLoad({
 
   const cancelPendingLoad = useCallback((): void => {
     if (pendingLoad !== null) {
-      // The dialog behind the confirmation is inert, so focus cannot be
-      // restored until React has removed that attribute - the effect below owns
-      // the restore, not this handler.
+      // The row's actions swap back in on the NEXT render, so the effect
+      // below owns the focus restore, not this handler.
       restoreLoadFocusRef.current = getSavedMapFocusKey(pendingLoad);
     }
     setPendingLoad(null);
-  }, [pendingLoad]);
-
-  // A nested `aria-modal` dialog does not hide its parent: `aria-modal` on the
-  // outer dialog restricts assistive technology to the outer subtree, which
-  // still contains Save, Delete, and Close. Without `inert`, a browse-mode user
-  // reads past the confirmation and activates the very controls the sighted
-  // user cannot reach.
-  useEffect((): void => {
-    const dialog = dialogRef.current;
-    if (dialog === null) {
-      return;
-    }
-    if (pendingLoad === null) {
-      dialog.removeAttribute('inert');
-      dialog.removeAttribute('aria-hidden');
-      return;
-    }
-    dialog.setAttribute('inert', '');
-    dialog.setAttribute('aria-hidden', 'true');
   }, [pendingLoad]);
 
   useEffect((): void => {
@@ -407,59 +375,29 @@ export function SaveLoad({
     deleteButtonRefs.current.get(restoreKey)?.focus();
   }, [pendingDeleteKey]);
 
-  const handleDialogKeyDown = useCallback(
+  const handlePanelKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>): void => {
-      // The dirty-load confirmation owns dismissal and the trap while it is
-      // open, so Escape can never skip past it and load over unsaved work.
-      const trapRoot =
-        pendingLoad === null ? dialogRef.current : confirmDialogRef.current;
+      if (event.key !== 'Escape') {
+        return;
+      }
 
-      // Escape dismisses the innermost open confirmation only. Closing the
-      // whole modal from a per-row delete prompt would discard the prompt and
-      // force the user to reopen and re-navigate.
-      if (event.key === 'Escape') {
+      // Escape dismisses the INNERMOST open confirmation only, branching over
+      // every open layer in order. An Escape that closes nothing here is left
+      // to propagate, so the tool panel's own handler can close the panel.
+      if (pendingLoad !== null) {
         event.preventDefault();
         event.stopPropagation();
-        if (pendingLoad !== null) {
-          cancelPendingLoad();
-        } else if (pendingDeleteKey !== null) {
-          restoreDeleteFocusRef.current = pendingDeleteKey;
-          setPendingDeleteKey(null);
-        } else {
-          requestClose();
-        }
+        cancelPendingLoad();
         return;
       }
-
-      if (event.key !== 'Tab' || trapRoot === null) {
-        return;
-      }
-
-      const focusableElements = Array.from(
-        trapRoot.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      );
-      if (focusableElements.length === 0) {
+      if (pendingDeleteKey !== null) {
         event.preventDefault();
-        trapRoot.focus();
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      const activeElement = document.activeElement;
-
-      if (event.shiftKey && activeElement === firstElement) {
-        event.preventDefault();
-        lastElement.focus();
-      } else if (!event.shiftKey && activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      } else if (!trapRoot.contains(activeElement)) {
-        event.preventDefault();
-        firstElement.focus();
+        event.stopPropagation();
+        restoreDeleteFocusRef.current = pendingDeleteKey;
+        setPendingDeleteKey(null);
       }
     },
-    [cancelPendingLoad, pendingDeleteKey, pendingLoad, requestClose],
+    [cancelPendingLoad, pendingDeleteKey, pendingLoad],
   );
 
   const handleSave = useCallback(
@@ -481,11 +419,9 @@ export function SaveLoad({
 
       setNameError(null);
       setIsSaving(true);
-      saveInProgressRef.current = true;
 
       const result = onSave(trimmedName);
 
-      saveInProgressRef.current = false;
       setIsSaving(false);
 
       if (!result.ok) {
@@ -551,11 +487,11 @@ export function SaveLoad({
         result.storageWarnings,
       );
       onStatus(feedback.message, feedback.severity);
-      shouldRestoreOpenerRef.current = false;
-      onClose();
+      // A successful load is the intentional exception to in-place focus:
+      // the creator's next act is on the map they just loaded.
       requestAnimationFrame(onFocusMap);
     },
-    [onClose, onFocusMap, onLoad, onStatus, refreshSavedMaps],
+    [onFocusMap, onLoad, onStatus, refreshSavedMaps],
   );
 
   const handleLoadRequest = useCallback(
@@ -599,251 +535,231 @@ export function SaveLoad({
 
   return (
     <div
-      className="save-load-overlay"
-      // The key handler lives on the overlay, not on the dialog: while the
-      // load confirmation is open the dialog is inert, so nothing inside it can
-      // be focused and no key event could reach a handler bound there.
-      onKeyDown={handleDialogKeyDown}
-      onMouseDown={(event): void => {
-        if (
-          event.target === event.currentTarget &&
-          !saveInProgressRef.current
-        ) {
-          requestClose();
-        }
-      }}
+      className="save-load"
+      aria-busy={isSaving || isLoading}
+      onKeyDown={handlePanelKeyDown}
     >
-      <div
-        ref={dialogRef}
-        className="save-load-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={headingId}
-        aria-busy={isSaving || isLoading}
-        tabIndex={-1}
-      >
-        <header className="save-load-header">
-          <h2 id={headingId}>Save or load maps</h2>
-          <button type="button" onClick={requestClose}>
-            Close Saved Maps
+      {hasCorruptWarning && (
+        <p className="save-load-warning" role="status">
+          {CORRUPT_STORAGE_WARNING}
+        </p>
+      )}
+
+      {storageError !== null && (
+        <p className="save-load-error" role="alert">
+          {storageError}
+        </p>
+      )}
+
+      {operationError !== null && (
+        <p className="save-load-error" role="alert">
+          {operationError}
+        </p>
+      )}
+
+      <section className="save-load-section" aria-labelledby={`${headingId}-save`}>
+        <h3 id={`${headingId}-save`}>Save current map</h3>
+        <form onSubmit={handleSave} noValidate>
+          <label htmlFor={`${headingId}-name`}>Map name</label>
+          <input
+            ref={nameInputRef}
+            id={`${headingId}-name`}
+            name="map-name"
+            type="text"
+            value={mapName}
+            maxLength={MAX_MAP_NAME_LENGTH}
+            placeholder="Example: Europe summer map"
+            aria-invalid={nameError !== null}
+            aria-describedby={describedBy.length === 0 ? undefined : describedBy}
+            onChange={(event): void => {
+              setMapName(event.target.value);
+              setNameError(null);
+              setOperationError(null);
+            }}
+          />
+
+          {nameError !== null && (
+            <p id={nameErrorId} className="save-load-error" role="alert">
+              {nameError}
+            </p>
+          )}
+
+          {isReplacing && (
+            <p id={overwriteNoticeId} className="save-load-warning">
+              {OVERWRITE_NOTICE}
+            </p>
+          )}
+
+          {/*
+            The `saved` panel's ONE Apple Blue element (D-05). The label stays
+            `Save Map` in the replace case too; the overwrite notice above is
+            what carries the replace semantics.
+          */}
+          <button
+            type="submit"
+            className="save-load-submit"
+            disabled={
+              isSaving ||
+              isLoading ||
+              !isMapReady ||
+              error === 'storage-unavailable'
+            }
+          >
+            Save Map
           </button>
-        </header>
+        </form>
+      </section>
 
-        {hasCorruptWarning && (
-          <p className="save-load-warning" role="status">
-            {CORRUPT_STORAGE_WARNING}
-          </p>
-        )}
+      <section
+        ref={savedMapsSectionRef}
+        className="save-load-section saved-maps-section"
+        aria-labelledby={`${headingId}-saved`}
+      >
+        <h3 id={`${headingId}-saved`}>Saved maps</h3>
 
-        {storageError !== null && (
-          <p className="save-load-error" role="alert">
-            {storageError}
-          </p>
-        )}
+        {savedMaps.length === 0 ? (
+          <div className="saved-maps-empty">
+            <span className="saved-maps-empty__chip" aria-hidden="true">
+              <MapIcon size={16} />
+            </span>
+            <h4>No saved maps yet</h4>
+            <p>{SAVED_EMPTY_BODY}</p>
+          </div>
+        ) : (
+          <ul className="saved-maps-list">
+            {savedMaps.map((savedMap, index) => {
+              const focusKey = getSavedMapFocusKey(savedMap);
+              const formattedDate = formatSavedDate(savedMap.timestamp);
+              const isConfirmingDelete = pendingDeleteKey === focusKey;
+              const isConfirmingLoad =
+                pendingLoad !== null &&
+                getSavedMapFocusKey(pendingLoad) === focusKey;
 
-        {operationError !== null && (
-          <p className="save-load-error" role="alert">
-            {operationError}
-          </p>
-        )}
-
-        <section aria-labelledby={`${headingId}-save`}>
-          <h3 id={`${headingId}-save`}>Save current map</h3>
-          <form onSubmit={handleSave} noValidate>
-            <label htmlFor={`${headingId}-name`}>Map name</label>
-            <input
-              ref={nameInputRef}
-              id={`${headingId}-name`}
-              name="map-name"
-              type="text"
-              value={mapName}
-              maxLength={MAX_MAP_NAME_LENGTH}
-              placeholder="Example: Europe summer map"
-              aria-invalid={nameError !== null}
-              aria-describedby={describedBy.length === 0 ? undefined : describedBy}
-              onChange={(event): void => {
-                setMapName(event.target.value);
-                setNameError(null);
-                setOperationError(null);
-              }}
-            />
-
-            {nameError !== null && (
-              <p id={nameErrorId} className="save-load-error" role="alert">
-                {nameError}
-              </p>
-            )}
-
-            {isReplacing && (
-              <p id={overwriteNoticeId} className="save-load-warning">
-                {OVERWRITE_NOTICE}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={
-                isSaving || isLoading || error === 'storage-unavailable'
-              }
-            >
-              {isReplacing ? 'Replace Saved Map' : 'Save Current Map'}
-            </button>
-          </form>
-        </section>
-
-        <section
-          ref={savedMapsSectionRef}
-          className="saved-maps-section"
-          aria-labelledby={`${headingId}-saved`}
-        >
-          <h3 id={`${headingId}-saved`}>Saved maps</h3>
-
-          {savedMaps.length === 0 ? (
-            <div className="saved-maps-empty">
-              <h4>No saved maps yet</h4>
-              <p>{SAVED_EMPTY_BODY}</p>
-            </div>
-          ) : (
-            <ul className="saved-maps-list">
-              {savedMaps.map((savedMap, index) => {
-                const focusKey = getSavedMapFocusKey(savedMap);
-                const formattedDate = formatSavedDate(savedMap.timestamp);
-                const isConfirmingDelete = pendingDeleteKey === focusKey;
-
-                return (
-                  <li
-                    key={`${focusKey}::${index}`}
-                    className="saved-map-row"
-                  >
-                    <div className="saved-map-details">
+              return (
+                <li key={`${focusKey}::${index}`} className="saved-map-row">
+                  <div className="saved-map-details">
+                    <span className="saved-map-chip" aria-hidden="true">
+                      <MapIcon size={16} />
+                    </span>
+                    <div className="saved-map-text">
                       <strong title={savedMap.name}>{savedMap.name}</strong>
                       <time dateTime={formattedDate.dateTime}>
                         {formattedDate.display}
                       </time>
                       <span className="saved-map-metadata">
-                        {getSavedMapMetadata(savedMap)}
+                        {getSavedMapMetadata(savedMap, approvedPeriodIds)}
                       </span>
                     </div>
-                    {isConfirmingDelete ? (
-                      <div className="saved-map-actions saved-map-actions--confirm">
-                        <p className="saved-map-delete-prompt">
-                          {`Delete “${savedMap.name}”? This saved map cannot be recovered.`}
-                        </p>
-                        <button
-                          ref={confirmDeleteButtonRef}
-                          type="button"
-                          className="saved-map-delete"
-                          aria-label={`Delete Map: ${savedMap.name}`}
-                          onClick={(): void => handleDelete(savedMap, index)}
-                        >
-                          Delete Map
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Keep Map: ${savedMap.name}`}
-                          onClick={(): void => {
-                            restoreDeleteFocusRef.current = focusKey;
-                            setPendingDeleteKey(null);
-                          }}
-                        >
-                          Keep Map
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="saved-map-actions">
-                        <button
-                          ref={(element): void => {
-                            if (element === null) {
-                              loadButtonRefs.current.delete(focusKey);
-                            } else {
-                              loadButtonRefs.current.set(focusKey, element);
-                            }
-                          }}
-                          type="button"
-                          aria-label={`Load This Map: ${savedMap.name}`}
-                          disabled={isLoading}
-                          onClick={(): void => handleLoadRequest(savedMap)}
-                        >
-                          Load This Map
-                        </button>
-                        <button
-                          ref={(element): void => {
-                            if (element === null) {
-                              deleteButtonRefs.current.delete(focusKey);
-                            } else {
-                              deleteButtonRefs.current.set(focusKey, element);
-                            }
-                          }}
-                          type="button"
-                          className="saved-map-delete"
-                          aria-label={`Delete Saved Map: ${savedMap.name}`}
-                          onClick={(): void => {
-                            setOperationError(null);
-                            setPendingDeleteKey(focusKey);
-                          }}
-                        >
-                          Delete Saved Map
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <footer className="save-load-footer">
-          <button type="button" onClick={requestClose}>
-            Close Saved Maps
-          </button>
-        </footer>
-
-      </div>
-
-      {/*
-        Rendered as a sibling of the dialog, never inside it: the dialog is
-        marked inert while this confirmation is open, and an inert ancestor
-        would take the confirmation itself out of the accessibility tree and
-        the tab order.
-      */}
-      {pendingLoad !== null && (
-        <div className="save-load-confirm-overlay">
-          <div
-            ref={confirmDialogRef}
-            className="save-load-confirm"
-            role="dialog"
-            aria-modal="true"
-            // The confirmation is a *sibling* of the dialog, not a descendant,
-            // so without a focus host of its own a mouse-down on the body text
-            // finds no focusable ancestor and focus falls to `document.body`.
-            // From there the overlay's `onKeyDown` never fires: Escape dies and
-            // Tab walks out of the modal into the non-inert page behind it.
-            tabIndex={-1}
-            aria-labelledby={confirmHeadingId}
-            aria-describedby={confirmBodyId}
-          >
-            <h3 id={confirmHeadingId}>{DIRTY_LOAD_HEADING}</h3>
-            <p id={confirmBodyId}>
-              {`Loading “${pendingLoad.name}” will replace unsaved colors, view, period, and legend changes.`}
-            </p>
-            <div className="save-load-confirm-actions">
-              <button
-                ref={confirmLoadButtonRef}
-                type="button"
-                onClick={(): void => {
-                  void performLoad(pendingLoad);
-                }}
-              >
-                Load Saved Map
-              </button>
-              <button type="button" onClick={cancelPendingLoad}>
-                Keep Editing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                  </div>
+                  {isConfirmingLoad ? (
+                    /*
+                      The dirty-load confirmation, carried across the dialog's
+                      retirement verbatim: a sibling of the actions it
+                      replaces, its own tabIndex so a mouse-down on the body
+                      text cannot drop focus to `document.body`, Escape
+                      handled innermost-first, and focus returned to this
+                      row's `Load This Map` from the effect above, keyed by
+                      the stable row key.
+                    */
+                    <div
+                      className="saved-map-actions saved-map-actions--confirm saved-map-load-confirm"
+                      tabIndex={-1}
+                      aria-labelledby={confirmHeadingId}
+                      aria-describedby={confirmBodyId}
+                    >
+                      <h4 id={confirmHeadingId}>{DIRTY_LOAD_HEADING}</h4>
+                      <p id={confirmBodyId} className="saved-map-load-prompt">
+                        {`Loading “${savedMap.name}” will replace unsaved colors, view, period, and legend changes.`}
+                      </p>
+                      <button
+                        ref={confirmLoadButtonRef}
+                        type="button"
+                        className="saved-map-confirm-action"
+                        onClick={(): void => {
+                          void performLoad(savedMap);
+                        }}
+                      >
+                        Load Saved Map
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelPendingLoad}
+                      >
+                        Keep Editing
+                      </button>
+                    </div>
+                  ) : isConfirmingDelete ? (
+                    <div
+                      className="saved-map-actions saved-map-actions--confirm"
+                      tabIndex={-1}
+                    >
+                      <p className="saved-map-delete-prompt">
+                        {`Delete “${savedMap.name}”? This saved map cannot be recovered.`}
+                      </p>
+                      <button
+                        ref={confirmDeleteButtonRef}
+                        type="button"
+                        className="saved-map-delete saved-map-delete--confirm"
+                        aria-label={`Delete Map: ${savedMap.name}`}
+                        onClick={(): void => handleDelete(savedMap, index)}
+                      >
+                        Delete Map
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Keep Map: ${savedMap.name}`}
+                        onClick={(): void => {
+                          restoreDeleteFocusRef.current = focusKey;
+                          setPendingDeleteKey(null);
+                        }}
+                      >
+                        Keep Map
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="saved-map-actions">
+                      <button
+                        ref={(element): void => {
+                          if (element === null) {
+                            loadButtonRefs.current.delete(focusKey);
+                          } else {
+                            loadButtonRefs.current.set(focusKey, element);
+                          }
+                        }}
+                        type="button"
+                        aria-label={`Load This Map: ${savedMap.name}`}
+                        disabled={isLoading || !isMapReady}
+                        onClick={(): void => handleLoadRequest(savedMap)}
+                      >
+                        Load This Map
+                      </button>
+                      <button
+                        ref={(element): void => {
+                          if (element === null) {
+                            deleteButtonRefs.current.delete(focusKey);
+                          } else {
+                            deleteButtonRefs.current.set(focusKey, element);
+                          }
+                        }}
+                        type="button"
+                        className="saved-map-delete"
+                        aria-label={`Delete Saved Map: ${savedMap.name}`}
+                        onClick={(): void => {
+                          setOperationError(null);
+                          setPendingLoad(null);
+                          setPendingDeleteKey(focusKey);
+                        }}
+                      >
+                        Delete Saved Map
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

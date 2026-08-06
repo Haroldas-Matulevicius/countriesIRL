@@ -216,6 +216,29 @@ country the active scene does not contain.
 **Failure retains the prior scene.** A snapshot that fails validation, hash check, or fetch
 leaves the previous scene on screen; it never blanks the map.
 
+### The approved-id filter on the saved-map row resolver (OPEN ITEM 4, decided in 03-07)
+
+**The fact, verified in the UI-SPEC:** `storage.ts` builds `SNAPSHOT_IDS` from **all five**
+`SNAPSHOT_CATALOG` entries and its record validator admits any id in that set, so a hand-crafted
+`localStorage` record carrying `"snapshotId": "1914"` validates. This is **pre-existing Phase 2
+behaviour, not a Phase 3 regression**, and reaching it requires hand-editing browser storage — a
+weak, local exposure, not a path by which a deferred snapshot becomes *reachable*.
+
+**The decision:** `getPeriodShortLabel` in `SaveLoad.tsx` resolves through the ids the **approved
+manifest** actually yields — the same source `resolvePeriodOptions` reads, handed down from
+`useSnapshotCatalog` — and returns `null` otherwise, so the row renders **no period label**. The
+label text itself still comes only from the approved catalog registry, never from manifest text
+(T-02-40). This is a presentation-layer change of a few lines that makes the original claim
+(*"a stored record can never name a deferred period"*) **true** rather than merely narrower, and
+it is RED-proven by planting a `1914` record in the e2e context.
+
+**The storage validator is deliberately NOT changed.** Filtering `SNAPSHOT_IDS` there would alter
+which stored records are *admitted* — a data-layer behaviour change outside a chrome phase's
+scope. If a later phase revisits it, that is its own decision with its own evidence. A V2 record
+with an unapproved period is also **not relabelled as a legacy map**: it will not "open with
+modern borders" (loading it refuses with the period-unavailable message), so the row keeps its
+real metadata and simply omits the period token.
+
 ---
 
 ## Error Handling
@@ -405,17 +428,17 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
-*Last updated: 2026-08-06 — § File Paths gained "The base path has one home, and two predicates are
-deliberately not in it": `src/config/editorConfig.ts` as the single production home reached through
-`MapEditor`'s props boundary, the two `historicalValidation.ts` safety predicates exempted with
-their reason, and the condition under which the predicate would have to validate against the
-configured base rather than a wildcard (plan 03-05, transition-readiness c).*
-*Last updated: 2026-08-06 — added § Vendored binary assets: `src/assets/` vs `public/data/`, which
-consumer picks which, the README-row integrity record, the no-network-font rule, and the requirement
-to record a subset's coverage gap with its price (plan 03-01, D-09). Earlier, 2026-07-26: replaced
-the Phase 1 historical-borders sketch with the world asset and approved snapshot catalog
-(catalog-driven periods, evidence-not-inference approval, manual-trace records, effective entities,
-corrected file paths; plan 02-25); prior 2026-07-25 added the filesystem-identity rule after a
-Windows inode-precision defect surfaced as a flaky test.*
+*Last updated: 2026-08-06 — § World Asset and Snapshot Catalog gained the approved-id filter on
+the saved-map row resolver (OPEN ITEM 4): `getPeriodShortLabel` resolves through the ids the
+approved manifest yields and returns `null` otherwise, the storage validator is deliberately
+unchanged, an unapproved V2 record is not relabelled as legacy, and the filter is RED-proven with
+a planted `1914` record (plan 03-07).*
+*Last updated: 2026-08-06 + earlier, condensed — § File Paths gained the single base-path home in
+`src/config/editorConfig.ts` with the two `historicalValidation.ts` safety predicates exempted by
+source text and the condition under which they would change (plan 03-05); § Vendored binary
+assets: `src/assets/` vs `public/data/`, the README-row integrity record, the no-network-font
+rule, and recording a subset's coverage gap with its price (plan 03-01). 2026-07-26: the world
+asset and approved snapshot catalog replaced the Phase 1 sketch (plan 02-25); 2026-07-25: the
+filesystem-identity rule after a Windows inode-precision defect.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/data.md`.*

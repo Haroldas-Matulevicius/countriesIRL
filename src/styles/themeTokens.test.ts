@@ -242,6 +242,13 @@ const TOKEN_EXACT_NAMES = [
   '--accent-fill',
   '--accent-fill-hover',
   '--destructive',
+  /*
+   * 03-07: the committed destructive step (`Delete Map`) is a filled surface,
+   * and it follows the `--accent-fill` precedent for the same measured reason:
+   * white on `--themely-red` is 3.19:1 light / 2.78:1 dark, below AA, while
+   * white on the fixed `#b42318` is 6.57:1 in both modes.
+   */
+  '--destructive-fill',
   '--destructive-tint',
   '--success',
   '--success-tint',
