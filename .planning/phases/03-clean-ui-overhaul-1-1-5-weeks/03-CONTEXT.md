@@ -212,6 +212,31 @@ bands and text tools (Phase 4); any data features (Phase 5).
   - **This plus D-27 is Roadmap Amendment 3** — two runtime dependencies and an icon-vendoring
     surface enter a phase specced as "chrome, layout, and tokens only."
 
+### Resolved at plan time (2026-08-06, owner-decided)
+
+- **D-30: A theme toggle pinned in the HUD rail footer sets `.dark`.** This closes D-08's open
+  sub-question. A small sun/moon control sits in the rail footer alongside the Export button;
+  per D-05 Export keeps the rail's single Apple Blue fill, so the toggle is a **neutral** icon
+  control and never carries the accent. Constraints:
+  - The chosen theme persists through the **storage-adapter interface** (the same seam as
+    D-18's last-open tool), never raw `localStorage`, and respects the bounded V2 record
+    contract.
+  - **No `prefers-color-scheme` read anywhere** — not even to seed a first-run default. The
+    standalone app defaults to light. This keeps the host story clean: a future host controls
+    `.dark` on the mount root and there is no OS listener to fight it.
+  - The class is written to the **editor mount root**, never unconditionally to
+    `document.documentElement` (existing transition-readiness constraint).
+  - *Gate:* an assertion that goes RED if a `prefers-color-scheme` media query reappears in the
+    dark-mode path, and a Playwright slice proving both palettes render from the same tokens.
+
+- **D-31: `fe5f946` is git-tagged before any Phase 3 commit lands.** The first task of `03-01`
+  creates an annotated tag (e.g. `acceptance-02-28`) on
+  `fe5f946060707c48c3d9591d368b5f3f8f90dd4d` so the owner can check out the exact pre-restyle
+  build the `02-28` acceptance matrix describes. Phase 3 then proceeds in parallel with the open
+  gate. The matrix itself is **not** modified, its SHA binding is unchanged, and no cell may be
+  filled from a restyled build. This is a safeguard on evidence, not a resolution of the gate —
+  `02-28` remains OPEN until the owner physically performs it.
+
 ### Roadmap Amendments
 
 `/gsd:plan-phase 3` **must** land these as explicit `ROADMAP.md` edits in the same commit
@@ -369,9 +394,9 @@ series, not leave them as undocumented divergence:
   landmasses read as printed paper against cool chrome. Raised, then set aside because it
   touches map rendering. → **Phase 4 (Visual & Cartographic System)**, and note D-25 means any
   such change alters exported pixels.
-- **A user-facing dark-mode toggle.** D-08 ports the palette and the `.dark` mechanism but does
-  not decide what flips it in the standalone app. Flagged as an open sub-question for
-  `/gsd:plan-phase 3`, not deferred out of the phase.
+- ~~**A user-facing dark-mode toggle.**~~ **RESOLVED 2026-08-06 — see D-30.** A rail-footer
+  toggle ships in Phase 3, persisted through the storage adapter, with no `prefers-color-scheme`
+  read anywhere.
 - **Scale bar on the map.** Considered and rejected for Phase 3 — misleading on a Mercator
   world map, and it is cartography (Phase 4) rather than chrome.
 - **Actually embedding the editor in Themely.** Explicitly outside v1.1; needs new owner
