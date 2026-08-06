@@ -214,7 +214,7 @@ bands and text tools (Phase 4); any data features (Phase 5).
 
 ### Resolved at plan time (2026-08-06, owner-decided)
 
-- **D-30: A theme toggle pinned in the HUD rail footer sets `.dark`.** This closes D-08's open
+- **D-30:** A theme toggle pinned in the HUD rail footer sets `.dark`. This closes D-08's open
   sub-question. A small sun/moon control sits in the rail footer alongside the Export button;
   per D-05 Export keeps the rail's single Apple Blue fill, so the toggle is a **neutral** icon
   control and never carries the accent. Constraints:
@@ -229,7 +229,7 @@ bands and text tools (Phase 4); any data features (Phase 5).
   - *Gate:* an assertion that goes RED if a `prefers-color-scheme` media query reappears in the
     dark-mode path, and a Playwright slice proving both palettes render from the same tokens.
 
-- **D-31: `fe5f946` is git-tagged before any Phase 3 commit lands.** The first task of `03-01`
+- **D-31:** `fe5f946` is git-tagged before any Phase 3 commit lands. The first task of `03-01`
   creates an annotated tag (e.g. `acceptance-02-28`) on
   `fe5f946060707c48c3d9591d368b5f3f8f90dd4d` so the owner can check out the exact pre-restyle
   build the `02-28` acceptance matrix describes. Phase 3 then proceeds in parallel with the open
@@ -242,7 +242,7 @@ bands and text tools (Phase 4); any data features (Phase 5).
 These three answer open questions raised by `03-RESEARCH.md`. Each finding below was
 independently re-verified against the tree before the decision was taken.
 
-- **D-32: full-bleed map *surface*, centred 1:1 export frame.** Resolves OQ-2. The map surface
+- **D-32:** full-bleed map *surface*, centred 1:1 export frame. Resolves OQ-2. The map surface
   fills the viewport edge to edge and pans/zooms in the Google-Maps idiom (D-11 stands — no top
   chrome), but a visible square export frame sits centred on it marking exactly what lands in
   the PNG. WYSIWYG is preserved: what is inside the frame is what exports. The SVG `viewBox`
@@ -254,7 +254,7 @@ independently re-verified against the tree before the decision was taken.
     reflow (D-19) cannot disturb the projection, the camera lease, or the export. **No
     `ResizeObserver` is required.**
 
-- **D-33: the `03-10` gate runs Chrome-only and says so plainly.** Microsoft Edge is **not
+- **D-33:** the `03-11` gate runs Chrome-only and says so plainly. Microsoft Edge is **not
   installed** on this machine (`/Applications` holds no `Microsoft*.app`;
   `~/Library/Caches/ms-playwright` holds only `ffmpeg-1011`), so `npm run test:e2e`'s `msedge`
   project cannot launch. Per the browser-certification guardrail, `03-10`'s evidence must state
@@ -265,7 +265,7 @@ independently re-verified against the tree before the decision was taken.
     filed as a pending todo against Phase 2's evidence, not as Phase 3 work. Phase 3 must not
     cite the Edge record and must not repeat it.
 
-- **D-34: Phase 3 owns the SVG→PNG export path; `html2canvas` is removed.** The entire
+- **D-34:** Phase 3 owns the SVG→PNG export path; `html2canvas` is removed. The entire
   composition — camera layer *and* legend layer — is a **single SVG** (`export.ts:21-22`
   `[data-layer="camera"]` / `[data-layer="legend"]`), and `html2canvas@1.4.1` never descends into
   an `<svg>`: it serialises the element with `XMLSerializer` into a `data:image/svg+xml` URL and
@@ -279,7 +279,7 @@ independently re-verified against the tree before the decision was taken.
     → `toBlob`. An inline data-URI font is **not** an external fetch, which is why it resolves
     inside SVG-as-image. **The exported PNG does not grow** — it is raster; the font bytes exist
     only in a throwaway in-memory SVG string.
-  - **D-34a — build the font-embedding seam generalised, use it only for Inter.** The step is
+  - **D-34a:** build the font-embedding seam generalised, use it only for Inter. The step is
     "collect the fonts this composition uses → embed each inline", not a hard-coded Inter branch,
     so Phase 4's custom text tools plug in without re-opening the export chokepoint. Only Inter is
     in play in Phase 3.
@@ -296,7 +296,7 @@ independently re-verified against the tree before the decision was taken.
     export e2e slice must be RED-proven against the new path, not merely observed green.
   - — **Reversibility:** one-way once export baselines are re-cut.
 
-- **D-35: the dark-mode switch silently disarms an existing gate — it must be re-armed.**
+- **D-35:** the dark-mode switch silently disarms an existing gate — it must be re-armed.
   `tests/e2e/responsive.spec.ts:1025,1048` ("the PNG is identical across theme, forced colors, and
   DPR") flips theme with `page.emulateMedia({ colorScheme })`. Once D-08/D-30 move the flip to a
   `.dark` class, that emulation changes nothing, both exports become trivially identical, and

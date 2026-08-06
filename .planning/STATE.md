@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 2 engineering is COMPLETE and gate-verified at fe5f946060707c48c3d9591d368b5f3f8f90dd4d. Two owner gates remain OPEN: 02-25 (documentation approval -- patches applied, but the approval on file is blanket, sight-unseen and NOT hash-bound, and its Task 2 was never executed) and 02-28 (the human acceptance matrix -- prepared and bound to fe5f946, the automatable cells pre-filled with cited evidence and every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 are DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: hand 02-28 to the owner."
-last_updated: "2026-08-06T00:00:00.000Z"
-last_activity: "2026-08-06 -- Phase 3 context gathered (docs only; no source, test, or script file touched). 03-CONTEXT.md + 03-DISCUSSION-LOG.md written and committed at d3d9a35. Phase 3 adopts the Themely design system wholesale from the sibling repo at /Users/matul/claudeprojects/themely/Design.md, per explicit owner direction. THREE ROADMAP AMENDMENTS are pending and must be landed by /gsd:plan-phase 3, not left as drift: (1) dark mode moves from out-of-scope to in-scope, class-based; (2) the HUD becomes an icon rail + flyout rather than 03-02's collapsible column; (3) two runtime deps (motion v12, vendored lucide-animated icons) plus a legend restyle that CHANGES EXPORTED PNG PIXELS enter a phase specced as chrome/layout/tokens only. Phase 2's two owner gates are untouched and still OPEN. Prior: Per-plan execution narrative moved verbatim to phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md on 2026-07-26 so this field holds the current position rather than an accreting ledger. Latest: 02-27 completed and the exact-commit gate re-ran PASS at fe5f946 from a fresh detached worktree -- lint clean, 516/516 unit across 38 files, tsc -b clean, world 248 units / 195 selectable core states, both blocked historical packets failing closed at exit 1 (correct), build clean, Chrome 71/71, Edge 71/71; worktree removed and pruned. Catalog Modern-only, hash-verified, zero historical promotions. Then 02-28 was PREPARED, not completed."
+stopped_at: "Phase 3 is PLANNED and ready to execute: 12 plans (03-01..03-12), all gates clean -- decision coverage 36/36, all 28 UI-SPEC assertions bound, 0 unplanned source items. Four roadmap amendments landed by hand at 62b9f18. Phase 2's two owner gates are UNTOUCHED and still OPEN (02-25 documentation approval, blanket/sight-unseen/not hash-bound; 02-28 human acceptance matrix, bound to fe5f946 with every physical cell PENDING). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: /gsd:execute-phase 3 -- OR hand 02-28 to the owner first if you want the matrix performed before the restyle. Phase 3 does not wait on either gate; D-31's tag on fe5f946 keeps the pre-restyle build reachable."
+last_updated: "2026-08-06T12:00:00.000Z"
+last_activity: "2026-08-06 -- Phase 3 PLANNED (docs only; no source, test, or script file touched). Ran research -> ui-phase -> plan-phase end to end. Artifacts: 03-RESEARCH.md (2f3f80d), 03-UI-SPEC.md approved with 28 RED-provable assertions (aeb951b, revised aa3e146), 12 PLAN.md files (5a3370b), and the four roadmap amendments landed BY HAND at 62b9f18. Six decisions were added during the run: D-30 rail-footer dark toggle with NO prefers-color-scheme read anywhere; D-31 annotated tag on fe5f946 so 02-28's build stays reachable; D-32 full-bleed surface with a centred 1:1 export frame; D-33 Chrome-only certification; D-34/D-34a html2canvas REMOVED and Phase 3 owns the SVG->PNG path with a generalised inline-font-embedding seam; D-35 re-arm the export-independence gate the dark-mode switch would otherwise silently disarm. Plan-checker found 2 blockers, both fixed: assertion 24 would have shipped RED-proven only against the retired html2canvas path, and two verify commands could never pass. Prior: 02-27 gate PASS at fe5f946; 02-28 PREPARED, not completed. Per-plan Phase 2 narrative lives in phases/02-.../02-ACTIVITY-LOG.md."
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 58
+  total_plans: 70
   completed_plans: 48
   percent: 83
 ---
@@ -38,6 +38,13 @@ progress:
   **Browser-only, localhost-only — no backend, auth, or deployment exists or is claimed.**
 
 ## Current Position
+
+Phase: **03** (Clean UI Overhaul) — **PLANNED, ready to execute.** 12 plans (`03-01`…`03-12`),
+decision coverage 36/36, all 28 UI-SPEC assertions bound, 0 unplanned source items. Four roadmap
+amendments landed by hand (`62b9f18`). ▶ **Next: `/gsd:execute-phase 3`.**
+Phase 3 does **not** wait on the Phase 2 owner gates — it must only avoid disturbing their
+evidence, which D-31's annotated tag on `fe5f946` handles. Execute `03-01` and `03-11` in a
+**fresh context** (largest plans, low estimate confidence).
 
 Phase: **02** (Region Variants & Advanced Features) — EXECUTING; engineering done, owner-gated.
 Plans: **26 of 36 complete · 8 deferred · 0 engineering remaining · 2 owner gates open.**
@@ -147,17 +154,34 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 ### Pending Todos
 
 - Hand `02-28` to the owner, bound to `fe5f946`.
-- **Land the three Phase 3 roadmap amendments** as explicit `ROADMAP.md` edits during
-  `/gsd:plan-phase 3` — they change the § Phase 3 scope text and must not stay as undocumented
-  divergence. Detail in
-  [`03-CONTEXT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-CONTEXT.md) § Roadmap Amendments:
-  (1) dark mode in scope, `.dark` class-based; (2) HUD is an icon rail + flyout, not `03-02`'s
-  collapsible column; (3) `motion` v12 + vendored lucide-animated icons enter the phase, and the
-  legend restyle **changes exported PNG pixels** — so `02-28` must be performed against
-  `fe5f946`, never a restyled HEAD, and export fixtures must be re-baselined deliberately with an
-  `html2canvas`-plus-webfont gate proving Inter actually resolves in the export clone.
-- **Open Phase 3 sub-question:** with dark mode moving to a `.dark` class on the mount root,
-  nothing yet decides what sets that class in the standalone app. Resolve at plan time.
+- ~~**Land the three Phase 3 roadmap amendments**~~ **DONE 2026-08-06 (`62b9f18`), and there are
+  now FOUR.** All landed by hand in `ROADMAP.md` § Phase 3: (1) dark mode in scope, `.dark`
+  class-based; (2) HUD is an icon rail + flyout, not a collapsible column; (3) `motion` v12 +
+  vendored lucide-animated icons enter the phase and the legend restyle **changes exported PNG
+  pixels**; (4) **`html2canvas` is removed and Phase 3 owns the SVG→PNG export path** (D-34) — a
+  plan the original breakdown did not contain at all. The phase is now **twelve** plans.
+- ~~**Open Phase 3 sub-question** (what sets `.dark`)~~ **RESOLVED as D-30:** a neutral toggle
+  pinned in the rail footer, persisted through the storage-adapter interface, with **no
+  `prefers-color-scheme` read anywhere** — not even to seed a first-run default.
+
+### Filed during Phase 3 planning — both need owner attention, neither is Phase 3 work
+
+- ⚠ **The Edge certification record cannot be reproduced.** This file records "Chrome 71/71,
+  Edge 71/71" at `fe5f946`, but **Microsoft Edge is not installed on this machine**
+  (`/Applications` holds no `Microsoft*.app`; `~/Library/Caches/ms-playwright` holds only
+  `ffmpeg-1011`), so the `msedge` Playwright project cannot launch. That record is **immutable
+  Phase 2 evidence — annotate it, never rewrite it.** Until it is explained, **no phase may cite
+  it.** Phase 3's `03-12` gate is scoped to Chrome and must state "Edge not certified — not
+  installed" (D-33). Resolving this belongs to Phase 2's evidence, not to Phase 3.
+- ⚠ **The storage validator still admits all five snapshot ids.** `storage.ts:61-63` builds
+  `SNAPSHOT_IDS` from the full five-entry `SNAPSHOT_CATALOG` and the validator at `:483-484`
+  admits any of them, so a **hand-crafted** localStorage record naming `1914` short-labels as
+  `1914`. Phase 3 fixes this at the **presentation layer only** (an approved-id filter on
+  `SaveLoad.tsx:132-137`, plus deleting the false comment at `:127-131`); the validator is
+  deliberately untouched because changing it is a data-layer decision, not a chrome one. **This
+  is pre-existing Phase 2 behavior, not a Phase 3 regression**, and reaching it requires editing
+  localStorage by hand — but it sits adjacent to Immutable Safety Constraint 3, so it is recorded
+  rather than absorbed.
 - When v1.0 closes (both owner gates resolved), add the **v1.1 — Clean Studio & Data-Driven
   Maps** entry (Phases 3–6) to `MILESTONES.md` and update its "Phases:" line and
   "Last phase number" footer; the roadmap already carries the v1.1 structure (2026-08-06).
@@ -196,16 +220,20 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ## Session Continuity
 
-- **Last session:** 2026-08-06 — Phase 3 context gathering (planning docs only; no source, test,
-  or script file touched). See
+- **Last session:** 2026-08-06 — **Phase 3 planned end to end** (research → ui-phase →
+  plan-phase; planning docs only, no source/test/script file touched). See
+  [`03-RESEARCH.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-RESEARCH.md),
+  [`03-UI-SPEC.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-UI-SPEC.md), and
+  `03-01-PLAN.md`…`03-12-PLAN.md`.
+- **Previous session:** 2026-08-06 — Phase 3 context gathering. See
   [`03-CONTEXT.md`](phases/03-clean-ui-overhaul-1-1-5-weeks/03-CONTEXT.md) and its
   [discussion log](phases/03-clean-ui-overhaul-1-1-5-weeks/03-DISCUSSION-LOG.md), committed at
   `d3d9a35`.
 - **Previous session:** 2026-07-26 — documentation reorganization pass (planning docs only; no
   source, test, or script file touched).
-- **Stopped at:** Phase 2 engineering complete and gate-verified at `fe5f946`; `02-28` prepared and
-  waiting on the owner. Phase 3 context captured but **not planned** — `/gsd:plan-phase 3` is the
-  next Phase 3 step, and it must land three roadmap amendments (see § Pending Todos).
+- **Stopped at:** Phase 3 **planned and gate-clean**; `/gsd:execute-phase 3` is the next step.
+  Phase 2 remains engineering-complete and gate-verified at `fe5f946` with `02-28` prepared and
+  waiting on the owner. Both Phase 2 owner gates are untouched and still OPEN.
 - **Resume file:**
   [`.continue-here.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/.continue-here.md)
   — the only session-resumption artifact. `HANDOFF.json` was deleted on 2026-07-26; it was a
