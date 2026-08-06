@@ -152,7 +152,11 @@ describe('LegendOverlay export-safe SVG', (): void => {
     );
     const overlayMarkup = markup.slice(markup.indexOf('<g data-layer="legend"'));
 
-    expect(bounds).toEqual({ width: 336, height: 152 });
+    // Re-baselined 152 -> 184 by 03-11 (D-25/OQ-5): the 14-char labels wrap
+    // to two 'medium' lines under the Inter-derived 7-chars-per-line table,
+    // so both entries grow from the 48px single-line row to the 64px two-line
+    // row (24 + 64 + 8 + 64 + 24 = 184).
+    expect(bounds).toEqual({ width: 336, height: 184 });
     expect(overlayMarkup.startsWith('<g data-layer="legend"')).toBe(true);
     expect(overlayMarkup).not.toContain('<svg');
     expect(overlayMarkup).not.toContain('<div');
