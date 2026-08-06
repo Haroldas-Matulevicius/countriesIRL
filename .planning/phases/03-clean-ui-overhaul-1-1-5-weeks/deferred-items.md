@@ -124,6 +124,25 @@ order runs bar, composition bar…`) — both are claims about surfaces that no 
 follows the declared workflow` now also crosses the retired `Save or Load Maps` opener; same
 disposition.
 
+### Re-measured after `03-08` — still exactly these 12, against 100 tests
+
+`03-08` moved `Reset View` into the floating cluster, re-anchored the cluster into the letterbox
+gutter, and added ten tests to `navigation.spec.ts`. Re-measured, not assumed: **88 of 100 Chrome
+e2e tests pass, and the 12 failures are the same 12 listed above** (`npx playwright test
+--project=chrome`, Chrome 151.0.7922.75). The denominator moved from 90 to 100; the passing count
+from 78 to 88. No row entered or left the red list.
+
+**Two more of the 12 now assert a placement that no longer exists**, and `03-09` must REWRITE
+rather than repair them:
+
+| Row | Why a repair is the wrong move |
+|---|---|
+| `the map navigation cluster sits below the square outside the export source` | The cluster is no longer below the square. D-21 puts it in the letterbox gutter INSIDE `.map-workspace__canvas`, and `navigation.spec.ts`'s assertion 12 is the replacement — non-intersection with `.map-frame` at every gate viewport × every legend preset, which is a strictly stronger claim than "below". Keep the export-source half (the cluster after `</svg></div>`); drop the "below" half |
+| `the navigation cluster never overlaps the legend at any legend position` | Superseded in substance by assertion 12: the legend lives inside the frame, so non-intersection with the frame implies non-intersection with the legend at every preset. If `03-09` keeps it, it needs the `openRailTool` + disclosure flow (it still uses the retired `getByRole('button', { name: /^Legend/ })`, which now matches two controls) and the panel-settle poll |
+
+That makes **five** of the twelve rows rewrites rather than repairs (the two above plus the three
+`03-07` itemised).
+
 ---
 
 ## D-4 — two controls share the accessible name `Close Saved Maps` — **CLOSED by `03-07`**
@@ -151,6 +170,16 @@ no tooltips is unusable, so the tooltip won.
 The cost, measured rather than estimated: six 48px rows plus two HUD blocks (64px + 112px) plus gaps
 need about **436px** of height. Below that the rows overflow instead of scrolling. `03-09` owns the
 short and narrow layouts and the D-20 bottom sheet, which is where this belongs.
+
+**`03-08` measured a second consequence and it blocks a gate viewport.** At `640 × 400` — the
+200 %-equivalent viewport — the rail overflow stretches the grid row, so the canvas region measures
+**584 × 500**, not `584 × 400`. An 84px width/height difference is inside the near-square band where
+no letterbox gutter can hold the floating cluster (the bound is ~124px), so assertion 12 cannot be
+asserted there and `640 × 400` is excluded from `GUTTER_VIEWPORTS` with that reason written beside
+it. **When `03-09` closes D-5, re-add `640 × 400` to `GUTTER_VIEWPORTS` in
+`tests/e2e/navigation.spec.ts`**: at a true `584 × 400` region the inline gutter is 92px and the
+54px cluster fits with room to spare. This is the one place a D-5 fix is directly observable, so
+leaving it out silently would lose the coverage rather than defer it.
 
 ---
 
