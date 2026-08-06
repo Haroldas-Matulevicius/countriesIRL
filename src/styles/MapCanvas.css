@@ -450,6 +450,22 @@
   padding: var(--space-sm) var(--space-md);
 }
 
+/*
+ * D-22: the dark ink chip, built from four FIXED tokens declared once in the
+ * unconditioned `:root`. `--tooltip-surface` is Midnight Ink's LIGHT value
+ * taken literally rather than `var(--themely-midnight-ink)`, which flips: the
+ * flipping token would paint a light chip carrying white text in dark mode.
+ * Live Invariant 9 covers the family and `uiContract.test.ts` assertion 4 is
+ * the gate; do not add a `.dark` override here.
+ *
+ * A light Porcelain card was the alternative and was rejected: creators colour
+ * countries white, and a near-white chip over a near-white fill loses its edge.
+ * White on `#061b31` measures 17.9:1.
+ *
+ * The chip is an HTML overlay outside `svg.map-canvas`, so it can never reach
+ * the export clone - the tokens are fixed regardless, because the rule is about
+ * the token family and not about where the element happens to sit today.
+ */
 .map-tooltip {
   position: fixed;
   z-index: 20;
@@ -476,11 +492,25 @@
   white-space: nowrap;
 }
 
+/*
+ * The colour READOUT only. Monospace because it spells a hex value, and it is a
+ * separate class from the D-23 reason on purpose: a non-colourable unit renders
+ * `.map-tooltip__reason` and NO `.map-tooltip__color`, which is what lets the
+ * gate assert the readout's absence rather than only the reason's presence.
+ */
 .map-tooltip__color {
   font-size: var(--text-caption);
   line-height: var(--text-caption-line-height);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
+}
+
+.map-tooltip__reason,
+.map-tooltip__boundary {
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+  line-height: var(--text-caption-line-height);
 }
 
 @media (max-width: 767px) {

@@ -7,6 +7,18 @@ import type { MapTooltipData } from './MapCanvas';
 const TOOLTIP_OFFSET = TOOLTIP_SPACING;
 const VIEWPORT_MARGIN = TOOLTIP_SPACING;
 
+/**
+ * D-23: the honest reason, in place of a colour readout. A unit with a null
+ * colour owner cannot be coloured by any code path, so announcing "Current
+ * color: #FFFFFF" for it is a false affordance - the tooltip would advertise a
+ * capability the map then refuses. No "coming soon", no promise of a future
+ * capability, and no colour value.
+ *
+ * Exported so the gate imports it instead of restating it: a test that spells
+ * the copy a second time keeps passing after the product's copy changes.
+ */
+export const TOOLTIP_NOT_COLORABLE_REASON = 'Not colorable in this map';
+
 interface TooltipProps {
   data: MapTooltipData | null;
 }
@@ -239,11 +251,30 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
     ? { left: measuredPosition.left, top: measuredPosition.top }
     : { ...getTooltipMeasurementPosition(), visibility: 'hidden' };
 
+  /*
+   * D-22: the dark ink chip. Its four tokens are FIXED in the unconditioned
+   * `:root` (`--tooltip-surface` / `-text` / `-border` / `-shadow`), so the chip
+   * is identical in both modes; consuming the flipping `--themely-midnight-ink`
+   * instead would paint a LIGHT chip with white text in dark mode, which is the
+   * class of defect research P-2 describes. White on `#061b31` is 17.9:1.
+   *
+   * Chosen over a light Porcelain card because creators colour countries white,
+   * and a near-white chip over a near-white fill loses its edge.
+   *
+   * `data-editor-only` is belt to placement's braces: `div.map-tooltip` lives
+   * OUTSIDE `svg.map-canvas`, so it cannot reach the export clone at all.
+   *
+   * The colour readout and the D-23 reason are DIFFERENT elements, not one
+   * element with two strings. That is what lets the gate assert the readout is
+   * ABSENT on a non-colourable unit - a presence-only check on the reason
+   * string passes a tooltip that shows both.
+   */
   return (
     <div
       ref={tooltipRef}
       className="map-tooltip"
       data-input-method={data.inputMethod}
+      data-editor-only="true"
       role="tooltip"
       style={positionStyle}
     >
@@ -253,8 +284,8 @@ export function Tooltip({ data }: TooltipProps): JSX.Element | null {
           Current color: {data.color.toUpperCase()}
         </span>
       ) : (
-        <span className="map-tooltip__color">
-          Not colorable in this map
+        <span className="map-tooltip__reason">
+          {TOOLTIP_NOT_COLORABLE_REASON}
         </span>
       )}
       <span className="map-tooltip__boundary">{data.boundaryLine}</span>

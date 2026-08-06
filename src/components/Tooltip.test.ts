@@ -1,3 +1,5 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TOOLTIP_SPACING } from '../constants/config';
@@ -11,6 +13,8 @@ import {
   calculateTooltipPosition,
   getTooltipMeasurementPosition,
   observeKeyboardTooltipAnchor,
+  Tooltip,
+  TOOLTIP_NOT_COLORABLE_REASON,
   type TooltipAnchorElement,
 } from './Tooltip';
 
@@ -342,5 +346,66 @@ describe('calculateTooltipPosition', () => {
         inputMethod: 'keyboard',
       }),
     ).toEqual({ left: 8, top: 12 });
+  });
+});
+
+/*
+ * D-22 / D-23. Vitest runs on `node`, so the chip is asserted through static
+ * markup and the resolved token values are the CSS contract test's job
+ * (`uiContract.test.ts` assertion 4 guards the mode-invariant family). What is
+ * asserted here is the SHAPE the gate depends on: two different elements for
+ * the colour readout and the honest reason, so the readout's ABSENCE is
+ * observable.
+ */
+describe('Tooltip content discipline (D-22, D-23)', () => {
+  function renderTooltip(isColorable: boolean): string {
+    return renderToStaticMarkup(
+      createElement(Tooltip, {
+        data: {
+          countryId: 'TST',
+          countryName: 'Testland',
+          color: '#dc2626',
+          isColorable,
+          boundaryLine: 'Modern borders',
+          inputMethod: 'pointer' as const,
+          position: { x: 40, y: 40 },
+        },
+      }),
+    );
+  }
+
+  it('announces a colour readout for a colourable unit', () => {
+    const markup = renderTooltip(true);
+
+    expect(markup).toContain('class="map-tooltip"');
+    expect(markup).toContain('data-editor-only="true"');
+    expect(markup).toContain('class="map-tooltip__color"');
+    expect(markup).toContain('Current color: #DC2626');
+    expect(markup).not.toContain(TOOLTIP_NOT_COLORABLE_REASON);
+    expect(markup).not.toContain('class="map-tooltip__reason"');
+  });
+
+  it('states the honest reason for a non-colourable unit and announces no colour', () => {
+    const markup = renderTooltip(false);
+
+    expect(markup).toContain('class="map-tooltip__reason"');
+    expect(markup).toContain(TOOLTIP_NOT_COLORABLE_REASON);
+
+    // The NEGATIVE half. A tooltip that showed the reason AND a readout would
+    // pass a presence-only check, and that is exactly the spoof D-23 forbids.
+    expect(markup).not.toContain('class="map-tooltip__color"');
+    expect(markup).not.toContain('Current color');
+    expect(markup).not.toMatch(/#[0-9a-f]{6}/iu);
+
+    // And no promise of a future capability.
+    expect(markup).not.toMatch(/coming soon|not yet|for now|will be/iu);
+  });
+
+  it('carries the chip outside every export-bearing element', () => {
+    const markup = renderTooltip(true);
+
+    expect(markup).not.toContain('map-canvas');
+    expect(markup).not.toContain('map-export-source');
+    expect(markup.startsWith('<div class="map-tooltip"')).toBe(true);
   });
 });
