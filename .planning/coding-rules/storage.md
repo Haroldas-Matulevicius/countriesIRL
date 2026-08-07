@@ -488,7 +488,52 @@ See `data.md` § the approved-id filter for the reasoning of record.
 
 ---
 
-*Last updated: 2026-08-06 — §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
-*Last updated: 2026-08-06 + earlier, condensed — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20).*
+## The colour value at the storage boundary (Phase 4, D4-02, plan `04-05`)
+
+**The V2 wire format is one canonical hex string per country. The in-memory model is the
+`ColorValue` union.** Those are two different shapes on purpose, and `storage.ts` is the only file
+that knows both. A `typeof raw === 'string'` in `normalizeColorMap` is the **wire format** being
+read, not the old hex-only assumption coming back — the union's discriminant is a `kind` property
+and nothing narrows it with `typeof` (general.md Live Invariant 10).
+
+**"A shape this version does not persist" is not corruption. Only "a value that is invalid" is.**
+That distinction is the whole rule, and both halves are gated:
+
+| Stored value | Outcome |
+|---|---|
+| `"#2563EB"` — V2's own wire shape | read as the custom variant, **no repair** |
+| `{"kind":"custom","hex":"#2563EB"}` | read as-is, **no repair** (non-canonical spelling repairs, as before) |
+| `{"kind":"ramp","rampId":"blues","t":0.5}` — a shape `04-14` will write | read as-is, **no repair** |
+| unknown `rampId`, `t` outside `[0, 1]`, non-finite or non-numeric `t`, missing `kind`, a nested object as `t` | **corrupt** — entry dropped and the record reported |
+
+Validation is `isColorValue` in `src/utils/colors.ts` — one rule, not a second copy here.
+`rampId` is checked against `RAMP_IDS`, and `[0, 1]` is part of the shape because `t` is a
+normalized position by definition (T-04-05-01).
+
+**Saving is interim and LOSSY IN THE RAMP IDENTITY until `04-14` — stated, not discovered.**
+`toStoredColorMap` resolves every value to hex at serialization, so the bytes stay a **valid V2
+record** and no file claims a version whose shape it does not have. Saving a ramp-painted map and
+reopening it yields a custom-hex map that **renders identically** but can no longer be re-skinned
+by switching ramps. `04-14` owns the `schemaVersion` bump to V3 and the bounds that go with it;
+its V3 branch is what makes this lossless. Until then `schemaVersion` still dispatches on `2`.
+
+**No bound moved for the union, and the order did not change.**
+`MAX_STORAGE_SERIALIZED_LENGTH` (1,000,000), `MAX_STORAGE_JSON_DEPTH` (32),
+`MAX_STORAGE_JSON_NODES` (50,000) and `MAX_STORED_COLOR_ENTRIES` (512) are untouched: the
+raw-length check still runs **before** `JSON.parse` and `hasSafeJsonBudget` immediately after.
+Because saves serialize hex, a stored record's node count is what it always was. **`04-14` extends
+these for the V3 fields, in this same order** — a union object per country is more nodes per
+entry, so that is a real budget question, not a formality (T-04-05-03).
+
+**Prototype pollution: the guard got more load-bearing, not less.** Every `ColorMap` built from
+stored data still goes through `createEmptyColorMap()`'s `Object.create(null)` and
+`isSafeStableCountryId`. The union nests an **object** under each key now, so a reserved key
+smuggles in a structure rather than a string; the `__proto__` / `constructor` / `prototype` tests
+cover the ramp variant as well as the custom one (T-04-05-02).
+
+---
+
+*Last updated: 2026-08-07 (Phase 4, plan `04-05`) — §The colour value at the storage boundary (D4-02) added: the V2 WIRE format stays one canonical hex per country while the in-memory model becomes the `ColorValue` union, with `storage.ts` the only file that knows both and its `typeof raw === 'string'` explicitly the wire format rather than the retired hex-only assumption; the rule that "a shape this version does not persist" is NOT corruption and only "a value that is invalid" is, tabulated per stored value, with validation delegated to `isColorValue` rather than copied; saving recorded as a DELIBERATE INTERIM that is lossy in the ramp identity and never invalid, with `04-14`'s V3 branch named as what makes it lossless and `schemaVersion` still dispatching on 2; every bound and their order confirmed unmoved, with the note that V3 genuinely does need the node budget rechecked because a union object per country is more nodes per entry; and the reserved-key guard called out as MORE load-bearing because the union nests an object under each key.*
+*Last updated: 2026-08-06 + earlier, condensed — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20) Earlier the same day: §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

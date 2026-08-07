@@ -15,7 +15,7 @@ import type {
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
 import { repairCameraState } from './camera';
-import { customColor } from './colors';
+import { customColor, rampColor } from './colors';
 import { createDefaultLegendState, reconcileLegend } from './legend';
 import {
   MAX_STORAGE_JSON_DEPTH,
@@ -1083,5 +1083,121 @@ describe('the theme preference (D-30)', () => {
       THEME_MODE_KEY,
     ]);
     expect(storage.values.has(STORAGE_KEY)).toBe(false);
+  });
+});
+
+describe('the colour value at the storage boundary (D4-02)', () => {
+  function storeV2Record(storage: FakeStorage, colors: unknown): void {
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Ramp painted',
+          timestamp: 100,
+          composition: { ...createCompositionSnapshot(), colors },
+        },
+      ]),
+    );
+  }
+
+  it('accepts a well-formed ramp variant WITHOUT reporting a repair', () => {
+    // "A shape this version does not persist" is NOT corruption. Only "a value
+    // that is invalid" is. `04-14` bumps to V3 and starts writing this shape;
+    // reading it now must not flag the record.
+    const storage = new FakeStorage();
+    storeV2Record(storage, { FRA: { kind: 'ramp', rampId: 'blues', t: 0.5 } });
+
+    const result = createStorageAdapter(storage).list();
+
+    expect(result).toEqual({
+      ok: true,
+      value: [
+        {
+          name: 'Ramp painted',
+          colors: { FRA: rampColor('blues', 0.5) },
+          timestamp: 100,
+        },
+      ],
+      warnings: [],
+    });
+  });
+
+  it.each([
+    ['an unknown rampId', { kind: 'ramp', rampId: 'sunsets', t: 0.5 }],
+    ['a t above the range', { kind: 'ramp', rampId: 'blues', t: 1.5 }],
+    ['a t below the range', { kind: 'ramp', rampId: 'blues', t: -0.001 }],
+    ['a non-numeric t', { kind: 'ramp', rampId: 'blues', t: '0.5' }],
+    ['a missing discriminant', { rampId: 'blues', t: 0.5 }],
+    ['a nested object smuggled in as a value', { kind: 'ramp', rampId: 'blues', t: { t: 0.5 } }],
+  ])('reports %s as corrupt and drops the entry', (_label, malformedValue) => {
+    const storage = new FakeStorage();
+    storeV2Record(storage, { FRA: malformedValue });
+
+    expect(createStorageAdapter(storage).list()).toEqual({
+      ok: true,
+      value: [{ name: 'Ramp painted', colors: {}, timestamp: 100 }],
+      warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
+    });
+  });
+
+  it('keeps a V2 hex string readable as the custom variant, unrepaired', () => {
+    const storage = new FakeStorage();
+    storeV2Record(storage, { FRA: '#2563EB' });
+
+    expect(createStorageAdapter(storage).list()).toEqual({
+      ok: true,
+      value: [
+        {
+          name: 'Ramp painted',
+          colors: { FRA: customColor('#2563EB') },
+          timestamp: 100,
+        },
+      ],
+      warnings: [],
+    });
+  });
+
+  it('saves a ramp-painted map as V2 hex - lossy in the identity, never invalid', () => {
+    // The deliberate interim. `04-14` owns the V3 records that make this
+    // lossless; until then the bytes stay a valid V2 record so no file claims a
+    // version whose shape it does not have. Reopening yields a custom-hex map
+    // that renders identically and can no longer be re-skinned by ramp switch.
+    const storage = new FakeStorage();
+    const adapter = createStorageAdapter(storage, () => 100);
+    const saveResult = adapter.save(
+      'Ramp painted',
+      createCompositionSnapshot({
+        FRA: rampColor('blues', 0.75),
+        DEU: rampColor('reds', 1),
+      }),
+    );
+    expectSuccess(saveResult);
+
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toMatchObject([
+      { composition: { colors: { FRA: '#2171B5', DEU: '#A50F15' } } },
+    ]);
+
+    const reloaded = adapter.load('Ramp painted');
+    expectSuccess(reloaded);
+    expect(reloaded.value).toMatchObject({
+      ok: true,
+      value: { colors: { FRA: customColor('#2171B5'), DEU: customColor('#A50F15') } },
+    });
+    // Stated, not discovered: the ramp identity did NOT survive the disk.
+    expect(reloaded.value).not.toMatchObject({
+      value: { colors: { FRA: rampColor('blues', 0.75) } },
+    });
+  });
+
+  it('leaves the pre-parse bounds untouched by the wider value shape', () => {
+    // `04-14` extends these for V3. This plan changes none of them, and the
+    // ORDER - raw-length check before `JSON.parse`, `hasSafeJsonBudget`
+    // immediately after - is already gated by 'rejects oversized serialized
+    // input before invoking the injected parser' above. This asserts the values
+    // so a silent widening for the union would be caught here.
+    expect(MAX_STORAGE_SERIALIZED_LENGTH).toBe(1_000_000);
+    expect(MAX_STORAGE_JSON_DEPTH).toBe(32);
+    expect(MAX_STORAGE_JSON_NODES).toBe(50_000);
   });
 });

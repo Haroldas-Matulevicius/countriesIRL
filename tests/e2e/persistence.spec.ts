@@ -39,7 +39,7 @@ interface PersistenceFixtureApi {
   readonly status: string;
   readPaintedCamera(): FixtureCamera | null;
   getCommittedCamera(): FixtureCamera;
-  getColors(): Record<string, string>;
+  getColors(): Record<string, unknown>;
   getSnapshotId(): string;
   getLegendEntryCount(): number;
   setColor(countryId: string, color: string): void;
@@ -281,13 +281,15 @@ test('save during an animated Locate stores the visible frame and load restores 
   const restoredCamera = await readSettledFixtureCamera(page);
   expectCamerasClose(restoredCamera, saved.painted);
   await expectD3ZoomSynchronized(page);
-  expect(await page.evaluate((): Record<string, string> => {
+  // D4-02: a colour assignment is a `ColorValue` union in memory. A one-off hex
+  // is the CUSTOM variant of it, so a saved V2 hex reloads as this shape.
+  expect(await page.evaluate((): Record<string, unknown> => {
     const fixture = globalThis.__persistenceFixture;
     if (fixture === undefined) {
       throw new Error('The persistence fixture is unavailable.');
     }
     return fixture.getColors();
-  })).toEqual({ FRA: '#DC2626' });
+  })).toEqual({ FRA: { kind: 'custom', hex: '#DC2626' } });
 });
 
 test('save during active wheel movement stores the live painted camera', async ({

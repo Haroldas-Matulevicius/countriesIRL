@@ -8,7 +8,7 @@ import {
   mapStateReducer,
   prepareColorInteraction,
 } from '../providers/MapStateProvider';
-import { customColor } from '../utils/colors';
+import { customColor, rampColor } from '../utils/colors';
 import { useMapState } from './useMapState';
 
 function reduceActions(
@@ -321,6 +321,110 @@ describe('mapStateReducer color history', (): void => {
     expect(loadedState.historyIndex).toBe(0);
     expect(mapStateReducer(loadedState, { type: 'UNDO' })).toBe(loadedState);
     expect(mapStateReducer(loadedState, { type: 'REDO' })).toBe(loadedState);
+  });
+});
+
+/**
+ * The anti-regression invariant for D4-02's generalized identity.
+ *
+ * This is the assertion that goes red the instant a future phase reintroduces
+ * the hex-only assumption anywhere on the history path. Phase 5's CSV import
+ * binds to exactly this shape, so a ramp assignment that quietly degrades to a
+ * hex on the way through `canonicalizeColorMap` costs an expensive regression
+ * later rather than a failing test now.
+ */
+const GENERALIZED_IDENTITY =
+  'THE GENERALIZED IDENTITY (D4-02): a ramp assignment must survive apply -> ' +
+  'canonicalize -> history snapshot -> undo -> redo STILL AS A RAMP VARIANT ' +
+  'with the same rampId and t. A resolved hex here means the hex-only ' +
+  'assumption came back, and Phase 5\'s CSV import binds to the ramp variant.';
+
+describe('mapStateReducer generalized colour identity (D4-02)', (): void => {
+  it('round-trips a ramp assignment through history without degrading to hex', (): void => {
+    const rampAssignment = rampColor('blues', 0.75);
+    const paintedState = mapStateReducer(createInitialMapState(), {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: rampAssignment },
+    });
+    const secondEditState = mapStateReducer(paintedState, {
+      type: 'SET_COLOR',
+      payload: { countryId: 'DE', color: customColor('#DC2626') },
+    });
+    const undoneState = mapStateReducer(secondEditState, { type: 'UNDO' });
+    const redoneState = mapStateReducer(undoneState, { type: 'REDO' });
+
+    expect(paintedState.colors.FR, GENERALIZED_IDENTITY).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.75,
+    });
+    expect(paintedState.history[1].FR, GENERALIZED_IDENTITY).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.75,
+    });
+    expect(undoneState.colors.FR, GENERALIZED_IDENTITY).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.75,
+    });
+    expect(redoneState.colors.FR, GENERALIZED_IDENTITY).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.75,
+    });
+    // Not "resolves to the same pixel" - the VARIANT SHAPE. A custom variant
+    // holding '#2171B5' paints identically and is still a regression.
+    expect(redoneState.colors.FR, GENERALIZED_IDENTITY).not.toEqual({
+      kind: 'custom',
+      hex: '#2171B5',
+    });
+  });
+
+  it('treats a ramp reposition as its own undoable edit even at the same step', (): void => {
+    const paintedState = mapStateReducer(createInitialMapState(), {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: rampColor('blues', 0.5) },
+    });
+    // 0.5 and 0.51 SNAP TO THE SAME STEP. The creator moved the slider; undo
+    // has to be able to take them back to where they were.
+    const repositionedState = mapStateReducer(paintedState, {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: rampColor('blues', 0.51) },
+    });
+
+    expect(repositionedState).not.toBe(paintedState);
+    expect(repositionedState.history).toHaveLength(3);
+    expect(repositionedState.colors.FR).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.51,
+    });
+    expect(mapStateReducer(repositionedState, { type: 'UNDO' }).colors.FR).toEqual({
+      kind: 'ramp',
+      rampId: 'blues',
+      t: 0.5,
+    });
+  });
+
+  it('keeps selection out of the snapshot that carries the ramp (Live Invariant 2)', (): void => {
+    const paintedState = mapStateReducer(createInitialMapState(), {
+      type: 'SET_COLOR',
+      payload: { countryId: 'FR', color: rampColor('greens', 1) },
+    });
+    const selectedState = mapStateReducer(paintedState, {
+      type: 'SET_SELECTION',
+      payload: { countryIds: ['FR', 'DE'] },
+    });
+
+    // Widening the value shape must not widen history's SCOPE. Invariant 1
+    // holds because Invariant 2 does.
+    expect(selectedState.history).toBe(paintedState.history);
+    expect(selectedState.historyIndex).toBe(paintedState.historyIndex);
+    expect(Object.keys(selectedState.history[1])).toEqual(['FR']);
+    expect(mapStateReducer(selectedState, { type: 'UNDO' }).selectedIds).toEqual(
+      new Set(['FR', 'DE']),
+    );
   });
 });
 
