@@ -26,10 +26,7 @@ function createComposition(camera: CameraState): Composition {
         { color: '#DC2626', label: 'Dormant historical label', order: 1 },
       ],
       position: { x: 120, y: 860, preset: null },
-      theme: 'soft',
       textSize: 'large',
-      backgroundOpacity: 85,
-      borderStyle: 'strong',
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };

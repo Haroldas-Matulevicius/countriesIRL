@@ -35,17 +35,25 @@ async function readLegendFrame(
   return page
     .locator('g[data-layer="legend"]')
     .evaluate((element): LegendFrame => {
-      const panel = element.querySelector('rect');
+      /*
+       * D4-11 removed the background rect this used to read. The hit target
+       * carries the SAME `layout.width` / `layout.height`, and it is the one
+       * rect whose box is the legend's box rather than a swatch's — reading
+       * `querySelector('rect')` now returns a 24x24 swatch and would silently
+       * shrink every containment assertion in this file to something trivially
+       * true.
+       */
+      const frame = element.querySelector('[data-editor-only="true"]');
       const transform = element.getAttribute('transform') ?? '';
       const match = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(transform);
-      if (panel === null || match === null) {
+      if (frame === null || match === null) {
         throw new Error(`Legend frame is unavailable: ${transform}`);
       }
       return {
         x: Number(match[1]),
         y: Number(match[2]),
-        width: Number(panel.getAttribute('width')),
-        height: Number(panel.getAttribute('height')),
+        width: Number(frame.getAttribute('width')),
+        height: Number(frame.getAttribute('height')),
       };
     });
 }
@@ -179,7 +187,7 @@ test.describe('legend browser interactions', (): void => {
     );
   });
 
-  test('legend style controls, historical colors, and editor-only export cleanup are exact', async ({
+  test('the legend has no box chrome, only text size survives, and editor-only export cleanup is exact', async ({
     page,
   }): Promise<void> => {
     await openLegend(page);
@@ -191,26 +199,47 @@ test.describe('legend browser interactions', (): void => {
       HISTORICAL,
     );
 
-    await page.getByLabel('Dark').check();
-    await page.getByLabel('Large').check();
-    await page.locator('input[type="range"]').fill('70');
-    await page.getByLabel('Strong').check();
-    await expect(page.locator('[data-style="true"]')).toHaveText(
-      'dark,large,70,strong',
-    );
+    /*
+     * D4-11. The three chrome controls are asserted ABSENT, by the accessible
+     * names and the input type they had — a deleted `check()` call proves
+     * nothing, and these reopen the moment a theme picker, an opacity slider,
+     * or a border picker returns.
+     */
+    await expect(page.getByLabel('Legend theme')).toHaveCount(0);
+    await expect(page.getByLabel('Legend border')).toHaveCount(0);
+    await expect(page.locator('input[type="range"]')).toHaveCount(0);
+    await expect(page.getByLabel('Dark')).toHaveCount(0);
+    await expect(page.getByLabel('Strong')).toHaveCount(0);
 
+    // The one surviving style control still works end to end.
+    await page.getByLabel('Large').check();
+    await expect(page.locator('[data-style="true"]')).toHaveText('large');
+
+    /*
+     * The rendered legend: bare marks and type. Every remaining rect inside
+     * the layer is a swatch at the swatch size — a background panel would be
+     * wider than a swatch and this goes red on it — and no rect carries a
+     * `fill-opacity` or a border stroke.
+     */
     const legendGroup = page.locator('g[data-layer="legend"]');
-    await expect(legendGroup.locator('rect').first()).toHaveAttribute(
+    const painted = legendGroup.locator('rect:not([data-editor-only])');
+    await expect(painted).toHaveCount(3);
+    const paintedBoxes = await painted.evaluateAll(
+      (nodes: Element[]): ReadonlyArray<Record<string, string | null>> =>
+        nodes.map((node) => ({
+          width: node.getAttribute('width'),
+          fillOpacity: node.getAttribute('fill-opacity'),
+          stroke: node.getAttribute('stroke'),
+        })),
+    );
+    expect(paintedBoxes).toEqual([
+      { width: '24', fillOpacity: null, stroke: '#9CA3AF' },
+      { width: '24', fillOpacity: null, stroke: '#9CA3AF' },
+      { width: '24', fillOpacity: null, stroke: '#9CA3AF' },
+    ]);
+    await expect(legendGroup.locator('text').first()).toHaveAttribute(
       'fill',
       '#111827',
-    );
-    await expect(legendGroup.locator('rect').first()).toHaveAttribute(
-      'fill-opacity',
-      '0.7',
-    );
-    await expect(legendGroup.locator('rect').first()).toHaveAttribute(
-      'stroke-width',
-      '4',
     );
     await expect(page.locator('[data-editor-only]')).toHaveCount(1);
 
@@ -296,13 +325,34 @@ test.describe('legend browser interactions', (): void => {
     expect(threeColumns.x).toBe(88);
     expectInsideExportFrame(threeColumns);
 
-    // The export gate stays clear (no invalid-position), and the clone the
-    // exporter captures carries the whole legend, not a clipped one.
+    /*
+     * The export gate stays clear (no invalid-position), and the clone the
+     * exporter captures carries the whole legend, not a clipped one.
+     *
+     * D4-11 re-baseline, deliberate: the clone no longer contains a background
+     * rect to read a frame off, so the fixture reports the MEASURED union of
+     * the surviving swatch boxes plus their count. That is a measurement of
+     * the clone rather than a restatement of the derivation the position came
+     * from — a clipped clone reports fewer swatches and a smaller extent.
+     */
     await expect(page.getByRole('button', { name: 'Export PNG' })).toBeEnabled();
     await page.getByRole('button', { name: 'Export PNG' }).click();
-    await expect(page.locator('[data-export-legend-frame="true"]')).toHaveText(
-      `${threeColumns.x},${threeColumns.y},${threeColumns.width},${threeColumns.height}`,
-    );
+    const exported = await page
+      .locator('[data-export-legend-frame="true"]')
+      .textContent();
+    const [inkX, inkY, inkWidth, inkHeight, swatchCount] = (exported ?? '')
+      .split(',')
+      .map(Number);
+
+    expect(swatchCount, 'the clone lost legend entries').toBe(17);
+    expect(inkX).toBeGreaterThanOrEqual(threeColumns.x);
+    expect(inkY).toBeGreaterThanOrEqual(threeColumns.y);
+    expect(inkWidth).toBeGreaterThan(0);
+    expect(inkHeight).toBeGreaterThan(0);
+    // Bounded to the 1080 frame absolutely, never to a box derived from the
+    // legend's own layout (the 04-11 phantom-pixel shape).
+    expect(inkX + inkWidth).toBeLessThanOrEqual(CANVAS_SIZE - SAFE_INSET);
+    expect(inkY + inkHeight).toBeLessThanOrEqual(CANVAS_SIZE - SAFE_INSET);
   });
 
   test('a preset legend tracks its corner as entries grow', async ({

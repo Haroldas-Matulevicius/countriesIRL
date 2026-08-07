@@ -374,29 +374,14 @@
 }
 
 /*
- * The opacity slider's label block - the same Porcelain card and weight-500
- * heading treatment as the sibling fieldsets, so the five style controls read
- * as one family.
+ * D4-11 deleted three rules here with the controls they styled: the opacity
+ * slider's Porcelain label card (`.legend-editor > fieldset > label`), its
+ * weight-500 heading (`… > span`), and the slider itself
+ * (`.legend-editor input[type="range"]`). The legend has no background panel,
+ * so there is no opacity to slide; the `Theme` and `Border` groups reused
+ * `.legend-editor fieldset fieldset` and `.legend-editor__pill`, which the
+ * surviving `Text size` group still needs.
+ *
+ * Selector inventory: 338 -> 335. The ceiling in `uiContract.test.ts` is
+ * lowered to match in the same commit.
  */
-.legend-editor > fieldset > label {
-  display: grid;
-  margin-top: var(--space-md);
-  padding: var(--space-md);
-  border-radius: var(--radius-card);
-  background: var(--themely-porcelain);
-  box-shadow: var(--hairline);
-  gap: var(--space-xs);
-}
-
-.legend-editor > fieldset > label > span {
-  font-size: var(--text-body-sm);
-  font-weight: 500;
-  line-height: var(--text-body-sm-line-height);
-}
-
-/* Neutral, not Apple Blue: the legend panel spends no accent at all (D-05). */
-.legend-editor input[type="range"] {
-  width: 100%;
-  min-height: var(--space-2xl);
-  accent-color: var(--themely-slate-blue);
-}

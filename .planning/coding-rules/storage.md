@@ -533,7 +533,45 @@ cover the ramp variant as well as the custom one (T-04-05-02).
 
 ---
 
-*Last updated: 2026-08-07 (Phase 4, plan `04-05`) — §The colour value at the storage boundary (D4-02) added: the V2 WIRE format stays one canonical hex per country while the in-memory model becomes the `ColorValue` union, with `storage.ts` the only file that knows both and its `typeof raw === 'string'` explicitly the wire format rather than the retired hex-only assumption; the rule that "a shape this version does not persist" is NOT corruption and only "a value that is invalid" is, tabulated per stored value, with validation delegated to `isColorValue` rather than copied; saving recorded as a DELIBERATE INTERIM that is lossy in the ramp identity and never invalid, with `04-14`'s V3 branch named as what makes it lossless and `schemaVersion` still dispatching on 2; every bound and their order confirmed unmoved, with the note that V3 genuinely does need the node budget rechecked because a union object per country is more nodes per entry; and the reserved-key guard called out as MORE load-bearing because the union nests an object under each key.*
-*Last updated: 2026-08-06 + earlier, condensed — §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20) Earlier the same day: §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
+## A removed field is not a damaged one (Phase 4, D4-11, plan `04-12`)
+
+**`04-05` established that a shape this version does not *persist* is not corruption. `04-12`
+establishes the mirror rule: a field this version no longer *models* is not corruption either.**
+
+D4-11 deleted `theme`, `backgroundOpacity`, and `borderStyle` from `LegendState`. Every saved V2
+record on a creator's machine still carries all three. `normalizeLegend` **does not read them and
+does not report them**, and that is deliberate rather than an omission:
+
+| Stored legend field | Outcome |
+|---|---|
+| `theme`, `backgroundOpacity`, `borderStyle` — present, any value, including the retired 0–1 opacity fraction | **ignored, no repair, no warning** |
+| `textSize` — a value outside `LEGEND_TEXT_SIZES` | **repaired to the default and reported** |
+| `entries` / `position` — malformed | **repaired and reported**, exactly as before |
+
+**Why it has to be silent.** `isRepaired` is what raises `composition-repaired`, and that warning
+reaches the creator as a corruption toast. Counting a dropped field would fire it on **every
+reopened saved map**, for a migration that succeeded — a permanent, unclearable alarm about
+nothing. The distinction the validator draws is **"field removed by this version"** versus
+**"value invalid"**, and only the second is reported.
+
+**Relaxing one must not relax the other**, so both directions are asserted in `storage.test.ts`:
+a V2 record carrying all three deleted fields loads `ok: true` with `warnings: []`, and the same
+record with an invalid `textSize` beside them still reports `composition-repaired`.
+
+**The SAVE side changed too, and `04-14` inherits it.** `useCompositionSaveTransaction` no longer
+writes the three fields into the V2 record — the shape it emits is `{entries, position,
+textSize}`. `tests/e2e/persistence.spec.ts` asserts that saved **key set** rather than a dropped
+value, so a field creeping back into the persisted record reddens it. **No bound moved:**
+`MAX_STORED_LEGEND_ENTRIES` (512), `MAX_LEGEND_LABEL_LENGTH` (32), and the pre-`JSON.parse`
+raw-length check are untouched, and `LEGEND_MAX_ACTIVE_ENTRIES = 30` still gates export
+unchanged. `04-14`'s V3 record starts from three legend keys, not six.
+
+**This retires Live Invariant 8** (`general.md`) — the 0–1-fraction repair it mandated has no
+field left to repair. Retired there, not deleted.
+
+---
+
+*Last updated: 2026-08-07 (Phase 4, plan `04-12`) — §A removed field is not a damaged one added (D4-11): the mirror of `04-05`'s rule — a field this version no longer MODELS is not corruption, tabulated per stored legend field, with the reason stated as the creator-facing consequence (`isRepaired` raises a corruption toast, so counting a dropped field would alarm on every reopened map for a migration that succeeded) and both directions required to be asserted so relaxing one cannot relax the other. Records the SAVE-side change `04-14` inherits — the V2 legend record is now `{entries, position, textSize}` and `persistence.spec.ts` asserts the key SET — confirms no bound moved and the 30-colour export gate is unchanged, and names Live Invariant 8 as retired in `general.md` rather than deleted.*
+*Last updated: 2026-08-07 + 2026-08-06 and earlier, condensed per the two-entry rule — §The colour value at the storage boundary (D4-02) added: the V2 WIRE format stays one canonical hex per country while the in-memory model becomes the `ColorValue` union, with `storage.ts` the only file that knows both and its `typeof raw === 'string'` explicitly the wire format rather than the retired hex-only assumption; the rule that "a shape this version does not persist" is NOT corruption and only "a value that is invalid" is, tabulated per stored value, with validation delegated to `isColorValue` rather than copied; saving recorded as a DELIBERATE INTERIM that is lossy in the ramp identity and never invalid, with `04-14`'s V3 branch named as what makes it lossless and `schemaVersion` still dispatching on 2; every bound and their order confirmed unmoved, with the note that V3 genuinely does need the node budget rechecked because a union object per country is more nodes per entry; and the reserved-key guard called out as MORE load-bearing because the union nests an object under each key. Earlier: §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20) Earlier the same day: §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

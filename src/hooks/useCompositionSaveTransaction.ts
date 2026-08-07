@@ -69,10 +69,7 @@ function assembleSnapshot(
     legend: {
       entries: composition.legend.entries.map((entry) => ({ ...entry })),
       position: { ...composition.legend.position },
-      theme: composition.legend.theme,
       textSize: composition.legend.textSize,
-      backgroundOpacity: composition.legend.backgroundOpacity,
-      borderStyle: composition.legend.borderStyle,
     },
     settings: { ...composition.settings },
   };

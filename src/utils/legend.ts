@@ -1,12 +1,10 @@
 import { DEFAULT_COLOR } from '../constants/colors';
 import type {
-  LegendBorderStyle,
   LegendCorner,
   LegendEntryState,
   LegendPosition,
   LegendState,
   LegendTextSize,
-  LegendTheme,
 } from '../types/composition';
 import { normalizeColor } from './colors';
 
@@ -30,12 +28,6 @@ const LEGEND_LABEL_MAX_LENGTH = 32;
 const LEGEND_MAX_ACTIVE_ENTRIES = 30;
 const LEGEND_SMALL_NUDGE = 8;
 const LEGEND_LARGE_NUDGE = 32;
-// One scale, everywhere: the slider, the provider clamp, storage, the
-// validator and the renderer all speak 0-100 percent. The previous 0-1 /
-// 0-100 split is what let two "default" legends disagree.
-const BACKGROUND_OPACITY_MIN = 70;
-const BACKGROUND_OPACITY_MAX = 100;
-const BACKGROUND_OPACITY_STEP = 5;
 
 /**
  * The single legend default. `top-left` is the only preset whose coordinates
@@ -47,25 +39,17 @@ export const DEFAULT_LEGEND_POSITION: LegendPosition = Object.freeze({
   y: LEGEND_SAFE_INSET,
   preset: 'top-left',
 });
-export const DEFAULT_LEGEND_BACKGROUND_OPACITY = 90;
 
 // The one home for the legend vocabulary. Storage validation and the
 // composition reducer import these; a value added in only one place is a drift
 // bug, not a feature.
-export const LEGEND_THEMES: ReadonlySet<LegendTheme> = new Set([
-  'light',
-  'dark',
-  'soft',
-]);
+//
+// D4-11 removed `LEGEND_THEMES` and `LEGEND_BORDER_STYLES` outright: the
+// legend has no box chrome, so there is no theme and no border to name.
 export const LEGEND_TEXT_SIZES: ReadonlySet<LegendTextSize> = new Set([
   'small',
   'medium',
   'large',
-]);
-export const LEGEND_BORDER_STYLES: ReadonlySet<LegendBorderStyle> = new Set([
-  'none',
-  'hairline',
-  'strong',
 ]);
 export const LEGEND_CORNERS: ReadonlySet<LegendCorner> = new Set([
   'top-left',
@@ -133,13 +117,7 @@ export type LegendValidationIssue =
   | { readonly code: 'label-does-not-fit'; readonly path: string }
   | { readonly code: 'invalid-order'; readonly path: string }
   | { readonly code: 'duplicate-order'; readonly path: string }
-  | { readonly code: 'invalid-theme'; readonly path: 'theme' }
   | { readonly code: 'invalid-text-size'; readonly path: 'textSize' }
-  | {
-      readonly code: 'invalid-background-opacity';
-      readonly path: 'backgroundOpacity';
-    }
-  | { readonly code: 'invalid-border-style'; readonly path: 'borderStyle' }
   | { readonly code: 'invalid-position'; readonly path: 'position' };
 
 export type LegendValidationResult =
@@ -208,20 +186,6 @@ function isLabelValid(label: string): boolean {
   return label.trim().length > 0 && label.length <= LEGEND_LABEL_MAX_LENGTH;
 }
 
-function isBackgroundOpacityValid(backgroundOpacity: number): boolean {
-  if (
-    !Number.isFinite(backgroundOpacity) ||
-    backgroundOpacity < BACKGROUND_OPACITY_MIN ||
-    backgroundOpacity > BACKGROUND_OPACITY_MAX
-  ) {
-    return false;
-  }
-
-  const steps =
-    (backgroundOpacity - BACKGROUND_OPACITY_MIN) / BACKGROUND_OPACITY_STEP;
-  return Math.abs(steps - Math.round(steps)) < Number.EPSILON * 10;
-}
-
 function isBoundsValid(bounds: LegendBounds): boolean {
   return (
     Number.isFinite(bounds.width) &&
@@ -287,10 +251,7 @@ export function createDefaultLegendState(): LegendState {
   return {
     entries: [],
     position: { ...DEFAULT_LEGEND_POSITION },
-    theme: 'light',
     textSize: 'medium',
-    backgroundOpacity: DEFAULT_LEGEND_BACKGROUND_OPACITY,
-    borderStyle: 'hairline',
   };
 }
 
@@ -587,20 +548,8 @@ export function validateLegend(
     }
   }
 
-  if (!LEGEND_THEMES.has(legend.theme)) {
-    issues.push({ code: 'invalid-theme', path: 'theme' });
-  }
   if (!isTextSizeValid) {
     issues.push({ code: 'invalid-text-size', path: 'textSize' });
-  }
-  if (!isBackgroundOpacityValid(legend.backgroundOpacity)) {
-    issues.push({
-      code: 'invalid-background-opacity',
-      path: 'backgroundOpacity',
-    });
-  }
-  if (!LEGEND_BORDER_STYLES.has(legend.borderStyle)) {
-    issues.push({ code: 'invalid-border-style', path: 'borderStyle' });
   }
   if (!isPositionValid(legend.position, bounds)) {
     issues.push({ code: 'invalid-position', path: 'position' });

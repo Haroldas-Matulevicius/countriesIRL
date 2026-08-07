@@ -61,10 +61,7 @@ function createSnapshot(
         { color: '#DC2626', label: 'Historical', order: 1 },
       ],
       position: { x: 720, y: 64, preset: 'top-right' },
-      theme: 'soft',
       textSize: 'large',
-      backgroundOpacity: 85,
-      borderStyle: 'strong',
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };

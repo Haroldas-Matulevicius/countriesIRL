@@ -44,10 +44,8 @@ import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
   createDefaultLegendState,
-  LEGEND_BORDER_STYLES,
   LEGEND_CORNERS,
   LEGEND_TEXT_SIZES,
-  LEGEND_THEMES,
   reconcileLegend,
 } from '../utils/legend';
 
@@ -62,8 +60,6 @@ const DEFAULT_LEGEND: LegendState = Object.freeze(createDefaultLegendState());
 const DEFAULT_LEGEND_POSITION: LegendPosition = DEFAULT_LEGEND.position;
 const DEFAULT_SETTINGS: VisibleCompositionSettings =
   DEFAULT_COMPOSITION_SETTINGS;
-const MIN_LEGEND_BACKGROUND_OPACITY = 70;
-const MAX_LEGEND_BACKGROUND_OPACITY = 100;
 const MIN_LEGEND_ORDER = 0;
 
 const SNAPSHOT_IDS = new Set<SnapshotId>([
@@ -74,10 +70,13 @@ const SNAPSHOT_IDS = new Set<SnapshotId>([
   '1914',
 ]);
 
-export type LegendStyleState = Pick<
-  LegendState,
-  'theme' | 'textSize' | 'backgroundOpacity' | 'borderStyle'
->;
+/**
+ * D4-11 reduced the legend's style surface to ONE field. `theme`,
+ * `backgroundOpacity`, and `borderStyle` were deleted with the box chrome they
+ * described; the action stays a style PATCH rather than collapsing into
+ * `setLegendTextSize`, because `04-13`'s bar form adds fields back here.
+ */
+export type LegendStyleState = Pick<LegendState, 'textSize'>;
 
 /**
  * Every creator-editable `Map style` field, as a partial. ONE action for the
@@ -149,10 +148,6 @@ export interface CompositionStateContextValue {
 export const CompositionStateContext = createContext<
   CompositionStateContextValue | undefined
 >(undefined);
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
 
 function canonicalizeFiniteNumber(value: number, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
@@ -231,21 +226,9 @@ function canonicalizeLegendPosition(
 
 function canonicalizeLegendStyle(style: LegendStyleState): LegendStyleState {
   return {
-    theme: LEGEND_THEMES.has(style.theme) ? style.theme : DEFAULT_LEGEND.theme,
     textSize: LEGEND_TEXT_SIZES.has(style.textSize)
       ? style.textSize
       : DEFAULT_LEGEND.textSize,
-    backgroundOpacity: clamp(
-      canonicalizeFiniteNumber(
-        style.backgroundOpacity,
-        DEFAULT_LEGEND.backgroundOpacity,
-      ),
-      MIN_LEGEND_BACKGROUND_OPACITY,
-      MAX_LEGEND_BACKGROUND_OPACITY,
-    ),
-    borderStyle: LEGEND_BORDER_STYLES.has(style.borderStyle)
-      ? style.borderStyle
-      : DEFAULT_LEGEND.borderStyle,
   };
 }
 
@@ -453,10 +436,7 @@ function areLegendsEqual(left: LegendState, right: LegendState): boolean {
   return (
     areLegendEntriesEqual(left.entries, right.entries) &&
     areLegendPositionsEqual(left.position, right.position) &&
-    left.theme === right.theme &&
-    left.textSize === right.textSize &&
-    left.backgroundOpacity === right.backgroundOpacity &&
-    left.borderStyle === right.borderStyle
+    left.textSize === right.textSize
   );
 }
 

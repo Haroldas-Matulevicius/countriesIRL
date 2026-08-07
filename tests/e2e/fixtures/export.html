@@ -232,13 +232,7 @@
           },
           setLegendLabel: (label) =>
             setLegendEntry({ color: LEGEND_COLOR, label, order: 0 }),
-          setLegendTextSize: (textSize) =>
-            setLegendStyle({
-              theme: state.legend.theme,
-              textSize,
-              backgroundOpacity: state.legend.backgroundOpacity,
-              borderStyle: state.legend.borderStyle,
-            }),
+          setLegendTextSize: (textSize) => setLegendStyle({ textSize }),
           selectCountry,
           showDateLine: () =>
             mapRef.current?.restore({

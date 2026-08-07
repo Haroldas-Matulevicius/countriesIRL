@@ -18,12 +18,10 @@ import type {
   CompositionLoadWarning,
   CompositionSnapshot,
   LegacySavedComposition,
-  LegendBorderStyle,
   LegendCorner,
   LegendEntryState,
   LegendState,
   LegendTextSize,
-  LegendTheme,
   SavedCompositionRecord,
   SavedCompositionV2,
   SnapshotId,
@@ -49,10 +47,8 @@ import {
 import { isSafeStableCountryId } from './countryIds';
 import {
   createDefaultLegendState,
-  LEGEND_BORDER_STYLES,
   LEGEND_CORNERS,
   LEGEND_TEXT_SIZES,
-  LEGEND_THEMES,
   reconcileLegend,
 } from './legend';
 
@@ -63,10 +59,6 @@ export const MAX_STORAGE_JSON_NODES = 50_000;
 const MAX_STORED_COLOR_ENTRIES = 512;
 const MAX_STORED_LEGEND_ENTRIES = 512;
 const MAX_LEGEND_LABEL_LENGTH = 32;
-const MIN_FRACTIONAL_LEGEND_OPACITY = 0.7;
-const MAX_FRACTIONAL_LEGEND_OPACITY = 1;
-const MIN_PERCENT_LEGEND_OPACITY = 70;
-const MAX_PERCENT_LEGEND_OPACITY = 100;
 const WHOLE_WORLD_ZOOM_EPSILON = 0.001;
 const WHOLE_WORLD_DEGREE_EPSILON = 0.01;
 const MIN_LEGEND_COORDINATE = 0;
@@ -418,35 +410,6 @@ function normalizeCamera(
   return { camera, isRepaired: !areCamerasEqual(source, camera) };
 }
 
-/**
- * Legend background opacity is canonically a 0-100 percentage.
- *
- * Builds before the scale was unified wrote a 0-1 fraction. Accepting that
- * fraction as-is let a stored `0.9` load unrepaired and then be silently
- * clamped up to the 70 floor, so a legacy map quietly rendered at 70% where the
- * creator had chosen 90%. Convert the fraction and report it as a repair.
- */
-function normalizeLegendOpacity(
-  value: number,
-): { opacity: number; isRepaired: boolean } | null {
-  if (!Number.isFinite(value)) {
-    return null;
-  }
-  if (
-    value >= MIN_PERCENT_LEGEND_OPACITY &&
-    value <= MAX_PERCENT_LEGEND_OPACITY
-  ) {
-    return { opacity: value, isRepaired: false };
-  }
-  if (
-    value >= MIN_FRACTIONAL_LEGEND_OPACITY &&
-    value <= MAX_FRACTIONAL_LEGEND_OPACITY
-  ) {
-    return { opacity: value * 100, isRepaired: true };
-  }
-  return null;
-}
-
 function normalizeLegendEntries(
   value: unknown,
 ): { entries: ReadonlyArray<LegendEntryState>; isRepaired: boolean } {
@@ -557,47 +520,35 @@ function normalizeLegend(
     }
   }
 
-  const theme = value.theme;
+  /*
+   * D4-11 deleted `theme`, `backgroundOpacity`, and `borderStyle` from
+   * `LegendState`. A stored V2 record still CARRIES them, and reading them is
+   * exactly what this normaliser must not start doing again.
+   *
+   * ⚠ **Their presence is NOT corruption, and `isRepaired` below deliberately
+   * ignores them.** A field this version no longer models is a schema
+   * difference, not a damaged value: reporting it would raise
+   * `composition-repaired` — and its creator-facing corruption toast — on
+   * every single reopened V2 map, for a migration that succeeded. The
+   * distinction the validator draws is "field removed by this version" versus
+   * "value invalid", and only the second is reported. Both directions are
+   * asserted in `storage.test.ts`.
+   */
   const textSize = value.textSize;
-  const backgroundOpacity = value.backgroundOpacity;
-  const borderStyle = value.borderStyle;
-  const isThemeValid =
-    typeof theme === 'string' && LEGEND_THEMES.has(theme as LegendTheme);
   const isTextSizeValid =
     typeof textSize === 'string' &&
     LEGEND_TEXT_SIZES.has(textSize as LegendTextSize);
-  const opacityResult =
-    typeof backgroundOpacity === 'number'
-      ? normalizeLegendOpacity(backgroundOpacity)
-      : null;
-  const isBorderStyleValid =
-    typeof borderStyle === 'string' &&
-    LEGEND_BORDER_STYLES.has(borderStyle as LegendBorderStyle);
 
   return {
     legend: {
       entries: entriesResult.entries,
       position,
-      theme: isThemeValid ? (theme as LegendTheme) : fallback.theme,
       textSize: isTextSizeValid
         ? (textSize as LegendTextSize)
         : fallback.textSize,
-      backgroundOpacity:
-        opacityResult !== null
-          ? opacityResult.opacity
-          : fallback.backgroundOpacity,
-      borderStyle: isBorderStyleValid
-        ? (borderStyle as LegendBorderStyle)
-        : fallback.borderStyle,
     },
     isRepaired:
-      entriesResult.isRepaired ||
-      isPositionRepaired ||
-      !isThemeValid ||
-      !isTextSizeValid ||
-      opacityResult === null ||
-      opacityResult.isRepaired ||
-      !isBorderStyleValid,
+      entriesResult.isRepaired || isPositionRepaired || !isTextSizeValid,
   };
 }
 

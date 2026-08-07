@@ -102,6 +102,19 @@ Last updated: 2026-07-26 — non-destructive supersession annotations for F3 and
 - **F4.3** User can edit legend labels (e.g., "Red = Hell Yeah", "Green = Hell Nah")
 - **F4.4** Legend positions: top-left, top-right, bottom-left, bottom-right, custom
 - **F4.5** Legend styling: background opacity, text size, border
+  — *Superseded in part (D4-11, 2026-08-07, plan `04-12`).* **Two of the three named
+  capabilities are deleted, permanently and one-way.** `backgroundOpacity` and `border` no
+  longer exist in `LegendState`: the legend renders as bare marks and type directly on the map
+  surface, with no background panel, no border, and no fill opacity. The restrained look is
+  **structural** rather than a default a creator can undo — the "big box" stops being a
+  *reachable state*. `theme`, which this requirement never named, was deleted in the same move.
+  ***Text size* survives and is unchanged**, as do legend position, entry labels, entry
+  ordering, and the 30-colour export gate. **Creator-visible consequence, accepted:** every
+  saved map reopens with no legend box regardless of what it was saved with, and its exported
+  PNG differs from one already posted; there is nothing to restore the deleted fields from.
+  Owner gate answered `legend-delete-chrome` under a blanket, in-advance, sight-unseen
+  proceed-authorization — which authorizes proceeding, is **not** a content review, and is
+  **not** hash-bound (Immutable Safety Constraint 8).
 
 ### F5: Export & Output
 

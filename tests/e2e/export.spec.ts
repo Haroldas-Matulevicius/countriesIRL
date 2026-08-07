@@ -3425,17 +3425,36 @@ test.describe('composition text', (): void => {
    *   fill under a max-height band. It must read that colour EXACTLY. A band
    *   painted over it would blend the water colour in at the gradient's alpha
    *   for that row.
-   * - **legend BEFORE text** - the title's glyphs must ink a crop that lies
+   * - ~~**legend BEFORE text** - the title's glyphs must ink a crop that lies
    *   inside the legend's 90%-opaque background. Text painted UNDER it would be
-   *   attenuated to a tenth and read as light grey, i.e. zero ink.
+   *   attenuated to a tenth and read as light grey, i.e. zero ink.~~
+   *
+   * ⛔ **RETIRED AS A PIXEL CLAIM BY `04-12` (D4-11), and said plainly rather
+   * than left reading as proof.** That assertion worked *because* the legend
+   * painted a 90 %-opaque white panel across the crop. D4-11 deleted the panel,
+   * the border, and the fill opacity: inside that crop the legend now paints
+   * **nothing at all**, so the title's glyphs land on water whether the legend
+   * is drawn before them or after them, and the count reads the same either
+   * way. That is the "gate whose subject the product neutralises" shape
+   * `CLAUDE.md` names — it would have stayed green while proving nothing.
+   *
+   * What replaces it, and neither is a weakening dressed up:
+   *
+   * - the **structural** form of the same ordering is asserted at full
+   *   strength on the real clone by the `clone.layerOrder` assertion above
+   *   (`[null, surface, paint, camera, bands, legend, text]`) — reorder the
+   *   layers and it goes red on exactly this contract;
+   * - the crop below is kept, honestly relabelled: it proves the title and the
+   *   legend genuinely **co-occupy** one rectangle in the exported PNG, which
+   *   is the precondition the ordering claim rests on, with a zero control.
    *
    * ⚠ **The THIRD ordering - bands versus legend measured on the BAND rather
    * than on the swatch - is HELD OUT, with the reason measured.** See the
-   * SUMMARY: the legend background is 90 % opaque, and the largest band signal
+   * SUMMARY: the legend background WAS 90 % opaque, and the largest band signal
    * this product can produce anywhere in the top band is 3.490 luminance
-   * (`04-10`), which arrives under the legend as 0.35 - below the noise floor.
-   * Measured directly here: the biggest band-on / band-off channel delta
-   * anywhere inside the legend box is **3 of 765**. The swatch assertion is
+   * (`04-10`), which arrived under the legend as 0.35 - below the noise floor.
+   * Measured directly then: the biggest band-on / band-off channel delta
+   * anywhere inside the legend box was **3 of 765**. The swatch assertion is
    * what replaces it, and it is a stronger claim, not a weaker one.
    */
   test('at a forced overlap the PNG paints bands, then legend, then text', async ({
@@ -3485,15 +3504,26 @@ test.describe('composition text', (): void => {
       'transform',
       `translate(${String(render.position.x)} ${String(render.position.y)})`,
     );
-    const background = legendLayer.locator('rect').first();
-    await expect(background).toHaveAttribute(
+    /*
+     * D4-11 re-baseline, deliberate: this read `locator('rect').first()`, which
+     * WAS the legend's background panel and is now a 24x24 swatch — the check
+     * would have silently started confirming that the legend is 24 units wide.
+     * The editor-only hit target carries the layout's real width and height and
+     * is the one rect whose box is the legend's box.
+     */
+    const legendBox = legendLayer.locator('[data-editor-only="true"]');
+    await expect(legendBox).toHaveAttribute(
       'width',
       String(render.bounds.width),
     );
-    await expect(background).toHaveAttribute(
+    await expect(legendBox).toHaveAttribute(
       'height',
       String(render.bounds.height),
     );
+    // And the panel it replaced is GONE, asserted rather than merely unread.
+    await expect(
+      legendLayer.locator(`rect[width="${String(render.bounds.width)}"]:not([data-editor-only])`),
+    ).toHaveCount(0);
 
     // THE OVERLAP IS REAL, asserted structurally before anything is sampled.
     expect(
@@ -3519,10 +3549,12 @@ test.describe('composition text', (): void => {
     expect(swatchCentre[1]).toBeLessThan(BAND_MAX_HEIGHT);
 
     /*
-     * The crop that proves text over legend: inside the legend background,
-     * inside the title's glyph band, and ABOVE the legend's own label - whose
-     * top is derived from the live `<text>`'s baseline and size rather than
-     * guessed, so the control below can be a hard zero.
+     * The crop that proves the title and the legend CO-OCCUPY one rectangle:
+     * inside the legend's own bounds, inside the title's glyph band, and ABOVE
+     * the legend's own label — whose top is derived from the live `<text>`'s
+     * baseline and size rather than guessed, so the control below can be a hard
+     * zero. See the retirement note in this test's doc comment for why it is no
+     * longer an ORDERING claim.
      */
     const legendLabel = legendLayer.locator('text').first();
     const labelTop = await legendLabel.evaluate(
@@ -3588,8 +3620,13 @@ test.describe('composition text', (): void => {
         'is painting AFTER the legend instead of before it.',
     ).toEqual([...hexToRgb(RAMP_RED_HEX)]);
 
-    // 2. LEGEND BEFORE TEXT. Presence was already asserted above, so a zero
-    //    here means the legend covered the type rather than that no type exists.
+    /*
+     * 2. LEGEND AND TEXT CO-OCCUPY ONE RECTANGLE. Since D4-11 this is a
+     *    containment claim, not an ordering one — the legend paints nothing
+     *    opaque inside this crop any more, so the count cannot distinguish the
+     *    two orderings. The ordering itself is held by the `clone.layerOrder`
+     *    assertion on the real clone.
+     */
     const overText = await countInkAroundRegion(
       page,
       withTitle,
@@ -3598,10 +3635,10 @@ test.describe('composition text', (): void => {
     );
     expect(
       overText.inside,
-      `the title inked ${overText.inside} pixels inside the legend region ` +
-        `against a floor of ${MIN_TEXT_OVER_LEGEND_INK_PIXELS}. The <text> ` +
-        'exists and carries the right string, so the legend background is ' +
-        'painting OVER it - the paint order is legend after text.',
+      `the title inked ${overText.inside} pixels inside the legend's own ` +
+        `bounds against a floor of ${MIN_TEXT_OVER_LEGEND_INK_PIXELS}. The ` +
+        'type and the legend do not share a rectangle at all, so there is no ' +
+        'overlap here for the layer order to be about.',
     ).toBeGreaterThan(MIN_TEXT_OVER_LEGEND_INK_PIXELS);
 
     const overControl = await countInkAroundRegion(
@@ -3616,5 +3653,35 @@ test.describe('composition text', (): void => {
         'same crop, so the count above was not measuring the title. Most ' +
         "likely the crop has drifted onto the legend's own label.",
     ).toBe(0);
+
+    /*
+     * 3. THE ORDERING ITSELF. This is what the retired pixel assertion above
+     *    USED to prove, and it is asserted here on the SAME composition that
+     *    was just exported: the live `svg.map-canvas` child order, which is
+     *    exactly what `cloneCompositionSvg` inherits and the rasteriser paints.
+     *    Reorder the layers in `MapCanvas` and this goes red.
+     *
+     *    Read after the export rather than instead of it, so a scenario where
+     *    the three layers do not co-occupy could not satisfy it vacuously.
+     */
+    const liveLayerOrder = await page
+      .locator('svg.map-canvas')
+      .evaluate((node: Element): ReadonlyArray<string> =>
+        [...node.children]
+          .map((child): string | null => child.getAttribute('data-layer'))
+          .filter((layer): layer is string => layer !== null),
+      );
+    const bandsIndex = liveLayerOrder.indexOf('bands');
+    const legendIndex = liveLayerOrder.indexOf('legend');
+    const textIndex = liveLayerOrder.indexOf('text');
+    expect(
+      [bandsIndex, legendIndex, textIndex].every((index): boolean => index >= 0),
+      `a layer is missing from the composition: ${liveLayerOrder.join(', ')}`,
+    ).toEqual(true);
+    expect(
+      bandsIndex < legendIndex && legendIndex < textIndex,
+      `the composition paints ${liveLayerOrder.join(' -> ')}, which is not ` +
+        'bands -> legend -> text (U-8).',
+    ).toEqual(true);
   });
 });

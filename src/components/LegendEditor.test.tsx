@@ -24,10 +24,7 @@ const TEST_LEGEND: LegendState = {
     { color: '#2563EB', label: 'Cool countries', order: 1 },
   ],
   position: { x: 688, y: 32, preset: 'top-right' },
-  theme: 'light',
   textSize: 'medium',
-  backgroundOpacity: 90,
-  borderStyle: 'hairline',
 };
 
 function createCommands(): LegendEditorCommands {
@@ -88,22 +85,22 @@ describe('LegendEditor static semantics', (): void => {
     expect(markup).toContain('aria-label="Move Up"');
     expect(markup).toContain('aria-label="Move Down"');
     expect(markup).toContain('Drag Warm countries to reorder');
-    expect(markup).toContain('aria-label="Legend theme"');
-    expect(markup).toContain('value="light"');
-    expect(markup).toContain('value="dark"');
-    expect(markup).toContain('value="soft"');
     expect(markup).toContain('aria-label="Legend text size"');
     expect(markup).toContain('value="small"');
     expect(markup).toContain('value="medium"');
     expect(markup).toContain('value="large"');
-    expect(markup).toContain('min="70"');
-    expect(markup).toContain('max="100"');
-    expect(markup).toContain('step="5"');
-    expect(markup).toContain('90%');
-    expect(markup).toContain('aria-label="Legend border"');
-    expect(markup).toContain('value="none"');
-    expect(markup).toContain('value="hairline"');
-    expect(markup).toContain('value="strong"');
+    /*
+     * D4-11: the three chrome fieldsets are GONE, and their absence is
+     * asserted rather than merely un-asserted. A `toContain` that was deleted
+     * proves nothing; these `not.toContain`s go red the moment a theme picker,
+     * an opacity slider, or a border picker comes back.
+     */
+    expect(markup).not.toContain('aria-label="Legend theme"');
+    expect(markup).not.toContain('aria-label="Legend border"');
+    expect(markup).not.toContain('type="range"');
+    expect(markup).not.toContain('name="legend-theme"');
+    expect(markup).not.toContain('name="legend-border"');
+    expect(markup).not.toContain('%<');
     expect(markup).toContain('aria-label="Legend position"');
     expect(markup).toContain('>Top left<');
     expect(markup).toContain('>Top right<');
@@ -167,9 +164,18 @@ describe('LegendOverlay export-safe SVG', (): void => {
     // authoritative, so the overlay renders the corner for the live bounds.
     expect(overlayMarkup).toContain('transform="translate(712 32)"');
     expect(712 + bounds.width).toBe(1048);
-    expect(overlayMarkup).toContain('fill="#FFFFFF"');
-    expect(overlayMarkup).toContain('fill-opacity="0.9"');
-    expect(overlayMarkup).toContain('stroke="#CBD5E1"');
+    /*
+     * D4-11: NO box chrome in the serialised overlay. The three literals the
+     * old panel wrote — the `#FFFFFF` background, its `fill-opacity`, and the
+     * `#CBD5E1` border — are asserted ABSENT, which is the assertion that goes
+     * red if a background rect is reintroduced. The label ink and the swatch
+     * stroke are what remain.
+     */
+    expect(overlayMarkup).not.toContain('fill="#FFFFFF"');
+    expect(overlayMarkup).not.toContain('fill-opacity=');
+    expect(overlayMarkup).not.toContain('stroke="#CBD5E1"');
+    expect(overlayMarkup).toContain('fill="#111827"');
+    expect(overlayMarkup).toContain('stroke="#9CA3AF"');
     expect(overlayMarkup).toContain('stroke-width="2"');
     expect(overlayMarkup).toContain('<text');
     expect(overlayMarkup).toContain('aria-hidden="true"');

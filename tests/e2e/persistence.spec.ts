@@ -211,6 +211,12 @@ function createCustomViewRecord(): Record<string, unknown> {
       colors: { DEU: '#DC2626' },
       camera: { zoom: 3, centerLongitude: 11, centerLatitude: 50 },
       snapshotId: 'modern',
+      /*
+       * A PRE-D4-11 V2 record, kept carrying `theme`, `backgroundOpacity`,
+       * and `borderStyle` on purpose. This is what a creator's saved map
+       * actually looks like on disk, and loading it must not raise a repair
+       * warning for fields this version simply no longer models.
+       */
       legend: {
         entries: [{ color: '#DC2626', label: 'Visited', order: 0 }],
         position: { x: 64, y: 720, preset: null },
@@ -412,9 +418,8 @@ test('real app saves and loads the complete composition after responsive rebindi
         colors: Record<string, string>;
         camera: { zoom: number };
         snapshotId: string;
-        legend: {
+        legend: Record<string, unknown> & {
           entries: Array<{ label: string }>;
-          theme: string;
         };
         settings: { backgroundColor: string };
       };
@@ -429,7 +434,17 @@ test('real app saves and loads the complete composition after responsive rebindi
       zoom: record.composition.camera.zoom,
       snapshotId: record.composition.snapshotId,
       legendLabel: record.composition.legend.entries[0]?.label,
-      legendTheme: record.composition.legend.theme,
+      /*
+       * D4-11 re-baseline, deliberate and itemised: this used to read
+       * `legendTheme: record.composition.legend.theme` and assert `'light'`.
+       * `theme`, `backgroundOpacity`, and `borderStyle` no longer exist in
+       * `LegendState`, so the SAVE path no longer writes them into the V2
+       * record. Asserting the saved KEY SET rather than a dropped value is
+       * what makes the boundary change visible: a field creeping back into
+       * the persisted record reddens this, and `04-14`'s V3 work inherits
+       * exactly these three keys.
+       */
+      legendKeys: Object.keys(record.composition.legend).sort().join(','),
       backgroundColor: record.composition.settings.backgroundColor,
     };
   }, STORAGE_KEY);
@@ -439,7 +454,7 @@ test('real app saves and loads the complete composition after responsive rebindi
     zoom: 1.5,
     snapshotId: 'modern',
     legendLabel: 'Visited France',
-    legendTheme: 'light',
+    legendKeys: 'entries,position,textSize',
     backgroundColor: '#FFFFFF',
   });
   expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);

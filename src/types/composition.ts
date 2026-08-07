@@ -153,9 +153,7 @@ export interface LegendEntryState {
   readonly order: number;
 }
 
-export type LegendTheme = 'light' | 'dark' | 'soft';
 export type LegendTextSize = 'small' | 'medium' | 'large';
-export type LegendBorderStyle = 'none' | 'hairline' | 'strong';
 export type LegendCorner =
   | 'top-left'
   | 'top-right'
@@ -168,13 +166,30 @@ export interface LegendPosition {
   readonly preset: LegendCorner | null;
 }
 
+/**
+ * D4-11 — the legend has **no box chrome**, and that is structural rather than
+ * a default a creator can undo.
+ *
+ * `theme`, `backgroundOpacity`, and `borderStyle` were deleted on 2026-08-07.
+ * The reference this phase implements against puts its legend directly on the
+ * map surface with no container at all, and keeping the fields would have
+ * meant keeping a parallel legacy renderer with its own gates — the
+ * two-models-coexisting complexity that produced the `G-3` complaint. Removing
+ * them makes the "big ass box" unreachable rather than unfashionable.
+ *
+ * **This is one-way and creator-visible.** Every saved map reopens with no
+ * legend box regardless of what it was saved with, and its exported PNG
+ * differs from one the creator may already have posted. There is nothing to
+ * restore the fields from. Owner gate answered `legend-delete-chrome` under a
+ * blanket, in-advance, sight-unseen proceed-authorization (Immutable Safety
+ * Constraint 8).
+ *
+ * `textSize`, `position`, entry labels, and entry ordering all survive.
+ */
 export interface LegendState {
   readonly entries: ReadonlyArray<LegendEntryState>;
   readonly position: LegendPosition;
-  readonly theme: LegendTheme;
   readonly textSize: LegendTextSize;
-  readonly backgroundOpacity: number;
-  readonly borderStyle: LegendBorderStyle;
 }
 
 /**

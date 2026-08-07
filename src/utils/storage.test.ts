@@ -84,10 +84,7 @@ function createCompositionSnapshot(
         { color: '#DC2626', label: 'Planned', order: 1 },
       ],
       position: { x: 720, y: 64, preset: 'top-right' },
-      theme: 'soft',
       textSize: 'large',
-      backgroundOpacity: 85,
-      borderStyle: 'strong',
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };
@@ -813,35 +810,102 @@ describe('createStorageAdapter', () => {
     expect(storage.setCalls).toBe(0);
   });
 
-  it('repairs a legacy fractional legend opacity to the canonical percent scale', () => {
-    // Builds before the scale was unified stored backgroundOpacity as a 0-1
-    // fraction. Accepting it as-is let a stored 0.9 load unrepaired and then be
-    // clamped up to the 70 floor, so a legacy map silently rendered at 70%
-    // where the creator had chosen 90%.
+  /*
+   * D4-11, and the one behaviour in this plan that had to be deliberate rather
+   * than incidental.
+   *
+   * A V2 record still carries `theme`, `backgroundOpacity`, and `borderStyle`.
+   * This version no longer models them. **That is a schema difference, not
+   * corruption** — reporting it would fire `composition-repaired`, and with it
+   * a creator-facing corruption toast, on EVERY reopened saved map, for a
+   * migration that succeeded.
+   *
+   * Both directions are asserted, because relaxing one must not relax the
+   * other. The removed fields are silent; a genuinely malformed legend value
+   * beside them is still reported.
+   */
+  it('loads a V2 record carrying the three deleted legend fields with no warning', () => {
     const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot();
     storage.values.set(
       STORAGE_KEY,
       JSON.stringify([
         {
           schemaVersion: 2,
-          name: 'Legacy opacity',
+          name: 'Chrome era',
           timestamp: 100,
           composition: {
-            ...createCompositionSnapshot(),
+            ...snapshot,
             legend: {
-              ...createCompositionSnapshot().legend,
+              ...snapshot.legend,
+              // Every deleted field, including the retired 0-1 opacity scale
+              // that USED to be reported as a repair.
+              theme: 'dark',
               backgroundOpacity: 0.9,
+              borderStyle: 'strong',
             },
           },
         },
       ]),
     );
 
-    const result = createStorageAdapter(storage).load('Legacy opacity');
+    const result = createStorageAdapter(storage).load('Chrome era');
+    expectSuccess(result);
+    expect(result.value).toEqual({
+      ok: true,
+      sourceVersion: 2,
+      value: {
+        colors: snapshot.colors,
+        camera: snapshot.camera,
+        snapshotId: snapshot.snapshotId,
+        legend: snapshot.legend,
+        settings: DEFAULT_COMPOSITION_SETTINGS,
+      },
+      warnings: [],
+    });
+    // The surviving fields are unharmed by the drop.
+    expect(result.value).toMatchObject({
+      ok: true,
+      value: { legend: { textSize: 'large' } },
+    });
+    // Nothing about the loaded legend carries the deleted fields forward.
+    expect(
+      Object.keys((result.value as { value: { legend: object } }).value.legend).sort(),
+    ).toEqual(['entries', 'position', 'textSize']);
+    expect(storage.setCalls).toBe(0);
+  });
+
+  it('still reports a genuinely malformed legend value beside the deleted fields', () => {
+    const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Chrome era, damaged',
+          timestamp: 100,
+          composition: {
+            ...snapshot,
+            legend: {
+              ...snapshot.legend,
+              theme: 'dark',
+              backgroundOpacity: 0.9,
+              borderStyle: 'strong',
+              // The invalid value: `textSize` survives D4-11 and is still
+              // gated. Dropping the chrome fields must not relax this.
+              textSize: 'gigantic',
+            },
+          },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Chrome era, damaged');
     expectSuccess(result);
     expect(result.value).toMatchObject({
       ok: true,
-      value: { legend: { backgroundOpacity: 90 } },
+      value: { legend: { textSize: 'medium' } },
       warnings: [{ code: 'composition-repaired' }],
     });
     expect(storage.setCalls).toBe(0);

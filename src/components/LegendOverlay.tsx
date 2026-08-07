@@ -11,6 +11,7 @@ import type {
   LegendTextSize,
 } from '../types/composition';
 import { COMPOSITION_FONT_FAMILY } from '../styles/interFontFace';
+import { COMPOSITION_INK_COLOR } from '../utils/contrast';
 import {
   LEGEND_CHARACTERS_PER_LINE,
   clampLegendPosition,
@@ -57,12 +58,6 @@ interface LegendOverlayProps {
   onStatusMessage: (message: string) => void;
 }
 
-interface LegendThemeColors {
-  background: string;
-  text: string;
-  border: string;
-}
-
 interface DragState {
   pointerId: number;
   startClientX: number;
@@ -70,44 +65,22 @@ interface DragState {
   startPosition: LegendPosition;
 }
 
-const THEME_COLORS: Readonly<Record<LegendState['theme'], LegendThemeColors>> = {
-  light: {
-    background: '#FFFFFF',
-    text: '#111827',
-    border: '#CBD5E1',
-  },
-  dark: {
-    background: '#111827',
-    text: '#FFFFFF',
-    border: 'rgba(255,255,255,0.28)',
-  },
-  soft: {
-    background: '#F3F4F6',
-    text: '#111827',
-    border: '#CBD5E1',
-  },
-};
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
-}
-
 /**
- * `backgroundOpacity` is stored, validated, clamped and displayed on a single
- * 0-100 percent scale, so there is exactly one conversion to the SVG ratio.
- * The previous dual handling silently accepted a 0-1 value, which is how a
- * legacy-migrated map could differ from a fresh one.
+ * The legend's ONE ink, and the only colour value this component now names.
+ *
+ * D4-11 deleted `THEME_COLORS` with the box chrome it painted: with no
+ * background panel, no border, and no fill opacity there is no legend theme to
+ * pick a background, a border, and a matching text colour from. What remains
+ * is a label ink and a swatch stroke.
+ *
+ * It is `COMPOSITION_INK_COLOR` — the SAME `#111827` the title, the subtitle,
+ * and the attribution are painted in (`utils/contrast.ts`, 04-11) — imported
+ * rather than retyped, because the legend and the composition text now sit on
+ * the same surface and a second literal is how they stop agreeing. It is
+ * export-fixed by construction: the clone is rasterised as an isolated
+ * document, so an attribute is the only route to the PNG.
  */
-function getBackgroundOpacity(backgroundOpacity: number): number {
-  return clamp(backgroundOpacity / 100, 0.7, 1);
-}
-
-function getBorderWidth(borderStyle: LegendState['borderStyle']): number {
-  if (borderStyle === 'none') {
-    return 0;
-  }
-  return borderStyle === 'strong' ? 4 : 2;
-}
+const LEGEND_INK_COLOR = COMPOSITION_INK_COLOR;
 
 function splitLabel(label: string, textSize: LegendTextSize): ReadonlyArray<string> {
   const charactersPerLine = LEGEND_CHARACTERS_PER_LINE[textSize];
@@ -199,8 +172,6 @@ export function LegendOverlay({
     legend,
     effectiveColors,
   );
-  const colors = THEME_COLORS[legend.theme];
-  const borderWidth = getBorderWidth(legend.borderStyle);
   const dragStateRef = useRef<DragState | null>(null);
 
   const stopPointerPropagation = (event: PointerEvent<SVGRectElement>): void => {
@@ -297,18 +268,11 @@ export function LegendOverlay({
     >
       {activeEntries.length === 0 ? null : (
         <>
-          <rect
-            x="0"
-            y="0"
-            width={layout.width}
-            height={layout.height}
-            rx={LEGEND_CORNER_RADIUS}
-            fill={colors.background}
-            fillOpacity={getBackgroundOpacity(legend.backgroundOpacity)}
-            stroke={borderWidth === 0 ? 'none' : colors.border}
-            strokeWidth={borderWidth}
-            aria-hidden="true"
-          />
+          {/*
+            D4-11: NO background rect. The legend is bare marks and type
+            directly on the map surface — the reference has no container at
+            all. The only rect left in the exported clone is a swatch.
+          */}
           {layout.items.map((item): JSX.Element => (
             <g key={item.entry.color} aria-hidden="true">
               <rect
@@ -321,7 +285,7 @@ export function LegendOverlay({
                 stroke="#9CA3AF"
                 strokeWidth="2"
               />
-              {renderLegendText(item, layout.effectiveTextSize, colors.text)}
+              {renderLegendText(item, layout.effectiveTextSize, LEGEND_INK_COLOR)}
             </g>
           ))}
           <rect

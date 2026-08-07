@@ -856,8 +856,28 @@ read goes through `resolveLegendPosition` / `resolveLegendRender`.
 |---|---|
 | Row | `--themely-porcelain` card, `--radius-card`, `--hairline`, `--space-sm` padding, `--space-sm` gap. **No inner hairline** — the label input sits directly on the card with a `--hairline` bottom edge only |
 | Swatch | 20×20, `border-radius: 6px`, `border: 1px solid var(--swatch-border)`, `aria-label="Color <hex>"` — unchanged semantics |
-| Label input | `--text-body-sm`, transparent background, full row width, placeholder `--themely-ghost-gray` |
-| Counter | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`, `aria-live="off"` (unchanged — it must not announce on every keystroke). Turns `--themely-red` at the limit |
+| Label input | `--text-body-sm`, transparent background, full row width, placeholder `--themely-ghost-gray` — *(**superseded 2026-08-07, U-14.** See the annotation below.)* |
+| Counter | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`, `aria-live="off"` (unchanged — it must not announce on every keystroke). Turns `--themely-red` at the limit — *(**superseded 2026-08-07, U-14.** See the annotation below.)* |
+
+> **Annotation — U-14, added 2026-08-07 by plan `04-12`. The two rows above are preserved
+> verbatim and are NOT rewritten.**
+>
+> The ghost-gray placeholder and counter are **superseded by the `Design.md` § 2 measurement**,
+> and resolved in favour of the measurement: `--themely-ghost-gray` measures **3.88:1 on
+> Porcelain** and **3.60:1 on Powder in dark**, so it fails AA for text. `Design.md` moved all
+> tertiary *meta* off it on that basis, and **a placeholder is text**. Both the label input's
+> placeholder and the character counter take **`--themely-slate-blue`**, which is the
+> tertiary-meta role the measurement names as the replacement.
+>
+> The shipped code already does this — `src/styles/controls/legendEditor.css`
+> `.legend-editor__counter` carries `--themely-slate-blue` with the reason inline. What was
+> missing was this annotation: an approved spec that still said ghost gray while the code said
+> slate blue is a divergence, not a fix.
+>
+> ⚠ **This is the THIRD known divergence in this approved document**, alongside CD-1's width
+> amendment and the still-unannotated `.map-navigation` `inset-inline-end` placement formula
+> (which `04-12` Task 2 confirmed is the real owner of the "known-wrong placement formula" note,
+> *not* the legend — CD-7). The third is recorded here rather than fixed silently.
 | Actions | icon-only ghost buttons at 44×44 (`--target-compact`), `--themely-nav-ink` glyphs. **Stacked onto their own row** — *(CD-1: RELAXED reason, unchanged practice. See the tool-panel Stacking row above; the binding number is 328px of content, not 280.)* |
 | Reorder | keyboard reorder via the two arrow buttons is the primary path; drag is an enhancement. The drag handle keeps `aria-label="Drag <label> to reorder"` |
 | Invalid | the existing `data-legend-validation="invalid"` hook stays; an invalid row gets a `--themely-red` left edge (2px inset, **not** a positional selector — keyed on the data attribute) and its message at `--text-caption` in `--themely-red` |
@@ -869,6 +889,15 @@ land in the same tool panel at any width; the weight bump carries the hierarchy 
 `<fieldset>` legend and sub-section heading **inside the tool panel**. Their options are **pills**: neutral (Porcelain + Slate
 Blue) when unselected, **Powder + Midnight Ink** when selected. **No accent** — the `legend` panel
 has no primary action, so per D-05 it carries no Apple Blue at all.
+
+> **Annotation — D4-11, added 2026-08-07 by plan `04-12`. The paragraph above is preserved
+> verbatim and is NOT rewritten.**
+>
+> **Three of those four fieldsets no longer exist.** `theme`, `backgroundOpacity`, and
+> `borderStyle` were deleted from `LegendState` outright: the legend has no box chrome, so
+> there is nothing for a theme, an opacity, or a border to style. **`Legend text size` is the
+> only surviving style fieldset**, and the pill recipe described above still governs it. The
+> `Position picker` below is unchanged, announcements included.
 
 **Position picker** is a 3×3 grid of 44×44 cells with the four presets and `Custom`; the selected
 cell is Powder. Its announcements are the existing approved strings

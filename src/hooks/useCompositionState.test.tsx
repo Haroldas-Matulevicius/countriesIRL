@@ -23,10 +23,7 @@ import { useCompositionState } from './useCompositionState';
 const DEFAULT_LEGEND: LegendState = {
   entries: [],
   position: { x: 32, y: 32, preset: 'top-left' },
-  theme: 'light',
   textSize: 'medium',
-  backgroundOpacity: 90,
-  borderStyle: 'hairline',
 };
 
 function reduce(
@@ -84,12 +81,7 @@ describe('compositionStateReducer', () => {
     state = reduce(state, {
       type: 'SET_LEGEND_STYLE',
       payload: {
-        style: {
-          theme: 'dark',
-          textSize: 'large',
-          backgroundOpacity: 75,
-          borderStyle: 'strong',
-        },
+        style: { textSize: 'large' },
       },
     });
     state = reduce(state, {
@@ -108,10 +100,7 @@ describe('compositionStateReducer', () => {
     expect(state.legend).toEqual({
       entries: [{ color: '#AABBCC', label: 'Allies', order: 0 }],
       position: { x: 32, y: 64, preset: null },
-      theme: 'dark',
       textSize: 'large',
-      backgroundOpacity: 75,
-      borderStyle: 'strong',
     });
     expect(state.savedBaseline).toEqual(
       createInitialCompositionState().savedBaseline,
@@ -196,10 +185,7 @@ describe('compositionStateReducer', () => {
           { color: '#00aa00', label: 'Central Powers', order: 4 },
         ],
         position: { x: 700, y: 100, preset: 'top-right' },
-        theme: 'soft',
         textSize: 'small',
-        backgroundOpacity: 85,
-        borderStyle: 'none',
       },
       settings: DEFAULT_COMPOSITION_SETTINGS,
     };

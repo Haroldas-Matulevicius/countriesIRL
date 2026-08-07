@@ -29,10 +29,7 @@ function createLegend(
   return {
     entries: createEntries(count),
     position,
-    theme: 'light',
     textSize: 'medium',
-    backgroundOpacity: 90,
-    borderStyle: 'hairline',
   };
 }
 

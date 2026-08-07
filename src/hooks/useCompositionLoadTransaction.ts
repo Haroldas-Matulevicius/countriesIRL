@@ -120,10 +120,7 @@ function cloneSnapshot(snapshot: CompositionSnapshot): CompositionSnapshot {
     legend: {
       entries: snapshot.legend.entries.map((entry) => ({ ...entry })),
       position: { ...snapshot.legend.position },
-      theme: snapshot.legend.theme,
       textSize: snapshot.legend.textSize,
-      backgroundOpacity: snapshot.legend.backgroundOpacity,
-      borderStyle: snapshot.legend.borderStyle,
     },
     settings: { ...snapshot.settings },
   };

@@ -12,17 +12,12 @@ import type {
 
 import { DEFAULT_COLOR } from '../constants/colors';
 import type {
-  LegendBorderStyle,
   LegendCorner,
   LegendEntryState,
   LegendState,
   LegendTextSize,
-  LegendTheme,
 } from '../types/composition';
-import type {
-  CompositionStateContextValue,
-  LegendStyleState,
-} from '../providers/CompositionStateProvider';
+import type { CompositionStateContextValue } from '../providers/CompositionStateProvider';
 import {
   LEGEND_LABEL_FIT_MESSAGE,
   getActiveLegendEntries,
@@ -42,11 +37,6 @@ import { LayersIcon } from './icons/LayersIcon';
 export const LEGEND_LABEL_MAX_LENGTH = 32;
 
 const EMPTY_LABEL_MESSAGE = 'Enter a legend label.';
-const THEME_OPTIONS: ReadonlyArray<{ value: LegendTheme; label: string }> = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'soft', label: 'Soft' },
-];
 const TEXT_SIZE_OPTIONS: ReadonlyArray<{
   value: LegendTextSize;
   label: string;
@@ -54,14 +44,6 @@ const TEXT_SIZE_OPTIONS: ReadonlyArray<{
   { value: 'small', label: 'Small' },
   { value: 'medium', label: 'Medium' },
   { value: 'large', label: 'Large' },
-];
-const BORDER_OPTIONS: ReadonlyArray<{
-  value: LegendBorderStyle;
-  label: string;
-}> = [
-  { value: 'none', label: 'None' },
-  { value: 'hairline', label: 'Hairline' },
-  { value: 'strong', label: 'Strong' },
 ];
 /**
  * Exported so a gate can ENUMERATE the position presets instead of restating
@@ -132,19 +114,6 @@ export function resolveLegendLabelCommit(
     };
   }
   return { ok: true, label: draft };
-}
-
-function getStyleState(
-  legend: LegendState,
-  overrides: Partial<LegendStyleState>,
-): LegendStyleState {
-  return {
-    theme: overrides.theme ?? legend.theme,
-    textSize: overrides.textSize ?? legend.textSize,
-    backgroundOpacity:
-      overrides.backgroundOpacity ?? legend.backgroundOpacity,
-    borderStyle: overrides.borderStyle ?? legend.borderStyle,
-  };
 }
 
 function focusLegendRow(color: string): void {
@@ -310,15 +279,6 @@ export function LegendEditor({
     if (draggedColor !== null) {
       updateOrder(draggedColor, targetIndex);
     }
-  };
-
-  const setTheme = (theme: LegendTheme): void => {
-    commands.setLegendStyle(
-      getStyleState(legend, {
-        theme,
-        borderStyle: theme === 'soft' ? 'none' : 'hairline',
-      }),
-    );
   };
 
   const setCorner = (corner: LegendCorner, label: string): void => {
@@ -536,24 +496,15 @@ export function LegendEditor({
         </p>
       )}
 
+      {/*
+        D4-11: three of the four style fieldsets are GONE with the state they
+        wrote — `Legend theme`, `Background opacity`, and `Legend border`. The
+        legend has no box chrome to style. `Legend text size` survives, and the
+        `Legend position` picker below is byte-identical, announcements
+        included.
+      */}
       <fieldset disabled={isEmpty}>
         <legend>Legend style and position</legend>
-        <fieldset aria-label="Legend theme">
-          <legend>Legend theme</legend>
-          {THEME_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value} className="legend-editor__pill">
-              <input
-                type="radio"
-                name="legend-theme"
-                value={option.value}
-                checked={legend.theme === option.value}
-                onChange={(): void => setTheme(option.value)}
-              />
-              {option.label}
-            </label>
-          ))}
-        </fieldset>
-
         <fieldset aria-label="Legend text size">
           <legend>Legend text size</legend>
           {TEXT_SIZE_OPTIONS.map((option): JSX.Element => (
@@ -564,48 +515,7 @@ export function LegendEditor({
                 value={option.value}
                 checked={legend.textSize === option.value}
                 onChange={(): void =>
-                  commands.setLegendStyle(
-                    getStyleState(legend, { textSize: option.value }),
-                  )
-                }
-              />
-              {option.label}
-            </label>
-          ))}
-        </fieldset>
-
-        <label>
-          <span>Background opacity</span>
-          <input
-            type="range"
-            min="70"
-            max="100"
-            step="5"
-            value={legend.backgroundOpacity}
-            onChange={(event: ChangeEvent<HTMLInputElement>): void =>
-              commands.setLegendStyle(
-                getStyleState(legend, {
-                  backgroundOpacity: Number(event.target.value),
-                }),
-              )
-            }
-          />
-          <output>{legend.backgroundOpacity}%</output>
-        </label>
-
-        <fieldset aria-label="Legend border">
-          <legend>Legend border</legend>
-          {BORDER_OPTIONS.map((option): JSX.Element => (
-            <label key={option.value} className="legend-editor__pill">
-              <input
-                type="radio"
-                name="legend-border"
-                value={option.value}
-                checked={legend.borderStyle === option.value}
-                onChange={(): void =>
-                  commands.setLegendStyle(
-                    getStyleState(legend, { borderStyle: option.value }),
-                  )
+                  commands.setLegendStyle({ textSize: option.value })
                 }
               />
               {option.label}

@@ -233,12 +233,31 @@ the font must actually reach the export clone. **OQ-1 was answered POSITIVE from
 151 by `03-01`** — an inline base64 `@font-face` does resolve inside SVG-as-image — so the seam is
 buildable as specced and no owner descope is required.
 
-**Legend colour exemption.** `LegendOverlay.tsx:65-74` hard-codes `THEME_COLORS`
+**Legend colour exemption.** ~~`LegendOverlay.tsx:65-74` hard-codes `THEME_COLORS`
 (`background: '#FFFFFF'`, `text: '#111827'`, `border: '#CBD5E1'`) and `:313` hard-codes
 `stroke="#9CA3AF"`. These are **deliberate export-fixed values, not an oversight.** The
 "no hex literal in `.tsx`" assertion gives `LegendOverlay.tsx` an explicit, commented exemption
 naming this reason. Note the name collision: the legend's `light`/`dark` is a *creator-chosen
-legend theme*, not the app's colour scheme.
+legend theme*, not the app's colour scheme.~~
+
+**Amended 2026-08-07 (D4-11, plan `04-12`) — the exemption now covers ONE literal, and the
+line it named is gone.** `THEME_COLORS` was deleted with the legend's box chrome: with no
+background panel, no border, and no fill opacity there is no legend theme to pick a background,
+a border, and a matching text colour from. Two consequences:
+
+- **The label ink left the exemption entirely.** Legend labels are painted in
+  `COMPOSITION_INK_COLOR` (`#111827`, `src/utils/contrast.ts`) — the same ink the title, the
+  subtitle, and the attribution use — *imported*, not retyped, so `LegendOverlay.tsx` no longer
+  declares it. The legend and the composition text now sit on the same surface, and a second
+  literal is how they stop agreeing.
+- **What remains is `stroke="#9CA3AF"` on the entry swatch**, and it is still a deliberate
+  export-fixed value: it is serialised into the PNG, so it must not follow the editor theme, and
+  `--swatch-border: #9ca3af` mirrors it. The "no hex literal in `.tsx`" assertion keeps
+  `LegendOverlay.tsx` as its closed exemption of exactly one file, with that reason recorded in
+  `src/styles/uiContract.test.ts`.
+
+**The name-collision warning is retired with the field.** There is no legend `light`/`dark` any
+more, so there is nothing left to confuse with the app's colour scheme.
 
 ---
 
@@ -786,7 +805,7 @@ source — `.map-unit-path` was once omitted from that pattern for a whole phase
 
 ---
 
-*Last updated: 2026-08-06 — the token layer landed (plan 03-04) and three things it MEASURED are now recorded here rather than discovered again: `--themely-ghost-gray` carries no text (3.88:1 on Porcelain, 3.60:1 on Powder in dark) and tertiary meta moves to Slate Blue; the destructive surface consumes `--destructive` for the same reason the Export fill consumes `--accent-fill` (3.05:1 / 3.19:1 measured on the verbatim red); `--hairline-color` joins elevation as the layout-occupying form of the hairline that replaced `--border-default`; the three formerly mirror-only motion tokens name their real consumers and the mirror is excluded from the consumer set; and the onboarding banner drops its accent tint and accent edge to satisfy D-05's one-accent-per-surface rule.*
-*Last updated: 2026-08-06 — created by plan 03-02 as the design contract 03-03 onward implements against (upstream attribution with no cross-repo test dependency, the verbatim token tables, the export firewall, the ten type roles with a closed two-token exemption, spacing/radii/elevation/motion, the accent budget, the CountriesIRL-only anatomy marked [FOR REVIEW], the post-D-34 export-unsafe reason, and the translated Do's and Don'ts), then extended by plan 03-03 with the § 7.1 OQ-2 resolution: full-bleed surface with a framed square, the two verified citations that make it safe (`useCameraController.ts:310-313`, `MapCanvas.tsx:839-840`), the "no `ResizeObserver` may be added, and the rule is an ownership set" statement, the measured 6e-14 px frame↔viewBox agreement, and the D-20 narrow-width contract as specification for `03-09`.*
+*Last updated: 2026-08-07 (Phase 4, plan `04-12`) — **§ 4 Legend colour exemption amended, the superseded text struck through rather than deleted (D4-11).** `THEME_COLORS` no longer exists: the legend has no background panel, no border, and no fill opacity, so there is no legend theme to pick a background, a border, and a matching text colour from. The label ink LEFT the exemption entirely — legend labels are `COMPOSITION_INK_COLOR` (`#111827`, `utils/contrast.ts`), the same ink the title/subtitle/attribution use, imported rather than retyped now that the legend and the composition text share one surface. The exemption covers exactly one literal, `stroke="#9CA3AF"` on the entry swatch, still export-fixed for the original reason. The name-collision warning (the legend's `light`/`dark` was a creator-chosen LEGEND theme, not the app's colour scheme) is retired with the field it warned about. § 4’s legend TYPOGRAPHY paragraph is untouched — the sizes, the weight, and the `LEGEND_CHARACTERS_PER_LINE` derivation all survive.*
+*Last updated: 2026-08-06, condensed per the two-entry rule — the token layer landed (plan 03-04) and three things it MEASURED are now recorded here rather than discovered again: `--themely-ghost-gray` carries no text (3.88:1 on Porcelain, 3.60:1 on Powder in dark) and tertiary meta moves to Slate Blue; the destructive surface consumes `--destructive` for the same reason the Export fill consumes `--accent-fill` (3.05:1 / 3.19:1 measured on the verbatim red); `--hairline-color` joins elevation as the layout-occupying form of the hairline that replaced `--border-default`; the three formerly mirror-only motion tokens name their real consumers and the mirror is excluded from the consumer set; and the onboarding banner drops its accent tint and accent edge to satisfy D-05's one-accent-per-surface rule. Earlier the same day: created by plan 03-02 as the design contract 03-03 onward implements against (upstream attribution with no cross-repo test dependency, the verbatim token tables, the export firewall, the ten type roles with a closed two-token exemption, spacing/radii/elevation/motion, the accent budget, the CountriesIRL-only anatomy marked [FOR REVIEW], the post-D-34 export-unsafe reason, and the translated Do's and Don'ts), then extended by plan 03-03 with the § 7.1 OQ-2 resolution: full-bleed surface with a framed square, the two verified citations that make it safe (`useCameraController.ts:310-313`, `MapCanvas.tsx:839-840`), the "no `ResizeObserver` may be added, and the rule is an ownership set" statement, the measured 6e-14 px frame↔viewBox agreement, and the D-20 narrow-width contract as specification for `03-09`.*
 
 *Full edit history: `git log -p -- Design.md`.*

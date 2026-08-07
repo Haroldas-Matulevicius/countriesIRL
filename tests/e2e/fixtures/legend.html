@@ -169,20 +169,39 @@
           setExportEditorOnlyCount(
             clone.querySelectorAll('[data-editor-only]').length,
           );
+          /*
+           * D4-11 removed the legend's background rect, which this used to
+           * read for the exported frame. The replacement MEASURES the clone
+           * instead of restating a derivation: the union of every surviving
+           * swatch box IS the ink the exporter captured, so a clipped clone
+           * reports a smaller extent rather than the same tidy rectangle.
+           */
           const clonedLegend = clone.querySelector('g[data-layer="legend"]');
-          const clonedPanel = clonedLegend?.querySelector('rect') ?? null;
-          if (clonedPanel === null) {
+          const swatches = clonedLegend === null
+            ? []
+            : [...clonedLegend.querySelectorAll('rect')];
+          if (clonedLegend === null || swatches.length === 0) {
             setExportLegendFrame('no-legend');
           } else {
             const [, x, y] = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(
               clonedLegend.getAttribute('transform'),
             );
+            const read = (node, name) => Number(node.getAttribute(name));
+            const left = Math.min(...swatches.map((node) => read(node, 'x')));
+            const top = Math.min(...swatches.map((node) => read(node, 'y')));
+            const right = Math.max(
+              ...swatches.map((node) => read(node, 'x') + read(node, 'width')),
+            );
+            const bottom = Math.max(
+              ...swatches.map((node) => read(node, 'y') + read(node, 'height')),
+            );
             setExportLegendFrame(
               [
-                x,
-                y,
-                clonedPanel.getAttribute('width'),
-                clonedPanel.getAttribute('height'),
+                Number(x) + left,
+                Number(y) + top,
+                right - left,
+                bottom - top,
+                swatches.length,
               ].join(','),
             );
           }
@@ -250,7 +269,7 @@
             h(
               'output',
               { 'data-style': 'true' },
-              `${state.legend.theme},${state.legend.textSize},${state.legend.backgroundOpacity},${state.legend.borderStyle}`,
+              state.legend.textSize,
             ),
             h('output', { 'data-camera-events': 'true' }, String(cameraEvents)),
             h(

@@ -83,7 +83,14 @@ describe('legend defaults', (): void => {
     const fresh = createDefaultLegendState();
 
     expect(fresh.position).toEqual({ x: 32, y: 32, preset: 'top-left' });
-    expect(fresh.backgroundOpacity).toBe(90);
+    // D4-11: the whole legend state is three fields. `theme`,
+    // `backgroundOpacity`, and `borderStyle` are GONE, and asserting the key
+    // set is what stops one quietly coming back through a spread.
+    expect(Object.keys(fresh).sort()).toEqual([
+      'entries',
+      'position',
+      'textSize',
+    ]);
     // The coordinates agree with the preset they claim, so the disclosure
     // summary can never describe a position the render contradicts.
     expect(getLegendCornerPosition('top-left', { width: 0, height: 0 })).toEqual(
@@ -340,10 +347,7 @@ describe('validateLegend', (): void => {
       [{ color: '#DC2626', label: 'Category', order: 0 }],
       {
         position: { x: 728, y: 32, preset: 'top-right' },
-        theme: 'dark',
         textSize: 'large',
-        backgroundOpacity: 70,
-        borderStyle: 'strong',
       },
     );
 
@@ -370,18 +374,14 @@ describe('validateLegend', (): void => {
     expect(state.entries).toHaveLength(31);
   });
 
-  it('fails closed for reserved keys, invalid enums, opacity, labels, and positions', (): void => {
+  it('fails closed for reserved keys, invalid enums, labels, and positions', (): void => {
     const unsafe = withEntries(
       JSON.parse(
         '[{"color":"__proto__","label":"Unsafe","order":0}]',
       ) as ReadonlyArray<LegendEntryState>,
       {
         position: { x: Number.NaN, y: 2000, preset: null },
-        theme: 'glass' as LegendState['theme'],
         textSize: 'huge' as LegendState['textSize'],
-        // The retired 0-1 scale is now simply out of range.
-        backgroundOpacity: 0.9,
-        borderStyle: 'shadow' as LegendState['borderStyle'],
       },
     );
 
@@ -390,10 +390,7 @@ describe('validateLegend', (): void => {
       issues: [
         { code: 'invalid-entry-color', path: 'entries[0].color' },
         { code: 'missing-active-color', color: '#DC2626' },
-        { code: 'invalid-theme', path: 'theme' },
         { code: 'invalid-text-size', path: 'textSize' },
-        { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
-        { code: 'invalid-border-style', path: 'borderStyle' },
         { code: 'invalid-position', path: 'position' },
       ],
     });
@@ -477,7 +474,7 @@ describe('validateActiveLegend export gate', (): void => {
   it('re-evaluates from live state so a cleared color unblocks a previously failing legend', (): void => {
     const overflowing = withEntries(
       [{ color: '#DC2626', label: 'x'.repeat(32), order: 0 }],
-      { textSize: 'large', backgroundOpacity: 90 },
+      { textSize: 'large' },
     );
 
     expect(
@@ -501,7 +498,6 @@ describe('validateActiveLegend export gate', (): void => {
     // column, then a 9th color reflowed the legend into two.
     const strandedRight = withEntries(entries, {
       position: { x: 712, y: 32, preset: null },
-      backgroundOpacity: 90,
     });
     const bounds = resolveLegendRender(strandedRight, effectiveColors).bounds;
 
@@ -522,31 +518,37 @@ describe('validateActiveLegend export gate', (): void => {
     });
   });
 
-  it('validates background opacity on the single stored 0-100 scale', (): void => {
+  /*
+   * D4-11 deleted the background-opacity scale outright, so the gate that
+   * validated it is deleted with it rather than left asserting a field nobody
+   * writes. What replaces it: the surviving style field is still validated,
+   * and a legend carrying NO chrome fields at all is still accepted — the
+   * two halves of "the box is unreachable, and its absence is not an error".
+   */
+  it('still gates the one surviving style field, and accepts a chrome-free legend', (): void => {
     const entry = { color: '#DC2626', label: 'Category', order: 0 };
-    const atDefault = withEntries([entry], { backgroundOpacity: 90 });
+    const bare = withEntries([entry]);
+
+    expect(bare).toEqual({
+      entries: [entry],
+      position: { x: 32, y: 32, preset: 'top-left' },
+      textSize: 'medium',
+    });
+    expect(
+      validateActiveLegend(bare, ['#DC2626'], TEST_LEGEND_BOUNDS),
+    ).toEqual({ ok: true, activeEntries: [entry] });
 
     expect(
-      validateActiveLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
-    ).toEqual({ ok: true, activeEntries: [entry] });
-    expect(
-      validateLegend(atDefault, ['#DC2626'], TEST_LEGEND_BOUNDS),
-    ).toEqual({ ok: true, activeEntries: [entry] });
-
-    // Off-step, below the floor, and the retired 0-1 scale all fail closed.
-    for (const backgroundOpacity of [72, 65, 105, 0.9]) {
-      expect(
-        validateActiveLegend(
-          withEntries([entry], { backgroundOpacity }),
-          ['#DC2626'],
-          TEST_LEGEND_BOUNDS,
-        ),
-      ).toMatchObject({
-        ok: false,
-        issues: [
-          { code: 'invalid-background-opacity', path: 'backgroundOpacity' },
-        ],
-      });
-    }
+      validateActiveLegend(
+        withEntries([entry], {
+          textSize: 'huge' as LegendState['textSize'],
+        }),
+        ['#DC2626'],
+        TEST_LEGEND_BOUNDS,
+      ),
+    ).toMatchObject({
+      ok: false,
+      issues: [{ code: 'invalid-text-size', path: 'textSize' }],
+    });
   });
 });

@@ -119,6 +119,8 @@ export function createHistoricalSavedRecord(): Record<string, unknown> {
         // deliberately by 03-11 (D-25/OQ-5).
         entries: [{ color: '#DC2626', label: 'Empire lands', order: 0 }],
         position: { x: 64, y: 720, preset: null },
+        // Pre-D4-11 chrome fields, retained on purpose: a real saved record
+        // carries them, and loading one must stay warning-free.
         theme: 'dark',
         textSize: 'large',
         backgroundOpacity: 85,

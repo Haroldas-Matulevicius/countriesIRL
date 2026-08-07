@@ -584,8 +584,25 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * family, the size, the weight, and the anchor on every composition `<text>`
  * are inline attributes, because the clone is rasterised as an isolated
  * document and a rule in a stylesheet cannot reach it.
+ *
+ * **LOWERED 338 -> 335 by `04-12` (D4-11), the first fall this phase has
+ * recorded.** MEASURED both ways by running this assertion: 338 before, 335
+ * after. The delta is exactly three rules in
+ * `src/styles/controls/legendEditor.css`, deleted with the controls they
+ * styled when the legend lost its box chrome:
+ *
+ * | rule | what it styled |
+ * |---|---|
+ * | `.legend-editor > fieldset > label` | the background-opacity slider's Porcelain label card |
+ * | `.legend-editor > fieldset > label > span` | that card's weight-500 heading |
+ * | `.legend-editor input[type="range"]` | the slider itself |
+ *
+ * The `Theme` and `Border` fieldsets left at ZERO cost, because they had reused
+ * `.legend-editor fieldset fieldset` and `.legend-editor__pill` — which the
+ * surviving `Text size` group still needs. Reuse is what makes a deletion
+ * cheap as well as an addition.
  */
-const SELECTOR_INVENTORY_CEILING = 338;
+const SELECTOR_INVENTORY_CEILING = 335;
 
 /**
  * Every selector a rule declares, one per comma-separated part.
@@ -2743,21 +2760,26 @@ const COLOR_LITERAL_PATTERN = /#[0-9A-Fa-f]{3,8}\b|rgba?\(/u;
 
 /**
  * A CLOSED list of exactly one file, with its reason recorded here rather than
- * only in a comment inside the component. `LegendOverlay.tsx` hard-codes
- * `THEME_COLORS` and the swatch stroke because those values are EXPORT-FIXED:
- * they are serialised into the PNG, so they must not follow the editor theme,
- * and `--swatch-border: #9ca3af` mirrors the last of them.
+ * only in a comment inside the component.
  *
- * Note the name collision recorded in P-3: the legend's `light` / `dark` is a
- * creator-chosen LEGEND THEME, not the app's colour scheme. A future reader who
- * conflates the two would "fix" this file into following the app theme and
- * change every creator's exported pixels.
+ * **Rewritten by `04-12` (D4-11), because what it exempted no longer exists.**
+ * `THEME_COLORS` is gone with the box chrome it painted — no background, no
+ * border, no fill opacity, and therefore no legend theme to pick a matching
+ * text colour from. The name collision this note used to warn about (the
+ * legend's `light` / `dark` was a creator-chosen LEGEND THEME, not the app's
+ * colour scheme) is retired with it: there is no legend theme to confuse.
+ *
+ * What remains is ONE literal, `stroke="#9CA3AF"` on the entry swatch, and it
+ * is still export-fixed: it is serialised into the PNG, so it must not follow
+ * the editor theme, and `--swatch-border: #9ca3af` mirrors it. The label ink
+ * left the exemption entirely — it is `COMPOSITION_INK_COLOR`, imported from
+ * `utils/contrast.ts`, so `LegendOverlay.tsx` no longer declares it.
  */
 const COLOR_LITERAL_EXEMPTIONS: ReadonlyArray<readonly [string, string]> = [
   [
     'components/LegendOverlay.tsx',
-    'THEME_COLORS and the swatch stroke are export-fixed values serialised ' +
-      'into the PNG; they must not follow the editor theme.',
+    'the entry swatch stroke is an export-fixed value serialised into the ' +
+      'PNG; it must not follow the editor theme.',
   ],
 ];
 
