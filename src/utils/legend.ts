@@ -11,7 +11,15 @@ import type {
 import { normalizeColor } from './colors';
 
 const LEGEND_CANVAS_SIZE = 1080;
-const LEGEND_SAFE_INSET = 32;
+/**
+ * The inset every composition edge shares.
+ *
+ * Exported since `04-11`: the title, the subtitle, and the attribution align on
+ * the SAME left rule the legend does, and two 32s in two modules is how they
+ * stop agreeing. `compositionText.ts` re-exports it as `TEXT_SAFE_INSET` rather
+ * than declaring a second literal.
+ */
+export const LEGEND_SAFE_INSET = 32;
 const LEGEND_INTERNAL_PADDING = 24;
 const LEGEND_COLUMN_GAP = 24;
 const LEGEND_COLUMN_WIDTH = 288;
