@@ -392,3 +392,129 @@ test.describe('the Colors panel', (): void => {
     expect(Math.round(strip.height)).toBe(48);
   });
 });
+
+/**
+ * The `Map style` panel's `04-08` sections. They live beside the Colors panel
+ * suite because they are the same flat vocabulary, measured the same way, at
+ * the same 360px flyout.
+ *
+ * **What this does NOT claim.** These are geometry and label assertions on a
+ * rendered box. Whether the panel READS well at 360px is `G-3`'s subjective
+ * territory and the physical review scheduled in `04-16`; a green run here is
+ * not a substitute for either.
+ */
+test.describe('the Map style panel', (): void => {
+  /** `04-UI-SPEC.md § 9`, byte-exact. Literals, never derived from the app. */
+  const WEIGHT_LABELS = ['None', 'Hairline', 'Thin', 'Medium', 'Bold'] as const;
+
+  test('spells the five weight options exactly as the spec does', async ({
+    page,
+  }): Promise<void> => {
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+
+    const coastlines = page.getByRole('radiogroup', { name: 'Coastlines' });
+    await expect(coastlines.getByRole('radio')).toHaveCount(
+      WEIGHT_LABELS.length,
+    );
+    // The label wraps the visually-hidden input, so the STRING lives on the
+    // pill and the accessible NAME is derived from it. Both are asserted: a
+    // pill whose text drifted from its accessible name is a real defect.
+    await expect(coastlines.locator('.panel-pill')).toHaveText([
+      ...WEIGHT_LABELS,
+    ]);
+    for (const label of WEIGHT_LABELS) {
+      await expect(
+        coastlines.getByRole('radio', { name: label, exact: true }),
+      ).toHaveCount(1);
+    }
+
+    const interior = page.getByRole('radiogroup', { name: 'Interior' });
+    await expect(interior.locator('.panel-pill')).toHaveText([
+      ...WEIGHT_LABELS,
+    ]);
+
+    // No un-set state: the defaults are `thin` interior, `none` coastlines.
+    await expect(interior.getByRole('radio', { name: 'Thin' })).toBeChecked();
+    await expect(coastlines.getByRole('radio', { name: 'None' })).toBeChecked();
+  });
+
+  /**
+   * FIVE PILLS WRAP TO TWO ROWS. Measured on bounding boxes rather than
+   * asserted from the stylesheet: `flex-wrap: wrap` resolving correctly and
+   * five pills actually landing on two rows at 328px are different claims, and
+   * only the second one is the contract.
+   *
+   * The discrimination control is the row count itself — `toBeGreaterThan(1)`
+   * would pass on five rows, so the distinct `y` values are asserted to be
+   * exactly two.
+   */
+  test('wraps the five weight pills onto two rows at 360px', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+
+    const body = await page.locator('.tool-panel__body').boundingBox();
+    expect(body === null ? 0 : Math.round(body.width)).toBe(360);
+
+    const pills = page
+      .getByRole('radiogroup', { name: 'Coastlines' })
+      .locator('.panel-pill');
+    await expect(pills).toHaveCount(WEIGHT_LABELS.length);
+
+    const boxes = await pills.evaluateAll((nodes: Element[]) =>
+      nodes.map((node): { y: number; right: number } => {
+        const rect = node.getBoundingClientRect();
+        return { y: Math.round(rect.y), right: Math.round(rect.right) };
+      }),
+    );
+    expect(boxes).toHaveLength(WEIGHT_LABELS.length);
+
+    const rows = [...new Set(boxes.map((box): number => box.y))];
+    expect(
+      rows,
+      `the five weight pills landed on ${rows.length} row(s). Two is the ` +
+        'contract: one row means the type was shrunk to force it, and three ' +
+        'or more means the pill padding has drifted.',
+    ).toHaveLength(2);
+
+    const first = boxes[0];
+    const last = boxes[boxes.length - 1];
+    if (first === undefined || last === undefined) {
+      throw new Error('The pill row measured nothing.');
+    }
+    expect(
+      last.y,
+      'the first and last pill share a row, so nothing wrapped.',
+    ).toBeGreaterThan(first.y);
+
+    // Nothing overflows the 328px content measure on either row.
+    const panelRight = (body?.x ?? 0) + 360;
+    boxes.forEach((box): void => {
+      expect(box.right).toBeLessThanOrEqual(panelRight);
+    });
+  });
+
+  test('spends no accent on this panel and keeps every control defaulted', async ({
+    page,
+  }): Promise<void> => {
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+
+    // D-05: one accent per surface, and `Map style` has no primary action.
+    await expect(
+      page.locator('.workspace__map-style .panel-action'),
+    ).toHaveCount(3);
+    await expect(
+      page.getByRole('button', { name: 'Reset Map Style' }),
+    ).toBeDisabled();
+
+    for (const section of ['Water', 'Uncolored countries']) {
+      await expect(
+        page.locator('.workspace__map-style fieldset', { hasText: section }),
+      ).not.toHaveCount(0);
+    }
+  });
+});

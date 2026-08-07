@@ -29,6 +29,9 @@ export interface InspectorUiState {
   /** The `Map style` panel's custom water hex, held here for the same reason. */
   readonly customSurfaceDraft: string;
   readonly setCustomSurfaceDraft: (draft: string) => void;
+  /** The `Map style` panel's custom uncoloured-fill hex (D4-09), same reason. */
+  readonly customUncoloredDraft: string;
+  readonly setCustomUncoloredDraft: (draft: string) => void;
   readonly isLegendExpanded: boolean;
   readonly setLegendExpanded: (isExpanded: boolean) => void;
   readonly locateState: LocateState;
@@ -56,6 +59,7 @@ export function useInspectorUiState(
   const [customColorDraft, setCustomColorDraft] = useState('');
   const [rampId, setRampId] = useState<RampId>(DEFAULT_RAMP_ID);
   const [customSurfaceDraft, setCustomSurfaceDraft] = useState('');
+  const [customUncoloredDraft, setCustomUncoloredDraft] = useState('');
   const [isLegendExpanded, setLegendExpanded] = useState(false);
   const locateReducer = useCallback(
     (state: LocateState, action: LocateAction): LocateState =>
@@ -85,6 +89,8 @@ export function useInspectorUiState(
       setRampId,
       customSurfaceDraft,
       setCustomSurfaceDraft,
+      customUncoloredDraft,
+      setCustomUncoloredDraft,
       isLegendExpanded,
       setLegendExpanded,
       locateState,
@@ -95,6 +101,7 @@ export function useInspectorUiState(
       customColorDraft,
       rampId,
       customSurfaceDraft,
+      customUncoloredDraft,
       isLegendExpanded,
       locateState,
     ],

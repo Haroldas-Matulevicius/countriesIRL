@@ -484,8 +484,23 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * two sheets share is counted once.
  *
  * A ceiling that only ever goes up is not being read. This one went down.
+ *
+ * **Raised 331 -> 332 by `04-08` (D4-08 / D4-09).** Both totals MEASURED by
+ * running this assertion with the ceiling set to 0, before and after; neither
+ * is an estimate. The delta is ONE rule: `.map-style__sublabel` in
+ * `controls/mapStyle.css`, for the `Borders` section's `Interior` /
+ * `Coastlines` / `Border color` sub-labels. It is the one thing `04-07`'s
+ * shared `.panel-*` vocabulary does not already carry - a `--text-caption`
+ * Slate Blue level below a section label - and no other surface has one, so it
+ * stays local rather than joining `editor.css`.
+ *
+ * The two whole new panel sections cost ZERO selectors: `Uncolored countries`
+ * and `Borders` are built from `.panel-section`, `.panel-section__label`,
+ * `.panel-pills`, `.panel-pill`, `.panel-swatch`, `.panel-field`,
+ * `.panel-error`, `.panel-action`, and `.map-style__custom`, reused rather than
+ * re-authored - which is `04-UI-SPEC.md` section 11 rule 1 working as intended.
  */
-const SELECTOR_INVENTORY_CEILING = 331;
+const SELECTOR_INVENTORY_CEILING = 332;
 
 /**
  * Every selector a rule declares, one per comma-separated part.
@@ -2224,6 +2239,15 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
    * stronger gate than a matrix that grows by what actually changed.
    */
   ['--themely-midnight-ink', '--destructive-tint'],
+  /*
+   * `04-08` added ZERO rows, and that is recorded rather than padded. The two
+   * new `Map style` sections paint Midnight Ink section labels and Slate Blue
+   * sub-labels on the Platinum panel body, plus `--destructive` for the second
+   * custom-hex error line and Midnight Ink on `--destructive-tint` for its
+   * invalid field - every one of those pairs is already rated above. A matrix
+   * that grows to look thorough is not a stronger gate than one that grows by
+   * what actually changed; `04-07` set that precedent by adding exactly one.
+   */
   // Mode-invariant by declaration; rated in BOTH modes anyway, so a `.dark`
   // redefinition would surface here as a failing ratio and not only as a
   // firewall violation.

@@ -20,6 +20,11 @@
  * It authors ZERO per-component dark overrides - every value is a token, so the
  * panel flips with the palette. (Held out rather than claimed: Phase 3's
  * dark-theme review was never performed and cannot be leaned on.)
+ *
+ * `04-08` added `Uncolored countries` and `Borders` and needed exactly ONE new
+ * rule: the sub-label. Everything else - the sections, dividers, pills,
+ * swatches, fields, errors, and ghost actions - is the shared `.panel-*`
+ * vocabulary, reused rather than re-authored.
  */
 
 .map-style__custom {
@@ -28,4 +33,29 @@
   padding-block-start: var(--space-md);
   border-block-start: var(--border-width) solid var(--hairline-color);
   gap: var(--space-sm);
+}
+
+/*
+ * The `Borders` sub-labels: `Interior`, `Coastlines`, `Border color`.
+ *
+ * `--text-caption` in Slate Blue, NOT a second `--text-body-sm` weight-500
+ * level. 16px beside 14px is 2px apart and reads as an accident rather than a
+ * hierarchy - `04-UI-SPEC.md` section 1.1 exists to prevent exactly that, and a
+ * section label with a slightly-smaller section label under it is the shape it
+ * names. Hierarchy inside a section is carried by SIZE AND COLOUR dropping a
+ * full step, not by shaving weight.
+ *
+ * FIVE WEIGHT PILLS DO NOT FIT ON ONE ROW AND MUST WRAP TO TWO. The arithmetic,
+ * recorded so nobody forces a single row by shrinking the type: `Hairline` is 8
+ * characters at `--text-body-sm` (14px) with Inter's 1.0202em worst-case
+ * advance, so the longest pill needs roughly 8 x 14.28 + 2 x 8 (padding) =
+ * ~130px, against 328px of content width inside the 360px flyout. Three pills
+ * of that order overflow. `.panel-pills` already wraps; this comment is what
+ * stops a later "tidy-up" from unwrapping it.
+ */
+.map-style__sublabel {
+  margin: 0;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
 }

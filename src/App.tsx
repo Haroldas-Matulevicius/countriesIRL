@@ -168,6 +168,7 @@ export default function App(): JSX.Element {
     setLegendOrder,
     setLegendPosition,
     setSurfaceColor,
+    setMapStyle,
     loadComposition,
     markSaved,
     restoreState: restoreCompositionState,
@@ -1095,9 +1096,16 @@ export default function App(): JSX.Element {
     <div key="map-style" className="workspace__map-style">
       <MapStylePanel
         surfaceColor={compositionState.settings.surfaceColor}
+        uncoloredFill={compositionState.settings.uncoloredFill}
+        borderColor={compositionState.settings.borderColor}
+        interiorWeight={compositionState.settings.interiorWeight}
+        coastlineWeight={compositionState.settings.coastlineWeight}
         customDraft={inspectorUi.customSurfaceDraft}
         onCustomDraftChange={inspectorUi.setCustomSurfaceDraft}
+        uncoloredDraft={inspectorUi.customUncoloredDraft}
+        onUncoloredDraftChange={inspectorUi.setCustomUncoloredDraft}
         onSurfaceColorChange={setSurfaceColor}
+        onMapStyleChange={setMapStyle}
         isDisabled={!isMapReady}
       />
     </div>
