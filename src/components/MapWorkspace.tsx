@@ -47,6 +47,8 @@ interface MapWorkspaceProps {
    */
   features: ReadonlyArray<SceneFeature> | null;
   colors: ColorMap;
+  /** D4-03: the composition water colour, forwarded verbatim to `MapCanvas`. */
+  surfaceColor?: string;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
@@ -90,6 +92,7 @@ export function MapWorkspace({
   periodLabel,
   features,
   colors,
+  surfaceColor,
   selectedIds,
   exportSourceRef,
   legendSlot,
@@ -156,6 +159,7 @@ export function MapWorkspace({
               features={features}
               locateFeatures={geoData.features}
               colors={colors}
+              surfaceColor={surfaceColor}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}

@@ -6,10 +6,16 @@ import { expect, test, type Download, type Page } from '@playwright/test';
 
 import { EXPORT_FONT_FACE_SUPPRESSION_FLAG } from '../../src/constants/config';
 import {
+  DEFAULT_SURFACE_COLOR,
+  WATER_PRESETS,
+} from '../../src/constants/mapStyle';
+import { createWorldProjection } from '../../src/utils/mapProjection';
+import {
   LEGEND_CHARACTERS_PER_LINE,
   resolveLegendRender,
 } from '../../src/utils/legend';
 import type { LegendState } from '../../src/types/composition';
+import { openRailTool, waitForApp } from './support/appHarness';
 
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
 const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
@@ -128,41 +134,79 @@ interface CornerSample {
   readonly corners: ReadonlyArray<ReadonlyArray<number>>;
 }
 
+interface PointSample {
+  readonly width: number;
+  readonly height: number;
+  readonly pixels: ReadonlyArray<ReadonlyArray<number>>;
+}
+
+/**
+ * The ONE arbitrary-point sampler. `04-01` generalised it out of
+ * `samplePngCorners`, which now calls it: two PNG decode paths in one spec is
+ * how a "sampled pixel" assertion quietly starts measuring a differently
+ * decoded image from the one beside it.
+ *
+ * `null` for the point list means the four corners.
+ */
+async function samplePngPoints(
+  page: Page,
+  bytes: Buffer,
+  points: ReadonlyArray<readonly [number, number]> | null,
+): Promise<PointSample> {
+  return page.evaluate(
+    async ({
+      base64,
+      requested,
+    }: {
+      base64: string;
+      requested: ReadonlyArray<readonly [number, number]> | null;
+    }): Promise<PointSample> => {
+      const binary = atob(base64);
+      const buffer = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        buffer[index] = binary.charCodeAt(index);
+      }
+      const bitmap = await createImageBitmap(
+        new Blob([buffer], { type: 'image/png' }),
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d');
+      if (context === null) {
+        throw new Error('2D context is unavailable for PNG inspection.');
+      }
+      context.drawImage(bitmap, 0, 0);
+      const points =
+        requested ??
+        ([
+          [0, 0],
+          [bitmap.width - 1, 0],
+          [0, bitmap.height - 1],
+          [bitmap.width - 1, bitmap.height - 1],
+        ] as ReadonlyArray<readonly [number, number]>);
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        pixels: points.map(([x, y]): ReadonlyArray<number> => [
+          ...context.getImageData(x, y, 1, 1).data,
+        ]),
+      };
+    },
+    { base64: bytes.toString('base64'), requested: points },
+  );
+}
+
 async function samplePngCorners(
   page: Page,
   bytes: Buffer,
 ): Promise<CornerSample> {
-  return page.evaluate(async (base64: string): Promise<CornerSample> => {
-    const binary = atob(base64);
-    const buffer = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      buffer[index] = binary.charCodeAt(index);
-    }
-    const bitmap = await createImageBitmap(
-      new Blob([buffer], { type: 'image/png' }),
-    );
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext('2d');
-    if (context === null) {
-      throw new Error('2D context is unavailable for PNG inspection.');
-    }
-    context.drawImage(bitmap, 0, 0);
-    const points = [
-      [0, 0],
-      [bitmap.width - 1, 0],
-      [0, bitmap.height - 1],
-      [bitmap.width - 1, bitmap.height - 1],
-    ];
-    return {
-      width: bitmap.width,
-      height: bitmap.height,
-      corners: points.map(([x, y]): ReadonlyArray<number> => [
-        ...context.getImageData(x as number, y as number, 1, 1).data,
-      ]),
-    };
-  }, bytes.toString('base64'));
+  const sample = await samplePngPoints(page, bytes, null);
+  return {
+    width: sample.width,
+    height: sample.height,
+    corners: sample.pixels,
+  };
 }
 
 async function saveDownload(download: Download, name: string): Promise<Buffer> {
@@ -197,6 +241,15 @@ async function countInkAroundRegion(
   page: Page,
   bytes: Buffer,
   region: LegendRegion,
+  /**
+   * `04-01` made this a parameter. The legend backstop wants "anything not
+   * white" (240); the water gate wants "map ink" (`DARK_INK_THRESHOLD`),
+   * because a light water tint such as #F5EFE6 has two channels below 240 and
+   * would otherwise count the entire ocean as content. One counter, two
+   * thresholds - a second counting function is how a blank control ends up
+   * validating a different counter from the one it is meant to police.
+   */
+  inkThreshold: number = INK_CHANNEL_THRESHOLD,
 ): Promise<RegionInkCounts> {
   return page.evaluate(
     async ({ base64, box, threshold }): Promise<RegionInkCounts> => {
@@ -247,7 +300,7 @@ async function countInkAroundRegion(
     {
       base64: bytes.toString('base64'),
       box: region,
-      threshold: INK_CHANNEL_THRESHOLD,
+      threshold: inkThreshold,
     },
   );
 }
@@ -343,7 +396,11 @@ test.describe('PNG export', (): void => {
     // The leading null is the injected export `<style>` (no data-layer): it
     // shifts the camera and legend indices EQUALLY, so camera-before-legend
     // still holds. Re-baselined deliberately by 03-11 (D-34/D-25).
-    expect(clone.layerOrder).toEqual([null, 'camera', 'legend']);
+    // `04-01` adds `rect[data-layer="surface"]` (D4-03): a sibling inserted
+    // BEFORE the camera, so it shifts camera and legend equally too and the
+    // order check still holds. Re-baselined with the layer named, not widened
+    // to a "contains" check - the ORDER is the contract.
+    expect(clone.layerOrder).toEqual([null, 'surface', 'camera', 'legend']);
     expect(clone.legendTransform).toBe(legendTransform);
     expect(clone.legendTexts).toEqual([LEGEND_LABEL]);
     expect(clone.legendEditorOnly).toBe(0);
@@ -846,5 +903,306 @@ test.describe('PNG export', (): void => {
       height: EXPORT_SIZE,
     });
     expect(await page.evaluate((): number => window.__exportFixture.bodyFrameCount)).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-01 TRACER - water colour, composition state to sampled PNG pixels
+ * ------------------------------------------------------------------ */
+
+/**
+ * Anything darker than this in EVERY channel is map ink: the #000000 country
+ * boundaries at `EXPORT_BORDER_WIDTH`. Deliberately not the legend backstop's
+ * 240, which a light water tint trips on two channels - #F5EFE6 is
+ * (245, 239, 230) - and which would therefore count a flood-filled blank as
+ * a full frame of content.
+ */
+const DARK_INK_THRESHOLD = 100;
+/**
+ * DERIVED FROM A MEASUREMENT taken in this same change, not guessed. The
+ * default world composition exported **45,188** pixels below
+ * `DARK_INK_THRESHOLD` in installed Chrome 151.0.7922.75. The floor is set at
+ * 20,000 - under half the measured value, so ordinary rendering variation and
+ * a future lighter stroke weight do not make it flap, and two orders of
+ * magnitude above the zero a blank or flood-filled frame produces.
+ *
+ * `04-05` moves the default coastline weight to `none`, which will legitimately
+ * reduce this. RE-MEASURE and restate the number then; do not delete the floor.
+ */
+const MEASURED_BOUNDARY_INK_PIXELS = 45_188;
+const MIN_BOUNDARY_INK_PIXELS = 20_000;
+const WHOLE_FRAME_REGION: LegendRegion = {
+  x: 0,
+  y: 0,
+  width: EXPORT_SIZE,
+  height: EXPORT_SIZE,
+};
+
+/**
+ * Two sample points, converted through the real projection rather than
+ * hard-coded as pixels. If either classification is wrong the gate goes RED -
+ * a mislabelled "ocean" point fails the colour assertion and a mislabelled
+ * "land" point fails the inequality - so a geography mistake here cannot
+ * become a false pass.
+ */
+const PACIFIC_LON_LAT: readonly [number, number] = [-140, 0];
+const SAHARA_LON_LAT: readonly [number, number] = [20, 26];
+
+function hexToRgb(hex: string): readonly [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+function project(
+  lonLat: readonly [number, number],
+): readonly [number, number] {
+  const projected = createWorldProjection()([lonLat[0], lonLat[1]]);
+  if (projected === null) {
+    throw new Error(`(${lonLat[0]}, ${lonLat[1]}) does not project.`);
+  }
+  return [Math.round(projected[0]), Math.round(projected[1])];
+}
+
+/**
+ * Camera user space -> the SVG's 0..1080 viewBox space, read from the live
+ * document rather than assumed to be the identity. The PNG is 1080 wide over a
+ * `0 0 1080 1080` viewBox, so a viewBox coordinate IS a PNG pixel.
+ */
+async function toExportPixels(
+  page: Page,
+  points: ReadonlyArray<readonly [number, number]>,
+): Promise<ReadonlyArray<readonly [number, number]>> {
+  return page.evaluate(
+    (cameraPoints: ReadonlyArray<readonly [number, number]>) => {
+      const svg = document.querySelector('svg.map-canvas');
+      const camera = document.querySelector('[data-layer="camera"]');
+      if (
+        !(svg instanceof SVGSVGElement) ||
+        !(camera instanceof SVGGraphicsElement)
+      ) {
+        throw new Error('The canonical canvas or its camera layer is absent.');
+      }
+      const svgToScreen = svg.getScreenCTM();
+      const cameraToScreen = camera.getScreenCTM();
+      if (svgToScreen === null || cameraToScreen === null) {
+        throw new Error('The canvas is not rendered, so it has no CTM.');
+      }
+      const cameraToViewBox = svgToScreen.inverse().multiply(cameraToScreen);
+      return cameraPoints.map(([x, y]): readonly [number, number] => {
+        const point = svg.createSVGPoint();
+        point.x = x;
+        point.y = y;
+        const mapped = point.matrixTransform(cameraToViewBox);
+        return [Math.round(mapped.x), Math.round(mapped.y)];
+      });
+    },
+    points,
+  );
+}
+
+/**
+ * A genuinely flat 1080 square in the water colour, produced through the same
+ * canvas machinery the real export uses. It is the control the content floor
+ * has to survive: a counter that reads content into a flood fill fails here.
+ */
+async function makeFloodFilledPng(page: Page, hex: string): Promise<Buffer> {
+  const base64 = await page.evaluate(
+    async ({ color, size }: { color: string; size: number }) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext('2d');
+      if (context === null) {
+        throw new Error('2D context is unavailable.');
+      }
+      context.fillStyle = color;
+      context.fillRect(0, 0, size, size);
+      const blob = await new Promise<Blob | null>((settle): void => {
+        canvas.toBlob(settle, 'image/png');
+      });
+      if (blob === null) {
+        throw new Error('The control PNG did not encode.');
+      }
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      bytes.forEach((byte): void => {
+        binary += String.fromCharCode(byte);
+      });
+      return btoa(binary);
+    },
+    { color: hex, size: EXPORT_SIZE },
+  );
+  return Buffer.from(base64, 'base64');
+}
+
+async function exportRealApp(page: Page, label: string): Promise<Buffer> {
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const download = await downloadPromise;
+  return saveDownload(download, `${label}-${UNNAMED_FILENAME}`);
+}
+
+/**
+ * Deliberately asserts only that the CONTROL took the choice, never that the
+ * rect carries the right `fill`. A markup assertion here would short-circuit
+ * every RED probe below: breaking the fill would redden this helper instead of
+ * the pixel gate it is meant to prove, which is the "probe reddens a DIFFERENT
+ * gate" shape this repository has already shipped once. The rect's fill is the
+ * pixel assertion's subject and is left entirely to it.
+ *
+ * Waiting on `toBeChecked` is real synchronisation: the input is controlled, so
+ * it flips only after React has committed the render that also repaints the
+ * rect.
+ */
+async function chooseWaterPreset(page: Page, name: string): Promise<void> {
+  const pill = page.getByRole('radio', { name, exact: true });
+  await pill.check();
+  await expect(pill).toBeChecked();
+}
+
+test.describe('water preset', (): void => {
+  /**
+   * **The Phase 4 tracer.** One creator-visible path through every layer the
+   * phase touches - a new rail tool and flyout, composition state, a new
+   * serialized SVG layer, the owned export clone - proven on the bytes of a
+   * real download rather than at any single layer.
+   *
+   * The risk it retires: `04-RESEARCH.md` Export Fidelity Envelope measured
+   * that a serialised SVG rasterised as an image sees NO host stylesheet, so a
+   * `var()` renders as nothing and a class rule renders as SVG default black.
+   * If a serialized inline layer did not survive this repo's own
+   * `sanitizeExportClone` / `isPreservedComposition`, every later Phase 4 plan
+   * would be built on a dead architecture.
+   */
+  test('a chosen water colour reaches the exported PNG ocean pixels', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const [pacific, sahara] = await toExportPixels(page, [
+      project(PACIFIC_LON_LAT),
+      project(SAHARA_LON_LAT),
+    ]);
+    if (pacific === undefined || sahara === undefined) {
+      throw new Error('The sample points did not map into the export frame.');
+    }
+
+    const chosen = WATER_PRESETS.find(
+      (preset): boolean => preset.value !== DEFAULT_SURFACE_COLOR,
+    );
+    const alternate = WATER_PRESETS.filter(
+      (preset): boolean => preset.value !== DEFAULT_SURFACE_COLOR,
+    )[1];
+    if (chosen === undefined || alternate === undefined) {
+      throw new Error(
+        'This gate needs two non-default presets to discriminate with.',
+      );
+    }
+
+    await openRailTool(page, 'Map style');
+    await chooseWaterPreset(page, chosen.name);
+
+    const firstBytes = await exportRealApp(page, 'water-first');
+
+    /*
+     * 1. CONTENT FLOOR, FIRST. Two blank squares satisfy "they differ"
+     *    perfectly, and this repository has shipped exactly that defect. Assert
+     *    the frame carries map ink before asserting anything about its colour.
+     */
+    const firstInk = await countInkAroundRegion(
+      page,
+      firstBytes,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      firstInk.inside,
+      `the exported frame measured ${firstInk.inside} ink pixels against a ` +
+        `floor of ${MIN_BOUNDARY_INK_PIXELS} (derived from ` +
+        `${MEASURED_BOUNDARY_INK_PIXELS} measured when this gate landed). It ` +
+        'carries no country boundaries, so every colour assertion below would ' +
+        'be about a blank square.',
+    ).toBeGreaterThan(MIN_BOUNDARY_INK_PIXELS);
+
+    /*
+     * 2. THE PROPERTY. Exactly 1080x1080 from the IHDR of the downloaded
+     *    bytes, then the ocean pixel itself.
+     */
+    expect(readPngDimensions(firstBytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+
+    const firstSample = await samplePngPoints(page, firstBytes, [
+      pacific,
+      sahara,
+    ]);
+    const [firstOcean, firstLand] = firstSample.pixels;
+    if (firstOcean === undefined || firstLand === undefined) {
+      throw new Error('The sampler returned fewer pixels than it was asked for.');
+    }
+
+    const chosenRgb = hexToRgb(chosen.value);
+    expect(
+      firstOcean.slice(0, 3),
+      `the mid-Pacific pixel is rgb(${firstOcean.slice(0, 3).join(', ')}), not ` +
+        `the chosen ${chosen.name} ${chosen.value}. The water either never ` +
+        'reached the serialized clone or was stripped from it.',
+    ).toEqual([...chosenRgb]);
+    // Opaque, because the three white export layers are the opacity floor.
+    expect(firstOcean[3]).toBe(255);
+
+    expect(
+      firstLand.slice(0, 3),
+      'the Sahara pixel is the water colour too, so the frame is a flood ' +
+        'fill rather than a map with coloured water.',
+    ).not.toEqual([...chosenRgb]);
+
+    /*
+     * 3. THE DISCRIMINATION CONTROL. Without a second, different preset the
+     *    assertion above is satisfiable by any two identical whites.
+     */
+    await chooseWaterPreset(page, alternate.name);
+    const secondBytes = await exportRealApp(page, 'water-second');
+    const secondSample = await samplePngPoints(page, secondBytes, [pacific]);
+    const [secondOcean] = secondSample.pixels;
+    if (secondOcean === undefined) {
+      throw new Error('The second export produced no sample.');
+    }
+
+    expect(secondOcean.slice(0, 3)).toEqual([...hexToRgb(alternate.value)]);
+    expect(
+      secondOcean.slice(0, 3),
+      `both exports sampled rgb(${secondOcean.slice(0, 3).join(', ')}) at the ` +
+        'same point, so the assertion above is not measuring the creator ' +
+        'choice at all.',
+    ).not.toEqual([...chosenRgb]);
+
+    /*
+     * 4. THE COUNTER'S OWN CONTROL. A flood fill in the water colour, through
+     *    the SAME counting function and the SAME threshold. A counter that
+     *    reads content into anything reports ink here and fails.
+     */
+    const floodFilled = await makeFloodFilledPng(page, chosen.value);
+    const floodInk = await countInkAroundRegion(
+      page,
+      floodFilled,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      floodInk.inside + floodInk.outside,
+      'the content floor counts a flat flood fill as content, so passing it ' +
+        'proves nothing about the real export.',
+    ).toBe(0);
+
+    // And the flood fill would pass the ocean assertion, which is exactly why
+    // the content floor above runs first.
+    const floodSample = await samplePngPoints(page, floodFilled, [pacific]);
+    expect(floodSample.pixels[0]?.slice(0, 3)).toEqual([...chosenRgb]);
   });
 });

@@ -1041,6 +1041,7 @@ export default function App(): JSX.Element {
         periodLabel={activePeriodLabel}
         features={visibleFeatures}
         colors={colors}
+        surfaceColor={compositionState.settings.surfaceColor}
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
         legendSlot={legendSlot}

@@ -29,6 +29,7 @@ import {
 } from '../constants/colors';
 import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
 import { MAP_VIEWBOX_SIZE } from '../constants/config';
+import { DEFAULT_SURFACE_COLOR } from '../constants/mapStyle';
 import {
   useCameraController,
   type CameraControllerFactory,
@@ -109,6 +110,16 @@ export interface MapCanvasProps {
   features: ReadonlyArray<SceneFeature>;
   locateFeatures?: ReadonlyArray<GeoFeature>;
   colors: ColorMap;
+  /**
+   * D4-03 - the composition's water/background colour, canonical `#RRGGBB`,
+   * already validated by the composition reducer. Written as an INLINE `fill`
+   * attribute on `rect[data-layer="surface"]`, never as a CSS token: a
+   * serialised SVG rasterised as an image sees no host stylesheet, so a `var()`
+   * here would render as nothing and a class rule as SVG default black
+   * (`04-RESEARCH.md` Export Fidelity Envelope). Defaulted so a caller that has
+   * not migrated still paints an opaque square rather than a transparent one.
+   */
+  surfaceColor?: string;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -363,6 +374,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       features,
       locateFeatures = features,
       colors,
+      surfaceColor = DEFAULT_SURFACE_COLOR,
       selectedIds,
       onSelectCountry,
       onClearSelection,
@@ -840,6 +852,38 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           preserveAspectRatio="xMidYMid meet"
           onClick={handleBackgroundClick}
         >
+          {/*
+            D4-03 / `04-UI-SPEC.md` section 6.5. The composition's water, and
+            the FIRST painted layer inside the canonical SVG.
+
+            Three placement facts, none of them cosmetic:
+            1. **Outside `[data-layer="camera"]`.** Inside it, the water would
+               pan and zoom with the map and the square would show through at
+               the edges. The legend is the working precedent for a layer that
+               sits outside the camera.
+            2. **Before the camera group**, so it paints beneath everything.
+               `injectExportFontFace` inserts its `<style>` as the SVG's first
+               child in the CLONE only, giving the exported order
+               `style -> surface -> camera -> legend`.
+            3. **An inline `fill` attribute holding a resolved `#RRGGBB`.** Not
+               `var(--map-surface)`, not a class. The export rasterises this
+               subtree as an isolated document with no host stylesheet, so only
+               serialised inline state reaches the PNG. `--map-surface` keeps
+               its own job - the editor gutter and the loading skeleton - and
+               contributes zero pixels to the download.
+
+            `isPreservedComposition` compares only the INDICES of the camera and
+            legend children and their transforms, so this sibling is
+            structurally permitted as long as camera still precedes legend.
+          */}
+          <rect
+            data-layer="surface"
+            x={0}
+            y={0}
+            width={MAP_VIEWBOX_SIZE}
+            height={MAP_VIEWBOX_SIZE}
+            fill={surfaceColor}
+          />
           <g ref={cameraLayerRef} data-layer="camera">
             <g data-layer="outgoing-scenes" aria-hidden="true" />
             <g

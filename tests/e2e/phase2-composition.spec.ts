@@ -186,7 +186,18 @@ async function expectRailShell(
       .evaluateAll((elements): string[] =>
         elements.map((element): string => element.getAttribute('data-tool') ?? ''),
       ),
-  ).toEqual(['colors', 'countries', 'legend', 'saved', 'undo', 'redo']);
+    // `map-style` is second since `04-01` (D4-07, U-4 - an ASSUMPTION about
+    // order, not an owner decision). The two pinned history rows stay last and
+    // their labels stay byte-identical.
+  ).toEqual([
+    'colors',
+    'map-style',
+    'countries',
+    'legend',
+    'saved',
+    'undo',
+    'redo',
+  ]);
 
   // D-12/D-13: identity above the tools, Export below them, neither inside the
   // element that scrolls.

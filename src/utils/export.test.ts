@@ -22,6 +22,12 @@ import {
  * anything. This sentinel is a colour the exporter must overwrite in the clone
  * and must never write back to the source.
  */
+/**
+ * A value no other layer in the fixture uses, so an assertion on it cannot be
+ * accidentally satisfied by the export background, the legend ink, or a
+ * country fill.
+ */
+const SURFACE_FILL_SENTINEL = '#123456';
 const SOURCE_STROKE_SENTINEL = '#0F766E';
 
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
@@ -495,6 +501,21 @@ function createSource(): FakeSource {
   countries.appendChild(wrappedPath);
   countries.appendChild(nonSelectablePath);
   camera.appendChild(countries);
+
+  /*
+   * D4-03's water layer, a SIBLING of the camera and the first painted child
+   * (`04-UI-SPEC.md` section 6.5). It is in this fixture so the sanitizer is
+   * proven not to strip it or its inline `fill` - the failure mode is a
+   * silently white ocean in the download while the editor looks correct.
+   */
+  const surface = new FakeElement('RECT');
+  surface.setAttribute('data-layer', 'surface');
+  surface.setAttribute('x', '0');
+  surface.setAttribute('y', '0');
+  surface.setAttribute('width', '1080');
+  surface.setAttribute('height', '1080');
+  surface.setAttribute('fill', SURFACE_FILL_SENTINEL);
+  svg.appendChild(surface);
   svg.appendChild(camera);
 
   const legend = new FakeElement('G');
@@ -777,8 +798,30 @@ describe('exportMapPng', (): void => {
     const clonedLayers = clonedSvg.children.map(
       (child: FakeElement): string | null => child.getAttribute('data-layer'),
     );
-    expect(clonedLayers).toEqual([null, 'camera', 'legend']);
+    expect(clonedLayers).toEqual([null, 'surface', 'camera', 'legend']);
     expect(clonedSvg.children[0]?.tagName).toBe('STYLE');
+
+    /*
+     * D4-03. The export completing at all is the isPreservedComposition
+     * evidence - a refused composition never reaches a clone - but the layer
+     * ORDER above is what makes that meaningful: a sibling inserted before the
+     * camera shifts both indices equally, so camera-before-legend still holds.
+     *
+     * And the payload, which is the part a shifted index would not catch: the
+     * rect survives sanitization WITH its inline fill. `fill` is not in
+     * SEMANTIC_ONLY_ATTRIBUTES, the rect carries no `data-editor-only`, it is
+     * not `title,desc,metadata`, and it is not a `path.scene-path`, so none of
+     * the sanitizer's four removal passes touch it.
+     */
+    const clonedSurface = clonedSvg.querySelector('[data-layer="surface"]');
+    expect(
+      clonedSurface,
+      'the surface layer was stripped from the clone; the PNG would ship a ' +
+        'white ocean while the editor showed the creator colour.',
+    ).not.toBeNull();
+    expect(clonedSurface?.getAttribute('fill')).toBe(SURFACE_FILL_SENTINEL);
+    expect(clonedSurface?.getAttribute('width')).toBe('1080');
+    expect(clonedSurface?.getAttribute('height')).toBe('1080');
 
     const anchor = getCreatedElement(documentMock, 'A');
     expect(anchor.getAttribute('href')).toBe('blob:countriesirl-export');
@@ -804,7 +847,9 @@ describe('exportMapPng', (): void => {
 
     const clonedSvg = getSerializedClone();
     expect(clonedSvg.querySelector('STYLE')).toBeNull();
-    expect(clonedSvg.firstChild?.getAttribute('data-layer')).toBe('camera');
+    // With no injected <style>, the water layer is the SVG's first child - it
+    // is the first thing painted, which is what makes it the surface.
+    expect(clonedSvg.firstChild?.getAttribute('data-layer')).toBe('surface');
   });
 
   it('keeps the ids that paint references and strips the rest', async (): Promise<void> => {
@@ -855,7 +900,10 @@ describe('exportMapPng', (): void => {
     expect(clonedSvg.querySelector('[id="legend-swatch"]')).toBeNull();
     expect(clonedSvg.querySelector('path.country-path')?.getAttribute('id')).toBeNull();
 
-    const clonedSwatch = clonedSvg.querySelector('RECT');
+    // Addressed by its own paint reference, not by tag: `RECT` alone now also
+    // matches the water surface, and a positional locator here would silently
+    // start asserting about the wrong element.
+    const clonedSwatch = clonedSvg.querySelector('[clip-path="url(#legend-clip)"]');
     expect(clonedSwatch?.getAttribute('fill')).toBe('url(#legend-gradient)');
     expect(clonedSwatch?.getAttribute('clip-path')).toBe('url(#legend-clip)');
     expect(clonedSvg.querySelector('USE')?.getAttribute('href')).toBe(
@@ -1031,11 +1079,17 @@ describe('exportMapPng', (): void => {
   });
 
   it('refuses a composition whose legend precedes the camera group', async (): Promise<void> => {
-    const { source, sourceSvg, camera, legend } = createSource();
+    const { source, sourceSvg, camera } = createSource();
     camera.remove();
     sourceSvg.appendChild(camera);
 
-    expect(sourceSvg.children).toEqual([legend, camera]);
+    // The water surface is a permitted sibling and takes no part in the order
+    // rule; what is refused is legend BEFORE camera.
+    expect(
+      sourceSvg.children.map(
+        (child: FakeElement): string | null => child.getAttribute('data-layer'),
+      ),
+    ).toEqual(['surface', 'legend', 'camera']);
 
     await expect(exportMapPng(source)).resolves.toEqual({
       ok: false,

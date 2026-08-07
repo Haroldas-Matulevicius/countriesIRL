@@ -164,6 +164,7 @@ div.map-export-source
 ```
 svg.map-canvas
 ├── style                          ← injected export @font-face(s); FIRST child
+├── rect[data-layer="surface"]     ← 04-01: water; inline fill; OUTSIDE the camera
 ├── g[data-layer="camera"]         ← still before the legend; transform preserved
 └── g[data-layer="legend"]         ← transform preserved
 ```
@@ -172,6 +173,16 @@ The leading `<style>` is legitimate and expected: `isPreservedComposition` check
 (camera index < legend index), which a first-child insertion preserves because it shifts both
 indices equally. A doc or test that asserts `g[data-layer="camera"]` is the clone's literal
 first child is asserting the pre-03-11 shape and is wrong.
+
+**Sibling layers are structurally permitted, and `04-01` is the precedent.** The same index-shift
+argument covers `rect[data-layer="surface"]`: it is inserted before the camera, so both indices
+move together and camera-still-precedes-legend holds. The sanitizer leaves it alone by
+construction — it is not `title,desc,metadata`, it carries no `data-editor-only`, it is not a
+`path.scene-path`, and `fill` is not in `SEMANTIC_ONLY_ATTRIBUTES` — but "by construction" is not
+evidence, so `export.test.ts` asserts the rect and its `fill` survive the clone and
+`export.spec.ts`'s `water preset` gate asserts the colour on real downloaded pixels. Later Phase 4
+layers (`defs[data-layer="paint"]`, `g[data-layer="bands"]`, `g[data-layer="text"]`) follow the
+same rule and owe the same evidence.
 
 **Refuse rather than export a wrong picture.** `invalid-composition` is returned when:
 
@@ -327,14 +338,47 @@ and load read the same identity.
 
 ## Background Color Contract
 
-**Always export with an opaque white background (`#FFFFFF`).** Three layers, each deliberate:
-the canvas is `fillRect`'d white before the draw, the export frame hard-sets white inline, and
-the cloned SVG hard-sets white inline. Do not "simplify" one away because the others cover it —
-each alone keeps the PNG opaque and theme-independent, which is exactly why removing one is
-invisible until the last one goes.
+**Amended by `04-01` (D4-03, carried disagreement CD-6). The three white layers guarantee
+OPACITY; `[data-layer="surface"]` carries COLOUR. They are different jobs and neither replaces
+the other.**
 
-**Why white?** Instagram's square format looks best with a white background, and transparent
-PNGs are harder for non-technical creators to work with.
+**The opacity floor — always three white layers (`#FFFFFF`).** Each deliberate: the canvas is
+`fillRect`'d white before the draw, the export frame hard-sets white inline, and the cloned SVG
+hard-sets white inline. Do not "simplify" one away because the others cover it — each alone keeps
+the PNG opaque, which is exactly why removing one is invisible until the last one goes. **`04-01`
+did not touch any of the three, and a creator-chosen water colour is not a reason to.** They are
+what stands behind a partially transparent composition; the surface rect is not a substitute,
+because a rect can be removed by a bug and a `fillRect` on the destination canvas cannot.
+
+**The colour layer — `rect[data-layer="surface"]` inside `svg.map-canvas`.** `x=0 y=0
+width=1080 height=1080`, a direct child of the canonical SVG, **outside** `[data-layer="camera"]`
+(inside it, the water would pan and zoom with the map) and **before** it, so it paints beneath
+everything. It carries the resolved composition water colour as an **inline `fill` attribute**.
+
+**Never a CSS token, and this is measured rather than argued.** The serialised clone is
+rasterised as an isolated document that sees no host stylesheet. Writing
+`fill="var(--map-surface)"` on that rect exports **rgb(0, 0, 0)** — SVG default black — while the
+editor still looks perfectly correct; so does omitting the `fill` entirely. Both were RED-proved
+against the real downloaded bytes by `04-01`, and both produce a plausible-looking editor with a
+ruined PNG, which is why the gate samples pixels rather than markup.
+
+**`--map-surface`'s job is unchanged and is a different one.** It paints the editor gutter and the
+loading skeleton — chrome, outside the canonical SVG — and **contributes zero pixels to the PNG**.
+It stays in the mode-invariant `:root` set under Live Invariant 9. Do not point the surface rect at
+it, and do not delete it because the rect exists.
+
+**Why white as the default?** Instagram's square format looks best with a white background, and
+transparent PNGs are harder for non-technical creators to work with. `DEFAULT_SURFACE_COLOR` is
+`#FFFFFF` (the owner's Eurostat reference), so the out-of-the-box export is unchanged.
+
+**Every shipped surface colour clears a luminance floor.** `MIN_COMPOSITION_SURFACE_LUMINANCE` in
+`src/utils/contrast.ts`, so the single fixed composition ink `#111827` keeps WCAG AA 4.5:1 on it.
+The floor ships at **0.2164**, not `04-UI-SPEC.md § 4.2`'s stated 0.216: the exact requirement is
+0.21635148683120853 and 0.216 is that rounded DOWN, which passes a surface measuring 4.4941:1.
+
+**Persistence is NOT wired.** `surfaceColor` is in-memory composition state only; the V2 record's
+`settings.backgroundColor` stays pinned to `#FFFFFF` and the storage validator is unchanged. A
+saved composition reloads with the default water. `04-14` owns the V3 record.
 
 **The legend ships inside the canonical SVG before `exportMapPng` is called** — see the clone
 contract. A legend that is a *sibling* of `svg.map-canvas` is a hard `invalid-composition`
@@ -459,14 +503,20 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-06 — rewritten for D-34 (plan 03-11): html2canvas removed and the whole
+*Last updated: 2026-08-06 (later) — § Background Color Contract amended for D4-03 / CD-6 (plan
+04-01): the three white layers are now named as the OPACITY floor and `rect[data-layer="surface"]`
+as the COLOUR layer, with the "do not simplify one away" warning intact and `--map-surface`'s
+unchanged chrome-only job annotated. Two RED proofs are recorded inline — `var(--map-surface)` and
+a missing `fill` both export rgb(0, 0, 0) while the editor looks correct. The canonical clone shape
+gained the surface rect, with the sibling-layer rule the rest of Phase 4 inherits. Persistence is
+called out as NOT wired: `surfaceColor` is in-memory only until `04-14`'s V3 record.*
+*Last updated: 2026-08-06 — rewritten for D-34 (plan 03-11): html2canvas removed and the whole Last updated: 2026-08-06 (earlier) — `03-09`'s theme-independence-by-placement analysis (now*
 serialise → SVG-as-image → drawImage → toBlob path owned in `export.ts`; the canonical clone
 shape gains a leading injected `<style>`; the generalised font-embedding seam (D-34a) with its
 test-only suppression flag; the sandbox boundary as the structural reason for both font
 embedding and export theme-independence, replacing the expired `03-09` placement-and-hard-set
 analysis; the 540-intrinsic / scale-2 geometry recorded as the border-weight contract; CF-2's
 latin-only coverage limit recorded with no full-Unicode claim.*
-*Last updated: 2026-08-06 (earlier) — `03-09`'s theme-independence-by-placement analysis (now
 expired and replaced above); `EXPORT_BORDER_WIDTH` 0.75 with the `non-scaling-stroke` contract;
 journey rules from 02-27 (region-disjoint counting, discrimination controls, bytes follow
 history); no-refresh copy enforced and the Phase 2 legend inside the canonical SVG (02-25).*
