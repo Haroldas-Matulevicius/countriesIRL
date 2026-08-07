@@ -499,6 +499,21 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * `.panel-pills`, `.panel-pill`, `.panel-swatch`, `.panel-field`,
  * `.panel-error`, `.panel-action`, and `.map-style__custom`, reused rather than
  * re-authored - which is `04-UI-SPEC.md` section 11 rule 1 working as intended.
+ *
+ * **UNMOVED at 332 by `04-09` (D4-08 / D4-14), and measured rather than
+ * assumed.** Both totals were taken by running this assertion with the ceiling
+ * set to 0, before and after. The change is two rules OUT and two rules IN, and
+ * they are the same change: `.country-path.hovered:not(.focused)` and
+ * `.country-path.selected:not(.focused)` were deleted, and
+ * `.map-highlight-path--hovered` / `--selected` replaced them on the new
+ * `g[data-layer="highlight"]` layer. Hover and selection could no longer live
+ * on the country path once `coastlineWeight: none` became the default: there is
+ * no stroke left to thicken.
+ *
+ * The mesh layer costs ZERO selectors — everything it needs (`fill`,
+ * `pointer-events`, the round joins, the stroke, the width, the zoom pin) is an
+ * inline attribute, because it reaches the export clone and a rule in
+ * `MapCanvas.css` does not.
  */
 const SELECTOR_INVENTORY_CEILING = 332;
 
@@ -1357,6 +1372,26 @@ const EXPORTED_PATH_CLASSES = [
 const EXPORTER_NORMALISED_PATH_CLASSES = ['scene-path', 'country-path'] as const;
 const BORDER_MESH_PATH_CLASS = 'border-mesh-path';
 
+/**
+ * `04-09`'s hover/selection carrier. It is the mirror image of
+ * `EXPORTED_PATH_CLASSES`: these classes are rendered by `MapCanvas` and must
+ * **never** reach the export clone, so they are held to the editor-only rule
+ * rather than to the export-unsafe one.
+ *
+ * The guarantee is placement plus one attribute — the paths live inside
+ * `g[data-layer="highlight"][data-editor-only="true"]`, which
+ * `sanitizeExportClone` removes wholesale — and it is proven on real bytes by
+ * `export.test.ts` and `export.spec.ts`. What is checkable HERE is the thing a
+ * stylesheet can quietly break: the class must not be listed as exported
+ * content (which would advertise it as a published surface), and the group it
+ * lives on must still carry the attribute.
+ */
+const EDITOR_ONLY_PATH_CLASSES = [
+  'map-highlight-path',
+  'map-highlight-path--hovered',
+  'map-highlight-path--selected',
+] as const;
+
 const EXPORT_UNSAFE_PROPERTIES = [
   'filter',
   'backdrop-filter',
@@ -1460,6 +1495,72 @@ describe('Phase 3 export isolation contract', (): void => {
       'the mesh class is no longer assigned as a single constant, so it may ' +
         'have picked up `scene-path` or `country-path` alongside it.',
     ).toBe(true);
+  });
+
+  it('holds the highlight layer to the editor-only rule, not to the export one (04-09)', (): void => {
+    const mapCanvasSource = readStyleSheet('../components/MapCanvas.tsx');
+
+    EDITOR_ONLY_PATH_CLASSES.forEach((className): void => {
+      // Rendered — or the rule below is protecting a class that does not exist.
+      expect(
+        mapCanvasSource.includes(`'${className}'`),
+        `"${className}" is no longer rendered by MapCanvas.`,
+      ).toBe(true);
+
+      /*
+       * NOT exported content, and this is the whole distinction. Adding it to
+       * `EXPORT_CONTENT_PATTERN` would be harmless in effect and wrong in
+       * meaning: it would say a hover ring is a published surface, and the
+       * next author would reasonably start writing its paint inline for the
+       * PNG's benefit — into a layer that has no PNG.
+       */
+      expect(
+        EXPORT_CONTENT_PATTERN.test(`.${className}`),
+        `".${className}" is matched by EXPORT_CONTENT_PATTERN. The highlight ` +
+          'layer is editor-only and is removed wholesale by the sanitizer; ' +
+          'listing it as exported content misstates which side of the ' +
+          'boundary it is on.',
+      ).toBe(false);
+
+      expect(
+        (EXPORTED_PATH_CLASSES as ReadonlyArray<string>).includes(className),
+      ).toBe(false);
+    });
+
+    /*
+     * The attribute that makes the removal wholesale. It is asserted on the
+     * highlight GROUP specifically: `data-editor-only` elsewhere in the file
+     * (there is none today) would satisfy a bare grep for the attribute name.
+     */
+    const highlightGroup = mapCanvasSource
+      .replaceAll(/\s+/gu, ' ')
+      .match(/<g ref=\{highlightLayerRef\}[^>]*\/>/u)?.[0];
+    expect(
+      highlightGroup,
+      'the highlight group is no longer a self-closing `<g ' +
+        'ref={highlightLayerRef}>`, so this gate cannot read its attributes.',
+    ).toBeDefined();
+    expect(highlightGroup).toContain('data-layer="highlight"');
+    expect(
+      highlightGroup,
+      'the highlight group lost `data-editor-only`, so a selected country ' +
+        "now ships its 2.5-unit outline into the creator's published PNG.",
+    ).toContain('data-editor-only="true"');
+    expect(
+      highlightGroup,
+      'the highlight layer must not intercept the click it draws feedback for.',
+    ).toContain('pointerEvents="none"');
+
+    // The two colour tokens it consumes are the mode-invariant ones, so the
+    // feedback cannot follow the editor theme. `--map-border-*` is in
+    // MODE_INVARIANT_TOKENS; this asserts the highlight is what reads them.
+    const mapCanvasCss = readStyleSheet('./MapCanvas.css');
+    expect(mapCanvasCss).toContain(
+      '.map-highlight-path--hovered {\n  stroke: var(--map-border-hover);',
+    );
+    expect(mapCanvasCss).toContain(
+      '.map-highlight-path--selected {\n  stroke: var(--map-border-selected);',
+    );
   });
 });
 

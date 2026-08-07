@@ -31,7 +31,6 @@ import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_COLOR,
   NEUTRAL_UNIT_COLOR,
-  SELECTED_BORDER_COLOR,
 } from '../constants/colors';
 import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
 import {
@@ -88,6 +87,50 @@ const OUTGOING_LAYER_SELECTOR = '[data-layer="outgoing-scenes"]';
  * to do for it and cannot do the wrong thing.
  */
 const BORDER_MESH_PATH_CLASS = 'border-mesh-path';
+/*
+ * 04-09 / `04-UI-SPEC.md` section 6.9. Hover and selection render on their OWN
+ * layer, and the layer is `data-editor-only` so `sanitizeExportClone` removes
+ * it wholesale.
+ *
+ * The problem it solves is measured, not stylistic: `src/constants/colors.ts`
+ * records that border WEIGHT, not colour, carries interaction state - every
+ * border is black at every state - and `04-08` made `coastlineWeight: none` the
+ * default. There is then no coastline stroke left to thicken, so at the shipped
+ * default a creator got no hover or selection feedback at all on a coastal
+ * country. Moving the feedback onto its own layer DECOUPLES it from the
+ * composition choice: picking `none` no longer costs the affordance.
+ *
+ * It is NOT expressed on the interior mesh, and that is CD-11: a mesh segment
+ * belongs to TWO countries, so weighting one segment would highlight both.
+ */
+const HIGHLIGHT_PATH_CLASS = 'map-highlight-path';
+const HIGHLIGHT_HOVERED_CLASS = 'map-highlight-path--hovered';
+const HIGHLIGHT_SELECTED_CLASS = 'map-highlight-path--selected';
+/**
+ * User units of the 1080 viewBox, per `04-UI-SPEC.md § 6.9`. They are NOT in
+ * `STROKE_WEIGHT_UNITS`: that table is the creator's composition vocabulary and
+ * these are editor chrome, so putting them there would make a hover affordance
+ * a pickable border weight.
+ */
+const HIGHLIGHT_STROKE_WIDTHS = {
+  hovered: '1.5',
+  selected: '2.5',
+} as const;
+
+type HighlightState = keyof typeof HIGHLIGHT_STROKE_WIDTHS;
+
+interface HighlightGeometry {
+  readonly offsetX: number;
+  readonly pathData: string;
+}
+
+interface HighlightPathModel {
+  readonly key: string;
+  readonly offsetX: number;
+  readonly pathData: string;
+  readonly state: HighlightState;
+}
+
 const CROSSFADE_TRANSITION_NAME = 'scene-crossfade';
 /**
  * The SPEC default, and the value `--motion-scene` declares. It is a fallback
@@ -101,19 +144,21 @@ const SCENE_PATH_CLASS = 'scene-path';
 const COUNTRY_PATH_CLASS = 'country-path';
 const DECORATIVE_PATH_CLASS = 'country-path--decorative';
 const NON_SELECTABLE_PATH_CLASS = 'map-unit-path';
+/*
+ * State MARKERS, not paint. `04-09` moved the hover and selection weights onto
+ * `[data-layer="highlight"]`, so these three classes no longer carry a stroke
+ * of their own - `.selected` and `.hovered` have no rule in `MapCanvas.css` at
+ * all now, and `.focused` keeps its own (a focus ring is neither hover nor
+ * selection). They stay because they are the DOM markers the specs and
+ * `sanitizeExportClone`'s class strip are keyed on.
+ *
+ * The old `SELECTED_STROKE_WIDTH = '2'` presentation attribute is GONE with
+ * them: a country path's stroke is now decided by the creator's
+ * `coastlineWeight` and by nothing else, which is the whole point of the split.
+ */
 const SELECTED_CLASS = 'selected';
 const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
-/*
- * The selection weight, as a presentation attribute AND as the `.selected` CSS
- * rule. It is EDITOR-ONLY by intent: `sanitizeExportClone` overwrites it with
- * the composition's resting weight, which is why a wrapped date-line repeat of
- * a selected country cannot ship a 2px seam into the PNG.
- *
- * The resting weight is no longer a constant here - `04-08` made it composition
- * state, resolved through `STROKE_WEIGHT_UNITS`.
- */
-const SELECTED_STROKE_WIDTH = '2';
 const WRAP_OFFSETS = [-MAP_VIEWBOX_SIZE, 0, MAP_VIEWBOX_SIZE] as const;
 
 interface MapTooltipContent {
@@ -476,6 +521,26 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const svgRef = useRef<SVGSVGElement>(null);
     const cameraLayerRef = useRef<SVGGElement>(null);
     const bordersLayerRef = useRef<SVGGElement>(null);
+    const highlightLayerRef = useRef<SVGGElement>(null);
+    /*
+     * Hover is held in a REF, not in React state. It changes on every
+     * `pointerenter` across ~750 wrapped paths, and a state write there would
+     * re-render the whole canvas on mouse move; the highlight layer is redrawn
+     * imperatively instead, which is the same reason the colour effect updates
+     * paths in place rather than rebuilding them.
+     */
+    const hoveredEntityIdRef = useRef<CountryId | null>(null);
+    const selectedIdsRef = useRef<SelectedCountryIds>(selectedIds);
+    /**
+     * Entity id -> the `d` its wrapped copies actually rendered, captured from
+     * the DOM after the countries join. Read rather than re-projected: a second
+     * `geoPath` pass over 744 paths would double the cost of every scene change
+     * for geometry that is already on screen, and a re-projection is also a
+     * second chance to disagree with it.
+     */
+    const highlightGeometryRef = useRef<
+      ReadonlyMap<CountryId, ReadonlyArray<HighlightGeometry>>
+    >(new Map());
     const activeCountryIdRef = useRef<CountryId | null>(null);
     const mapReadyMeasuredRef = useRef(false);
     const colorsRef = useRef(colors);
@@ -514,6 +579,75 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         countriesLayer.style.opacity = '1';
       }
     }, []);
+    /*
+     * The one writer of `[data-layer="highlight"]`.
+     *
+     * Reads only refs, so it is referentially stable and the d3 event handlers
+     * registered in the join effect can call it without being re-registered.
+     *
+     * SELECTED WINS over hovered: a creator hovering the country they already
+     * selected must not see the feedback get lighter. One `<path>` per
+     * highlighted country per wrap offset - never all 207 - so a composition
+     * with nothing selected renders an empty group.
+     */
+    const renderHighlight = useCallback((): void => {
+      const highlightLayer = highlightLayerRef.current;
+      if (highlightLayer === null) {
+        return;
+      }
+
+      const geometry = highlightGeometryRef.current;
+      const selected = selectedIdsRef.current;
+      const hovered = hoveredEntityIdRef.current;
+      const models: HighlightPathModel[] = [];
+
+      const collect = (entityId: CountryId, state: HighlightState): void => {
+        (geometry.get(entityId) ?? []).forEach((copy): void => {
+          models.push({
+            key: `${entityId}:${copy.offsetX}`,
+            offsetX: copy.offsetX,
+            pathData: copy.pathData,
+            state,
+          });
+        });
+      };
+
+      selected.forEach((entityId): void => {
+        collect(entityId, 'selected');
+      });
+      if (hovered !== null && !selected.has(hovered)) {
+        collect(hovered, 'hovered');
+      }
+
+      select(highlightLayer)
+        .selectAll<SVGPathElement, HighlightPathModel>('path')
+        .data(models, (model): string => model.key)
+        .join(
+          (enter) =>
+            enter
+              .append('path')
+              // As an attribute, for the same zoom reason every other map path
+              // carries it: the camera wraps this layer in `scale(zoom)`, and a
+              // 2.5-unit selection ring at 8x would be a 20px band.
+              .attr('vector-effect', 'non-scaling-stroke'),
+          (update) => update,
+          (exit) => exit.remove(),
+        )
+        .attr('class', (model): string =>
+          `${HIGHLIGHT_PATH_CLASS} ${
+            model.state === 'selected'
+              ? HIGHLIGHT_SELECTED_CLASS
+              : HIGHLIGHT_HOVERED_CLASS
+          }`,
+        )
+        .attr('d', (model): string => model.pathData)
+        .attr('transform', (model): string => `translate(${model.offsetX} 0)`)
+        .attr(
+          'stroke-width',
+          (model): string => HIGHLIGHT_STROKE_WIDTHS[model.state],
+        );
+    }, []);
+
     const focusCountry = useCallback((countryId: CountryId): void => {
       const source = exportSourceRef.current;
       const escapedCountryId = CSS.escape(countryId);
@@ -698,6 +832,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           if (isSvgPathElement(event.currentTarget)) {
             event.currentTarget.classList.add(HOVERED_CLASS);
           }
+          // The HOVER half of `[data-layer="highlight"]`. Keyed on the entity,
+          // so hovering a wrapped Pacific copy lights every copy of that
+          // country rather than only the one under the pointer.
+          if (path.feature.isSelectable) {
+            hoveredEntityIdRef.current = path.entityId;
+            renderHighlight();
+          }
           callbacksRef.current.onTooltipChange(
             pointerTooltipData(
               event,
@@ -722,6 +863,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           );
         })
         .on('pointerleave.map', (event: PointerEvent, path): void => {
+          if (hoveredEntityIdRef.current === path.entityId) {
+            hoveredEntityIdRef.current = null;
+            renderHighlight();
+          }
           if (isSvgPathElement(event.currentTarget)) {
             event.currentTarget.classList.remove(HOVERED_CLASS);
             callbacksRef.current.onTooltipChange(
@@ -817,6 +962,28 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       // every path at -1 exactly as before; the color effect repairs it.
       applyRovingTabStop(paths, activeCountryIdRef.current);
 
+      /*
+       * Capture what the join actually rendered, so the highlight layer clones
+       * geometry rather than re-projecting it. Read from the DOM on purpose: a
+       * second `geoPath` pass would be a second answer to the same question,
+       * and the two would eventually differ.
+       */
+      const highlightGeometry = new Map<CountryId, HighlightGeometry[]>();
+      paths.each(function (this: SVGPathElement, path): void {
+        if (!path.feature.isSelectable) {
+          return;
+        }
+        const pathData = this.getAttribute('d') ?? '';
+        if (pathData === '') {
+          return;
+        }
+        const copies = highlightGeometry.get(path.entityId) ?? [];
+        copies.push({ offsetX: path.offsetX, pathData });
+        highlightGeometry.set(path.entityId, copies);
+      });
+      highlightGeometryRef.current = highlightGeometry;
+      renderHighlight();
+
       if (!mapReadyMeasuredRef.current) {
         const cancelPaintMeasurement = runAfterPaint((): void => {
           measureAndConsume(MAP_LOAD_START_MARK, MAP_READY_MEASURE);
@@ -833,7 +1000,13 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         paths.on('.map', null);
         paths.interrupt();
       };
-    }, [focusCountry, selectableFeatures, snapshotId, wrappedScene]);
+    }, [
+      focusCountry,
+      renderHighlight,
+      selectableFeatures,
+      snapshotId,
+      wrappedScene,
+    ]);
 
     useEffect((): (() => void) | undefined => {
       const svgElement = svgRef.current;
@@ -851,6 +1024,10 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         activeCountryIdRef.current = selectableFeatures[0]?.entityId ?? null;
       }
       const activeCountryId = activeCountryIdRef.current;
+      // The SELECTION half of `[data-layer="highlight"]`, published to the ref
+      // the imperative renderer reads before it is asked to draw.
+      selectedIdsRef.current = selectedIds;
+      renderHighlight();
       const paths = select(svgElement)
         .select<SVGGElement>('[data-layer="countries"]')
         .selectAll<SVGPathElement, WrappedScenePath>(SCENE_PATH_SELECTOR)
@@ -858,30 +1035,25 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           getSceneFeatureFill(path.feature, colors, uncoloredFill),
         )
         /*
-         * D4-08. The RESTING stroke comes from `STROKE_WEIGHT_UNITS` - the same
-         * table `sanitizeExportClone` resolves through - so the editor and the
-         * download cannot disagree about what `medium` means. Selection keeps
-         * its own heavier weight on screen; the export clone neutralises it,
-         * which is the whole reason the sanitizer's loop exists. `04-09`'s
-         * `data-editor-only` highlight layer is what eventually replaces this.
+         * D4-08, and since `04-09` this is the WHOLE story for a country path's
+         * stroke. It comes from `STROKE_WEIGHT_UNITS` - the same table
+         * `sanitizeExportClone` resolves through - so the editor and the
+         * download cannot disagree about what `medium` means, and there is no
+         * longer a selection branch competing with it: hover and selection moved
+         * to `[data-layer="highlight"]`. The creator's `coastlineWeight` is the
+         * only input.
          *
          * `null` REMOVES the attribute at `none`, rather than writing a zero:
          * SVG's initial `stroke` is `none`, so absence is what actually draws
          * nothing, and it is what the export gate asserts.
          */
-        .attr('stroke', (path): string | null =>
-          path.feature.isSelectable && selectedIds.has(path.entityId)
-            ? SELECTED_BORDER_COLOR
-            : hasStroke(coastlineWeight)
-              ? borderColor
-              : null,
+        .attr('stroke', (): string | null =>
+          hasStroke(coastlineWeight) ? borderColor : null,
         )
-        .attr('stroke-width', (path): string | null =>
-          path.feature.isSelectable && selectedIds.has(path.entityId)
-            ? SELECTED_STROKE_WIDTH
-            : hasStroke(coastlineWeight)
-              ? String(strokeWidthFor(coastlineWeight))
-              : null,
+        .attr('stroke-width', (): string | null =>
+          hasStroke(coastlineWeight)
+            ? String(strokeWidthFor(coastlineWeight))
+            : null,
         )
         .classed(
           SELECTED_CLASS,
@@ -938,6 +1110,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       borderColor,
       coastlineWeight,
       colors,
+      renderHighlight,
       selectableFeatures,
       selectedIds,
       uncoloredFill,
@@ -1126,6 +1299,34 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               fill="none"
               strokeLinejoin="round"
               strokeLinecap="round"
+            />
+            {/*
+              04-09 / `04-UI-SPEC.md` section 6.9 - hover and selection.
+
+              `data-editor-only="true"` is the whole guarantee: the sanitizer
+              removes every element carrying it WHOLESALE, before it touches
+              anything else, so this layer provably cannot move a single
+              exported pixel. That is structural rather than incidental, which
+              is the improvement over neutralising a selection stroke that had
+              already been painted onto the geometry.
+
+              INSIDE the camera and ABOVE the borders, so the feedback tracks
+              the geometry it describes and draws over the interior lines
+              rather than under them.
+
+              `pointer-events: none` is load-bearing rather than tidy: this
+              layer sits directly over the country the creator is about to
+              click, so without it the highlight would intercept the click it
+              exists to acknowledge.
+            */}
+            <g
+              ref={highlightLayerRef}
+              data-layer="highlight"
+              data-editor-only="true"
+              aria-hidden="true"
+              pointerEvents="none"
+              fill="none"
+              strokeLinejoin="round"
             />
           </g>
           {legendSlot}

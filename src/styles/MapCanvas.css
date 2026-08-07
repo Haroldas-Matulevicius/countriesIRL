@@ -209,19 +209,36 @@
 }
 
 /*
- * UI-SPEC 6: hover is a heavier boundary. No glow and no filter - the export
- * clone is rasterised as an isolated SVG document that sees none of this
- * stylesheet, so an effect authored here does not render approximately in the
- * PNG. It does not render at all.
+ * UI-SPEC 6 / `04-UI-SPEC.md` section 6.9: hover is a heavier boundary, and
+ * since `04-09` it is drawn on `g[data-layer="highlight"]` rather than on the
+ * country path itself.
+ *
+ * The move is forced, not cosmetic. `04-08` made `coastlineWeight: none` the
+ * default, so on the shipped composition there is NO coastline stroke left to
+ * thicken - `.country-path.hovered { stroke-width: 1.5px }` was about to become
+ * a rule that painted nothing for a creator who had chosen the default. The
+ * two rules it replaces are deleted rather than kept beside these, because a
+ * second carrier is a second answer.
+ *
+ * WHY THESE STROKES COME FROM A TOKEN and not from an inline attribute, which
+ * is where `04-UI-SPEC.md § 6.9` puts them: the highlight layer is
+ * `data-editor-only`, so it contributes ZERO exported pixels and the
+ * isolated-document argument that forces composition appearance inline does not
+ * apply to it. What DOES apply is the opposite rule - `coding-rules/frontend.md`
+ * § "A focus or selection stroke on map geometry uses a `--map-*` token" - and
+ * these two tokens have no other consumer, so `uiContract.test.ts`'s
+ * export-token consumer assertion is red the moment nothing reads them. The
+ * WIDTHS stay inline, per state, because they are what distinguishes the two.
+ *
+ * No glow and no filter, for the same reason as everywhere else on map
+ * geometry: `uiContract.test.ts` matches `[data-layer=` as exported content.
  */
-.country-path.hovered:not(.focused) {
+.map-highlight-path--hovered {
   stroke: var(--map-border-hover);
-  stroke-width: 1.5px;
 }
 
-.country-path.selected:not(.focused) {
+.map-highlight-path--selected {
   stroke: var(--map-border-selected);
-  stroke-width: 2px;
 }
 
 /*

@@ -34,6 +34,15 @@ import {
  */
 const SURFACE_FILL_SENTINEL = '#123456';
 const SOURCE_STROKE_SENTINEL = '#0F766E';
+/**
+ * 04-09. Distinct from every stroke the coastline contract can produce, on
+ * purpose: `MESH_STROKE_WIDTH_SENTINEL` is not `0.75` (the fallback), not `2`
+ * (`bold`), and not absent (`none`), so an exporter that began normalising the
+ * mesh would be caught on the NUMBER rather than on a passing coincidence.
+ */
+const MESH_STROKE_SENTINEL = '#7C3AED';
+const MESH_STROKE_WIDTH_SENTINEL = '0.9';
+const HIGHLIGHT_SELECTED_WIDTH = '2.5';
 
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 const LEGEND_FONT_FAMILY_DECLARATION =
@@ -521,6 +530,53 @@ function createSource(): FakeSource {
   countries.appendChild(wrappedPath);
   countries.appendChild(nonSelectablePath);
   camera.appendChild(countries);
+
+  /*
+   * 04-09's two camera-inside layers, both in the fixture because both are new
+   * routes into (and out of) the PNG and "by construction" is not evidence.
+   *
+   * The MESH must SURVIVE with its own stroke. It carries neither `scene-path`
+   * nor `country-path`, so the exporter's stroke normaliser - which resolves
+   * the COASTLINE contract - must not touch it. The sentinel width below is
+   * deliberately NOT the coastline width the same fixture declares, so a
+   * normaliser that started matching it would be caught on the number.
+   */
+  const borders = new FakeElement('G');
+  borders.setAttribute('data-layer', 'borders');
+  borders.setAttribute('aria-hidden', 'true');
+  borders.setAttribute('pointer-events', 'none');
+  borders.setAttribute('fill', 'none');
+  const meshPath = new FakeElement('PATH');
+  meshPath.setAttribute('class', 'border-mesh-path');
+  meshPath.setAttribute('d', 'M40 40 L60 60');
+  meshPath.setAttribute('stroke', MESH_STROKE_SENTINEL);
+  meshPath.setAttribute('stroke-width', MESH_STROKE_WIDTH_SENTINEL);
+  meshPath.setAttribute('vector-effect', 'non-scaling-stroke');
+  borders.appendChild(meshPath);
+  camera.appendChild(borders);
+
+  /*
+   * The HIGHLIGHT layer must be GONE. It is the selected country's outline, so
+   * if the sanitizer ever stopped removing `data-editor-only` wholesale this is
+   * the element that would ship a 2.5-unit selection ring into a creator's
+   * published image.
+   */
+  const highlight = new FakeElement('G');
+  highlight.setAttribute('data-layer', 'highlight');
+  highlight.setAttribute('data-editor-only', 'true');
+  highlight.setAttribute('aria-hidden', 'true');
+  highlight.setAttribute('pointer-events', 'none');
+  highlight.setAttribute('fill', 'none');
+  const highlightPath = new FakeElement('PATH');
+  highlightPath.setAttribute(
+    'class',
+    'map-highlight-path map-highlight-path--selected',
+  );
+  highlightPath.setAttribute('d', 'M0 0 L10 0 L10 10 Z');
+  highlightPath.setAttribute('stroke-width', HIGHLIGHT_SELECTED_WIDTH);
+  highlightPath.setAttribute('vector-effect', 'non-scaling-stroke');
+  highlight.appendChild(highlightPath);
+  camera.appendChild(highlight);
 
   /*
    * D4-03's water layer, a SIBLING of the camera and the first painted child
@@ -1026,7 +1082,9 @@ describe('exportMapPng', (): void => {
     ).resolves.toEqual({ ok: true, filename: 'CountriesIRL_2026-07-21.png' });
 
     const clonedSvg = getSerializedClone();
-    const clonedPaths = clonedSvg.querySelectorAll('path');
+    const clonedPaths = clonedSvg.querySelectorAll(
+      'path.scene-path,path.country-path',
+    );
 
     expect(clonedPaths).toHaveLength(3);
     expect(
@@ -1034,6 +1092,12 @@ describe('exportMapPng', (): void => {
         path.getAttribute('data-path-kind'),
       ),
     ).toEqual(['logical', 'decorative', 'decorative']);
+    /*
+     * 04-09: the mesh is a FOURTH path in the clone and it is not a scene path.
+     * Asserted here as well as in its own block so this test's narrowing above
+     * is visibly a narrowing rather than a shrinking subject.
+     */
+    expect(clonedSvg.querySelectorAll('path')).toHaveLength(4);
 
     const wrapped = clonedPaths.filter(
       (path: FakeElement): boolean =>
@@ -1370,8 +1434,21 @@ function createSourceDeclaring(
   return fake;
 }
 
+/**
+ * The paths the exporter's stroke normaliser claims - and ONLY those. Since
+ * `04-09` the clone also carries `path.border-mesh-path`, which the normaliser
+ * must leave alone: this helper narrows to the normaliser's own selector so a
+ * mesh silently joining it shows up as a MISSING mesh below rather than as a
+ * quietly larger loop here.
+ */
 function clonedScenePaths(): FakeElement[] {
-  return getSerializedClone().querySelectorAll('path');
+  return getSerializedClone().querySelectorAll(
+    'path.scene-path,path.country-path',
+  );
+}
+
+function clonedMeshPaths(): FakeElement[] {
+  return getSerializedClone().querySelectorAll('path.border-mesh-path');
 }
 
 function expectInteractionStateNeutralised(paths: FakeElement[]): void {
@@ -1503,4 +1580,153 @@ describe('sanitizeExportClone honours the composition border contract', (): void
     }
   });
 });
+
+  /* ------------------------------------------------------------------ *
+   * 04-09 - the two new camera-inside layers, across the sanitizer
+   * ------------------------------------------------------------------ */
+
+  describe('the interior mesh and the highlight layer cross the export boundary', (): void => {
+    /**
+     * **The mesh SURVIVES, with its own paint.**
+     *
+     * A layer that is stripped leaves an editor that looks right and a PNG that
+     * is wrong - invisible to any check that only reads the live DOM. And its
+     * stroke must be the mesh's own: the exporter's normaliser resolves the
+     * COASTLINE contract, so a mesh it claimed would be re-stroked to the
+     * coastline weight in the download and DELETED OUTRIGHT at `none`.
+     */
+    it('keeps the interior mesh, unnormalised, with its inline stroke', async (): Promise<void> => {
+      // `none` is the shipped coastline default AND the destructive branch: it
+      // REMOVES stroke and stroke-width. If the mesh were normalised here it
+      // would lose its border entirely, which is the regression 04-09 closes.
+      const { source } = createSourceDeclaring('none', DEFAULT_BORDER_COLOR);
+
+      await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+      const meshPaths = clonedMeshPaths();
+      expect(
+        meshPaths.length,
+        'the interior mesh did not survive the clone, so the exported map has ' +
+          'no lines between countries while the editor shows them.',
+      ).toBe(1);
+
+      const mesh = meshPaths[0];
+      expect(mesh?.getAttribute('stroke')).toBe(MESH_STROKE_SENTINEL);
+      expect(mesh?.getAttribute('stroke-width')).toBe(MESH_STROKE_WIDTH_SENTINEL);
+      expect(mesh?.getAttribute('d')).toBe('M40 40 L60 60');
+      // The zoom pin rides on the element itself, set by `MapCanvas`; the
+      // exporter never touches this path, so nothing re-asserts it downstream.
+      expect(mesh?.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+
+      // In the SAME run, the scene paths took the `none` branch. Without this,
+      // the mesh assertions above would also pass against an exporter whose
+      // stroke loop had simply stopped running.
+      clonedScenePaths().forEach((path: FakeElement): void => {
+        expect(path.getAttribute('stroke')).toBeNull();
+        expect(path.getAttribute('stroke-width')).toBeNull();
+      });
+
+      // And the group's inherited paint survives too - a mesh that lost
+      // `fill="none"` would flood every enclosed region with SVG default black.
+      const borders = getSerializedClone().querySelector('[data-layer="borders"]');
+      expect(borders?.getAttribute('fill')).toBe('none');
+    });
+
+    /**
+     * **The highlight layer is GONE, wholesale.**
+     *
+     * The fixture's highlight path is the SELECTED country's outline at 2.5
+     * units, so this is the assertion that a creator's published image cannot
+     * carry the editor's selection ring. RED-proved by deleting
+     * `data-editor-only` from the group.
+     */
+    it('removes the highlight layer, so interaction state cannot reach the PNG', async (): Promise<void> => {
+      const { source, sourceSvg } = createSource();
+
+      // The source really does carry it, or the absence below is about nothing.
+      expect(
+        sourceSvg.querySelectorAll('[data-layer="highlight"]'),
+      ).toHaveLength(1);
+      expect(
+        sourceSvg.querySelectorAll('path.map-highlight-path'),
+      ).toHaveLength(1);
+
+      await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+      const clone = getSerializedClone();
+      expect(
+        clone.querySelectorAll('[data-editor-only]'),
+        'an editor-only element survived the sanitizer, so every affordance ' +
+          'carrying that attribute is now a published pixel.',
+      ).toHaveLength(0);
+      expect(
+        clone.querySelectorAll('[data-layer="highlight"]'),
+        'the selection ring reached the export clone.',
+      ).toHaveLength(0);
+      expect(clone.querySelectorAll('path.map-highlight-path')).toHaveLength(0);
+      // Nothing anywhere in the clone carries the selected width, so the check
+      // cannot be satisfied by a highlight path that merely lost its class.
+      expect(
+        clone
+          .querySelectorAll('path')
+          .filter(
+            (path: FakeElement): boolean =>
+              path.getAttribute('stroke-width') === HIGHLIGHT_SELECTED_WIDTH,
+          ),
+      ).toHaveLength(0);
+
+      // The layer BELOW it survived in the same run, so this is not a clone that
+      // simply lost its camera contents.
+      expect(clonedMeshPaths()).toHaveLength(1);
+    });
+
+    /**
+     * **`isPreservedComposition` still returns true with all of them present.**
+     *
+     * It compares only the INDICES of the camera and legend children of the SVG
+     * plus their transforms, so both new layers - which are camera CHILDREN, not
+     * SVG children - are structurally invisible to it. Asserted rather than
+     * argued, because the argument is the kind that stays convincing after it
+     * stops being true.
+     */
+    it('keeps the composition preserved with surface, borders and highlight present', async (): Promise<void> => {
+      const { source, sourceSvg } = createSource();
+
+      const cameraChildren = (
+        sourceSvg.querySelector('[data-layer="camera"]')?.children ?? []
+      ).map((child: FakeElement): string | null => child.getAttribute('data-layer'));
+      expect(cameraChildren).toEqual([
+        'outgoing-scenes',
+        'countries',
+        'borders',
+        'highlight',
+      ]);
+
+      await expect(
+        exportMapPng(source),
+        'the export refused, so isPreservedComposition rejected a clone that ' +
+          'carries the two new camera layers.',
+      ).resolves.toMatchObject({ ok: true });
+
+      const clone = getSerializedClone();
+      expect(
+        clone.children.map((child: FakeElement): string | null =>
+          child.getAttribute('data-layer'),
+        ),
+      ).toEqual([null, 'surface', 'camera', 'legend']);
+      expect(
+        clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
+      ).toBe(CAMERA_TRANSFORM);
+      expect(
+        clone.querySelector('[data-layer="legend"]')?.getAttribute('transform'),
+      ).toBe(LEGEND_TRANSFORM);
+      // The camera keeps its surviving children in order: the outgoing scene and
+      // the highlight are removed, the countries and the borders are not.
+      expect(
+        (clone.querySelector('[data-layer="camera"]')?.children ?? []).map(
+          (child: FakeElement): string | null => child.getAttribute('data-layer'),
+        ),
+      ).toEqual(['countries', 'borders']);
+    });
+  });
 });

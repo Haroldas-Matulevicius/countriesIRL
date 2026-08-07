@@ -1225,20 +1225,28 @@ const DARK_INK_THRESHOLD = 100;
 const MEASURED_BOUNDARY_INK_PIXELS = 45_190;
 const MIN_BOUNDARY_INK_PIXELS = 20_000;
 /**
- * The floor for a 12x12 coastline band (`04-08`). MEASURED in this same change,
- * in installed Chrome 151.0.7922.76, at the default world camera:
+ * The floor for a 12x12 coastline band (`04-08`).
+ *
+ * **RE-MEASURED by `04-09` because the sample point moved** - see
+ * `AUSTRALIA_WEST_COAST_LON_LAT` for why Cabo da Roca stopped being a pure
+ * coastline sample. `04-08`'s table at Cabo da Roca read hairline **42**, thin
+ * **68**, bold **185**, none **0**; those numbers described a band that also
+ * contained the Portugal/Spain line, which is exactly why they are restated
+ * rather than carried. Measured in installed Chrome 151.0.7922.76 at the
+ * default world camera, at the new point:
  *
  * | weight | user units | ink pixels in the band |
  * |---|---|---|
- * | `hairline` | 0.5 | **42** |
- * | `thin` | 0.75 | **68** |
- * | `bold` | 2 | **185** |
+ * | `hairline` | 0.5 | **27** |
+ * | `thin` | 0.75 | **37** |
+ * | `bold` | 2 | **113** |
  * | `none` | 0 | **0** |
  *
- * The floor is 8 — well under the lightest real step, so ordinary rendering
- * variation does not make it flap, and eight times the zero a blank or
- * flood-filled frame produces. Restate these numbers if the sample point or the
- * band radius ever moves; do not delete the floor.
+ * The floor STAYS at 8 - still under the lightest real step, and eight times
+ * the zero a blank or flood-filled frame produces. It was not lowered to
+ * accommodate the smaller counts, and the numbers are smaller because the band
+ * now contains one line instead of two. Restate these if the sample point or
+ * the band radius ever moves; do not delete the floor.
  */
 const MIN_COASTLINE_BAND_INK_PIXELS = 8;
 const WHOLE_FRAME_REGION: LegendRegion = {
@@ -1553,18 +1561,32 @@ test.describe('water preset', (): void => {
 
 /**
  * A point that is certainly ON a coastline at the default world camera, derived
- * through `createWorldProjection()` rather than hard-coded. The western edge of
- * mainland Portugal (Cabo da Roca, 38.78 N) is the sharpest land/sea boundary
- * in the frame that is not also an interior border, so ink measured around it
- * is coastline ink.
+ * through `createWorldProjection()` rather than hard-coded.
  *
- * `COASTLINE_BAND_RADIUS` is in PNG pixels. The viewBox is 1080 over an
- * EXPORT_SIZE of 1080, so a viewBox coordinate IS a PNG pixel; a radius of 6
- * comfortably contains a `bold` (2 user unit -> 4px) stroke plus its
- * anti-aliasing while excluding the neighbouring Spanish border.
+ * **MOVED by `04-09`, and the move is a repair rather than a re-baseline.**
+ * `04-08` sampled Cabo da Roca (-9.5, 38.78), the western tip of mainland
+ * Portugal, on the stated ground that a 6px radius "excludes the neighbouring
+ * Spanish border". That was true only while nothing drew interior borders. It
+ * is 1.5 degrees of longitude to the Portugal/Spain line, which at 1080px for
+ * 360 degrees is **4.5 PNG pixels** - inside the band. Once `04-09` rendered
+ * the interior mesh, the band measured interior ink at `coastlineWeight: none`
+ * and the gate stopped measuring its advertised subject.
+ *
+ * The repair is a coastline with **no interior border anywhere in the country**:
+ * Australia's west coast near North West Cape. Australia has no land neighbours
+ * at all, so the exclusion is structural rather than a distance that has to be
+ * re-checked whenever a line layer is added. Cabo da Roca measured **23** ink
+ * pixels at `coastlineWeight: none` once the mesh rendered; this point measures
+ * **0**. See `MIN_COASTLINE_BAND_INK_PIXELS` for the restated table.
+ *
+ * `COASTLINE_BAND_RADIUS` is in PNG pixels and is UNCHANGED. The viewBox is
+ * 1080 over an EXPORT_SIZE of 1080, so a viewBox coordinate IS a PNG pixel; a
+ * radius of 6 comfortably contains a `bold` (2 user unit -> 4px) stroke plus
+ * its anti-aliasing.
  */
-const CABO_DA_ROCA_LON_LAT: readonly [number, number] = [-9.5, 38.78];
+const AUSTRALIA_WEST_COAST_LON_LAT: readonly [number, number] = [113.7, -22.3];
 const COASTLINE_BAND_RADIUS = 6;
+
 /** An interior point of a large country, well clear of any boundary. */
 const CENTRAL_BRAZIL_LON_LAT: readonly [number, number] = [-52, -10];
 const CENTRAL_BRAZIL_COUNTRY_ID = 'BRA';
@@ -1697,6 +1719,7 @@ test.describe('interior borders', (): void => {
       'outgoing-scenes',
       'countries',
       'borders',
+      'highlight',
     ]);
 
     // NON-INTERACTIVE, as attributes rather than a stylesheet rule.
@@ -1790,6 +1813,258 @@ test.describe('interior borders', (): void => {
   });
 });
 
+/* ------------------------------------------------------------------ *
+ * 04-09 - hover and selection on a carrier that is not the coastline
+ * ------------------------------------------------------------------ */
+
+/** `04-UI-SPEC.md § 6.9`, in user units of the 1080 viewBox. */
+const HIGHLIGHT_SELECTED_WIDTH = '2.5';
+const HIGHLIGHT_HOVERED_WIDTH = '1.5';
+
+test.describe('highlight layer', (): void => {
+  /**
+   * **The decoupling, asserted as an inequality between two carriers.**
+   *
+   * `04-08` made `coastlineWeight: none` the default, and the editor's
+   * selection feedback was a heavier stroke on the country path itself. At the
+   * shipped default there is no stroke to make heavier, so a creator selecting
+   * a coastal country saw nothing at all. The gate therefore asserts BOTH
+   * halves in one run: the country path carries exactly the creator's chosen
+   * weight (zero at `none`) AND the highlight layer carries the feedback.
+   *
+   * A single "the highlight exists" check would stay green with the old
+   * selection stroke still painted on the geometry beside it.
+   */
+  test('carries selection at the shipped default, where the coastline cannot', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    /*
+     * Park the pointer over the tool rail. Playwright starts the mouse at
+     * (0, 0), and Chrome fires `pointerenter` when content appears under a
+     * stationary cursor - on a full-bleed canvas that is a hovered country,
+     * and the layer would carry ITS three paths beside the selected ones.
+     */
+    await page.mouse.move(28, 400);
+
+    /*
+     * Selected by KEYBOARD, then blurred. A `.click()` targets the bounding-box
+     * centre, and France's bbox centre lands in Mali; and focus itself paints
+     * `.country-path.focused` at 3px, which would contaminate the resting-width
+     * assertion below with a state that is neither hover nor selection.
+     */
+    const france = page.locator(
+      'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+    );
+    await france.focus();
+    await france.press('Enter');
+    await expect(france).toHaveAttribute('aria-selected', 'true');
+    await page.evaluate((): void => {
+      const active = document.activeElement;
+      if (active instanceof SVGElement || active instanceof HTMLElement) {
+        active.blur();
+      }
+    });
+    await expect(france).not.toHaveClass(/\bfocused\b/u);
+
+    const readState = (): Promise<{
+      highlightCount: number;
+      highlightClasses: ReadonlyArray<string | null>;
+      highlightWidths: ReadonlyArray<string | null>;
+      highlightTransforms: ReadonlyArray<string | null>;
+      highlightVectorEffects: number;
+      highlightComputedStroke: string | null;
+      highlightPointerEvents: string | null;
+      groupEditorOnly: string | null;
+      cameraChildren: ReadonlyArray<string | null>;
+      countryStrokeWidthAttribute: string | null;
+      countryComputedStrokeWidth: string | null;
+    }> =>
+      page.evaluate(() => {
+        const camera = document.querySelector(
+          'svg.map-canvas [data-layer="camera"]',
+        );
+        const group = camera?.querySelector(
+          ':scope > [data-layer="highlight"]',
+        );
+        const paths = [...(group?.querySelectorAll(':scope > path') ?? [])];
+        const first = paths[0] ?? null;
+        const country = document.querySelector(
+          'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+        );
+
+        return {
+          highlightCount: paths.length,
+          highlightClasses: [
+            ...new Set(paths.map((path) => path.getAttribute('class'))),
+          ],
+          highlightWidths: [
+            ...new Set(paths.map((path) => path.getAttribute('stroke-width'))),
+          ],
+          highlightTransforms: [
+            ...new Set(paths.map((path) => path.getAttribute('transform'))),
+          ].sort(),
+          highlightVectorEffects: paths.filter(
+            (path) =>
+              path.getAttribute('vector-effect') === 'non-scaling-stroke',
+          ).length,
+          highlightComputedStroke:
+            first === null ? null : getComputedStyle(first).stroke,
+          highlightPointerEvents:
+            group === null || group === undefined
+              ? null
+              : getComputedStyle(group).pointerEvents,
+          groupEditorOnly: group?.getAttribute('data-editor-only') ?? null,
+          cameraChildren: [...(camera?.children ?? [])].map((child) =>
+            child.getAttribute('data-layer'),
+          ),
+          countryStrokeWidthAttribute:
+            country?.getAttribute('stroke-width') ?? null,
+          countryComputedStrokeWidth:
+            country === null ? null : getComputedStyle(country).strokeWidth,
+        };
+      });
+
+    /*
+     * `.country-path` transitions `stroke-width` over 150ms, so an immediate
+     * read after the blur samples a value in flight - measured at 1.17854px
+     * between the focus ring's 3px and the resting 0. Poll until it settles,
+     * then take ONE snapshot for every assertion below.
+     */
+    await expect
+      .poll(async (): Promise<string | null> =>
+        (await readState()).countryComputedStrokeWidth,
+      )
+      .toBe('0px');
+    const selected = await readState();
+
+    // 1. THE HIGHLIGHT IS THE CARRIER. Wrapped like everything else inside the
+    //    camera, so a Pacific-framed selection keeps its feedback.
+    expect(selected.highlightCount).toBe(MESH_WRAP_COPY_COUNT);
+    expect(selected.highlightClasses).toEqual([
+      'map-highlight-path map-highlight-path--selected',
+    ]);
+    expect(selected.highlightWidths).toEqual([HIGHLIGHT_SELECTED_WIDTH]);
+    expect(selected.highlightTransforms).toEqual([
+      'translate(-1080 0)',
+      'translate(0 0)',
+      'translate(1080 0)',
+    ]);
+    expect(selected.highlightVectorEffects).toBe(MESH_WRAP_COPY_COUNT);
+    // The mode-invariant `--map-border-selected`, resolved by the browser.
+    expect(selected.highlightComputedStroke).toBe('rgb(0, 0, 0)');
+
+    // 2. IT NEVER INTERCEPTS THE CLICK it is drawing feedback for, and it is
+    //    marked for wholesale removal by the sanitizer.
+    expect(selected.highlightPointerEvents).toBe('none');
+    expect(selected.groupEditorOnly).toBe('true');
+    expect(selected.cameraChildren).toEqual([
+      'outgoing-scenes',
+      'countries',
+      'borders',
+      'highlight',
+    ]);
+
+    // 3. THE COUNTRY PATH DID NOT MOVE. At the shipped `coastlineWeight: none`
+    //    the attribute is ABSENT and the computed width is zero - so the old
+    //    2px selection stroke provably is not there beside the new carrier.
+    expect(selected.countryStrokeWidthAttribute).toBeNull();
+    expect(selected.countryComputedStrokeWidth).toBe('0px');
+
+    // 4. AND IT FOLLOWS THE CREATOR, NOT THE SELECTION. Choosing `Bold` moves
+    //    the country path to 2 and leaves the highlight at 2.5: two carriers,
+    //    two inputs, asserted in the same run.
+    await openRailTool(page, 'Map style');
+    await chooseStrokeWeight(page, 'Coastlines', 'Bold');
+    await expect
+      .poll(async (): Promise<string | null> =>
+        (await readState()).countryComputedStrokeWidth,
+      )
+      .toBe('2px');
+    const bold = await readState();
+    expect(bold.countryStrokeWidthAttribute).toBe('2');
+    expect(bold.highlightWidths).toEqual([HIGHLIGHT_SELECTED_WIDTH]);
+  });
+
+  test('draws hover feedback, and selection outranks it', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const readHighlight = (): Promise<
+      ReadonlyArray<{ readonly cls: string | null; readonly width: string | null }>
+    > =>
+      page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            'svg.map-canvas [data-layer="highlight"] > path',
+          ),
+        ].map((path) => ({
+          cls: path.getAttribute('class'),
+          width: path.getAttribute('stroke-width'),
+        })),
+      );
+
+    /*
+     * Park the pointer over the tool rail first. Chrome fires `pointerenter`
+     * when content appears UNDER a stationary cursor, and Playwright starts the
+     * mouse at (0, 0) - which on a full-bleed canvas is over the map. Without
+     * this the "empty layer" baseline below is measuring whichever country
+     * happened to load beneath the corner.
+     */
+    await page.mouse.move(28, 400);
+
+    // Nothing hovered, nothing selected: an EMPTY layer, never all 207.
+    await expect
+      .poll(async (): Promise<number> => (await readHighlight()).length)
+      .toBe(0);
+
+    const brazil = page.locator(
+      'path.country-path[data-country-id="BRA"][data-path-kind="logical"]',
+    );
+    await brazil.hover();
+    await expect
+      .poll(async (): Promise<ReadonlyArray<string | null>> =>
+        (await readHighlight()).map((entry): string | null => entry.width),
+      )
+      .toEqual([
+        HIGHLIGHT_HOVERED_WIDTH,
+        HIGHLIGHT_HOVERED_WIDTH,
+        HIGHLIGHT_HOVERED_WIDTH,
+      ]);
+    expect(
+      (await readHighlight()).every((entry): boolean =>
+        (entry.cls ?? '').includes('map-highlight-path--hovered'),
+      ),
+    ).toBe(true);
+
+    /*
+     * SELECTED OUTRANKS HOVERED, and the click leaves the pointer on the same
+     * country - so this is the exact overlap. Without the precedence the
+     * feedback would get LIGHTER the moment a creator selected what they were
+     * hovering.
+     */
+    await brazil.click();
+    await expect
+      .poll(async (): Promise<ReadonlyArray<string | null>> =>
+        (await readHighlight()).map((entry): string | null => entry.width),
+      )
+      .toEqual([
+        HIGHLIGHT_SELECTED_WIDTH,
+        HIGHLIGHT_SELECTED_WIDTH,
+        HIGHLIGHT_SELECTED_WIDTH,
+      ]);
+    expect(
+      (await readHighlight()).every((entry): boolean =>
+        (entry.cls ?? '').includes('map-highlight-path--selected'),
+      ),
+    ).toBe(true);
+  });
+});
+
 test.describe('border weight', (): void => {
   /**
    * **GATE A — the coastline is quiet, and the same point inks when it is not.**
@@ -1809,7 +2084,7 @@ test.describe('border weight', (): void => {
     await page.goto('/');
     await waitForApp(page);
 
-    const coastline = await projectToExportPixel(page, CABO_DA_ROCA_LON_LAT);
+    const coastline = await projectToExportPixel(page, AUSTRALIA_WEST_COAST_LON_LAT);
     const band = bandAround(coastline, COASTLINE_BAND_RADIUS);
 
     await openRailTool(page, 'Map style');
@@ -1873,7 +2148,7 @@ test.describe('border weight', (): void => {
     await page.goto('/');
     await waitForApp(page);
 
-    const coastline = await projectToExportPixel(page, CABO_DA_ROCA_LON_LAT);
+    const coastline = await projectToExportPixel(page, AUSTRALIA_WEST_COAST_LON_LAT);
     const band = bandAround(coastline, COASTLINE_BAND_RADIUS);
 
     await openRailTool(page, 'Map style');

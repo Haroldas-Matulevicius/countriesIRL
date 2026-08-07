@@ -175,6 +175,14 @@
               entityLookup: new Map(),
               countryMetadata: [],
               warnings: [],
+              // 04-09: the interior-border mesh is a third payload. This
+              // fixture composes MapWorkspace with a hand-built state object
+              // and is plain JS, so TypeScript cannot require the two new
+              // fields here - they are supplied explicitly. `null` renders the
+              // crossfade scenes without interior lines, which is what this
+              // fixture is about.
+              borderMesh: null,
+              borderMeshWarnings: [],
             },
             periodHud: h(PeriodHud, {
               periods: PERIODS,
