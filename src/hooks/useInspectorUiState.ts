@@ -6,13 +6,26 @@ import {
   reduceLocateState,
 } from '../components/LocateCountry';
 import type { LocateAction, LocateState } from '../components/LocateCountry';
+import type { RampId } from '../utils/ramps';
 import type { WorldCountryMetadata } from './useGeoData';
+
+/** The strip a fresh session opens on. `04-02`'s first family. */
+const DEFAULT_RAMP_ID: RampId = 'blues';
 
 export interface InspectorUiState {
   readonly countryQuery: string;
   readonly setCountryQuery: (query: string) => void;
   readonly customColorDraft: string;
   readonly setCustomColorDraft: (draft: string) => void;
+  /**
+   * The Colors panel's selected ramp family, held here for the same reason the
+   * drafts are: the 1200px transition remounts the panel, and a creator who
+   * picked `Greens` should not find `Blues` again after resizing the window.
+   * It is UI state, never composition state - the ramp a country is PAINTED
+   * with lives in its own `ColorValue`.
+   */
+  readonly rampId: RampId;
+  readonly setRampId: (rampId: RampId) => void;
   /** The `Map style` panel's custom water hex, held here for the same reason. */
   readonly customSurfaceDraft: string;
   readonly setCustomSurfaceDraft: (draft: string) => void;
@@ -41,6 +54,7 @@ export function useInspectorUiState(
 ): InspectorUiState {
   const [countryQuery, setCountryQuery] = useState('');
   const [customColorDraft, setCustomColorDraft] = useState('');
+  const [rampId, setRampId] = useState<RampId>(DEFAULT_RAMP_ID);
   const [customSurfaceDraft, setCustomSurfaceDraft] = useState('');
   const [isLegendExpanded, setLegendExpanded] = useState(false);
   const locateReducer = useCallback(
@@ -67,6 +81,8 @@ export function useInspectorUiState(
       setCountryQuery,
       customColorDraft,
       setCustomColorDraft,
+      rampId,
+      setRampId,
       customSurfaceDraft,
       setCustomSurfaceDraft,
       isLegendExpanded,
@@ -77,6 +93,7 @@ export function useInspectorUiState(
     [
       countryQuery,
       customColorDraft,
+      rampId,
       customSurfaceDraft,
       isLegendExpanded,
       locateState,

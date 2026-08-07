@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/constants/config';
-import { legendDisclosure, openRailTool } from './support/appHarness';
+import {
+  applyRampRed,
+  legendDisclosure,
+  openRailTool,
+} from './support/appHarness';
 
 const LOGICAL_CORE_COUNT = 207;
 // UI-SPEC section 20: the map label names the active period.
@@ -350,11 +354,11 @@ test('real app saves and loads the complete composition after responsive rebindi
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
   await openRailTool(page, 'Legend');
   await legendDisclosure(page).click();
-  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  const legendLabel = page.getByLabel('Legend label for #DE2D26');
   await legendLabel.fill('Visited France');
   await legendLabel.press('Enter');
   await expect(page.locator('[data-layer="legend"] text')).toHaveText(
@@ -574,8 +578,8 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
 
   await openRailTool(page, 'Saved Maps');
   const loadButton = page.getByRole('button', {
@@ -605,7 +609,7 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await keepEditing.click();
   await expect(loadConfirm).toHaveCount(0);
   await expect(loadButton).toBeFocused();
-  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+  await expect(francePath).toHaveAttribute('fill', '#DE2D26');
 
   // Escape declines the confirmation without closing the panel behind it.
   await loadButton.click();
@@ -631,7 +635,7 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
   await page.keyboard.press('Escape');
   await expect(loadConfirm).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Save Map' })).toBeVisible();
-  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+  await expect(francePath).toHaveAttribute('fill', '#DE2D26');
 
   const deleteButton = page.getByRole('button', {
     name: 'Delete Saved Map: Custom view map',
@@ -680,7 +684,7 @@ test('Saved Maps require a two-step delete and confirm loading over unsaved work
     ),
   ).toEqual([]);
   // Deleting a saved map never touches the working composition.
-  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+  await expect(francePath).toHaveAttribute('fill', '#DE2D26');
 });
 
 test('the saved panel closes back to its rail row and a load focuses the map', async ({

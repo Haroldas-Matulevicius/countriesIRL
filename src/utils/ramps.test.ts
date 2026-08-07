@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   COMPOSITION_INK_COLOR,
+  COMPOSITION_PAPER_COLOR,
   WCAG_AA_BODY_RATIO,
   contrastRatio,
+  labelInkForShade,
   parseHexColor,
   relativeLuminance,
 } from './contrast';
@@ -12,6 +14,9 @@ import {
   RAMPS,
   RAMP_IDS,
   RAMP_STEP_COUNT,
+  rampStepAccessibleName,
+  rampStepPosition,
+  rampStepReadout,
   shadeForIndex,
   shadeForValue,
 } from './ramps';
@@ -22,9 +27,6 @@ import {
  * SECOND legend entry rather than matching the first.
  */
 const CANONICAL_HEX_PATTERN = /^#[0-9A-F]{6}$/u;
-
-/** The lighter of the two label colours the ramp strip's check glyph picks. */
-const COMPOSITION_PAPER_COLOR = '#FFFFFF';
 
 /**
  * Literals, never `RAMPS.length * RAMP_STEP_COUNT`. A count written as a
@@ -347,7 +349,17 @@ describe('Gate 2 — globally disjoint shade sets', (): void => {
 });
 
 describe('Gate 3 — every shade carries a readable label', (): void => {
-  it('clears 4.5:1 against whichever of paper / ink the strip would pick', (): void => {
+  /**
+   * **Repointed by `04-07` at `labelInkForShade`, which is the function the
+   * strip's check glyph actually calls.**
+   *
+   * It used to inline `Math.max(onPaper, onInk)`. That rates a HYPOTHETICAL
+   * best case: it would stay green if the renderer picked the other colour,
+   * because the max is a property of the shade rather than of the choice. One
+   * function decides both sides now, so the gate asserts the renderer's real
+   * pick.
+   */
+  it('clears 4.5:1 against whichever of paper / ink the strip actually picks', (): void => {
     let assertedShades = 0;
 
     for (const ramp of RAMPS) {
@@ -356,14 +368,116 @@ describe('Gate 3 — every shade carries a readable label', (): void => {
         const onInk = contrastRatio(shade, COMPOSITION_INK_COLOR);
 
         expect(
-          Math.max(onPaper, onInk),
-          `ramp "${ramp.id}" shade ${shade} measures ${onPaper.toFixed(4)}:1 on ${COMPOSITION_PAPER_COLOR} and ${onInk.toFixed(4)}:1 on ${COMPOSITION_INK_COLOR}; neither label colour is readable on it`,
+          contrastRatio(labelInkForShade(shade), shade),
+          `ramp "${ramp.id}" shade ${shade} measures ${onPaper.toFixed(4)}:1 on ${COMPOSITION_PAPER_COLOR} and ${onInk.toFixed(4)}:1 on ${COMPOSITION_INK_COLOR}; the label the strip would draw is not readable on it`,
         ).toBeGreaterThanOrEqual(WCAG_AA_BODY_RATIO);
         assertedShades += 1;
       }
     }
 
     expect(assertedShades).toBe(EXPECTED_TOTAL_SHADES);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * `04-07` — the ramp strip's pure vocabulary
+ *
+ * Vitest runs on `node` with NO DOM, so the strip's rendering is Playwright's
+ * job. What CAN be gated here is everything the strip is made of: the position
+ * a segment writes, the accessible name it carries, and the readout under it.
+ * They live in `ramps.ts` because it is the ONE home for the ramp vocabulary -
+ * putting them beside the component would make them untestable in this runner
+ * and would invite a second, drifting copy of the `Step i of n` format.
+ * ------------------------------------------------------------------ */
+
+describe('rampStepPosition', (): void => {
+  /**
+   * **The round trip is the whole contract.** A creator clicks segment `i` and
+   * the country stores `{rampId, t}`; if `shadeForValue` does not snap that `t`
+   * back to segment `i`, the strip highlights one shade and the map paints
+   * another. Asserted against `shadeForValue` itself rather than against a
+   * table of expected positions, so the two cannot drift apart.
+   */
+  it('round-trips every step through shadeForValue for every ramp', (): void => {
+    let checked = 0;
+
+    for (const ramp of RAMPS) {
+      for (let step = 1; step <= RAMP_STEP_COUNT; step += 1) {
+        const position = rampStepPosition(step, RAMP_STEP_COUNT);
+
+        expect(position).toBeGreaterThanOrEqual(0);
+        expect(position).toBeLessThanOrEqual(1);
+        expect(
+          shadeForValue(ramp, position),
+          `ramp "${ramp.id}" step ${String(step)} resolves to the wrong shade`,
+        ).toBe(ramp.shades[step - 1]);
+        checked += 1;
+      }
+    }
+
+    expect(checked).toBe(EXPECTED_TOTAL_SHADES);
+  });
+
+  it('pins the ends, so step 1 is the lightest and step n the darkest', (): void => {
+    expect(rampStepPosition(1, RAMP_STEP_COUNT)).toBe(0);
+    expect(rampStepPosition(RAMP_STEP_COUNT, RAMP_STEP_COUNT)).toBe(1);
+  });
+
+  /**
+   * A single-class strip carries the whole ramp and takes the DARKEST shade -
+   * the same choice `shadeForIndex` makes, and for the same reason: the
+   * lightest is near-white and would be invisible against the uncolored fill.
+   */
+  it('gives a one-step strip the darkest shade', (): void => {
+    expect(rampStepPosition(1, 1)).toBe(1);
+  });
+
+  it('throws on a step outside the strip rather than resolving to an end', (): void => {
+    expect((): number => rampStepPosition(0, RAMP_STEP_COUNT)).toThrow();
+    expect((): number =>
+      rampStepPosition(RAMP_STEP_COUNT + 1, RAMP_STEP_COUNT),
+    ).toThrow();
+    expect((): number => rampStepPosition(1.5, RAMP_STEP_COUNT)).toThrow();
+  });
+});
+
+describe('rampStepAccessibleName and rampStepReadout', (): void => {
+  /**
+   * Byte-exact against `04-UI-SPEC.md § 9`. The separator is U+00B7 MIDDLE DOT,
+   * written as an escape here so a copy-paste through an editor that
+   * normalises punctuation fails this assertion instead of shipping a
+   * different glyph into every screen reader.
+   */
+  it('formats both strings exactly as the copy contract specifies', (): void => {
+    expect(rampStepAccessibleName('Blues', 3, 5)).toBe(
+      'Apply Blues shade 3 of 5',
+    );
+    expect(rampStepReadout(3, 5, '#6BAED6')).toBe(
+      `Step 3 of 5 \u00b7 #6BAED6`,
+    );
+  });
+
+  it('canonicalises the readout hex to uppercase', (): void => {
+    expect(rampStepReadout(1, 5, '#eff3ff')).toContain('#EFF3FF');
+  });
+
+  /**
+   * Every shipped ramp, so a family whose name breaks the pattern - a trailing
+   * space, a stray article - is caught by the gate rather than by a listener.
+   */
+  it('names every step of every shipped ramp', (): void => {
+    let named = 0;
+
+    for (const ramp of RAMPS) {
+      for (let step = 1; step <= RAMP_STEP_COUNT; step += 1) {
+        expect(rampStepAccessibleName(ramp.name, step, RAMP_STEP_COUNT)).toBe(
+          `Apply ${ramp.name} shade ${String(step)} of ${String(RAMP_STEP_COUNT)}`,
+        );
+        named += 1;
+      }
+    }
+
+    expect(named).toBe(EXPECTED_TOTAL_SHADES);
   });
 });
 

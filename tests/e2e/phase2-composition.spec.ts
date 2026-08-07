@@ -2,7 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { zoomIdentity } from 'd3';
 
 import { STORAGE_KEY } from '../../src/constants/config';
-import { legendDisclosure, openRailTool } from './support/appHarness';
+import {
+  applyRampRed,
+  legendDisclosure,
+  openRailTool,
+} from './support/appHarness';
 import { transformToCamera } from '../../src/utils/camera';
 import {
   HISTORICAL_ASSET_PATH,
@@ -594,7 +598,7 @@ test('tool drafts survive both a tool switch and the 1200px transition', async (
 
   await openRailTool(page, 'Colors');
   await expectPanelBodyIsTheScrollContainer(page);
-  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await applyRampRed(page);
   await page.getByLabel('Custom color').fill('#123456');
 
   await openRailTool(page, 'Countries');
@@ -603,7 +607,7 @@ test('tool drafts survive both a tool switch and the 1200px transition', async (
 
   await openRailTool(page, 'Legend');
   await legendDisclosure(page).click();
-  await expect(page.getByLabel('Legend label for #DC2626')).toBeVisible();
+  await expect(page.getByLabel('Legend label for #DE2D26')).toBeVisible();
 
   const expectPreservedToolState = async (): Promise<void> => {
     await openRailTool(page, 'Colors');
@@ -622,7 +626,7 @@ test('tool drafts survive both a tool switch and the 1200px transition', async (
       'aria-expanded',
       'true',
     );
-    await expect(page.getByLabel('Legend label for #DC2626')).toBeVisible();
+    await expect(page.getByLabel('Legend label for #DE2D26')).toBeVisible();
 
     await expect(page.locator('svg.map-canvas')).toHaveAttribute(
       'data-camera-owner-sentinel',
@@ -656,8 +660,8 @@ test('real app export failure and frozen load both release without false success
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
   await page.getByRole('button', { name: 'Zoom In' }).click();
   await openRailTool(page, 'Saved Maps');
   await page.getByRole('textbox', { name: 'Map name' }).fill('Freeze baseline');
@@ -683,8 +687,8 @@ test('real app export failure and frozen load both release without false success
   await expect(page.getByRole('button', { name: 'Exporting PNG…' })).toBeVisible();
   await expect(page.locator('[data-layer="legend"] text')).toHaveCount(2);
   expect(await page.locator('[data-layer="legend"] text').allTextContents()).toEqual([
-    '#DC2626',
-    '#DC2626',
+    '#DE2D26',
+    '#DE2D26',
   ]);
   await page.setViewportSize({ width: 900, height: 900 });
   await expect(page.getByRole('main', { name: 'Map creator workspace' })).toHaveClass(
@@ -747,14 +751,14 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
 
   await openRailTool(page, 'Legend');
   const legendToggle = legendDisclosure(page);
   await legendToggle.click();
   await page.getByLabel('Large').check();
-  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  const legendLabel = page.getByLabel('Legend label for #DE2D26');
   await legendLabel.fill('12345678901234567890123456789012');
   await legendLabel.press('Enter');
   await expect(
@@ -781,7 +785,7 @@ test('a collapsed Legend panel never leaves Export PNG permanently blocked', asy
   // Collapsing the disclosure unmounts the editor; resetting the colors makes
   // the legend trivially valid again. The gate must follow the live state.
   await legendToggle.click();
-  await expect(page.getByLabel('Legend label for #DC2626')).toHaveCount(0);
+  await expect(page.getByLabel('Legend label for #DE2D26')).toHaveCount(0);
   await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
   await expect(page.locator('[data-layer="legend"] text')).toHaveCount(0);
@@ -851,14 +855,16 @@ test('real app round-trips a historical scene with live catalog and exported leg
   await expect(franceRow).not.toBeChecked();
   await expect(page.getByRole('button', { name: 'Select Visible' })).toBeDisabled();
   await openRailTool(page, 'Colors');
-  await expect(page.getByRole('button', { name: 'Apply Red' })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Apply Blues shade 4 of 5' }),
+  ).toBeDisabled();
   await openRailTool(page, 'Countries');
   await expect(page.locator('[data-selection-live-region="true"]')).not.toHaveText(
     /country selected\./,
   );
   await openRailTool(page, 'Colors');
   await expect(
-    page.getByRole('heading', { name: 'Select countries to color' }),
+    page.getByRole('heading', { name: 'No countries selected' }),
   ).toBeVisible();
 
   await openRailTool(page, 'Countries');
@@ -1027,8 +1033,8 @@ test('a legend detached from the canonical SVG refuses the export without a refr
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
   await expect(
     page.locator('svg.map-canvas > [data-layer="legend"]'),
   ).toHaveCount(1);
@@ -1063,7 +1069,7 @@ test('a legend detached from the canonical SVG refuses the export without a refr
   await expect(page.getByText('PNG downloaded at 1080 × 1080.')).toHaveCount(0);
   expect(downloadNames).toHaveLength(0);
   // The colors survive the refusal, which is what "Your map is unchanged" says.
-  await expect(francePath).toHaveAttribute('fill', '#DC2626');
+  await expect(francePath).toHaveAttribute('fill', '#DE2D26');
 
   // The gate is not stuck: restoring the composition exports on the next click.
   await page.locator('svg.map-canvas').evaluate((element): void => {

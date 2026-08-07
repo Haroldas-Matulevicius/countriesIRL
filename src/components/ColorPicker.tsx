@@ -5,17 +5,63 @@ import {
   CUSTOM_COLOR_ERROR_MESSAGE,
   CUSTOM_COLOR_PLACEHOLDER,
 } from '../constants/colors';
-import type { CountryId } from '../types/map';
+import type { ColorValue, CountryId } from '../types/map';
+import { RampStrip } from './RampStrip';
+import type { Ramp, RampId } from '../utils/ramps';
+import {
+  RAMPS,
+  RAMP_STEP_COUNT,
+  rampStepPosition,
+  shadeForValue,
+} from '../utils/ramps';
 import { useMapState } from '../hooks/useMapState';
 import {
   customColor,
   hasEffectiveColorChange,
-  normalizeColor,
+  rampColor,
 } from '../utils/colors';
+import { normalizeColor } from '../utils/colors';
 import { TOAST_MESSAGES } from './ToastRegion';
 
+const RAMP_SECTION_LABEL = 'Ramp';
 const CUSTOM_COLOR_LABEL = 'Custom color';
 const APPLY_COLOR_LABEL = 'Apply Color';
+
+/**
+ * The 1-based strip step the WHOLE selection carries, or `null`.
+ *
+ * `null` for a mixed selection is deliberate rather than "show the first one":
+ * the check glyph and the readout are what carry selection when colour cannot,
+ * so claiming a step that only some countries have would be the one thing this
+ * component must not do.
+ */
+function appliedRampStep(
+  colors: Readonly<Record<string, ColorValue | undefined>>,
+  countryIds: ReadonlyArray<CountryId>,
+  ramp: Ramp,
+): number | null {
+  if (countryIds.length === 0) {
+    return null;
+  }
+
+  let agreedStep: number | null = null;
+
+  for (const countryId of countryIds) {
+    const value = colors[countryId];
+    if (value === undefined || value.kind !== 'ramp' || value.rampId !== ramp.id) {
+      return null;
+    }
+
+    const shade = shadeForValue(ramp, value.t);
+    const step = ramp.shades.indexOf(shade) + 1;
+    if (step === 0 || (agreedStep !== null && agreedStep !== step)) {
+      return null;
+    }
+    agreedStep = step;
+  }
+
+  return agreedStep;
+}
 
 interface ColorPickerProps {
   /**
@@ -30,6 +76,13 @@ interface ColorPickerProps {
    */
   customDraft: string;
   onCustomDraftChange: (draft: string) => void;
+  /**
+   * Owned by `App` for the same reason `customDraft` is: the 1200px transition
+   * remounts this subtree, and a creator who picked `Greens` should not find
+   * `Blues` again after resizing the window.
+   */
+  rampId: RampId;
+  onRampIdChange: (rampId: RampId) => void;
   isDisabled?: boolean;
   onStatus: (message: string) => void;
 }
@@ -63,16 +116,20 @@ export function ColorPicker({
   selectableCountryIds,
   customDraft,
   onCustomDraftChange,
+  rampId,
+  onRampIdChange,
   isDisabled = false,
   onStatus,
 }: ColorPickerProps): JSX.Element {
   const {
     state: { colors, selectedIds },
     setColors,
+    setColorValues,
   } = useMapState();
   const inputId = useId();
   const errorId = `${inputId}-error`;
   const labelId = `${inputId}-label`;
+  const rampLabelId = `${inputId}-ramp`;
 
   const selectedCountryIds = useMemo(
     () =>
@@ -96,6 +153,43 @@ export function ColorPicker({
       selectedCountryIds,
       customColor(customColorResult.value),
     );
+
+  const ramp = useMemo(
+    (): Ramp => RAMPS.find((candidate) => candidate.id === rampId) ?? RAMPS[0],
+    [rampId],
+  );
+  const appliedStep = useMemo(
+    (): number | null => appliedRampStep(colors, selectedCountryIds, ramp),
+    [colors, ramp, selectedCountryIds],
+  );
+
+  const handleApplyStep = useCallback(
+    (step: number): void => {
+      if (controlsDisabled || selectedCountryIds.length === 0) {
+        return;
+      }
+
+      /*
+       * The country stores the ramp IDENTITY, never the resolved hex - that is
+       * what lets a later ramp swap re-skin every country painted with it, and
+       * it is what Phase 5's classing engine writes with no adapter. It goes
+       * through the provider's value seam rather than being flattened to a hex
+       * and re-parsed, so there is still exactly one `resolveColorValue`.
+       */
+      const value = rampColor(ramp.id, rampStepPosition(step, RAMP_STEP_COUNT));
+      if (!setColorValues(selectedCountryIds, value)) {
+        return;
+      }
+
+      onStatus(
+        TOAST_MESSAGES.customColorApplied(
+          shadeForValue(ramp, value.t),
+          selectedCountryIds.length,
+        ),
+      );
+    },
+    [controlsDisabled, onStatus, ramp, selectedCountryIds, setColorValues],
+  );
 
   const handleCustomDraftChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
@@ -139,6 +233,39 @@ export function ColorPicker({
   );
 
   return (
+    <>
+      {/*
+        `Ramp` and `Custom color` are PEERS, not a hierarchy. D4-06 moved
+        everything about how the *map* looks to `Map style`, and that
+        relocation is what makes a flat information architecture fit here.
+      */}
+      <fieldset className="panel-section" disabled={controlsDisabled}>
+        <legend className="panel-section__label" id={rampLabelId}>
+          {RAMP_SECTION_LABEL}
+        </legend>
+
+        <div className="panel-pills">
+          {RAMPS.map((candidate): JSX.Element => (
+            <label key={candidate.id} className="panel-pill">
+              <input
+                type="radio"
+                name={rampLabelId}
+                value={candidate.id}
+                checked={candidate.id === ramp.id}
+                onChange={(): void => onRampIdChange(candidate.id)}
+              />
+              {candidate.name}
+            </label>
+          ))}
+        </div>
+
+        <RampStrip
+          ramp={ramp}
+          appliedStep={appliedStep}
+          onApplyStep={handleApplyStep}
+        />
+      </fieldset>
+
     <fieldset className="panel-section" disabled={controlsDisabled}>
       <legend className="panel-section__label" id={labelId}>
         {CUSTOM_COLOR_LABEL}
@@ -185,5 +312,6 @@ export function ColorPicker({
         </button>
       </form>
     </fieldset>
+    </>
   );
 }

@@ -14,6 +14,16 @@ import { ColorPicker } from './ColorPicker';
 const NATIVE_DISABLED_ATTRIBUTE = /\sdisabled(?:=""|(?=[\s>]))/;
 const SELECTABLE_COUNTRY_IDS: ReadonlySet<CountryId> = new Set(['FR']);
 
+/**
+ * The hex field, never the family radios. `markup.match(/<input\b[^>]*>/u)`
+ * would return the first `Blues` radio now that the Ramp section renders above
+ * this one - a locator that silently reads the wrong element is how an
+ * assertion ends up describing something nobody changed.
+ */
+function hexFieldOf(markup: string): string {
+  return /<input\b[^>]*class="panel-field"[^>]*>/u.exec(markup)?.[0] ?? '';
+}
+
 function createContextValue(state: MapState): MapStateContextValue {
   return {
     state,
@@ -26,6 +36,7 @@ function createContextValue(state: MapState): MapStateContextValue {
     clearSelection: vi.fn(),
     setColor: vi.fn(() => false),
     setColors: vi.fn(() => false),
+    setColorValues: vi.fn(() => false),
     resetColors: vi.fn(),
     undo: vi.fn(),
     redo: vi.fn(),
@@ -44,6 +55,8 @@ function renderColorPickerWithState(
         selectableCountryIds={SELECTABLE_COUNTRY_IDS}
         customDraft={customDraft}
         onCustomDraftChange={vi.fn()}
+        rampId="blues"
+        onRampIdChange={vi.fn()}
         onStatus={vi.fn()}
       />
     </MapStateContext.Provider>,
@@ -94,14 +107,21 @@ describe('ColorPicker', () => {
           selectableCountryIds={SELECTABLE_COUNTRY_IDS}
           customDraft=""
           onCustomDraftChange={vi.fn()}
+          rampId="blues"
+          onRampIdChange={vi.fn()}
           onStatus={onStatus}
         />
       </MapStateProvider>,
     );
 
-    const group = markup.match(/<fieldset\b[^>]*>/u)?.[0];
+    const groups = markup.match(/<fieldset\b[^>]*>/gu) ?? [];
 
-    expect(group).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    // BOTH sections, not just the first: Ramp and Custom color are peers and
+    // an empty selection disables them together.
+    expect(groups).toHaveLength(2);
+    groups.forEach((group): void => {
+      expect(group).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    });
     expect(markup).not.toContain('aria-disabled');
     // Disabled, never hidden: the section is still in the tree to be found.
     expect(markup).toContain('Custom color');
@@ -116,14 +136,16 @@ describe('ColorPicker', () => {
           selectableCountryIds={new Set()}
           customDraft=""
           onCustomDraftChange={vi.fn()}
+          rampId="blues"
+          onRampIdChange={vi.fn()}
           onStatus={vi.fn()}
         />
       </MapStateContext.Provider>,
     );
 
-    expect(markup.match(/<fieldset\b[^>]*>/u)?.[0]).toMatch(
-      NATIVE_DISABLED_ATTRIBUTE,
-    );
+    (markup.match(/<fieldset\b[^>]*>/gu) ?? []).forEach((group): void => {
+      expect(group).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    });
   });
 
   /**
@@ -135,10 +157,11 @@ describe('ColorPicker', () => {
    */
   it('names the hex field from the section label it points at', () => {
     const markup = renderColorPickerWithState(createSelectedState({}));
-    const labelId = /<legend class="panel-section__label" id="([^"]+)"/u.exec(
-      markup,
-    )?.[1];
-    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
+    const labelId =
+      /<legend class="panel-section__label" id="([^"]+)">Custom color<\/legend>/u.exec(
+        markup,
+      )?.[1];
+    const input = hexFieldOf(markup);
 
     expect(labelId).toBeDefined();
     expect(input).toContain(`aria-labelledby="${String(labelId)}"`);
@@ -155,7 +178,7 @@ describe('ColorPicker', () => {
       createSelectedState({ FR: customColor('#DC2626') }),
       'not-a-color',
     );
-    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
+    const input = hexFieldOf(markup);
     const errorId = /<p id="([^"]+)" class="panel-error">/u.exec(markup)?.[1];
 
     expect(CUSTOM_COLOR_ERROR_MESSAGE).toBe('Enter a hex color like #2563EB');
@@ -173,7 +196,7 @@ describe('ColorPicker', () => {
       createSelectedState({ FR: customColor('#DC2626') }),
       '#123456',
     );
-    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
+    const input = hexFieldOf(markup);
 
     expect(markup).not.toContain('panel-error');
     expect(input).toContain('aria-invalid="false"');

@@ -8,6 +8,7 @@ import { NEUTRAL_UNIT_COLOR } from '../../src/constants/colors';
 import { TOOLTIP_NOT_COLORABLE_REASON } from '../../src/components/Tooltip';
 import { LEGEND_CORNERS } from '../../src/utils/legend';
 import {
+  applyRampRed,
   legendDisclosure,
   openRailTool,
   waitForApp,
@@ -112,7 +113,7 @@ async function prepareLegend(page: Page): Promise<void> {
   await france.focus();
   await france.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
+  await applyRampRed(page);
 }
 
 async function closeRailTool(page: Page, label: string): Promise<void> {
@@ -632,11 +633,11 @@ test.describe('every unit is colourable (D4-10)', (): void => {
     await expect(page.locator(kosovo)).toHaveAttribute('aria-selected', 'true');
 
     await openRailTool(page, 'Colors');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
+    await applyRampRed(page);
 
     const appliedFill = await page.locator(kosovo).getAttribute('fill');
     expect(appliedFill).not.toBe(NEUTRAL_UNIT_COLOR);
     expect(appliedFill).not.toBe('#FFFFFF');
-    expect(appliedFill?.toUpperCase()).toBe('#DC2626');
+    expect(appliedFill?.toUpperCase()).toBe('#DE2D26');
   });
 });

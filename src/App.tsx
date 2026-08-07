@@ -1062,6 +1062,8 @@ export default function App(): JSX.Element {
         selectableCountryIds={effectiveSelectableIds}
         customDraft={inspectorUi.customColorDraft}
         onCustomDraftChange={inspectorUi.setCustomColorDraft}
+        rampId={inspectorUi.rampId}
+        onRampIdChange={inspectorUi.setRampId}
         isDisabled={!isMapReady}
         onStatus={showStatus}
       />

@@ -11,6 +11,7 @@ import {
 } from '@playwright/test';
 
 import {
+  applyRampRed,
   clearSavedMaps,
   collectTabOrder,
   expectOneCameraOwner,
@@ -985,23 +986,31 @@ test.describe('responsive world workspace', (): void => {
         );
       }
 
-      document
-        .querySelectorAll('.color-picker__preset-name')
-        .forEach((label): void => {
-          const tile = label.closest('.color-picker__preset');
-          if (tile === null) {
-            return;
-          }
-          const labelBox = label.getBoundingClientRect();
-          const tileBox = tile.getBoundingClientRect();
+      /*
+       * `04-07`: the ten-tile preset grid is gone. The equivalent claim on the
+       * surface that replaced it is that the ramp family PILLS wrap rather than
+       * being clipped - `Purples` is the longest shipped name - and that no
+       * segment of the strip escapes the band that clips it.
+       */
+      document.querySelectorAll('.panel-pill').forEach((pill): void => {
+        if (pill.scrollWidth > Math.ceil(pill.getBoundingClientRect().width)) {
+          failures.push(`ramp family pill clipped: ${pill.textContent ?? ''}`);
+        }
+      });
+
+      const strip = document.querySelector('.ramp-strip');
+      if (strip !== null) {
+        const stripBox = strip.getBoundingClientRect();
+        strip.querySelectorAll('.ramp-strip__step').forEach((step): void => {
+          const stepBox = step.getBoundingClientRect();
           if (
-            label.scrollWidth > Math.ceil(labelBox.width) ||
-            labelBox.right > tileBox.right + 0.5 ||
-            labelBox.left < tileBox.left - 0.5
+            stepBox.right > stripBox.right + 0.5 ||
+            stepBox.left < stripBox.left - 0.5
           ) {
-            failures.push(`preset label clipped: ${label.textContent ?? ''}`);
+            failures.push('a ramp segment overflows its band');
           }
         });
+      }
 
       inspector.querySelectorAll('button').forEach((button): void => {
         if (button.scrollWidth > Math.ceil(button.clientWidth)) {
@@ -1319,14 +1328,22 @@ test.describe('theme and preference behaviour', (): void => {
     await page.setViewportSize(DESKTOP_VIEWPORT);
     await page.emulateMedia({ contrast: 'more' });
     await waitForApp(page);
-    await openRailTool(page, 'Colors');
+    /*
+     * `Map style` rather than `Colors` since `04-07`: the swatch this probe
+     * reads is the shared `.panel-swatch`, and after the preset grid was
+     * deleted the only one always rendered is the water pill's. Re-pointed
+     * rather than dropped - a `querySelector` that returns null makes the whole
+     * `page.evaluate` throw, which is precisely the "gate wearing an error
+     * message" this test was rewritten to stop being.
+     */
+    await openRailTool(page, 'Map style');
 
     const probe = async (): Promise<Record<string, string>> =>
       page.evaluate((): Record<string, string> => {
         const mount = document.querySelector('.map-editor');
         const rail = document.querySelector('.tool-rail');
         const panel = document.querySelector('.tool-panel');
-        const swatch = document.querySelector('.color-picker__preset-swatch');
+        const swatch = document.querySelector('.panel-swatch');
         if (
           mount === null ||
           rail === null ||
@@ -1468,8 +1485,12 @@ interface PngProbe {
   readonly appliedRedPixels: number;
 }
 
-/** `Apply Red` in the palette, and therefore what must reach the PNG. */
-const APPLIED_RED: readonly [number, number, number] = [0xdc, 0x26, 0x26];
+/**
+ * `Reds` step 4 on the ramp strip, and therefore what must reach the PNG.
+ * `04-07` replaced the ten-tile preset grid with the ramp model; this is the
+ * nearest shade to the `Apply Red` preset the probe used to click.
+ */
+const APPLIED_RED: readonly [number, number, number] = [0xde, 0x2d, 0x26];
 
 /**
  * The map does not fill the square edge to edge, but it is never a hairline
@@ -1510,9 +1531,9 @@ async function probeExportedPng(
     await france.focus();
     await france.press('Enter');
     await openRailTool(page, 'Colors');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
+    await applyRampRed(page);
     await expect(page.locator('[data-layer="legend"] text')).toHaveText(
-      '#DC2626',
+      '#DE2D26',
     );
 
     const downloadPromise = page.waitForEvent('download');
@@ -1617,7 +1638,7 @@ test.describe('preference-independent export', (): void => {
     ).toBeGreaterThan(MIN_NON_WHITE_PIXELS);
     expect(
       baseline.appliedRedPixels,
-      'the applied #DC2626 fill did not reach the PNG.',
+      'the applied #DE2D26 fill did not reach the PNG.',
     ).toBeGreaterThan(MIN_APPLIED_RED_PIXELS);
 
     const dark = await probeExportedPng(

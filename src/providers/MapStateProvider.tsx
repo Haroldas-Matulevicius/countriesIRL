@@ -40,6 +40,21 @@ export interface MapStateContextValue {
   clearSelection: () => void;
   setColor: (countryId: CountryId, color: string) => boolean;
   setColors: (countryIds: ReadonlyArray<CountryId>, color: string) => boolean;
+  /**
+   * The write seam for a colour the creator picked by IDENTITY rather than by
+   * hex - today the ramp strip, tomorrow Phase 5's classing engine.
+   *
+   * `setColor` / `setColors` still speak hex because that is what a text field
+   * produces, and they construct the `custom` variant at one place. This takes
+   * the union directly, so a ramp assignment never has to be flattened into a
+   * hex and re-parsed. Both paths land on the same reducer action and the same
+   * `hasEffectiveColorChange` no-op check, which is what keeps undo/redo,
+   * canonicalisation, and the legend identical between them.
+   */
+  setColorValues: (
+    countryIds: ReadonlyArray<CountryId>,
+    color: ColorValue,
+  ) => boolean;
   resetColors: () => void;
   undo: () => void;
   redo: () => void;
@@ -308,6 +323,21 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
     [state.colors],
   );
 
+  const setColorValues = useCallback(
+    (countryIds: ReadonlyArray<CountryId>, color: ColorValue): boolean => {
+      performance.clearMarks(COLOR_START_MARK);
+
+      if (!hasEffectiveColorChange(state.colors, countryIds, color)) {
+        return false;
+      }
+
+      performance.mark(COLOR_START_MARK);
+      dispatch({ type: 'SET_COLORS', payload: { countryIds, color } });
+      return true;
+    },
+    [state.colors],
+  );
+
   const resetColors = useCallback((): void => {
     dispatch({ type: 'RESET_ALL' });
   }, []);
@@ -342,6 +372,7 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
       clearSelection,
       setColor,
       setColors,
+      setColorValues,
       resetColors,
       undo,
       redo,
@@ -356,6 +387,7 @@ export function MapStateProvider({ children }: PropsWithChildren): JSX.Element {
       clearSelection,
       setColor,
       setColors,
+      setColorValues,
       resetColors,
       undo,
       redo,

@@ -982,14 +982,25 @@ describe('Phase 3 one roving-tabindex writer (assertion 27)', (): void => {
    * tab stops instead. This is asserted as the SET of files, not as a count:
    * a count is satisfied by moving the writer, and the point is which file
    * owns it.
+   *
+   * **`04-07` added the second name, deliberately and with its reason.** The
+   * defect this gate covers is an UNNAMED writer - two files silently
+   * disagreeing about which element holds the single tab stop - not the
+   * existence of a second roving GROUP. `RampStrip.tsx` is one: A5 requires the
+   * five segments to be a single tab stop with arrow-key traversal, the
+   * alternative (a focusable container plus `aria-activedescendant`) would put
+   * the focus ring on the container rather than on the segment and break the
+   * inset-ring requirement, and the two groups can never contend because the
+   * canvas and the panel own disjoint elements. Because this is a SET, adding a
+   * third still fails here and still has to say why.
    */
-  it('has exactly one, and it is the map canvas', (): void => {
+  it('has exactly one per roving group, and both owners are named', (): void => {
     expect(
       rovingTabIndexWriters(),
-      'a second production file computes a tabindex per element. The rail ' +
-        'rows are plain tab stops; a roving group there is the regression ' +
-        'commit 074173e fixed.',
-    ).toStrictEqual(['components/MapCanvas.tsx']);
+      'a production file computes a tabindex per element and is not one of the ' +
+        'two named owners. The rail rows are plain tab stops; a roving group ' +
+        'there is the regression commit 074173e fixed.',
+    ).toStrictEqual(['components/MapCanvas.tsx', 'components/RampStrip.tsx']);
   });
 
   /**

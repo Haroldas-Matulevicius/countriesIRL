@@ -477,14 +477,32 @@ describe('component theme tokens', (): void => {
       expect(declarations.length, name).toBeGreaterThan(0);
       expect(
         declarations,
-        `${name} declares a hairline box-shadow. Inside a Platinum panel the ` +
-          'Porcelain background IS the elevation step; a hairline on top of it ' +
-          'is the second border the owner reported.',
-      ).not.toContain('box-shadow');
+        `${name} declares a hairline. Inside a Platinum panel the Porcelain ` +
+          'background IS the elevation step; a hairline on top of it is the ' +
+          'second border the owner reported.',
+      ).not.toContain('--hairline');
       expect(
         declarations,
         `${name} paints a card surface. A section is type plus a rule, not a box.`,
       ).not.toContain('--radius-card');
+
+      /*
+       * An INSET shadow is a state ring drawn inside a control - the ramp
+       * strip's hover, selection, and focus rings are all one. An OUTSET one is
+       * elevation, which is the thing being deleted. Distinguished rather than
+       * banned outright, because banning `box-shadow` would have forced the
+       * strip's rings back onto borders and reintroduced a per-segment edge:
+       * exactly the "multi boxes" this test exists to prevent.
+       */
+      [...declarations.matchAll(/box-shadow:\s*([^;]*);/gu)].forEach(
+        (match): void => {
+          expect(
+            match[1],
+            `${name} declares an OUTSET box-shadow ("${match[1]}"). Elevation ` +
+              'in this panel is a background step, not a shadow.',
+          ).toContain('inset');
+        },
+      );
     });
 
     // The deleted markup, gated so it cannot come back by copy-paste.

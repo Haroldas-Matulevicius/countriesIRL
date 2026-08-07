@@ -15,6 +15,102 @@
  * form's grid and the panel's ONE accent button. `04-07`'s ramp strip joins it.
  */
 
+/* ------------------------------------------------------------------ *
+ * The ramp strip (`04-UI-SPEC.md` section 6.3.4) - the component that carries
+ * the phase's visual identity.
+ *
+ * ONE contiguous band with ONE border, so it visually rhymes with the exported
+ * legend bar: same idiom, one drawn in chrome tokens and one in composition
+ * ink. A border per segment would read as five swatches in a row, which is the
+ * "multi boxes" the owner reported about the surface this replaces.
+ * ------------------------------------------------------------------ */
+
+.ramp-strip {
+  display: grid;
+  min-width: 0;
+  /*
+   * `--ramp-steps` is written inline by `RampStrip.tsx` from
+   * `RAMP_STEP_COUNT`, so the geometry follows the step set rather than a CSS
+   * literal that would have to be edited alongside it. The 48px height is
+   * `--space-2xl`, the interactive floor; at 328px of content five segments
+   * are 65.6px wide, comfortably above the 44px target minimum.
+   */
+  grid-template-columns: repeat(var(--ramp-steps), 1fr);
+  block-size: var(--space-2xl);
+  overflow: hidden;
+  border: var(--border-width) solid var(--swatch-border);
+  border-radius: var(--radius-control);
+}
+
+/*
+ * `border: 0` cancels the global `button` hairline: the BAND owns the only
+ * border here. Without this every segment carries its own edge and the strip
+ * becomes the row of boxes it exists to replace.
+ *
+ * The background is set INLINE from the shade, deliberately: a shade is the
+ * product rather than a token, so it must not flip in dark mode. There is no
+ * `.dark` rule anywhere in this file and there must not be one.
+ */
+.ramp-strip__step {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  place-items: center;
+}
+
+/*
+ * Hover and selection are the SAME 2px Midnight Ink inset ring, drawn with
+ * `box-shadow: inset` rather than a border so it costs no layout and cannot be
+ * clipped by the band's `overflow: hidden`.
+ *
+ * Never a Powder background - that would hide the very shade being selected -
+ * and never Apple Blue: D-05 spends this panel's accent on `Apply Color`. The
+ * paint is INSTANT; the `transition: none` that guarantees it is declared in
+ * `editor.css` beside the rail rows, so the motion gate has one subject to read.
+ */
+.ramp-strip__step:hover:not(:disabled),
+.ramp-strip__step[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--themely-midnight-ink);
+}
+
+/*
+ * The global focus ring is an `outline`, which the band's `overflow: hidden`
+ * clips at the first and last segment. Rendered INSET here so the ring is
+ * fully visible on every segment; the outline is suppressed for the same
+ * element so the two do not double up.
+ */
+.ramp-strip__step:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 var(--focus-width) var(--themely-apple-blue);
+}
+
+.ramp-strip__step[aria-pressed="true"]:focus-visible {
+  box-shadow:
+    inset 0 0 0 var(--focus-width) var(--themely-apple-blue),
+    inset 0 0 0 calc(var(--focus-width) + 2px) var(--themely-midnight-ink);
+}
+
+/* The glyph's colour is set inline from `labelInkForShade`, never from CSS. */
+.ramp-strip__check {
+  display: grid;
+  place-items: center;
+}
+
+/*
+ * Colour is never the sole carrier of selection (A6). The measured minimum
+ * separation between neighbouring shades is 1.2944:1, so this readout and the
+ * check glyph are what a creator actually reads.
+ */
+.ramp-strip__readout {
+  margin-bottom: 0;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
+}
+
 .color-picker__custom {
   display: grid;
   min-width: 0;

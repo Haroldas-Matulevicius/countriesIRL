@@ -59,6 +59,7 @@ function renderCountryList(
     clearSelection: vi.fn(),
     setColor: vi.fn(() => false),
     setColors: vi.fn(() => false),
+    setColorValues: vi.fn(() => false),
     resetColors: vi.fn(),
     undo: vi.fn(),
     redo: vi.fn(),

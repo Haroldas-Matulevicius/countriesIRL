@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { LAST_OPEN_TOOL_KEY, THEME_MODE_KEY } from '../../src/constants/config';
 import {
+  applyRampRed,
   clearSavedMaps,
   collectTabOrder,
   openRailTool,
@@ -141,7 +142,7 @@ test.describe('the tool rail', (): void => {
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
     await france.press('Enter');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
+    await applyRampRed(page);
 
     const afterColoring = await collectTabOrder(page, 8);
     expect(afterColoring.slice(0, 8)).toEqual([
@@ -203,53 +204,90 @@ test.describe('the tool rail', (): void => {
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
     await france.press('Enter');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
-    await expect(france).toHaveAttribute('fill', '#DC2626');
+    await applyRampRed(page);
+    await expect(france).toHaveAttribute('fill', '#DE2D26');
 
-    // The selected tile carries its state on the tile, and `aria-pressed` is
-    // the machine-readable half of it.
+    /*
+     * Selection is carried by THREE things, not by colour alone (A6): the
+     * machine-readable `aria-pressed`, the check glyph, and the readout. All
+     * three are asserted, because the measured minimum separation between
+     * neighbouring shades is 1.2944:1 and colour genuinely is not enough.
+     */
     await expect(
-      page.locator('.color-picker__preset[data-color-name="Red"]'),
+      page.locator('.ramp-strip__step[data-ramp-step="4"]'),
     ).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('.color-picker__active-check')).toHaveCount(1);
+    await expect(page.locator('.ramp-strip__check')).toHaveCount(1);
+    await expect(page.locator('.ramp-strip__readout')).toHaveText(
+      'Step 4 of 5 \u00b7 #DE2D26',
+    );
 
     await page.getByRole('button', { name: 'Undo Color Change' }).click();
     await expect(france).toHaveAttribute('fill', '#FFFFFF');
     await page.getByRole('button', { name: 'Redo Color Change' }).click();
-    await expect(france).toHaveAttribute('fill', '#DC2626');
+    await expect(france).toHaveAttribute('fill', '#DE2D26');
   });
 
-  test('no preset label is clipped, and the grid derives its columns', async ({
+  /**
+   * **Re-pointed by `04-07`, not deleted.** Its subject - the ten-tile preset
+   * grid and its clippable labels - is gone with the redesign, so the old body
+   * would have iterated an empty list and passed. The equivalent claim on the
+   * surface that replaced it: the family pills WRAP rather than clip
+   * (`Purples` is the longest shipped name), and the strip is one contiguous
+   * band whose segments tile it exactly with no gaps.
+   */
+  test('the ramp family pills wrap and the strip is one contiguous band', async ({
     page,
   }): Promise<void> => {
     await openRailTool(page, 'Colors');
 
     const clipped = await page.evaluate((): ReadonlyArray<string> =>
-      [...document.querySelectorAll('.color-picker__preset-name')]
-        .filter((label): boolean => {
-          const tile = label.closest('.color-picker__preset');
-          if (tile === null) {
-            return false;
-          }
-          const labelBox = label.getBoundingClientRect();
-          const tileBox = tile.getBoundingClientRect();
-          return (
-            label.scrollWidth > Math.ceil(labelBox.width) ||
-            labelBox.right > tileBox.right + 0.5 ||
-            labelBox.left < tileBox.left - 0.5
-          );
-        })
-        .map((label): string => label.textContent ?? ''),
+      [...document.querySelectorAll('.panel-pill')]
+        .filter(
+          (pill): boolean =>
+            pill.scrollWidth > Math.ceil(pill.getBoundingClientRect().width),
+        )
+        .map((pill): string => pill.textContent ?? ''),
     );
-
     expect(clipped).toStrictEqual([]);
-    expect(
-      await page
-        .locator('.color-picker__preset-grid')
-        .evaluate((element): string =>
-          globalThis.getComputedStyle(element).overflow,
-        ),
-    ).toBe('visible');
+
+    const band = await page.evaluate((): {
+      readonly segments: number;
+      readonly gaps: ReadonlyArray<number>;
+      readonly borderedSegments: number;
+      readonly bandBorder: string;
+    } => {
+      const strip = document.querySelector('.ramp-strip');
+      if (strip === null) {
+        throw new Error('The ramp strip is not rendered.');
+      }
+      const steps = [...strip.querySelectorAll('.ramp-strip__step')];
+      const boxes = steps.map((step): DOMRect => step.getBoundingClientRect());
+
+      return {
+        segments: steps.length,
+        gaps: boxes
+          .slice(1)
+          .map((box, index): number => box.left - boxes[index].right),
+        borderedSegments: steps.filter(
+          (step): boolean =>
+            globalThis.getComputedStyle(step).borderTopWidth !== '0px',
+        ).length,
+        bandBorder: globalThis.getComputedStyle(strip).borderTopWidth,
+      };
+    });
+
+    // The literal 5, never a `.length` read - `RAMP_STEP_COUNT` is derived
+    // from `328 / N >= 44` and Phase 4 ships five.
+    expect(band.segments).toBe(5);
+    band.gaps.forEach((gap): void => {
+      expect(Math.abs(gap), 'the strip is one band, so segments do not gap').toBeLessThan(
+        0.5,
+      );
+    });
+    // ONE border, on the band. A border per segment is the row of boxes the
+    // owner reported about the surface this replaced.
+    expect(band.borderedSegments).toBe(0);
+    expect(band.bandBorder).not.toBe('0px');
   });
 
   test('the theme toggle writes .dark to the mount root and persists it', async ({
@@ -268,7 +306,7 @@ test.describe('the tool rail', (): void => {
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
     await france.press('Enter');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
+    await applyRampRed(page);
     const fillBefore = await france.getAttribute('fill');
 
     await toggle.click();
@@ -295,7 +333,7 @@ test.describe('the tool rail', (): void => {
     // Live Invariant 9: the exported composition does not follow the viewer's
     // theme, so the map fill is unchanged by the flip.
     expect(await france.getAttribute('fill')).toBe(fillBefore);
-    expect(fillBefore).toBe('#DC2626');
+    expect(fillBefore).toBe('#DE2D26');
 
     // And it survives a reload, through the storage adapter.
     await page.reload();

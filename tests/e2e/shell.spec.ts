@@ -21,7 +21,9 @@ const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
 const EXPORT_SIZE = 1080;
 const VIEWBOX_SIZE = 1080;
 const RAIL_WIDTH = 56;
-const OPEN_PANEL_WIDTH = 280;
+/** D4-05 widened every flyout uniformly; `editor.css` declares it once as
+ * `--panel-width-open`. */
+const OPEN_PANEL_WIDTH = 360;
 const CLOSED_PANEL_WIDTH = 0;
 
 /**
@@ -205,7 +207,7 @@ test.describe('editor shell', (): void => {
 
     /*
      * D-19, and the reason this is measured rather than asserted as a class:
-     * an overlay panel is equally "visible" and equally 280px wide. Only the
+     * an overlay panel is equally "visible" and equally 360px wide. Only the
      * canvas region's own left edge can tell the two apart.
      */
     expect(openCanvas.x - closedCanvas.x).toBeCloseTo(OPEN_PANEL_WIDTH, 0);

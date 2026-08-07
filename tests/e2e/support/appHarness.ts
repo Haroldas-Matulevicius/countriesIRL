@@ -59,6 +59,57 @@ export async function openRailTool(
 }
 
 /**
+ * The Colors panel's ramp strip, which replaced the ten-tile preset grid in
+ * `04-07`.
+ *
+ * **Declared here rather than re-declared per spec.** Eight specs painted a
+ * country with `getByRole('button', { name: 'Apply Red' })` before the presets
+ * were deleted; eight private replacements is the same debt with eight places
+ * to drift, and `persistence.spec.ts` / `phase2-composition.spec.ts` already
+ * carry duplicated camera helpers as a recorded wart.
+ *
+ * It selects the family first, because only the selected family's strip is
+ * rendered. `step` is 1-based, exactly as the accessible name reads it.
+ */
+export const RAMP_FAMILY_LABELS = [
+  'Blues',
+  'Reds',
+  'Greens',
+  'Purples',
+  'Greys',
+] as const;
+export type RampFamilyLabel = (typeof RAMP_FAMILY_LABELS)[number];
+
+/** `04-02`'s `reds` step 4. What `Apply Red` used to be, in ramp terms. */
+export const RAMP_RED_STEP = 4;
+export const RAMP_RED_HEX = '#DE2D26';
+
+export async function applyRampShade(
+  page: Page,
+  family: RampFamilyLabel,
+  step: number,
+): Promise<void> {
+  const pill = page.getByRole('radio', { name: family, exact: true });
+  await pill.check();
+  await expect(pill).toBeChecked();
+
+  const segment = page.getByRole('button', {
+    name: `Apply ${family} shade ${String(step)} of 5`,
+    exact: true,
+  });
+  await segment.click();
+  await expect(segment).toHaveAttribute('aria-pressed', 'true');
+}
+
+/**
+ * The single most-copied line in the suite: paint the current selection red.
+ * A named helper so a later palette change is one edit rather than eight.
+ */
+export async function applyRampRed(page: Page): Promise<void> {
+  await applyRampShade(page, 'Reds', RAMP_RED_STEP);
+}
+
+/**
  * The legend DISCLOSURE inside the open Legend panel.
  *
  * `getByRole('button', { name: /^Legend/ })` now matches two controls - the

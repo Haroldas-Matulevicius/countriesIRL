@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { openRailTool } from './support/appHarness';
+import { applyRampRed, openRailTool } from './support/appHarness';
 
 const HISTORY_FIXTURE_URL = '/tests/e2e/fixtures/history.html';
 const LOGICAL_CORE_COUNT = 207;
@@ -360,10 +360,10 @@ test.describe('approved period switching', (): void => {
 
     // Colouring now applies to the continuing selection only.
     await openRailTool(page, 'Colors');
-    await page.getByRole('button', { name: 'Apply Red' }).click();
+    await applyRampRed(page);
     await expect(
       page.locator('path.country-path[data-country-id="DEU"]'),
-    ).toHaveAttribute('fill', '#DC2626');
+    ).toHaveAttribute('fill', '#DE2D26');
 
     await periodSelect(page).selectOption('modern');
     await expect(

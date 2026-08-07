@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/constants/config';
 import {
+  applyRampRed,
+  applyRampShade,
   CAMERA_GROUP_SELECTOR,
   clearSavedMaps,
   expectD3ZoomSynchronized,
@@ -145,15 +147,15 @@ test('every export refusal class releases the camera lease in one session', asyn
   await francePath.focus();
   await francePath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Red' }).click();
-  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DC2626');
+  await applyRampRed(page);
+  await expect(page.locator('[data-layer="legend"] text')).toHaveText('#DE2D26');
   const refusalToast = page.locator('[data-severity="error"]');
 
   // 1 - legend-blocked: a synchronous refusal before the lease is ever taken.
   await openRailTool(page, 'Legend');
   await legendDisclosure(page).click();
   await page.getByLabel('Large').check();
-  const legendLabel = page.getByLabel('Legend label for #DC2626');
+  const legendLabel = page.getByLabel('Legend label for #DE2D26');
   await legendLabel.fill('12345678901234567890123456789012');
   await legendLabel.press('Enter');
   await page.getByRole('button', { name: 'Export PNG' }).click();
@@ -277,9 +279,9 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
 
   await historicalPath.press('Enter');
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: 'Apply Blue' }).click();
-  await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
-  await expect(legendText).toHaveText('#2563EB');
+  await applyRampShade(page, 'Blues', 4);
+  await expect(historicalPath).toHaveAttribute('fill', '#2171B5');
+  await expect(legendText).toHaveText('#2171B5');
 
   await page.getByRole('button', { name: 'Undo Color Change' }).click();
   await expect(historicalPath).toHaveAttribute('fill', '#DC2626');
@@ -291,8 +293,8 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   ).toHaveText(/1 country selected\./);
 
   await page.getByRole('button', { name: 'Redo Color Change' }).click();
-  await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
-  await expect(legendText).toHaveText('#2563EB');
+  await expect(historicalPath).toHaveAttribute('fill', '#2171B5');
+  await expect(legendText).toHaveText('#2171B5');
 
   await openRailTool(page, 'Saved Maps');
   await page.getByRole('textbox', { name: 'Map name' }).fill('Historical redo');
@@ -304,7 +306,7 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await page.setViewportSize(DESKTOP_VIEWPORT);
   await expectLayout(page, 'desktop');
   await expectOneCameraOwner(page);
-  await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
+  await expect(historicalPath).toHaveAttribute('fill', '#2171B5');
 
   await openRailTool(page, 'Colors');
   await page.getByRole('button', { name: 'Reset All Colors' }).click();
@@ -321,8 +323,8 @@ test('a historical entity keeps its color through undo, redo, a remount, and a r
   await page.getByRole('button', { name: 'Load Saved Map' }).click();
   await expect(replaceConfirm).toHaveCount(0);
 
-  await expect(historicalPath).toHaveAttribute('fill', '#2563EB');
-  await expect(legendText).toHaveText('#2563EB');
+  await expect(historicalPath).toHaveAttribute('fill', '#2171B5');
+  await expect(legendText).toHaveText('#2171B5');
   await expect(
     page.locator('path.country-path[data-country-id="FRA"]'),
   ).toHaveCount(0);

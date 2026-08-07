@@ -50,6 +50,41 @@ export const COMPOSITION_INK_COLOR = '#111827';
  */
 export const MIN_COMPOSITION_SURFACE_LUMINANCE = 0.2164;
 
+/**
+ * The composition paper colour, and the other half of the two-value label set.
+ * A shade carries either this or `COMPOSITION_INK_COLOR`; there is no third.
+ */
+export const COMPOSITION_PAPER_COLOR = '#FFFFFF';
+
+/**
+ * The label colour a ramp shade carries: whichever of paper and ink measures
+ * higher against it.
+ *
+ * **One function decides two things that must never disagree** - the check
+ * glyph the ramp strip draws on a selected segment, and the expectation
+ * `ramps.test.ts`'s label-contrast gate rates. That gate used to inline
+ * `Math.max(onPaper, onInk)`, which is a property of the SHADE rather than of
+ * the CHOICE: it would have stayed green if the renderer picked the other
+ * colour. A gate that cannot fail on the bug it covers is worse than none.
+ *
+ * **It takes only a shade, and that is what makes the glyph mode-invariant by
+ * construction.** A shade is the product, not a token; it does not flip with
+ * the theme, so neither can its label. There is no theme parameter to pass and
+ * therefore nowhere for a `.dark` variant to enter.
+ *
+ * It is a CHOOSER, not a validator. Inside the dead luminance band
+ * `(0.183333, 0.216351)` neither colour clears 4.5:1, and this still returns
+ * the better of the two - the AA claim belongs to the ramp table's gate, which
+ * is why `04-02` substituted `#2171B5` for ColorBrewer's `#3182BD` rather than
+ * loosening anything.
+ */
+export function labelInkForShade(shade: string): string {
+  return contrastRatio(COMPOSITION_PAPER_COLOR, shade) >=
+    contrastRatio(COMPOSITION_INK_COLOR, shade)
+    ? COMPOSITION_PAPER_COLOR
+    : COMPOSITION_INK_COLOR;
+}
+
 export function parseHexColor(
   value: string,
 ): readonly [number, number, number] | null {

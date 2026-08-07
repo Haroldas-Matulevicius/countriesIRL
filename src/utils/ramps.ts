@@ -136,6 +136,80 @@ export const RAMPS: ReadonlyArray<Ramp> = Object.freeze([
   }),
 ] as const satisfies ReadonlyArray<Ramp>);
 
+/* ------------------------------------------------------------------ *
+ * The ramp strip's pure vocabulary (`04-07`)
+ *
+ * These live here rather than beside `RampStrip.tsx` for two reasons, and the
+ * second is the load-bearing one. Vitest runs on `node` with no DOM, so a
+ * format string declared in a component file cannot be gated at all - and an
+ * ungated `Step i of n` format is one copy-paste away from a second, drifting
+ * spelling in the legend. `ramps.ts` is declared the ONE home for the ramp
+ * vocabulary, so the strings that describe a step belong with the step set.
+ * ------------------------------------------------------------------ */
+
+/** U+00B7 MIDDLE DOT, as an escape so an editor cannot normalise it silently. */
+const READOUT_SEPARATOR = '·';
+
+/**
+ * The normalized position a 1-based strip segment writes into `{rampId, t}`.
+ *
+ * **The round trip is the contract:** `shadeForValue(ramp, rampStepPosition(i,
+ * n))` is `ramp.shades[i - 1]` whenever `n` is the ramp's own step count. If
+ * that fails the strip highlights one shade and the map paints another, which
+ * no rendering test would notice.
+ *
+ * A step outside the strip THROWS rather than clamping. `shadeForValue` clamps
+ * because it takes a creator-supplied position from stored data; this takes a
+ * segment index the renderer produced, so an out-of-range value is a bug in
+ * this repository and must be loud.
+ */
+export function rampStepPosition(step: number, count: number): number {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(
+      `A ramp strip needs a positive integer step count, got ${String(count)}.`,
+    );
+  }
+  if (!Number.isInteger(step) || step < 1 || step > count) {
+    throw new Error(
+      `Ramp step ${String(step)} is outside a strip of ${String(count)}.`,
+    );
+  }
+
+  // A one-step strip carries the whole ramp and takes the DARKEST shade, the
+  // same choice `shadeForIndex` makes: the lightest is near-white and would be
+  // invisible against the uncolored fill.
+  if (count === 1) {
+    return 1;
+  }
+
+  return (step - 1) / (count - 1);
+}
+
+/** `04-UI-SPEC.md § 9`, byte-exact: `Apply <Ramp> shade <i> of <n>`. */
+export function rampStepAccessibleName(
+  rampName: string,
+  step: number,
+  count: number,
+): string {
+  return `Apply ${rampName} shade ${String(step)} of ${String(count)}`;
+}
+
+/**
+ * `04-UI-SPEC.md § 9`, byte-exact: `Step <i> of <n> · <HEX>`.
+ *
+ * Colour is never the sole carrier of ramp-step selection (A6). This readout
+ * and the check glyph both carry it, so a creator who cannot distinguish two
+ * neighbouring shades - the measured minimum separation across the shipped
+ * ramps is 1.2944:1 - can still tell which one is applied.
+ */
+export function rampStepReadout(
+  step: number,
+  count: number,
+  hex: string,
+): string {
+  return `Step ${String(step)} of ${String(count)} ${READOUT_SEPARATOR} ${hex.toUpperCase()}`;
+}
+
 /**
  * Step `index` of `count`, mapped onto the ramp's own step set.
  *

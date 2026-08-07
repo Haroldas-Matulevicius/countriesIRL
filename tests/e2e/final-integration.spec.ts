@@ -5,6 +5,8 @@ import { expect, test, type Download, type Page } from '@playwright/test';
 
 import { DEFAULT_COLOR } from '../../src/constants/colors';
 import {
+  applyRampShade,
+  type RampFamilyLabel,
   LOGICAL_PATH_SELECTOR,
   clearSavedMaps,
   legendDisclosure,
@@ -34,10 +36,19 @@ const EXPORT_SIZE = 1080;
 const DESKTOP_VIEWPORT = { width: 1300, height: 900 };
 const LOGICAL_CORE_COUNT = 207;
 
-const RED = '#DC2626';
-const BLUE = '#2563EB';
-const RED_RGB: readonly [number, number, number] = [0xdc, 0x26, 0x26];
-const BLUE_RGB: readonly [number, number, number] = [0x25, 0x63, 0xeb];
+/*
+ * `04-07` replaced the ten-tile preset grid with the ramp model, so the two
+ * colours this session paints are now ramp shades: `Reds` step 4 and `Blues`
+ * step 4. The hexes and their RGB triples are declared together and derived
+ * from the same pair, so a palette change cannot move one and leave the other.
+ */
+const RED_FAMILY = 'Reds' as const;
+const BLUE_FAMILY = 'Blues' as const;
+const RAMP_STEP = 4;
+const RED = '#DE2D26';
+const BLUE = '#2171B5';
+const RED_RGB: readonly [number, number, number] = [0xde, 0x2d, 0x26];
+const BLUE_RGB: readonly [number, number, number] = [0x21, 0x71, 0xb5];
 
 const COMPOSITION_NAME = 'Grand tour';
 const EXPORTED_FILENAME_PATTERN = /^Grand_tour_\d{4}-\d{2}-\d{2}\.png$/u;
@@ -237,7 +248,7 @@ async function exportAndMeasure(
 async function colorCountry(
   page: Page,
   countryId: string,
-  presetName: string,
+  family: RampFamilyLabel,
 ): Promise<void> {
   const country = page.locator(
     `path.country-path[data-country-id="${countryId}"]`,
@@ -246,7 +257,7 @@ async function colorCountry(
   await country.press('Enter');
   // D-18 opens the panel CLOSED, so a colour is applied through its rail tool.
   await openRailTool(page, 'Colors');
-  await page.getByRole('button', { name: `Apply ${presetName}` }).click();
+  await applyRampShade(page, family, RAMP_STEP);
 }
 
 async function labelLegendEntry(
@@ -284,8 +295,8 @@ test('a full creator session survives a browser reload and exports what the scre
   const undo = page.getByRole('button', { name: 'Undo Color Change' });
   const redo = page.getByRole('button', { name: 'Redo Color Change' });
 
-  await colorCountry(page, 'FRA', 'Red');
-  await colorCountry(page, 'DEU', 'Blue');
+  await colorCountry(page, 'FRA', RED_FAMILY);
+  await colorCountry(page, 'DEU', BLUE_FAMILY);
   await expect(france).toHaveAttribute('fill', RED);
   await expect(germany).toHaveAttribute('fill', BLUE);
 
@@ -448,7 +459,7 @@ test('the legend follows its position into the exported PNG', async ({
   await waitForApp(page);
   await clearSavedMaps(page);
 
-  await colorCountry(page, 'FRA', 'Red');
+  await colorCountry(page, 'FRA', RED_FAMILY);
   await openRailTool(page, 'Legend');
   await legendDisclosure(page).click();
   await labelLegendEntry(page, RED, 'Visited France');
