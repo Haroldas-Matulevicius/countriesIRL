@@ -15,6 +15,11 @@ import {
   resolveLegendRender,
 } from '../../src/utils/legend';
 import type { LegendState } from '../../src/types/composition';
+import {
+  BAND_DEFAULT_HEIGHT,
+  BAND_KEYBOARD_STEP,
+  BAND_MAX_HEIGHT,
+} from '../../src/utils/bands';
 import { openRailTool, waitForApp } from './support/appHarness';
 
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
@@ -46,6 +51,21 @@ const LATIN_EXT_RANGE_START = 'U+0100-02BA';
  * `Košice` would make that assertion unable to fail on its own subject.
  */
 const LATIN_EXT_PROBE_LABEL = 'ŠŁŹČĘȘ šłźčęș';
+/**
+ * `04-10`. The two rows the Pacific fixture's land-versus-water discrimination
+ * moved to when the top band started painting over `y = 0`.
+ *
+ * The STRUCTURAL half is asserted in the test: both are past `BAND_MAX_HEIGHT`,
+ * so no band the product can draw — even one a creator has dragged to the cap —
+ * can reach them. The exact rows are then MEASURED rather than derived, because
+ * the two nearest structural candidates are contaminated by geography:
+ * `y = 155` lands on a boundary stroke at the left edge (0, 0, 0) and `y = 200`
+ * is already open water at the right. Measured in installed Chrome
+ * 151.0.7922.76: at `y = 180` both edges read the uncoloured fill, and at
+ * `y = 920` both read the water.
+ */
+const BAND_FREE_LAND_ROW = 180;
+const BAND_FREE_WATER_ROW = 920;
 
 interface CloneFontStyleSummary {
   readonly isFirstChild: boolean;
@@ -81,6 +101,9 @@ interface CloneSummary {
   readonly titles: number;
   readonly ariaAttributes: number;
   readonly ids: number;
+  readonly referencedIds: ReadonlyArray<string>;
+  readonly danglingReferences: ReadonlyArray<string>;
+  readonly unreferencedIds: ReadonlyArray<string>;
   readonly editorOnly: number;
   readonly outgoingScenes: number;
   readonly selectionClasses: number;
@@ -499,35 +522,62 @@ test.describe('PNG export', (): void => {
     /*
      * OPACITY is the claim this corner sample has always carried - the three
      * white export layers, proven on real bytes rather than on a `toBlob`
-     * success. It is asserted on every corner, unchanged.
-     *
-     * The COLOUR half moved with `04-09`, and the assertion got SHARPER rather
-     * than looser. MEASURED, not assumed: in the Pacific framing the two TOP
-     * corners sit over uncoloured land (northern Russia / Alaska) and the two
-     * BOTTOM corners over the Southern Ocean. Both read `#FFFFFF` before this
-     * plan, because an uncoloured country and the water were the same white -
-     * so this sample could not tell land from sea at all. Since D4-10 every
-     * Modern unit is colourable and since D4-09 an uncoloured one paints
-     * `#E5E7EB`, so the four corners now discriminate: two prove the uncoloured
-     * fill reached the rasterised pixels and two prove the water did.
+     * success. It is asserted on every corner, unchanged, because the bands are
+     * a `fill` and cannot touch alpha.
      */
     sample.corners.forEach((corner): void => {
       expect(corner[3], 'the PNG is not opaque at a corner.').toBe(255);
     });
-    const [topLeft, topRight, bottomLeft, bottomRight] = sample.corners;
+
+    /*
+     * THE COLOUR HALF MOVED OFF THE CORNERS, and that is a repair rather than a
+     * re-baseline.
+     *
+     * `04-09` put it there: in the Pacific framing the two TOP corners sit over
+     * uncoloured land (northern Russia / Alaska) and the two BOTTOM corners
+     * over the Southern Ocean, so the four discriminate `#E5E7EB` from
+     * `#FFFFFF`. `04-10` broke that: the top band is ON by default and paints
+     * the surface colour at FULL opacity along `y = 0`, so the top corners
+     * measured (254, 254, 254) - the band, not the land. Re-baselining them to
+     * the banded value would have kept the test green and killed the claim,
+     * because a banded corner reads the water colour whatever is underneath.
+     *
+     * The rows below are DERIVED from `BAND_MAX_HEIGHT` rather than nudged to a
+     * distance that works today: no band the product can draw reaches past the
+     * cap, so the exclusion is structural and a creator dragging a band to its
+     * maximum cannot contaminate this sample. The x positions are unchanged, so
+     * it is the same four columns of geography.
+     */
+    expect(
+      BAND_FREE_LAND_ROW,
+      'the land row is inside the reach of a band at its cap.',
+    ).toBeGreaterThan(BAND_MAX_HEIGHT);
+    expect(
+      EXPORT_SIZE - BAND_FREE_WATER_ROW,
+      'the water row is inside the reach of a bottom band at its cap.',
+    ).toBeGreaterThan(BAND_MAX_HEIGHT);
+    const bandFreeTopRow = BAND_FREE_LAND_ROW;
+    const bandFreeBottomRow = BAND_FREE_WATER_ROW;
+    const geography = await samplePngPoints(page, bytes, [
+      [0, bandFreeTopRow],
+      [EXPORT_SIZE - 1, bandFreeTopRow],
+      [0, bandFreeBottomRow],
+      [EXPORT_SIZE - 1, bandFreeBottomRow],
+    ]);
+    const [topLeft, topRight, bottomLeft, bottomRight] = geography.pixels;
     const uncoloredCorner = [...hexToRgb(DEFAULT_UNCOLORED_FILL_HEX), 255];
     const waterCorner = [...hexToRgb(DEFAULT_SURFACE_COLOR), 255];
     expect(uncoloredCorner).not.toEqual(waterCorner);
-    expect(topLeft, 'the top-left corner is over uncoloured land').toEqual(
+    expect(topLeft, 'the top-left edge is over uncoloured land').toEqual(
       uncoloredCorner,
     );
-    expect(topRight, 'the top-right corner is over uncoloured land').toEqual(
+    expect(topRight, 'the top-right edge is over uncoloured land').toEqual(
       uncoloredCorner,
     );
-    expect(bottomLeft, 'the bottom-left corner is open water').toEqual(
+    expect(bottomLeft, 'the bottom-left edge is open water').toEqual(
       waterCorner,
     );
-    expect(bottomRight, 'the bottom-right corner is open water').toEqual(
+    expect(bottomRight, 'the bottom-right edge is open water').toEqual(
       waterCorner,
     );
 
@@ -591,7 +641,14 @@ test.describe('PNG export', (): void => {
     // BEFORE the camera, so it shifts camera and legend equally too and the
     // order check still holds. Re-baselined with the layer named, not widened
     // to a "contains" check - the ORDER is the contract.
-    expect(clone.layerOrder).toEqual([null, 'surface', 'camera', 'legend']);
+    expect(clone.layerOrder).toEqual([
+      null,
+      'surface',
+      'paint',
+      'camera',
+      'bands',
+      'legend',
+    ]);
     expect(clone.legendTransform).toBe(legendTransform);
     expect(clone.legendTexts).toEqual([LEGEND_LABEL]);
     expect(clone.legendEditorOnly).toBe(0);
@@ -623,7 +680,38 @@ test.describe('PNG export', (): void => {
     expect(clone.focusables).toBe(0);
     expect(clone.titles).toBe(0);
     expect(clone.ariaAttributes).toBe(0);
-    expect(clone.ids).toBe(0);
+    /*
+     * `04-10` REPLACED `clone.ids === 0` here, and the replacement is required
+     * rather than convenient. `coding-rules/export.md`: *"A test that asserts
+     * `clone.ids === 0` CONFIRMS that break instead of catching it. Assert
+     * instead that no surviving `url(#...)` or `href="#..."` reference
+     * dangles."* Since the top band ships on by default, a zero here would mean
+     * its gradient id had been stripped and the PNG had silently lost the band.
+     *
+     * The three claims below say what the reference-aware rule actually means:
+     * every id that survived is pointed at, every pointer resolves, and an id
+     * nothing points at is still editor semantics and still goes.
+     *
+     * `ids` is ONE, not two, and that is the discriminating evidence: the
+     * bottom band is off, so its `<linearGradient>` has no rect referencing it
+     * and its id is correctly stripped. A sanitizer that blanket-KEPT ids would
+     * read two here.
+     */
+    expect(clone.ids).toBe(1);
+    expect(
+      clone.unreferencedIds,
+      'an id nothing points at survived the sanitizer. An unreferenced id is ' +
+        'editor semantics, and the strip rule is what keeps them out.',
+    ).toEqual([]);
+    expect(
+      clone.danglingReferences,
+      'a `url(#...)` in the clone resolves to nothing, so whatever it painted ' +
+        'is missing from the exported PNG while the editor still shows it.',
+    ).toEqual([]);
+    expect(
+      clone.referencedIds.length,
+      'no id is referenced at all, so the two assertions above are vacuous.',
+    ).toBe(1);
     expect(clone.editorOnly).toBe(0);
     expect(clone.outgoingScenes).toBe(0);
   });
@@ -2524,5 +2612,483 @@ test.describe('uncolored fill', (): void => {
 
     // 4. THE COUNTER'S OWN CONTROL, through the same machinery.
     await expectBlankControlReadsZeroInk(page, WHOLE_FRAME_REGION);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-10 - the gradient bands, on real downloaded pixels
+ * ------------------------------------------------------------------ */
+
+/**
+ * **The band is INVISIBLE on white water, by design** (`04-UI-SPEC.md` § 6.6).
+ * It fades from `settings.surfaceColor` to transparent, so on `#FFFFFF` water
+ * over white it is a no-op - the owner's Eurostat reference has no visible
+ * bands and that is correct behaviour. A gate sampling white-on-white measures
+ * nothing and passes.
+ *
+ * This gate therefore does BOTH things the spec offers as alternatives, because
+ * the measurement showed each alone is insufficient:
+ *
+ * 1. **A non-white water preset.** `Warm paper` (`#F5EFE6`). Without it the
+ *    band's colour could be hard-coded white and every assertion below would
+ *    still pass, so this is what makes the gate about `surfaceColor` at all.
+ * 2. **A sample column that crosses land.** Measured: over open water the band
+ *    is invisible EVEN on warm paper, because the band colour IS the water
+ *    colour - a warm-paper fade over warm-paper water reads 239.626 at every
+ *    row, band or no band. The signal only exists where the band overlays
+ *    something else, which is land at `#E5E7EB` (230.864).
+ *
+ * Both columns are derived from a MERIDIAN through the real projection, never
+ * from a pasted pixel, and each gate asserts its own samples are land in the
+ * bands-off control - so a sample that drifted onto ocean goes RED instead of
+ * quietly measuring nothing.
+ */
+const BAND_WATER_PRESET_NAME = 'Warm paper';
+
+/**
+ * Ellesmere Island / northern Canada. The ONLY landmass under the default
+ * `topBandHeight` of 120 at the default world camera: y 0..120 is 80 N to
+ * 85 N, and measured across five columns it is open Arctic Ocean everywhere
+ * except here. Land begins around y = 78 at this meridian, which is why the
+ * three samples sit at 66..114 rather than spanning the whole band.
+ *
+ * Measured across a 4-unit grid from y 62 to y 122, the bands-OFF column reads
+ * `#E5E7EB` at every row - so it is solid, not a sliver.
+ */
+const TOP_BAND_MERIDIAN = -73.3;
+const TOP_BAND_SAMPLE_ROWS: readonly [number, number, number] = [66, 90, 114];
+/**
+ * Queen Maud Land. Antarctica fills the whole bottom band (y 960..1080 is
+ * 80.3 S to 85 S) at this meridian, and unlike the Arctic it is continental
+ * rather than a scatter of islands. Measured: `#E5E7EB` at every sampled row.
+ *
+ * Not every meridian works - the Bellingshausen Sea at about 73 W reads WATER
+ * at y 958..970 - which is exactly why the land check below is an assertion
+ * rather than a comment.
+ */
+const BOTTOM_BAND_MERIDIAN = 0;
+const BOTTOM_BAND_SAMPLE_ROWS: readonly [number, number, number] = [
+  1070, 1020, 970,
+];
+
+/**
+ * The relative-luminance floor for the NEAR-to-FAR difference across a band.
+ *
+ * **DERIVED FROM A MEASUREMENT taken in this same change.** In installed
+ * Chrome 151.0.7922.76, with `Warm paper` water and both bands on:
+ *
+ * | band | near | mid | far | near - far |
+ * |---|---|---|---|---|
+ * | top (y 66 / 90 / 114) | 234.281 | 233.000 | 230.791 | **3.490** |
+ * | bottom (y 1070 / 1020 / 970) | 238.485 | 235.209 | 231.004 | **7.481** |
+ *
+ * The floor is **1.5** - under half the SMALLER of the two, so ordinary
+ * rendering variation does not make it flap, and six times the 0.25 noise floor
+ * below. The endpoints it interpolates between are the land at 230.864 and the
+ * warm-paper water at 239.626, both measured in the same run.
+ *
+ * The top band's span is smaller because only its lower third overlays land.
+ */
+const MIN_BAND_DELTA = 1.5;
+/**
+ * **The flat control's tolerance, and it is measured rather than guessed.**
+ * With both bands off, all three samples in BOTH columns read exactly
+ * **230.864** - the uncoloured fill - so the measured disagreement is
+ * **0.000**. The floor is set at 0.25, a quarter of one 8-bit level: not the
+ * literal zero, which would flap on any future anti-aliasing change, and 5.1
+ * times below the smallest REAL adjacent step this gate sees (1.281, top band
+ * near-to-mid).
+ *
+ * This repository has shipped a `<= 1px` tolerance that passed against its own
+ * 1px probe when the real disagreement was 6e-14. The number above is the real
+ * disagreement.
+ */
+const NOISE_FLOOR = 0.25;
+/**
+ * **The REMOVAL probe's floor, and it is a different claim from
+ * `MIN_BAND_DELTA`.** It sums how far the three samples move away from the
+ * bands-off control, which measures that a band is PRESENT without caring which
+ * way up it is.
+ *
+ * That independence is the point. Measured in the same run: top band
+ * **5.626**, bottom band **12.106**. Under the INVERSION mutation those sums
+ * grow rather than shrink (the inverted coverage at these rows is the
+ * complement, 2.25 against 0.75 for the top band), so this probe stays GREEN on
+ * an upside-down gradient and goes RED only on a missing one - while the
+ * ordering assertions do the opposite. Two failure modes, two probes, and
+ * neither is proving the other.
+ *
+ * The floor is **2.5**, under half the smaller measured sum.
+ */
+const MIN_BAND_PRESENCE = 2.5;
+/** The luminances the bands interpolate BETWEEN, measured in the same run. */
+const MEASURED_BAND_LAND_LUMINANCE = 230.864;
+const MEASURED_BAND_WATER_LUMINANCE = 239.626;
+/**
+ * `04-UI-SPEC.md` § 6.6's hit-area target, in CSS pixels. A viewBox user unit
+ * is NOT one: at 1280 x 720 the full-bleed canvas renders the 1080 square at
+ * 720 CSS px, so a 44-UNIT rect measured **29.3 CSS px** - under the target and
+ * silently so. `MapCanvas` sizes the hit area at **88 user units** instead,
+ * derived as `44 / 0.5` where 0.5 is the scale at the 540px canvas floor.
+ * Re-measured here after that change: **58.67 x 58.67** CSS px at 1280 x 720.
+ *
+ * Asserted at THIS viewport only. The claim is "at least 44 CSS px in installed
+ * Chrome at 1280 x 720", not a physical touch-target check - A4's ⛔ physical
+ * cell is a different claim and is not inherited.
+ */
+const BAND_HANDLE_TARGET_CSS_PX = 44;
+
+/** Rec. 709 relative luminance on the 0..255 scale, one definition for this gate. */
+function luminanceOf(pixel: ReadonlyArray<number>): number {
+  return (
+    0.2126 * (pixel[0] ?? 0) +
+    0.7152 * (pixel[1] ?? 0) +
+    0.0722 * (pixel[2] ?? 0)
+  );
+}
+
+/**
+ * The column a band gate samples, taken from a MERIDIAN through the real
+ * projection and the live camera transform - never a pasted pixel. The latitude
+ * is irrelevant and is therefore the equator: only the x is used.
+ */
+async function meridianColumn(page: Page, longitude: number): Promise<number> {
+  const [x] = await projectToExportPixel(page, [longitude, 0]);
+  return x;
+}
+
+async function sampleColumn(
+  page: Page,
+  bytes: Buffer,
+  column: number,
+  rows: ReadonlyArray<number>,
+): Promise<ReadonlyArray<ReadonlyArray<number>>> {
+  const sample = await samplePngPoints(
+    page,
+    bytes,
+    rows.map((y): readonly [number, number] => [column, y]),
+  );
+  return sample.pixels;
+}
+
+async function setBandVisible(
+  page: Page,
+  label: string,
+  isVisible: boolean,
+): Promise<void> {
+  const toggle = page.getByRole('checkbox', { name: label, exact: true });
+  await toggle.setChecked(isVisible);
+  await expect(toggle).toBeChecked({ checked: isVisible });
+}
+
+interface BandColumnMeasurement {
+  readonly withBands: ReadonlyArray<number>;
+  readonly withoutBands: ReadonlyArray<number>;
+}
+
+/**
+ * Every assertion one band owes, against ONE pair of exports.
+ *
+ * The three samples share an identical x and differ only in y, all inside the
+ * band's extent, ordered from the band's ANCHORED edge inward - so "near" is
+ * the most-covered row for both bands and the two read the same way round.
+ */
+function expectBandColumn(
+  label: string,
+  { withBands, withoutBands }: BandColumnMeasurement,
+): void {
+  const [near, mid, far] = withBands;
+  if (near === undefined || mid === undefined || far === undefined) {
+    throw new Error(`${label}: the sampler returned fewer than three rows.`);
+  }
+
+  /*
+   * 1. THE CONTROL IS LAND. Measured, not assumed: over open water the band
+   *    fades from the water colour TO the water colour and every assertion
+   *    below would be comparing 239.626 with itself. A sample that drifts onto
+   *    ocean fails here rather than passing for the wrong reason.
+   */
+  withoutBands.forEach((value: number, index: number): void => {
+    expect(
+      value,
+      `${label}: sample ${index} reads ${value} with bands off, not the ` +
+        `uncoloured land at ${MEASURED_BAND_LAND_LUMINANCE}. Two causes, and ` +
+        'the number tells them apart. LIGHTER, near the water colour: the ' +
+        'column has drifted onto ocean, where a band fading from the water ' +
+        'colour is invisible by design and every assertion below would ' +
+        'measure nothing. BETWEEN the two: the control is not actually ' +
+        'bands-off, so a band is rendering while its toggle says otherwise.',
+    ).toBeCloseTo(MEASURED_BAND_LAND_LUMINANCE, 2);
+  });
+
+  /*
+   * 2. THE FLAT CONTROL. The same column with bands off must be flat within the
+   *    measured noise floor, or the ordering in 3 could be a property of the
+   *    map underneath rather than of the band.
+   */
+  expect(
+    Math.max(...withoutBands) - Math.min(...withoutBands),
+    `${label}: the bands-off column is not flat, so the ordering below ` +
+      'cannot be attributed to the band.',
+  ).toBeLessThanOrEqual(NOISE_FLOOR);
+
+  /*
+   * 3. THE PRESENCE PROBE - this is what a REMOVED band fails, and it is
+   *    deliberately blind to orientation so it is not a restatement of 4.
+   *    It runs FIRST because a deleted band flattens the column, which would
+   *    otherwise trip the ordering assertion below and report an INVERSION -
+   *    one mutation reddening a claim it is not about. Inverting the gradient
+   *    makes this sum LARGER at these rows; deleting the band takes it to zero.
+   */
+  const presence = withBands.reduce(
+    (total: number, value: number, index: number): number =>
+      total + Math.abs(value - (withoutBands[index] ?? value)),
+    0,
+  );
+  expect(
+    presence,
+    `${label}: the column moved ${presence.toFixed(3)} away from the ` +
+      `bands-off control against a floor of ${MIN_BAND_PRESENCE}. The band ` +
+      'did not reach the exported PNG at all.',
+  ).toBeGreaterThan(MIN_BAND_PRESENCE);
+
+  /*
+   * 4. THE ORIENTATION PROBE - this is what an INVERTED gradient fails, and
+   *    the presence probe above stays GREEN through that mutation. Two failure
+   *    modes, two probes, neither proving the other.
+   *    Pairwise, because "some band pixels are lighter" is satisfied by an
+   *    upside-down band just as well as by a right-way-up one.
+   */
+  expect(
+    near,
+    `${label}: the row nearest the band's anchored edge (${near}) is not ` +
+      `lighter than the middle row (${mid}). The gradient is running the ` +
+      'WRONG WAY - the band is upside down in the exported PNG.',
+  ).toBeGreaterThan(mid);
+  expect(
+    mid,
+    `${label}: the middle row (${mid}) is not lighter than the far row ` +
+      `(${far}), so the fade is not monotone across the band.`,
+  ).toBeGreaterThan(far);
+  expect(
+    near - far,
+    `${label}: near-to-far spans only ${(near - far).toFixed(3)} against a ` +
+      `floor of ${MIN_BAND_DELTA}. The fade is too shallow to be the band.`,
+  ).toBeGreaterThan(MIN_BAND_DELTA);
+
+  /*
+   * 5. AND IT IS THE CREATOR'S WATER, not white. The most-covered row must have
+   *    moved TOWARDS the chosen surface colour; a band hard-coded to `#FFFFFF`
+   *    over `#F5EFE6` water would fail 1's own control differently, but this
+   *    states the direction explicitly.
+   */
+  expect(
+    near,
+    `${label}: the most-covered row (${near}) did not move towards the ` +
+      `creator's water at ${MEASURED_BAND_WATER_LUMINANCE}.`,
+  ).toBeLessThanOrEqual(MEASURED_BAND_WATER_LUMINANCE + NOISE_FLOOR);
+}
+
+test.describe('band', (): void => {
+  /**
+   * **GATE D (04-10 / D4-16) - both bands reach the PNG, right way up.**
+   *
+   * One pair of exports, one counter, one decode path: bands on, then bands
+   * off, sampled at the same two columns. Every threshold is derived from a
+   * measurement recorded above.
+   */
+  test('fade from the creator water colour, anchored to their own edges', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+
+    /*
+     * The preset is looked up in the shipped table rather than typed, so a
+     * future edit that made `Warm paper` white would fail HERE - loudly - and
+     * not by quietly turning every measurement below into white-on-white.
+     */
+    const waterPreset = WATER_PRESETS.find(
+      (preset): boolean => preset.name === BAND_WATER_PRESET_NAME,
+    );
+    expect(waterPreset).toBeDefined();
+    expect(
+      waterPreset?.value,
+      'the band gate needs a NON-WHITE surface: a white-to-transparent fade ' +
+        'on white water is a no-op and measures nothing.',
+    ).not.toBe(DEFAULT_SURFACE_COLOR);
+
+    const water = page.getByRole('radio', {
+      name: BAND_WATER_PRESET_NAME,
+      exact: true,
+    });
+    await water.check();
+    await expect(water).toBeChecked();
+
+    const topColumn = await meridianColumn(page, TOP_BAND_MERIDIAN);
+    const bottomColumn = await meridianColumn(page, BOTTOM_BAND_MERIDIAN);
+
+    await setBandVisible(page, 'Top band', true);
+    await setBandVisible(page, 'Bottom band', true);
+    const withBands = await exportRealApp(page, 'bands-on');
+
+    await setBandVisible(page, 'Top band', false);
+    await setBandVisible(page, 'Bottom band', false);
+    const withoutBands = await exportRealApp(page, 'bands-off');
+
+    // 0. THE SIZE CONTRACT, on both frames.
+    [withBands, withoutBands].forEach((bytes: Buffer): void => {
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+    });
+
+    /*
+     * 0b. THE CONTENT FLOOR, first and on the whole frame. At the shipped
+     *     defaults the frame's ink IS the interior mesh, so this is also the
+     *     proof that the export is a map rather than a blank square. Measured
+     *     in this run: 8,400 with bands and 8,400 without - the bands are
+     *     lighter than `DARK_INK_THRESHOLD` and take nothing away.
+     */
+    const bandedInk = await countInkAroundRegion(
+      page,
+      withBands,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      bandedInk.inside,
+      `the banded frame measured ${bandedInk.inside} ink pixels against a ` +
+        `floor of ${MIN_MESH_INK_PIXELS}. It carries no geography, so every ` +
+        'luminance assertion below would be about a blank square.',
+    ).toBeGreaterThan(MIN_MESH_INK_PIXELS);
+    await expectBlankControlReadsZeroInk(page, WHOLE_FRAME_REGION);
+
+    // 1. THE TOP BAND - on by default, and the one 04-12's legend inset reads.
+    expectBandColumn('top band', {
+      withBands: (
+        await sampleColumn(page, withBands, topColumn, TOP_BAND_SAMPLE_ROWS)
+      ).map(luminanceOf),
+      withoutBands: (
+        await sampleColumn(page, withoutBands, topColumn, TOP_BAND_SAMPLE_ROWS)
+      ).map(luminanceOf),
+    });
+
+    // 2. THE BOTTOM BAND - off by default, anchored to the OPPOSITE edge, so
+    //    an inversion cannot be a single shared sign error that happens to
+    //    satisfy both.
+    expectBandColumn('bottom band', {
+      withBands: (
+        await sampleColumn(
+          page,
+          withBands,
+          bottomColumn,
+          BOTTOM_BAND_SAMPLE_ROWS,
+        )
+      ).map(luminanceOf),
+      withoutBands: (
+        await sampleColumn(
+          page,
+          withoutBands,
+          bottomColumn,
+          BOTTOM_BAND_SAMPLE_ROWS,
+        )
+      ).map(luminanceOf),
+    });
+  });
+
+  /**
+   * **A7 - the handle is operable by keyboard alone, and big enough to hit.**
+   *
+   * Every expected value is IMPORTED from `src/utils/bands.ts` rather than
+   * retyped, so a change to the step or the cap moves the product and the gate
+   * together instead of leaving the gate asserting a number nothing produces.
+   */
+  test('resize handles are keyboard-operable and meet the 44px target', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const handle = page.locator('[role="slider"][aria-label="Top band"]');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_DEFAULT_HEIGHT),
+    );
+    await expect(handle).toHaveAttribute('aria-valuemin', '0');
+    await expect(handle).toHaveAttribute(
+      'aria-valuemax',
+      String(BAND_MAX_HEIGHT),
+    );
+
+    /*
+     * The RENDERED box, in CSS pixels, at this viewport. A 44-UNIT rect
+     * measured 29.3 CSS px here, which is why the hit area is 88 units.
+     * Asserted on both axes, because a handle can be wide and unhittable.
+     */
+    const box = await handle.boundingBox();
+    expect(box).not.toBeNull();
+    expect(
+      box?.height ?? 0,
+      `the handle renders ${box?.height ?? 0} CSS px tall, under A7's ` +
+        `${BAND_HANDLE_TARGET_CSS_PX}px target.`,
+    ).toBeGreaterThanOrEqual(BAND_HANDLE_TARGET_CSS_PX);
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(BAND_HANDLE_TARGET_CSS_PX);
+
+    await handle.focus();
+    await expect(handle).toBeFocused();
+
+    // ARROWS MOVE THE VALUE, so both handles agree about which way is bigger.
+    await handle.press('ArrowUp');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_DEFAULT_HEIGHT + BAND_KEYBOARD_STEP),
+    );
+    await handle.press('ArrowDown');
+    await handle.press('ArrowDown');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_DEFAULT_HEIGHT - BAND_KEYBOARD_STEP),
+    );
+
+    // ...and the RECT followed, not just the announced value.
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveAttribute('height', String(BAND_DEFAULT_HEIGHT - BAND_KEYBOARD_STEP));
+
+    await handle.press('End');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_MAX_HEIGHT),
+    );
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveAttribute('height', String(BAND_MAX_HEIGHT));
+
+    // A request past the cap is CLAMPED, not accepted.
+    await handle.press('ArrowUp');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_MAX_HEIGHT),
+    );
+
+    // Home is the minimum, and a zero-height band draws no rect at all.
+    await handle.press('Home');
+    await expect(handle).toHaveAttribute('aria-valuenow', '0');
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveCount(0);
+
+    /*
+     * The handle is an AFFORDANCE and must never be published. Asserted here on
+     * the real app as well as on the sanitized clone in `export.test.ts`,
+     * because only the real app proves `MapCanvas` actually writes the
+     * attribute the sanitizer looks for.
+     */
+    await expect(
+      page.locator('svg.map-canvas [data-layer="band-handles"]'),
+    ).toHaveAttribute('data-editor-only', 'true');
   });
 });

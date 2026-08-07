@@ -531,8 +531,21 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * The two gradient bands themselves cost ZERO selectors - `defs[data-layer=
  * "paint"]`, its two `<linearGradient>`s, their inline literal stops, and the
  * two band rects are all attributes, for the same reason the interior mesh was.
+ *
+ * **Raised 334 -> 335 by `04-10`'s Task 3, and it is the LAST rule of the
+ * plan.** MEASURED both ways. The delta is `.map-style__readout` in
+ * `controls/mapStyle.css`, the band height report. It is not folded into
+ * `.map-style__sublabel` — the two share a size and a colour but only the
+ * readout owes the reader `tabular-nums`, and merging them would put a fixed
+ * advance on three prose labels to save one selector.
+ *
+ * The `Bands` section itself cost ZERO. Its toggles are checkboxes inside the
+ * existing `.panel-pill`, reached by WIDENING `editor.css`'s
+ * `.panel-pill input[type="radio"]` to `.panel-pill input` rather than adding a
+ * `[type="checkbox"]` copy beside it — the duplicated-pill defect
+ * `04-UI-SPEC.md` § 11 rule 1 names by name.
  */
-const SELECTOR_INVENTORY_CEILING = 334;
+const SELECTOR_INVENTORY_CEILING = 335;
 
 /**
  * Every selector a rule declares, one per comma-separated part.

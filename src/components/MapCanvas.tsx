@@ -115,7 +115,36 @@ const BAND_BOTTOM_GRADIENT_ID = 'countriesirl-band-bottom';
  * The unit-to-CSS-pixel mapping depends on the rendered canvas size, so the
  * rendered box is MEASURED in `export.spec.ts` rather than assumed to be 1:1.
  */
-const BAND_HANDLE_HIT_HEIGHT = 44;
+/**
+ * The hit area, **88 user units square**, and the 88 is DERIVED rather than
+ * chosen.
+ *
+ * `04-UI-SPEC.md` section 6.6 asks for a 44px hit area, and a viewBox user unit
+ * is not a CSS pixel. Measured in installed Chrome at 1280x720: the full-bleed
+ * canvas renders the 1080 square at 720 CSS px, a scale of 0.667, so a
+ * 44-UNIT rect comes out **29.3 CSS px** - under the target, and silently so.
+ *
+ * The scale is smallest on the SHORTEST canvas the project targets, which is
+ * the 540px rail-height floor measured in Chrome during `04-07`: 540 / 1080 =
+ * **0.5**. So `44 / 0.5 = 88` user units is the value that clears 44 CSS px at
+ * every viewport from that floor upward - 44.0 CSS px at 540, 58.7 at 720.
+ *
+ * A fixed number rather than a measured one on purpose: sizing this from the
+ * rendered scale needs a resize observer inside `MapCanvas`, and
+ * `uiContract.test.ts` keeps that class of observer out of this file precisely
+ * so a rail or panel reflow can never re-derive projection, camera, or export
+ * geometry. An affordance is not worth an exception to that invariant, and the
+ * identifier is spelled in lower case here for the same reason the gate
+ * assembles it rather than writing it out: a comment that matches the scan is
+ * a gate that fails on prose.
+ *
+ * It is a CENTERED pill rather than a full-width strip: a 1080-wide hit area at
+ * the band edge would swallow every country click in that band of the map,
+ * which is the pointer-stealing defect `pointer-events: none` on the mesh and
+ * the highlight layers exists to prevent. The 88-square zone sits over open
+ * Arctic Ocean and over Antarctica at the default frame.
+ */
+const BAND_HANDLE_HIT_HEIGHT = 88;
 const BAND_HANDLE_HIT_WIDTH = 88;
 const BAND_HANDLE_LINE_WIDTH = 64;
 const BAND_HANDLE_STROKE_WIDTH = 3;
@@ -645,6 +674,18 @@ function BandHandle({
     [],
   );
 
+  /*
+   * `MapCanvas`'s background click clears the selection for anything that is
+   * not a scene path, and the handle is not one. Without this, grabbing a band
+   * would silently drop whatever the creator had selected.
+   */
+  const handleClick = useCallback(
+    (event: ReactMouseEvent<SVGRectElement>): void => {
+      event.stopPropagation();
+    },
+    [],
+  );
+
   const handlePointerMove = useCallback(
     (event: ReactPointerEvent<SVGRectElement>): void => {
       if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -724,6 +765,7 @@ function BandHandle({
         width={BAND_HANDLE_HIT_WIDTH}
         height={BAND_HANDLE_HIT_HEIGHT}
         fill="transparent"
+        onClick={handleClick}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

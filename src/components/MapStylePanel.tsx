@@ -2,6 +2,7 @@ import { useCallback, useId, useMemo } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
 import {
+  BAND_LABELS,
   BORDER_COLOR_PRESETS,
   CUSTOM_SURFACE_COLOR_PLACEHOLDER,
   DEFAULT_COMPOSITION_SETTINGS,
@@ -21,6 +22,10 @@ const BORDERS_SECTION_LABEL = "Borders";
 const INTERIOR_SUBLABEL = "Interior";
 const COASTLINES_SUBLABEL = "Coastlines";
 const BORDER_COLOR_SUBLABEL = "Border color";
+const BANDS_SECTION_LABEL = "Bands";
+const BAND_HEIGHT_READOUT_SUFFIX = "height";
+const BAND_HEIGHT_HINT =
+  "Drag a band's handle on the map, or focus it and use the arrow keys.";
 const CUSTOM_SURFACE_LABEL = "Custom water color";
 const CUSTOM_UNCOLORED_LABEL = "Custom uncolored color";
 const APPLY_SURFACE_LABEL = "Apply";
@@ -37,6 +42,11 @@ interface MapStylePanelProps {
   readonly borderColor: string;
   readonly interiorWeight: StrokeWeight;
   readonly coastlineWeight: StrokeWeight;
+  /** D4-16. Height is adjusted on the canvas; the panel only toggles and reports. */
+  readonly topBandVisible: boolean;
+  readonly topBandHeight: number;
+  readonly bottomBandVisible: boolean;
+  readonly bottomBandHeight: number;
   /**
    * Owned by `App` (`useInspectorUiState`): the 1200px transition remounts this
    * subtree, so an in-progress hex would otherwise be lost on resize.
@@ -90,6 +100,10 @@ export function MapStylePanel({
   borderColor,
   interiorWeight,
   coastlineWeight,
+  topBandVisible,
+  topBandHeight,
+  bottomBandVisible,
+  bottomBandHeight,
   customDraft,
   onCustomDraftChange,
   uncoloredDraft,
@@ -165,6 +179,20 @@ export function MapStylePanel({
     [onMapStyleChange],
   );
 
+  const handleTopBandToggle = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      onMapStyleChange({ topBandVisible: event.currentTarget.checked });
+    },
+    [onMapStyleChange],
+  );
+
+  const handleBottomBandToggle = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      onMapStyleChange({ bottomBandVisible: event.currentTarget.checked });
+    },
+    [onMapStyleChange],
+  );
+
   const handleCustomDraftChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
       onCustomDraftChange(event.currentTarget.value);
@@ -214,6 +242,10 @@ export function MapStylePanel({
       borderColor: DEFAULT_COMPOSITION_SETTINGS.borderColor,
       interiorWeight: DEFAULT_COMPOSITION_SETTINGS.interiorWeight,
       coastlineWeight: DEFAULT_COMPOSITION_SETTINGS.coastlineWeight,
+      topBandVisible: DEFAULT_COMPOSITION_SETTINGS.topBandVisible,
+      topBandHeight: DEFAULT_COMPOSITION_SETTINGS.topBandHeight,
+      bottomBandVisible: DEFAULT_COMPOSITION_SETTINGS.bottomBandVisible,
+      bottomBandHeight: DEFAULT_COMPOSITION_SETTINGS.bottomBandHeight,
     });
     onCustomDraftChange("");
     onUncoloredDraftChange("");
@@ -224,7 +256,11 @@ export function MapStylePanel({
     uncoloredFill === DEFAULT_COMPOSITION_SETTINGS.uncoloredFill &&
     borderColor === DEFAULT_COMPOSITION_SETTINGS.borderColor &&
     interiorWeight === DEFAULT_COMPOSITION_SETTINGS.interiorWeight &&
-    coastlineWeight === DEFAULT_COMPOSITION_SETTINGS.coastlineWeight;
+    coastlineWeight === DEFAULT_COMPOSITION_SETTINGS.coastlineWeight &&
+    topBandVisible === DEFAULT_COMPOSITION_SETTINGS.topBandVisible &&
+    topBandHeight === DEFAULT_COMPOSITION_SETTINGS.topBandHeight &&
+    bottomBandVisible === DEFAULT_COMPOSITION_SETTINGS.bottomBandVisible &&
+    bottomBandHeight === DEFAULT_COMPOSITION_SETTINGS.bottomBandHeight;
 
   const renderSwatchPills = (
     presets: ReadonlyArray<MapStyleColorPreset>,
@@ -425,6 +461,52 @@ export function MapStylePanel({
           borderColor,
           handleBorderColorChange,
         )}
+      </fieldset>
+
+      {/*
+        D4-16 / `04-UI-SPEC.md` section 6.6. The band is what a full-bleed map
+        gives overlaid type to sit on - CountriesIRL has reached every edge
+        since Phase 3, so a title cannot sit ABOVE the map the way the owner's
+        Eurostat reference does; it has to overlay it.
+
+        TOGGLES ONLY. Height is adjusted by the on-canvas drag handle and its
+        keyboard equivalents (A7), and a second numeric control here would be
+        two writers for one value - the drift `04-UI-SPEC.md` section 11 rule 1
+        names. The readouts below REPORT the height; they do not set it.
+
+        Zero new pill classes: the checkbox rides the same `.panel-pill` the
+        radios do. Its input selector was widened from `input[type="radio"]` to
+        `input` rather than a second rule being added beside it.
+      */}
+      <fieldset className="panel-section" disabled={isDisabled}>
+        <legend className="panel-section__label">{BANDS_SECTION_LABEL}</legend>
+
+        <div className="panel-pills">
+          <label className="panel-pill">
+            <input
+              type="checkbox"
+              checked={topBandVisible}
+              onChange={handleTopBandToggle}
+            />
+            {BAND_LABELS.top}
+          </label>
+          <label className="panel-pill">
+            <input
+              type="checkbox"
+              checked={bottomBandVisible}
+              onChange={handleBottomBandToggle}
+            />
+            {BAND_LABELS.bottom}
+          </label>
+        </div>
+
+        <p className="map-style__readout">
+          {`${BAND_LABELS.top} ${BAND_HEIGHT_READOUT_SUFFIX} ${topBandHeight}`}
+        </p>
+        <p className="map-style__readout">
+          {`${BAND_LABELS.bottom} ${BAND_HEIGHT_READOUT_SUFFIX} ${bottomBandHeight}`}
+        </p>
+        <p className="map-style__sublabel">{BAND_HEIGHT_HINT}</p>
       </fieldset>
 
       {/*

@@ -59,3 +59,24 @@
   font-size: var(--text-caption);
   line-height: var(--text-caption-line-height);
 }
+
+/*
+ * The band height READOUT (`04-10`).
+ *
+ * `tabular-nums` so the number does not jog sideways while a creator drags the
+ * handle - a proportional `1` is narrower than a `0`, and a readout that
+ * reflows on every pointer move reads as a glitch rather than a measurement.
+ *
+ * It is `--text-caption` in Slate Blue like `.map-style__sublabel`, but it is
+ * its OWN class rather than a shared one: the sub-label names a group and the
+ * readout reports a value, and only one of the two owes the reader a fixed
+ * advance. Folding them together would put `tabular-nums` on three prose
+ * labels to save one selector.
+ */
+.map-style__readout {
+  margin: 0;
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--text-caption-line-height);
+}

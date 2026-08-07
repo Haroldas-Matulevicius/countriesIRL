@@ -1120,6 +1120,10 @@ export default function App(): JSX.Element {
         borderColor={compositionState.settings.borderColor}
         interiorWeight={compositionState.settings.interiorWeight}
         coastlineWeight={compositionState.settings.coastlineWeight}
+        topBandVisible={compositionState.settings.topBandVisible}
+        topBandHeight={compositionState.settings.topBandHeight}
+        bottomBandVisible={compositionState.settings.bottomBandVisible}
+        bottomBandHeight={compositionState.settings.bottomBandHeight}
         customDraft={inspectorUi.customSurfaceDraft}
         onCustomDraftChange={inspectorUi.setCustomSurfaceDraft}
         uncoloredDraft={inspectorUi.customUncoloredDraft}

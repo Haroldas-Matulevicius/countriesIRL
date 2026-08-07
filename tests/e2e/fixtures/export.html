@@ -54,6 +54,8 @@
         const elements = [svg, ...svg.querySelectorAll('*')];
         let ariaAttributes = 0;
         let ids = 0;
+        const survivingIds = new Set();
+        const references = [];
         elements.forEach((element) => {
           element.getAttributeNames().forEach((name) => {
             if (name.startsWith('aria-')) {
@@ -61,10 +63,33 @@
             }
             if (name === 'id') {
               ids += 1;
+              survivingIds.add(element.getAttribute('id'));
+            }
+            // 04-10. `id` stripping is REFERENCE-AWARE, so a bare count cannot
+            // say whether the sanitizer got it right: `ids === 0` is what a
+            // stripped gradient looks like, and `coding-rules/export.md` names
+            // that assertion as one that CONFIRMS the break. Collect both sides
+            // instead - what survived, and what points at something.
+            const value = element.getAttribute(name) ?? '';
+            [...value.matchAll(/url\(\s*['"]?#([^'")\s]+)/gu)].forEach((match) => {
+              references.push(match[1]);
+            });
+            if ((name === 'href' || name === 'xlink:href') && value.startsWith('#')) {
+              references.push(value.slice(1));
             }
           });
         });
-        return { ariaAttributes, ids };
+        return {
+          ariaAttributes,
+          ids,
+          referencedIds: [...new Set(references)].sort(),
+          danglingReferences: [...new Set(references)]
+            .filter((id) => !survivingIds.has(id))
+            .sort(),
+          unreferencedIds: [...survivingIds]
+            .filter((id) => !references.includes(id))
+            .sort(),
+        };
       }
 
       function summarizeClone(frame) {
@@ -76,7 +101,13 @@
         const scenePaths = [...svg.querySelectorAll('path.scene-path')];
         const legend = svg.querySelector('[data-layer="legend"]');
         const camera = svg.querySelector('[data-layer="camera"]');
-        const { ariaAttributes, ids } = summarizeAttributeUse(svg);
+        const {
+          ariaAttributes,
+          ids,
+          referencedIds,
+          danglingReferences,
+          unreferencedIds,
+        } = summarizeAttributeUse(svg);
         // Assertion 25 Part 1: the injected export @font-face, observed on the
         // real clone as it lands in the body — never by stubbing.
         const fontStyle = svg.querySelector('style');
@@ -142,6 +173,9 @@
           titles: svg.querySelectorAll('title').length,
           ariaAttributes,
           ids,
+          referencedIds,
+          danglingReferences,
+          unreferencedIds,
           editorOnly: svg.querySelectorAll('[data-editor-only]').length,
           outgoingScenes: svg.querySelectorAll(
             '[data-layer="outgoing-scenes"],[data-layer="outgoing-scene"]',

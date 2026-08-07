@@ -788,8 +788,15 @@
  * Visually hidden but CLICK-BEARING - the input covers its whole pill at
  * opacity 0 rather than being clipped to 1px. A clipped input sits under the
  * label, which then intercepts the very pointer events a `.check()` aims at.
+ *
+ * `04-10` WIDENED this from `input[type="radio"]` rather than adding a second
+ * rule beside it: the `Bands` toggles are checkboxes in the same pill, and a
+ * `.panel-pill input[type="checkbox"]` copy would be the duplicated-pill defect
+ * `04-UI-SPEC.md` section 11 rule 1 names. The neighbouring
+ * `:has(input:checked)` rule already matched on the bare element, so the two
+ * now agree. Net cost to the selector inventory: zero.
  */
-.panel-pill input[type="radio"] {
+.panel-pill input {
   position: absolute;
   inset: 0;
   width: 100%;

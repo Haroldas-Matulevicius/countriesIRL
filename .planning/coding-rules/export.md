@@ -226,14 +226,27 @@ div.map-export-source
 svg.map-canvas
 ├── style                          ← injected export @font-face(s); FIRST child
 ├── rect[data-layer="surface"]     ← 04-01: water; inline fill; OUTSIDE the camera
+├── defs[data-layer="paint"]       ← 04-10: band gradients; inline literal stops
 ├── g[data-layer="camera"]         ← still before the legend; transform preserved
+├── g[data-layer="bands"]          ← 04-10: edge-anchored rects; url(#…) fills
 └── g[data-layer="legend"]         ← transform preserved
 ```
+
+`g[data-layer="band-handles"]` is in the SOURCE and never in the clone: it carries
+`data-editor-only`, so the sanitizer removes it wholesale.
 
 The leading `<style>` is legitimate and expected: `isPreservedComposition` checks *order*
 (camera index < legend index), which a first-child insertion preserves because it shifts both
 indices equally. A doc or test that asserts `g[data-layer="camera"]` is the clone's literal
 first child is asserting the pre-03-11 shape and is wrong.
+
+**A band is invisible on white water BY DESIGN, and a gate about it must account for that.**
+`04-10`'s bands fade from `settings.surfaceColor` to transparent, so over water they fade from the
+water colour *to the water colour*: measured at 239.626 with the band on and 239.626 with it off, on
+`Warm paper` water. A band gate therefore needs a **non-white surface AND a column that crosses
+land**, plus an assertion that its samples really are land — see `coding-rules/frontend.md`
+§ The gradient bands for the two-probe (presence, then ordering) shape that separates a REMOVED band
+from an INVERTED one.
 
 **Sibling layers are structurally permitted, and `04-01` is the precedent.** The same index-shift
 argument covers `rect[data-layer="surface"]`: it is inserted before the camera, so both indices
@@ -241,9 +254,10 @@ move together and camera-still-precedes-legend holds. The sanitizer leaves it al
 construction — it is not `title,desc,metadata`, it carries no `data-editor-only`, it is not a
 `path.scene-path`, and `fill` is not in `SEMANTIC_ONLY_ATTRIBUTES` — but "by construction" is not
 evidence, so `export.test.ts` asserts the rect and its `fill` survive the clone and
-`export.spec.ts`'s `water preset` gate asserts the colour on real downloaded pixels. Later Phase 4
-layers (`defs[data-layer="paint"]`, `g[data-layer="bands"]`, `g[data-layer="text"]`) follow the
-same rule and owe the same evidence.
+`export.spec.ts`'s `water preset` gate asserts the colour on real downloaded pixels. `04-10`'s `defs[data-layer="paint"]` and `g[data-layer="bands"]` followed the same rule and paid the
+same evidence: `export.test.ts` asserts the gradient ids survive AND that the rects still reference
+them, and `export.spec.ts`'s `band` gate asserts the fade on real downloaded pixels.
+`g[data-layer="text"]` (`04-11`) owes the same.
 
 **Refuse rather than export a wrong picture.** `invalid-composition` is returned when:
 
@@ -387,6 +401,26 @@ sanitization.
 
 A test that asserts `clone.ids === 0` **confirms** that break instead of catching it. Assert
 instead that no surviving `url(#…)` or `href="#…"` reference dangles.
+
+**`04-10` is the plan that made this bite, and the rule was already written down.** The band
+gradients are the first referenced ids the product ships, and both `export.spec.ts` and
+`fixtures/export.html` carried `ids === 0`. The replacement is three claims, because the obvious two
+are vacuous when nothing is referenced at all:
+
+| Claim | Why it is separate |
+|---|---|
+| no surviving id is **unreferenced** | an id nothing points at is still editor semantics and still goes |
+| no surviving **reference dangles** | a `url(#…)` resolving to nothing is a layer missing from the PNG while the editor shows it |
+| at least one reference **exists** | without this the two above are satisfied by a clone with no ids and no references |
+
+**Measured evidence that the strip rule discriminates rather than blanket-keeping:** with the top
+band on and the bottom band off, the sanitized clone carries **one** id. The bottom gradient has no
+rect pointing at it and is correctly stripped.
+
+**A `<defs>` subtree is not enough on its own.** The gradient can be present, correct, and inert:
+the id goes, `fill="url(#band-top)"` still reads fine in the markup, and the band simply does not
+rasterise. There is no error, no refusal, and no toast — the same silent-failure shape as an
+unregistered font family.
 
 **Zero legends is not a missing legend.** `isSingleCanonicalComposition` refuses a duplicated
 legend and a legend that exists in the source (or hoisted above it) but not in the canonical
@@ -647,7 +681,9 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-07 (latest) — § Strip semantics gained **the border rule is
+*Last updated: 2026-08-07 (latest) — **the reference-aware `id` rule got its first real subject** (D4-16, plan `04-10`). The canonical clone shape gained `defs[data-layer="paint"]` and `g[data-layer="bands"]`, with `g[data-layer="band-handles"]` named as source-only. § Strip semantics records that BOTH `export.spec.ts` and `fixtures/export.html` carried `clone.ids === 0` — the assertion this file already warned CONFIRMS the break — and the three claims that replaced it, including the non-vacuity check the obvious two need; plus the measured evidence that stripping discriminates (one surviving id with the bottom band off, not two) and the reminder that a `<defs>` subtree can be present, correct, and inert with no error anywhere. § Prepared-Composition Clone Contract gained the rule that a band is invisible on white water by design, so a band gate needs a non-white surface AND a land-crossing column, with the measured 239.626-either-way over open ocean and a pointer at `frontend.md`'s presence-then-ordering probe shape.*
+
+*Last updated: 2026-08-07 and 2026-08-06, condensed per the two-entry rule — § Strip semantics gained **the border rule is
 pass-through-with-neutralisation** (D4-08, plan `04-08`). `sanitizeExportClone`'s stroke loop no
 longer hard-sets `#000000` / `0.75` over the creator's choice — the measured reason a quiet
 coastline was unreachable in the PNG. It was **REPLACED, never deleted**: the `non-scaling-stroke`
@@ -661,9 +697,7 @@ values remain the fallback for a source that declares nothing; and the editor ha
 `--map-border-weight` / `--map-border-resting` custom properties rather than per-path inline styles,
 which would have out-specified the hover, selection, and focus rules. Live Invariant 9 is untouched
 — neither property is declared in any stylesheet. § Size Contract's 0.75 is annotated as the `thin`
-step rather than a fixed constant.*
-
-*Last updated: 2026-08-06 (condensed per the two-entry rule) — the font-embedding seam rewritten for
+step rather than a fixed constant. Earlier: the font-embedding seam rewritten for
 D4-15 (plan `04-04`): two `unicode-range`-scoped `@font-face` rules for the ONE `Inter` family, why
 the latin face needed an explicit range it never had, why the registry stays at one entry, why both
 ranges are pasted verbatim from the live fetch, why the second face is always inlined, the
