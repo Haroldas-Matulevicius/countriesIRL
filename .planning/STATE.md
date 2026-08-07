@@ -3,22 +3,29 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: MVP
 status: executing
-stopped_at: "Phase 4 PLANNED 2026-08-06 -- 16 plans across 13 waves, tracer-first, in .planning/phases/04-visual-cartographic-system-1-5-2-weeks/. NOTHING IS BUILT: planning ran research -> UI-SPEC (verified 6/6) -> pattern map -> planner -> plan-checker, which returned ZERO BLOCKERS plus 3 warnings that were folded in (c2b45c3). No code was written and no gate was executed -- the plans are a contract, not a result. FIVE THINGS MUST CARRY INTO EXECUTION. (1) SIX owner decision-gates and TWO human-verify gates are autonomous:false and WILL STOP the run -- D4-02, D4-10, D4-11, D4-17, the water-preset list + Map-style undo semantics, and the text-tool home + the one-ink deviation; plus human-verify for G-1 (04-13) and the eight physical checks (04-16). Each resume-signal must record WHICH KIND of authorization was given; a blanket sight-unseen pre-authorization authorizes proceeding and is NOT a content review and NOT hash-bound. (2) THREE one-way decisions: D4-10 moves selectable core 195 -> 207, and D4-11/D4-17 delete legend box chrome so SAVED COMPOSITIONS CHANGE APPEARANCE ON LOAD. (3) Coverage is tracked against CONTEXT decisions D4-01..D4-18 (18/18, verified independently twice) because Phase 4 has NO REQ-IDs mapped -- a mapping gap, not dropped scope. (4) The decision-coverage gate DID NOT PASS, it COULD NOT RUN: check.decision-coverage-plan returned could-not-parse because its extractor expects D-NN and this phase uses D4-NN. It is recorded as INCONCLUSIVE, never as passed. The spec-less probe fallback was likewise VISIBLY SKIPPED for having no requirement IDs. (5) Two blocking findings the ROADMAP did not contain, both measured this session and both now absorbed: sanitizeExportClone hard-sets stroke #000000/0.75 on every country path in the export clone (export.ts ~334-356), so QUIET COASTLINES ARE IMPOSSIBLE IN THE PNG until it is REPLACED (not deleted); and --map-surface contributes ZERO pixels to the export because host CSS is invisible to the clone, so water must become a serialized <rect>. Also: ROADMAP 04-05 is factually wrong (CD-11) -- a mesh segment belongs to two countries and cannot carry per-country hover/selected state; 04-09 owns the amendment. And the UNTRACKED .planning/debug/kosovo-renders-white-uncolorable.md concludes the OPPOSITE of D4-10 and is stale; 04-03 owns annotating it. Prior position unchanged: Phase 3 COMPLETE 2026-08-06, closed by the owner on a free exploration with the structured UAT SKIPPED -- nine of twelve cells were NOT PERFORMED (no screen-reader, touch-target, 200% zoom, latin-ext export, or dark-theme review exists) and none may be cited as verified. G-3/G-1/G-2 are now owned by 04-07/04-12/04-14 respectively. Phase 2's two owner gates remain UNTOUCHED and OPEN (02-25, 02-28). Historical snapshots 1492/1700/1815/1914 remain DEFERRED for missing rights-cleared archival source material; no sign-off can unblock them. Next action: /gsd-execute-phase 4 -- expect it to stop at the first owner gate."
-last_updated: "2026-08-07T00:30:00.000Z"
-last_activity: "2026-08-06 -- Phase 4 PLANNED end to end (research -> UI-SPEC -> patterns -> 16 plans -> check). Research measured the rasterisation envelope in installed Chrome and found the two facts that reshape the phase: sanitizeExportClone hard-sets a black 0.75 stroke on every country path in the export clone, and --map-surface contributes zero PNG pixels. It also measured mapshaper -innerlines (327 LineStrings, 366,767 B, deterministic) and found the mesh INSENSITIVE to feature properties, which breaks the naive bind-mesh-hash-to-polygon-hash plan. UI-SPEC verified 6/6 by an independent checker that re-derived the load-bearing arithmetic against the repo; three non-blocking corrections applied. It authored 14 [ASSUMED] rows because the owner was unavailable -- U-6 (one composition ink #111827) KNOWINGLY DEPARTS from the owner-supplied Eurostat reference and most deserves the owner's eye. It also found that useMapState history is COLOURS-ONLY, so Undo after a Map-style change silently undoes the last COLOUR change, and that the UI-SPEC specifies text-tool controls but assigns them no panel. The assumption-delta detector FIRED; resolved as PROMOTE -- {rampId, t} becomes the primary colour identity through one resolveColorValue chokepoint with hex demoted to a union variant, gated by an owner checkpoint that can flip it back. The planner self-caught two negative-grep gates its own text made unpassable. The plan-checker returned ZERO BLOCKERS and independently re-verified wave integrity, the 195->207 e2e ordering, lift-block fidelity (18 truths byte-compared, 5 flat-scalar backstops, 5 unresolved), and every honesty constraint; its 3 warnings -- a stale analog path, a grep -c count asserting an ordering it could not fail on, and one plan missing the REQ-ID substitution note -- were folded in rather than routed through a revision cycle. Prior activity: 2026-08-06 -- Phase 4 context gathered (04-CONTEXT.md + 04-DISCUSSION-LOG.md), 18 decisions across all eight gray areas."
+stopped_at: "Phase 4 SHIPPED at code level and PHYSICALLY UNVERIFIED 2026-08-07 -- 16/16 plans, 80 commits, 141 files, +32,460/-2,327 across 0df7fff..HEAD. Gate at close, RE-RUN by an independent non-author review rather than copied: lint clean, 875/875 unit (47 files), build clean, 138/138 Playwright, data:world:check PASS (248 units, 195 core states, 207 colourable units, mesh 327 geometries / 366,767 B), selector ceiling 337. ZERO new npm packages, proven by a byte-level RANGE diff against phase-start SHA 0df7fff, RED-proved against a COMMITTED change. SIX THINGS MUST CARRY FORWARD. (1) ALL EIGHT PHYSICAL CHECKS ARE *NOT PERFORMED* -- A9 screen-reader, A10 physical 200% zoom, A11 dark-theme review, A12 latin-ext diacritic export, A13 the rail at >=1200px (D-5), the G-3 rework judgement, cartographic resemblance, PNG-vs-screen differences. Zero of eight. The phase ran under a BLANKET, IN-ADVANCE, SIGHT-UNSEEN PROCEED-AUTHORIZATION (04-AUTHORIZATION.md, written BEFORE execution): it authorizes proceeding, it is NOT a content review, and it is NOT hash-bound. It converted the two human-verify gates into PROCEEDING PAST them, never into a pass. None of the eight may cite a Phase 3 result -- every one is among Phase 3's nine never-performed cells. Writing PASS into a cell nobody executed would be fabricating evidence. (2) U-6 SHIPS UNREVIEWED -- 04-11 took ink-one (single composition ink #111827), the one place 04-UI-SPEC.md KNOWINGLY DEPARTS from the owner's Eurostat reference and the row its section 12 calls most worth the owner's eye. Forced by arithmetic: a second grey #4B5563 (L=0.0889) needs surface L>=0.575, near-white water only, retiring three of four shipped presets. An [ASSUMED] row, NEVER an owner decision. (3) FIVE REVIEW FINDINGS, NONE FIXED (a reviewer who fixes is no longer independent): F-1 medium, a raw NUL byte at compositionText.test.ts:139 makes git classify the file BINARY so all 333 lines were invisible in the aggregate diff and grep -I silently skips it; F-2 low, the same twice in storage.test.ts:1093,1136; F-3 medium, 04-13-SUMMARY.md:673-674 proves Live Invariant 3 with an UNQUOTED grep that under zsh never runs and, run correctly, returns ten hits (the invariant IS intact -- re-verified -- but the proof is void); F-4 low, CD-9 never assigned, .planning/config.json still says techStack.decided:false, phases:3, and lists html2canvas; F-5 informational, 04-15's supply-chain gate is faithful but compares four JSON objects, not bytes. (4) FIVE OPEN QUESTIONS ALL STILL OPEN. OQ-1 was PROCEEDED ON, not chosen. OQ-2/D-5: the rail floor is 552px, NOT the spec's 540px (measured by 04-01) and Phase 5's 05-05 Data HUD would add an eighth row (~600px) -- decide before planning Phase 5. OQ-3 (is G-1 resolved) and OQ-5 (mixed-map default, bar ships as the INFERRED default with an override) stay OPEN -- a shipped default is not an answered question. OQ-4 surfaces at Phase 5 planning. (5) THE DECISION-COVERAGE GATE DID NOT PASS, IT COULD NOT RUN (could-not-parse: expects D-NN, this phase uses D4-NN). Recorded INCONCLUSIVE, never as passed; coverage established independently three times, 18/18. The spec-less probe fallback was VISIBLY SKIPPED. (6) G-2 is CORRECTED, not merely closed -- 04-14 tested it for the first time by human or machine: a 15-char label refuses to export at the default MEDIUM size but the SAME label at SMALL loads and exports clean, so 03-UAT.md's '15-32 chars should refuse' is WRONG AS WRITTEN. 03-UAT.md is ANNOTATED, NEVER REWRITTEN. F-1 (whether 14 chars is the RIGHT bound) is still NOT validated. Also: storage headroom fell 48% -> 17% (4,134 nodes per worst-case V3 record, 41,331 of 50,000 for ten). Browser scope drifted mid-phase and BOTH are recorded: 04-01..04-06 on installed Chrome 151.0.7922.75, 04-07..04-15 and the review on .76. EDGE IS NOT INSTALLED and NOT certified; Firefox and Safari have never been run here. Phase 2's two owner gates (02-25, 02-28) remain OPEN and UNTOUCHED; the Edge-record contradiction stays ANNOTATE-NEVER-REWRITE; historical snapshots stay DEFERRED for missing rights-cleared archival source material -- missing MATERIAL, not missing approval, and no sign-off can unblock them. Next action: hand 04-ACCEPTANCE.md to the owner (the eight cells, and U-6 first), then /gsd-plan-phase 5."
+last_updated: "2026-08-07T09:40:00.000Z"
+last_activity: "2026-08-07 -- Phase 4 EXECUTED end to end and CLOSED at code level. Thirteen sequential waves on the main working tree, one executor per plan, run autonomously under a blanket sight-unseen proceed-authorization. Closed by 04-16: a supply-chain range-diff gate, an independent non-author review of the aggregate diff, the eight physical checks recorded NOT PERFORMED, and hand-edited status files. The review RE-RAN every gate rather than copying numbers and RE-PERFORMED SIX RED PROOFS across the phase (04-08 coastline, 04-10 clamp, 04-13 Gate A on real PNG pixels, 04-14 G-2, 04-15 blank-frame, 04-16 committed-change) -- ALL SIX REPRODUCED, each restored by scratchpad copy-back with SHA-256 confirmed. It hunted eleven recorded failure shapes and found ONE (F-3). It addressed Live Invariants 1-10 individually (5 AMENDED for the 195/207 split, 8 RETIRED not deleted when the legend lost its box chrome) and Immutable Safety Constraints 1-10 (all held; D4-10 is recorded as a product-policy change on already-shipped hash-verified geometry and NEVER as a bypassed approval; no geometry promoted; the approved catalog still holds exactly Modern). D4-01..D4-18 all accounted for, zero Deferred Ideas shipped. It found NO OVERCLAIM in any SUMMARY's headline result -- the two medium findings are evidence defects on claims that are independently true. Notably, EVERY plan in this phase found at least one gate in its own plan text that could not fail and said so rather than shipping it; four SUMMARYs carry an explicit 'Assertions NOT RED-proved, stated plainly' section. The sharpest catch of the phase was 04-11's: a crop derived from its subject's own layout moves with the subject, and drawImage off-bitmap returns TRANSPARENT BLACK that every ink counter reads as SOLID INK -- content floors passed on 28,050 phantom pixels while the defect they cover had happened. Prior activity: 2026-08-06 -- Phase 4 PLANNED end to end (research -> UI-SPEC -> patterns -> 16 plans -> check, 0 blockers)."
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 86
-  completed_plans: 75
-  percent: 87
+  completed_plans: 76
+  percent: 88
 ---
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-08-07):** Phase 4 — **EXECUTING · 12/16 plans.** Waves 1–9 done; `04-13`…`04-16`
-> remain. Gate at this point: lint clean · **832/832** unit (47 files) · build clean ·
-> **131/131** Playwright · `data:world:check` PASS · selector ceiling **335**.
+> **Status (2026-08-07):** Phase 4 — **SHIPPED at code level and physically unverified · 16/16
+> plans.** All thirteen waves done. Gate at close, **re-run independently by a non-author review
+> rather than copied**: lint clean · **875/875** unit (47 files) · build clean · **138/138**
+> Playwright · `data:world:check` PASS · selector ceiling **337**.
+> ⛔ **All EIGHT physical checks are `NOT PERFORMED`** — A9 screen-reader · A10 physical 200% zoom ·
+> A11 dark-theme review · A12 latin-ext diacritic export · A13 the rail at ≥1200px (D-5) · the G-3
+> rework judgement · cartographic resemblance · PNG-vs-screen differences. **Zero of eight.**
+> None may cite a Phase 3 result; every one of them is among Phase 3's nine never-performed cells.
+> **Writing PASS into a cell nobody executed would be fabricating evidence.**
+> [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md).
 > **All three one-way decisions have landed.** `D4-10` — twelve neutral units colourable,
 > `coreStateCount` stays **195** and factually true with `selectableCount: 207` beside it, hash
 > chain **re-derived, not waived**, **no geometry promoted and no approval implicated**.
@@ -30,8 +37,11 @@ progress:
 > `04-UI-SPEC.md § 12` calls it the row most worth the owner's eye. The arithmetic forcing it:
 > a second grey ink `#4B5563` (L = 0.0889) needs surface L ≥ 0.575, near-white water only, which
 > would retire three of the four shipped presets. Must appear as a named item in `04-ACCEPTANCE.md`.
-> ⚠️ **Browser scope drifted mid-phase:** `04-01`…`04-06` certified on installed
-> **Chrome 151.0.7922.75**, `04-07` onward on **.76**. The acceptance record must state both.
+> ⚠️ **Browser scope drifted mid-phase, and the record states BOTH:** `04-01`…`04-06` certified on
+> installed **Chrome 151.0.7922.75**, `04-07`…`04-15` and the close-out review on
+> **Chrome 151.0.7922.76** (Chrome auto-updated). **Edge is NOT installed on this machine** — the
+> `msedge` project cannot launch, so **no Edge result may be produced or cited.** Firefox, Safari,
+> and previous-version certification have never been run here.
 > **Every plan so far found at least one gate in its own plan that could not fail.** The sharpest:
 > `04-11` proved a crop derived from its subject's own layout moves with the subject, and
 > `drawImage` off-bitmap returns **transparent black that every ink counter reads as solid ink** —
@@ -56,12 +66,19 @@ progress:
 > ⚠️ **The decision-coverage gate did not pass — it could not run** (`could-not-parse`: it expects
 > `D-NN`, this phase uses `D4-NN`). Recorded **inconclusive**, never as passed; coverage was
 > established independently instead, 18/18.
-> **Phase 3's three follow-ups now have owners:** `G-3` colors panel → `04-07` · `G-1` legend
-> position → `04-12` · `G-2` saved-composition export → `04-14`.
+> **Phase 3's three follow-ups were worked, and none is CLOSED:** `G-3` colors panel → `04-07`
+> rebuilt it at 360px and gated the cause, but **the rework judgement is subjective and was NOT
+> performed** · `G-1` legend → `04-12` measured it at `y = 32` / 2.96 % / 88 units inside the title
+> band and `04-13` moved it to `y = 152` / 14.07 %, re-baselining twelve assertions itemisedly —
+> **`OQ-3` stays OPEN** · `G-2` → `04-14` tested it for the **first time by human or machine** and
+> **corrected** the `03-UAT.md` characterization: a 15-char label refuses at the default `medium`
+> size but **exports clean at `small`**, so "15–32 chars should refuse" is **wrong as written**.
+> `03-UAT.md` is **annotated, never rewritten** — Phase 3 evidence is annotate-only.
 > ⚠️ **Phase 3's UAT remains SKIPPED, not passed.** Nine of twelve cells were never performed —
 > **no screen-reader pass, no touch-target check, no physical 200% zoom, no latin-ext export, and
 > no dedicated dark-theme review** exists. Never report or cite them as verified.
-> ▶ **Next: `/gsd-execute-phase 4`** — expect it to stop at the first owner gate.
+> ▶ **Next: hand [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md)
+> to the owner** — its eight cells, and **`U-6` first**. Then `/gsd-plan-phase 5`.
 > Phase 2 remains engineering-complete at `fe5f946` with **two owner gates still OPEN**;
 > Phase 3 execution left its directory byte-unchanged. Historical snapshots stay **deferred**
 > because the rights-cleared archival source material does not exist — missing *material*, not
@@ -87,39 +104,61 @@ progress:
 
 ## Current Position
 
-Phase: **04** (Visual & Cartographic System) — **PLANNED 2026-08-06 · 0/16 plans · nothing built.**
+Phase: **04** (Visual & Cartographic System) — **SHIPPED at code level and physically unverified,
+2026-08-07 · 16/16 plans.** 80 commits, 141 files, **+32,460 / −2,327** across
+`0df7fff..HEAD`. **Zero new npm packages** — proven, not asserted, by a byte-level **range diff**
+against the phase-start SHA `0df7fff9d1060e6ab3efa5aacdb8c3228a88b7cb`, itself RED-proved against a
+**committed** change (the shape `git diff --quiet HEAD` was recorded as passing silently on).
 
-Planning ran end-to-end: research → UI-SPEC (verified 6/6) → pattern map → 16 plans across
-13 waves, **tracer-first** → plan-checker. **Plan-checker returned 0 BLOCKERS**, 3 warnings, all
-three folded in before close (`c2b45c3`). **No code was written and no gate was executed** — the
-16 plans are a contract, not a result.
+**What shipped:** sequential ramps replacing the flat swatch grid · a redesigned Colors panel at
+360px · a new `Map style` tool (water / uncoloured fill / borders / bands) · interior-border
+rendering with quiet coastlines · gradient bands · title, subtitle, and attribution text · a
+chrome-free legend in two forms below the title block · latin-ext font coverage · twelve
+previously-uncolourable units now colourable · V3 persistence.
 
-**Read before executing:**
+**Gate at close, re-run by an independent non-author review rather than copied**
+([`04-16-REVIEW.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-16-REVIEW.md)):
+lint clean · **875/875** unit (47 files) · build clean · **138/138** Playwright ·
+`data:world:check` PASS (248 units, **195 core states**, **207 colourable units**, mesh re-derived
+327 geometries / 366,767 B) · selector ceiling **337**. **No total below baseline.**
+
+### ⛔ The phase is physically unverified, and that is the headline
+
+**Zero of eight physical checks were performed.** All eight are recorded `NOT PERFORMED` in
+[`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md): A9
+screen-reader · A10 physical 200% zoom · A11 dark-theme review · A12 latin-ext diacritic export
+(opening the PNG and looking at the glyphs) · A13 the rail at ≥1200px (D-5) · the G-3 rework
+judgement · cartographic resemblance · PNG-vs-screen differences.
+
+The phase ran under a **blanket, in-advance, sight-unseen proceed-authorization**
+([`04-AUTHORIZATION.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-AUTHORIZATION.md),
+written *before* execution). It **authorizes proceeding**; it is **not a content review** and it is
+**not hash-bound**. It converted the two `human-verify` gates into *proceeding past* them — never
+into a pass on any cell. **None of the eight may cite a Phase 3 result**: every one of them is
+among Phase 3's nine never-performed cells. **Writing PASS into a cell nobody executed would be
+fabricating evidence.**
+
+### The independent review's five findings — none fixed, all carried forward
+
+`04-16` Task 2's non-author review re-ran every gate, **re-performed six RED proofs across the
+phase (all six reproduced)**, hunted eleven recorded failure shapes, and addressed Live Invariants
+1–10 and Immutable Safety Constraints 1–10 individually. It found **no overclaim in any SUMMARY's
+headline result.** Its five findings are under Pending Todos below; a reviewer who fixes is no
+longer independent, so none was fixed.
+
+### Still true, and not closed by shipping
 
 | | |
 |---|---|
-| **6 owner decision-gates + 2 human-verify gates** are `autonomous: false` and **will stop execution.** | D4-02 · D4-10 · D4-11 · D4-17 · water-preset list + Map-style undo semantics · text-tool home + the one-ink deviation; plus `checkpoint:human-verify` for G-1 resolution (`04-13`) and the eight physical checks (`04-16`). Each resume-signal must record **which kind** of authorization was given — a blanket sight-unseen pre-authorization authorizes *proceeding*; it is **not** a content review and **not** hash-bound. |
-| **3 one-way decisions** | **D4-10** (twelve neutral units become colourable; selectable core 195 → 207) · **D4-11** and **D4-17** (legend box chrome deleted from `LegendState`; V2 maps adopt the new look, so **saved compositions change appearance on load**). |
-| **Coverage is tracked against decisions, not REQ-IDs** | Phase 4 has **no REQ-IDs mapped in ROADMAP.md** (`phase_req_ids` is null; there is no `04-SPEC.md`). All **18/18** `04-CONTEXT.md` decisions D4-01…D4-18 are covered, verified independently twice (orchestrator frontmatter union + plan-checker). This is a **mapping gap, not dropped scope.** |
-| ⚠️ **The decision-coverage gate did NOT pass — it could not run** | `check.decision-coverage-plan` returned `could-not-parse`: its extractor expects `D-NN` bullets and this phase uses `D4-NN`. **It is recorded as inconclusive, not as passed.** Coverage was established by the two independent means above instead. `/gsd-verify-work` may re-surface this. |
-| ⚠️ **The spec-less probe fallback was visibly skipped** | No requirement IDs to derive edge predicates from. No probe-derived predicates were generated. Recorded, not silent. |
+| ⚠️ **`U-6` ships UNREVIEWED** | `04-11` took `ink-one` (a single composition ink `#111827`) — **the one place `04-UI-SPEC.md` knowingly departs from the owner's Eurostat reference**, and § 12 calls it the row most worth the owner's eye. Forced by arithmetic: a second grey `#4B5563` (L = 0.0889) needs surface L ≥ 0.575 — near-white water only — retiring three of four shipped presets. An `[ASSUMED]` row, **never an owner decision.** Named in `04-ACCEPTANCE.md`. |
+| **3 one-way decisions landed** | **D4-10** (selectable core 195 → 207) · **D4-11** and **D4-17** (legend box chrome deleted; V2 maps adopt the new look, so **saved compositions change appearance on load** and export differently from a PNG the creator may already have posted). |
+| **Coverage is tracked against decisions, not REQ-IDs** | Phase 4 has **no REQ-IDs mapped in ROADMAP.md** (`phase_req_ids` null; no `04-SPEC.md`). All **18/18** decisions D4-01…D4-18 covered, now verified independently **three** times. A **mapping gap, not dropped scope.** |
+| ⚠️ **The decision-coverage gate did NOT pass — it could not run** | `check.decision-coverage-plan` returned `could-not-parse`: its extractor expects `D-NN`, this phase uses `D4-NN`. **Recorded INCONCLUSIVE, never as passed.** The spec-less probe fallback was likewise **visibly skipped** for having no requirement IDs. |
+| **The two blocking technical findings were absorbed, not dodged** | `sanitizeExportClone`'s hard-set black 0.75 stroke was **replaced, never deleted** (`04-08`) — deleting it re-opens the wrapped-date-line selection-border defect, and the source says so. `--map-surface` contributing zero export pixels was fixed by the serialized `rect[data-layer=surface]` (`04-01` tracer). |
+| **CD-11 and the stale debug artifact are resolved** | `ROADMAP.md 04-05`'s factually impossible mesh claim amended by `04-06`/`04-09`. `.planning/debug/kosovo-renders-white-uncolorable.md` is **tracked and annotated `SUPERSEDED`** by `04-03` — verified this session. |
 
-**Two blocking technical findings that the ROADMAP's plan descriptions did not contain** (both
-measured this session, both now absorbed into plans): `sanitizeExportClone` hard-sets
-`stroke: #000000; stroke-width: 0.75` on every country path in the export clone
-(`src/utils/export.ts` ~:334-356), so **quiet coastlines are impossible in the PNG until it is
-replaced — not deleted**; and **`--map-surface` contributes zero pixels to the export** (host CSS is
-invisible to the clone), so water must become a serialized `<rect>`.
-
-**`ROADMAP.md 04-05` is factually wrong and needs amendment** (CD-11): hover/selected weight cannot
-be "re-expressed on the interior mesh" — a mesh segment belongs to **two** countries and cannot
-carry per-country state. `04-09` owns the amendment.
-
-**An untracked file contradicts a locked decision:**
-`.planning/debug/kosovo-renders-white-uncolorable.md` concludes the opposite of D4-10 (*"which is
-correct and must not be changed"*) and is itself stale. `04-03` owns annotating or resolving it.
-
-▶ **Next: `/gsd-execute-phase 4`.** Expect it to stop at the first owner gate.
+▶ **Next: hand [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md)
+to the owner** — the eight cells, and **`U-6` first**. Then `/gsd-plan-phase 5`.
 
 ---
 
@@ -208,6 +247,18 @@ Per-plan chronology →
 [`02-ACTIVITY-LOG.md`](phases/02-region-variants-advanced-features-1-5-2-weeks/02-ACTIVITY-LOG.md)
 and the `02-NN-SUMMARY.md` files. One line per event here.
 
+- 2026-08-07 — **Phase 4 SHIPPED at code level and physically unverified** — 16/16 plans;
+  80 commits, 141 files, +32,460/−2,327. Sequential ramps, water presets, the `Map style` tool,
+  interior-border mesh with quiet coastlines, gradient bands, composition text, a chrome-free
+  legend in two forms, latin-ext font coverage, 207 colourable units, V3 persistence. **Zero new
+  npm packages**, proven by a range diff RED-proved against a committed change. Closed by an
+  **independent non-author review** that re-ran every gate and re-performed six RED proofs (all
+  reproduced), raising **five findings, none fixed**. ⛔ **All eight physical checks `NOT
+  PERFORMED`.** Carry-forwards: **`U-6` unreviewed** (the knowing departure from the owner's
+  reference) · `OQ-1`–`OQ-5` all open · `F-1` still unvalidated · `G-2` **corrected** and
+  `03-UAT.md` annotated · storage headroom 48 % → 17 %.
+  → [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md) ·
+  [`04-16-REVIEW.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-16-REVIEW.md)
 - 2026-08-06 — **Phase 3 COMPLETE** — 12/12 plans; 94 commits, 181 files, +39,234/−6,832.
   `html2canvas` removed and the SVG→PNG path owned outright; Themely token system with an explicit
   `.dark` toggle; editor made mountable behind a props boundary (seam only). Closed by the owner on
@@ -297,37 +348,127 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 ### Pending Todos
 
-**Filed by the Phase 4 context session (2026-08-06) — these three escape Phase 4's own boundary
-and will not be fixed by executing it:**
+#### Filed at Phase 4 close (2026-08-07) — every open item, with what would close it
 
-- ⚠ **`ROADMAP.md` § Phase 5 `05-02` contradicts `D4-10`.** The roadmap says *"neutral units
-  (Kosovo et al.) are reported as 'not colorable', not matched"*; the owner has decided all
-  twelve `colorPolicy: "neutral"` units become colorable. **Amend the roadmap explicitly** —
-  do not leave the two standing in silent disagreement. Also re-derives the
-  `world-manifest.json` hash and moves the selectable-core-state count **195 → 207**.
-  **No geometry is promoted and no rights/factual/topology approval is implicated** — this is a
-  product-policy change on already-shipped, hash-verified Modern geometry, and must never later
-  read as a bypassed approval.
-- ⚠ **`03-UI-SPEC.md` needs annotating for `D4-05`.** Every flyout widens 280 → 360px. The spec
-  is **approved and outranks `Design.md`**, so the amendment lands in the same commit as the
-  width. This is the *second* known divergence in that doc — the wrong placement formula 03-08
-  RED-proved is still unannotated (see below).
-- ⚠ **Two one-way decisions land in Phase 4.** `D4-11` deletes `theme` / `backgroundOpacity` /
-  `borderStyle` from `LegendState`, and `D4-17` has V2 maps adopt the new look — so **a saved
-  composition changes appearance when reopened**, and its export will differ from a PNG the
-  creator already posted. Accepted knowingly; recorded here because it is creator-visible.
+**The eight physical checks — `NOT PERFORMED`, and not inheritable.**
 
-- **`G-3` — the colors panel needs heavy work.** *"Too squished, not organized well, hate the multi
-  boxes within."* **The biggest open item — a design rework, not a tweak**, and a strong candidate
-  for its own plan rather than a drive-by fix. The nested-box complaint may already be off-contract
-  against 03-04's flat hairline elevation.
-- **`G-1` — the legend sits too high.** Deferred by choice, not resolved. Fixing it **moves exported
-  pixels** (D-25 territory) and needs deliberate itemised fixture re-baselining.
-- **`G-2` — the saved-composition export break is untested** by human or machine. A pre-restyle
-  saved map with a 15–32 char label should load cleanly then refuse to export.
-- **`F-1` — the 14-char default legend-label export ceiling ships accepted-as-deferred.** Revisit
-  when convenient; the verifier's three grounds against the bound are unrebutted.
-- **Nine UAT cells were never performed** (screen reader, touch targets, physical 200% zoom,
+| Item | What would close it |
+|---|---|
+| **A9 screen-reader** over the ramp strip, `Map style` panel, and text tools | A human driving VoiceOver and judging whether the spoken names are usable in sequence. Names *exist* and are asserted as strings; nothing has been read aloud. |
+| **A10 physical 200 % zoom** with a panel open at 360px | A human pressing ⌘+. ⚠ A halved CSS viewport is the **equivalent** and must always be labelled as such — never recorded as physical zoom. |
+| **A11 dark-theme visual review** of both new panels and the ramp strip | A human looking. Automated contrast (A3) is green but is a **different claim**. |
+| **A12 latin-ext diacritic export** | A human exporting `Košice / Łódź / Magyarország`, **opening the PNG, and inspecting the glyphs.** `04-04` proved two `@font-face` rules with `unicode-range` and a rasterisation difference — that proves *something changed*, not that it is correct. `04-04-SUMMARY.md` explicitly declines to claim A12. |
+| **A13 the rail at ≥ 1200px (D-5)** | A human sizing a window ≥ 1200px wide. Playwright covers 1280 × 552 (the **measured** floor). Never performed in Phase 3; not inherited. |
+| **G-3 rework judgement** | The owner's own judgement — the original complaint was subjective, so the criterion is too. `04-07` gated the *cause* (no `--radius-card`, no `--hairline`, no outset `box-shadow`, deleted fragments cannot return); structure cannot judge feel. **Resolution is NOT claimed.** |
+| **Cartographic resemblance** | Side-by-side against the owner's Eurostat image. Every property is gated on real pixels and `04-15` proves all seven land in one 1080 frame; resemblance is aesthetic and was not assessed. |
+| **PNG-vs-screen differences** | A human comparing the download against the screen. The whole phase's per-property export gating exists to catch this class, and a human eye catches shapes a pixel probe does not. |
+
+**The five open questions — all still open.**
+
+| OQ | State | What would close it |
+|---|---|---|
+| **OQ-1** water preset list | Answered as `preset-set-a` by the orchestrator under the **blanket sight-unseen** authorization — i.e. **proceeded on, not chosen by the owner** | The owner looking at the four presets and keeping or changing them. |
+| **OQ-2 / D-5** rail height | ⏳ **OPEN and worse than the spec assumed.** The floor is **552px, not the 540px `04-UI-SPEC.md § 6.1` estimated** — measured by `04-01` in installed Chrome; the pinned HUD footer hangs below the fold, not the seven rows (the last row's bottom is at 432px) | A decision among the three named refactors. ⚠ **Phase 5's `05-05` Data HUD would add an eighth row (~600px)** — decide before planning Phase 5. |
+| **OQ-3** is `G-1` resolved? | ⏳ **OPEN.** `04-12` measured the legend at `y = 32` / **2.96 %** / **88 units inside the title band**; `04-13` moved it to `y = 152` / **14.07 %**, itemisedly re-baselining twelve assertions with each superseded measurement kept beside it. `04-12` enumerated **eight legend properties beyond position — four still open** | The owner looking at the moved legend. A shipped fix is not an answered question. |
+| **OQ-4** proportional vs. classed | ⏳ **OPEN by design** — surfaces at Phase 5 planning, not here. | The Phase 5 discussion. |
+| **OQ-5** mixed-map legend default | ⏳ **OPEN.** `bar` ships as the **inferred** default with an override, taken as the planner's *recommendation* under the blanket authorization | The owner choosing. **A shipped default is not an answered question.** |
+
+**The five findings from `04-16-REVIEW.md` — none fixed, by design.**
+
+- **F-1 · medium — a raw NUL byte hides a whole test file from `git diff` and from grep.**
+  `src/utils/compositionText.test.ts:139` (offset 5079) carries a **literal NUL (0x00)** instead of
+  a ` ` escape. The test's intent is good (it proves `sanitizeCompositionText` strips NUL,
+  newline, and a RTL override). The encoding is the defect: git classifies the file **binary**, so
+  **all 333 lines were invisible in the aggregate diff** — the exact artifact the close-out review
+  is built on — and this environment's `grep` (`ugrep -I`) **silently skips it**, so any negative
+  grep over `src/**` returns a tidy zero for it regardless of contents. Landed gates are unaffected
+  (they read via Node `fs`, not grep). **Closes with:** one escape per site, plus a repo-wide
+  `file`-over-`git ls-files` guard, which found both F-1 and F-2 in one pass.
+- **F-2 · low — the same defect twice more**, `src/utils/storage.test.ts:1093,1136`. Lower impact:
+  both NULs sit past git's 8000-byte sniff window, so `git diff` and `git grep` still treat it as
+  text. **Closes with:** the same one-character fix.
+- **F-3 · medium — a Live Invariant 3 evidence grep that could not return anything.**
+  `04-13-SUMMARY.md:673-674` claims the invariant holds because a grep *"returns nothing"*. The
+  globs are **unquoted**, so under zsh the command never runs (`no matches found`); run correctly
+  it returns **ten** hits. **The invariant itself is intact** — re-verified independently, none of
+  the ten is a render or export path — **but the recorded proof is void**, in the precise shape
+  this project has been burned by. **Closes with:** replacing the claim with the quoted command and
+  its real ten-hit output, each hit classified. Do not change the conclusion; it is correct.
+- **F-4 · low — CD-9 was never assigned to a plan and is still live.** `.planning/config.json`
+  still says `techStack.decided: false`, `workflow.phases: 3`, and lists **`html2canvas`** among
+  its candidates. All three contradict the repository (stack decided, six phases, `html2canvas`
+  removed by `03-11` / D-34). Nothing reads it at runtime, but an **agent** may read it and be
+  misled on exactly the point `CLAUDE.md` guards hardest. It also carries `executor_model: sonnet`,
+  which `CLAUDE.md` § Model Routing overrides. **Closes with:** a hand edit to that file.
+- **F-5 · informational — the `04-15` supply-chain gate is narrower than it reads.** Its
+  hand-transcribed phase-start literal is **faithful** (verified against `git show 0df7fff:package.json`),
+  but it compares four JSON objects, so it cannot see a changed `resolved`/`integrity`, an added
+  `overrides` block, or an edited `scripts` entry. `04-16`'s byte-level range diff closes that gap.
+  **Recorded so nobody later deletes one as redundant — they are complementary.**
+
+**Other Phase 4 carry-forwards.**
+
+- **`F-1` (the 14-char default legend-label export ceiling) is NOT validated.** `04-14` proved the
+  ceiling **bites**, which says nothing about whether **14 is the right number**. The
+  `03-VERIFICATION.md` verifier's three grounds against the bound stand **unrebutted**
+  (worst-case-uniform derivation over-estimating line count ~1.8×; the saved-composition break; and
+  the repo's own fixture shortening `'Imperial lands'` → `'Empire lands'` to keep the suite green).
+  **Closes with:** re-measuring the real per-line character count and re-deriving the bound.
+- **`G-2` is CORRECTED, not merely closed.** `04-14` tested it for the **first time by human or
+  machine**: a 15-char label refuses to export **at the default `medium` size**, but *the same
+  label at `small` loads and exports clean*. The `03-UAT.md` § Gaps characterization
+  ("15–32 chars should refuse") is **wrong as written** — it is a `medium`-size trap, bounded by
+  `LEGEND_CHARACTERS_PER_LINE` (`legend.ts:206`), not a flat character range. **`03-UAT.md` is
+  annotated, never rewritten.**
+- **Storage headroom fell 48 % → 17 %.** `04-14` measured **4,134 nodes** per worst-case V3 record,
+  **41,331 of `MAX_STORAGE_JSON_NODES` = 50,000** for ten saved maps. Still inside the bound, but
+  the margin is now thin. **Closes with:** a decision on whether the budget should rise before
+  Phase 5 adds per-country data.
+- **Every `[ASSUMED]` row that shipped (U-1 … U-14, `04-UI-SPEC.md § 12`) is an assumption, not an
+  owner decision, and may never be cited as one.** **U-6 is the one that most needs the owner's
+  eye** (above). **Closes with:** the owner reading § 12 and converting each row to a decision or a
+  change.
+- ⚠️ **Browser scope drifted mid-phase and both versions are on the record.** `04-01`…`04-06` on
+  installed **Chrome 151.0.7922.75**; `04-07`…`04-15` and the close-out review on **151.0.7922.76**.
+  **Edge is NOT installed** and NOT certified; Firefox and Safari have never been run here.
+
+#### Filed by the Phase 4 context session (2026-08-06)
+
+- ~~**`ROADMAP.md` § Phase 5 `05-02` contradicts `D4-10`.**~~ **RESOLVED 2026-08-06 by `04-03`** —
+  the roadmap bullet is amended and dated, the `world-manifest.json` hash **re-derived (not
+  waived)**, and the selectable count moved 195 → 207 alongside an unchanged `coreStateCount: 195`.
+  **No geometry was promoted and no rights/factual/topology approval was implicated** — a
+  product-policy change on already-shipped, hash-verified Modern geometry, and it **must never
+  later read as a bypassed approval.**
+- ~~**`03-UI-SPEC.md` needs annotating for `D4-05`** (280 → 360px)~~ **RESOLVED (CD-1)** by `04-07`
+  and `04-12`, landed in the same commit as the width. *(The separate wrong-placement-formula
+  divergence in that doc is still unannotated — see below.)*
+- **Two one-way persistence decisions landed and are creator-visible.** `D4-11` deleted `theme` /
+  `backgroundOpacity` / `borderStyle` from `LegendState`; `D4-17` has V2 maps adopt the new look.
+  **A saved composition changes appearance when reopened**, and its export will differ from a PNG
+  the creator already posted. Accepted knowingly. **Reversing after a creator has reopened and
+  re-saved does not restore the original record.**
+
+#### Carried forward unchanged from earlier phases
+
+- **`G-3` — the colors panel.** *"Too squished, not organized well, hate the multi boxes within."*
+  **Worked by `04-07`** — rebuilt at 360px, with structural gates on the *cause* (neither Colors
+  sheet declares `--radius-card`, `--hairline`, or an outset `box-shadow`; the four deleted class
+  fragments cannot return by copy-paste). **Resolution is NOT claimed** — the criterion is the
+  owner's subjective judgement and **cell 6 of `04-ACCEPTANCE.md` is `NOT PERFORMED`.**
+- **`G-1` — the legend sat too high.** **Moved by `04-13`** from `y = 32` (2.96 %, 88 units inside
+  the title band, measured by `04-12`) to `y = 152` (14.07 %). It **moved exported pixels** as
+  predicted — D-25 territory — and twelve assertions were re-baselined **itemisedly**, each with
+  its superseded measurement kept beside it. **`OQ-3` stays OPEN**: only the owner can say whether
+  it now sits right. `04-12` also enumerated **eight legend properties beyond position, four still
+  open.**
+- **`G-2` — CORRECTED, not merely closed.** See the Phase 4 close-out block above: `04-14` tested
+  it first-ever and found a **`medium`-size trap**, not the flat 15–32 character range `03-UAT.md`
+  described. `03-UAT.md` is **annotated, never rewritten.**
+- **`F-1` — the 14-char default legend-label export ceiling is still NOT validated.** `04-14`
+  proved the ceiling **bites**; that says nothing about whether **14 is right**. The verifier's
+  three grounds against the bound remain **unrebutted**.
+- **Nine Phase 3 UAT cells were never performed** (screen reader, touch targets, physical 200% zoom,
   latin-ext export, dark-theme review, exported-PNG inspection, `Design.md` § 7, D-5 ≥1200px).
   Recorded as `skipped`. **If any later phase needs one of these, it must be performed then — it
   cannot be inherited from Phase 3.**
@@ -418,13 +559,23 @@ and will not be fixed by executing it:**
 
 ## Session Continuity
 
-- **Last session:** 2026-08-06 — **Phase 4 context gathered.**
+- **Last session:** 2026-08-07 — **Phase 4 executed end to end and closed at code level.** Thirteen
+  sequential waves on the main working tree (no worktrees — chosen deliberately), one executor per
+  plan, run autonomously under a blanket sight-unseen proceed-authorization. Then `04-16`: a
+  supply-chain **range-diff** gate RED-proved against a committed change, an **independent
+  non-author review** of the aggregate diff
+  ([`04-16-REVIEW.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-16-REVIEW.md)) that
+  **re-ran every gate rather than copying numbers** and **re-performed six RED proofs (all six
+  reproduced)**, the eight physical checks recorded **`NOT PERFORMED`**
+  ([`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md)), and
+  this hand-edited close-out. **Five findings were raised and none was fixed** — a reviewer who
+  fixes is no longer independent; all five are under Pending Todos.
+- **Previous session:** 2026-08-06 — **Phase 4 context gathered and planned.**
   [`04-CONTEXT.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-CONTEXT.md) +
   [`04-DISCUSSION-LOG.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-DISCUSSION-LOG.md).
   All eight offered gray areas discussed; **18 decisions (`D4-01`–`D4-18`)**, four loose ends
-  deliberately left as open questions. **Three items escape Phase 4's own boundary and are
-  listed under Pending Todos: the `05-02` roadmap contradiction (D4-10), the `03-UI-SPEC.md`
-  flyout-width amendment (D4-05), and the two one-way persistence decisions (D4-11, D4-17).**
+  deliberately left as open questions. Then research → UI-SPEC (verified 6/6) → pattern map →
+  16 plans across 13 waves, tracer-first → plan-checker (**0 blockers**, 3 warnings folded in).
 - **Previous session:** 2026-08-06 — **Phase 3 executed end to end and closed at code level.** Twelve
   sequential waves, one executor per plan, run autonomously under a blanket proceed-authorization
   while the owner slept. Then independent non-author review
@@ -434,11 +585,19 @@ and will not be fixed by executing it:**
 - **Previous session:** 2026-08-06 — Phase 3 planned end to end (research → ui-phase → plan-phase;
   planning docs only). Before that: Phase 3 context gathering (`d3d9a35`), and the 2026-07-26
   documentation reorganization pass.
-- **Stopped at:** Phase 4 **context gathered, not planned.** ▶ `/gsd-plan-phase 4` is the next
-  step. Phase 3 remains **SHIPPED (code level), physically unverified** — `03-UAT.md`'s nine
-  unperformed cells are still unperformed and cannot be inherited. Phase 2 remains
-  engineering-complete at `fe5f946` with both owner gates untouched and still OPEN.
-- **Resume file:**
-  [`04-CONTEXT.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-CONTEXT.md) for Phase 4.
-  This file plus `03-UAT.md` still carry the Phase 3 position. The Phase 2 `.continue-here.md`
-  remains for Phase 2 resumption only. `HANDOFF.json` was deleted on 2026-07-26.
+- **Stopped at:** Phase 4 **SHIPPED at code level and physically unverified**, 16/16 plans.
+  ▶ Next: hand
+  [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md) to the
+  owner — its **eight `NOT PERFORMED` cells**, and **`U-6` first** — then `/gsd-plan-phase 5`.
+  ⚠ **Decide `OQ-2` before planning Phase 5:** the rail floor is **552px** and `05-05`'s Data HUD
+  would add an eighth row (~600px). Phase 3 likewise remains **SHIPPED (code level), physically
+  unverified** — its nine unperformed cells are still unperformed and **cannot be inherited by
+  Phase 4 or by anything after it.** Phase 2 remains engineering-complete at `fe5f946` with both
+  owner gates untouched and still OPEN.
+- **Resume file:** this file, plus
+  [`04-ACCEPTANCE.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-ACCEPTANCE.md) and
+  [`04-16-REVIEW.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-16-REVIEW.md) for the
+  Phase 4 position. `04-CONTEXT.md` holds the decisions D4-01…D4-18. `03-UAT.md` still carries the
+  Phase 3 position. The Phase 2 `.continue-here.md` remains for Phase 2 resumption only.
+  **The Phase 4 `.continue-here.md` is spent** — it describes the wave-2 pause and is superseded by
+  this section. `HANDOFF.json` was deleted on 2026-07-26.

@@ -241,3 +241,41 @@ A pre-restyle saved map with a 15–32 character legend label should load cleanl
 export. The owner had no such saved composition to test with. **No automated test covers this path
 either.** If it is ever picked up, the cheap first move is a unit test that constructs the stored
 record directly rather than waiting for a real saved map to exist.
+
+---
+
+> #### ⚠ ANNOTATION 2026-08-07 (Phase 4, plan `04-14`) — tested for the first time, and the characterization above is WRONG AS WRITTEN
+>
+> **The Phase 3 text above is retained verbatim and is not rewritten.** Phase 3 evidence is
+> annotate-only. What follows corrects it rather than replacing it.
+>
+> `04-14` took the "cheap first move" this entry recommends — a unit test constructing the stored
+> V2 record directly — and it is the **first time G-2 has been exercised by a human or a machine.**
+> The path is now covered by `src/utils/storage.test.ts` + `src/utils/legend.test.ts`.
+>
+> **What the test found:** the two-step behaviour is real — a 15-character label **loads cleanly**
+> (no `corrupt-data`, no `composition-repaired`) and **then refuses to export** with the label-fit
+> message. So the *shape* of the concern was correct.
+>
+> **But "15–32 chars should refuse" is not true as stated.** The refusal is **size-dependent, not
+> length-dependent alone.** The same 15-character label:
+>
+> | Legend text size | Loads? | Exports? |
+> |---|---|---|
+> | `medium` (**the default**) | ✅ clean | ⛔ **refuses** |
+> | `small` | ✅ clean | ✅ **exports clean** |
+>
+> It is a **`medium`-size trap**, and `medium` being the default is what makes it reachable. A
+> creator who drops to `small` clears the gate with the identical label. The bound comes from
+> `LEGEND_CHARACTERS_PER_LINE` (`src/utils/legend.ts:206`), which is `{small: 10, medium: 7,
+> large: 6}` — not from a flat 15–32 character range.
+>
+> **RED-proved on its own subject** (re-performed independently by `04-16`'s review, not copied):
+> raising the per-line table to `{small: 40, medium: 40, large: 40}` reddens **step 2 only** while
+> step 1, the short-label control, and the `small`-size case all stay green.
+>
+> **G-2 is therefore CORRECTED AND COVERED — it is not "resolved" in the sense of the underlying
+> ceiling being validated.** `F-1` (whether 14 characters is the *right* default bound) remains
+> **open and unvalidated**: proving the ceiling bites says nothing about whether it sits in the
+> right place, and the `03-VERIFICATION.md` verifier's three grounds against the bound stand
+> unrebutted. See `.planning/phases/04-.../04-14-SUMMARY.md`.

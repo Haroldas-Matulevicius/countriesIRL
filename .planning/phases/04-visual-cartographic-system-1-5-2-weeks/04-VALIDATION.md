@@ -2,10 +2,14 @@
 phase: 4
 slug: visual-cartographic-system-1-5-2-weeks
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
-nyquist_compliant: false
+status: validated
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-08-06
+validated: 2026-08-07
+validated_by: "04-16 independent non-author review (04-16-REVIEW.md § 10)"
+validation_scope: "automated sampling density ONLY — says nothing about the 8 physical checks, all NOT PERFORMED"
+decision_coverage_gate: inconclusive
 ---
 
 # Phase 4 — Validation Strategy
@@ -193,12 +197,36 @@ launch, so no Edge result may be produced or cited. Firefox and Safari have neve
 
 ## Validation Sign-Off
 
-- [ ] All tasks have an `<automated>` verify or a declared Wave 0 dependency
-- [ ] Sampling continuity: no 3 consecutive tasks without an automated verify
-- [ ] Wave 0 covers every ❌ reference above
-- [ ] No watch-mode flags in any command
-- [ ] Feedback latency < 30s for unit
-- [ ] Every gate RED-proved on its own subject, with the proof recorded
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have an `<automated>` verify or a declared Wave 0 dependency
+- [x] Sampling continuity: no 3 consecutive tasks without an automated verify
+- [x] Wave 0 covers every ❌ reference above — all seven rows point at a landed artifact
+- [x] No watch-mode flags in any command
+- [x] Feedback latency < 30s for unit — measured **2.85s** for 875 tests across 47 files
+- [x] Every gate RED-proved on its own subject, with the proof recorded
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** ✅ **validated 2026-08-07 by the `04-16` independent non-author review**, on that
+review's re-run evidence — **not** on any plan's self-report. Full working in
+[`04-16-REVIEW.md`](04-16-REVIEW.md) § 10. Every row of the per-decision map above was walked
+against a landed artifact, and six RED proofs across the phase were re-performed and reproduced.
+
+### ⚠ Three qualifications that travel with these flags
+
+They are recorded here rather than in a commit message, because a reader who finds
+`nyquist_compliant: true` will not go looking for them.
+
+1. **`nyquist_compliant` is a statement about automated sampling density and nothing else.** It
+   does **not** mean the phase was verified. **All eight physical checks are `NOT PERFORMED`**
+   ([`04-ACCEPTANCE.md`](04-ACCEPTANCE.md)), and the phase closes as **shipped at code level and
+   physically unverified**.
+
+2. **The automated decision-coverage gate did NOT pass — it could not run.**
+   `check.decision-coverage-plan` returned `could-not-parse`: its extractor expects `D-NN` bullets
+   and this phase uses `D4-NN`. **It is recorded as INCONCLUSIVE and must never be reported as
+   passed.** Coverage was established by two independent means instead (frontmatter union at
+   planning time, plan-checker) and by a third in the `04-16` review — **18/18** each time. The
+   spec-less probe fallback was likewise **visibly skipped** for having no requirement IDs.
+
+3. **Three of the manual-only rows above are also `04-ACCEPTANCE.md` cells 4, 6, and 7, and all
+   three are `NOT PERFORMED`.** Being listed here as "manual" records *why they cannot be
+   automated*; it is **not** a licence to substitute an automated result for the physical claim.
