@@ -1,4 +1,5 @@
 public/data/europe-modern.geojson text eol=lf
+public/data/world-borders-modern.geojson text eol=lf
 public/data/world-manifest.json text eol=lf
 public/data/world-modern.geojson text eol=lf
 public/data/snapshots/*.json text eol=lf

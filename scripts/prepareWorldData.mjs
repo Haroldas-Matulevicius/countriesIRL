@@ -5,12 +5,29 @@ import process from 'node:process';
 import { resolve } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 
+import mapshaper from 'mapshaper';
+
 const MANIFEST_PATH = fileURLToPath(
   new URL('../public/data/world-manifest.json', import.meta.url),
 );
 const OUTPUT_PATH = fileURLToPath(
   new URL('../public/data/world-modern.geojson', import.meta.url),
 );
+const MESH_OUTPUT_PATH = fileURLToPath(
+  new URL('../public/data/world-borders-modern.geojson', import.meta.url),
+);
+const MESH_FILE_LABEL = 'public/data/world-borders-modern.geojson';
+/**
+ * The interior-border mesh: the edges shared by exactly two polygons, so a
+ * coastline is absent by construction. Held as one string because the manifest
+ * records the exact command and `readMeshRecord` compares against this constant
+ * - a derivation whose recorded provenance drifts from the code that ran is a
+ * provenance record for something else.
+ */
+const MESH_DERIVATION_COMMAND =
+  '-i input.geojson -innerlines -o format=geojson precision=0.0001 output.geojson';
+const MESH_INPUT_KEY = 'input.geojson';
+const MESH_OUTPUT_KEY = 'output.geojson';
 const EXPECTED_NATURAL_EARTH_VERSION = '5.1.1';
 const EXPECTED_BASE_SOURCE_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson';
@@ -443,6 +460,53 @@ function createCanonicalBytes(manifest, baseValue, supplementValue) {
   );
 }
 
+/**
+ * The one derivation. Both the write path and the `--check` path call it with
+ * the *canonical* polygon bytes, so the mesh is bound to the geometry the
+ * script just regenerated rather than to whatever happens to be on disk.
+ *
+ * `mapshaper.applyCommands` is the Node API and returns a Buffer per output
+ * key with no temporary file and no child process; measured deterministic
+ * across repeated runs on identical input.
+ */
+async function createMeshBytes(polygonBytes) {
+  const output = await mapshaper.applyCommands(MESH_DERIVATION_COMMAND, {
+    [MESH_INPUT_KEY]: polygonBytes,
+  });
+  const meshBytes = output[MESH_OUTPUT_KEY];
+  if (!Buffer.isBuffer(meshBytes)) {
+    throw new Error('Interior-border mesh derivation produced no output buffer.');
+  }
+  return meshBytes;
+}
+
+/**
+ * Counts geometries, not `LineString`s: `-innerlines` emits 301 `LineString`s
+ * and 26 `MultiLineString`s for this asset. Counting only one type would agree
+ * with a mesh that had silently lost the other.
+ */
+function countMeshGeometries(meshBytes, label) {
+  const value = parseJson(meshBytes, label);
+  if (
+    !isRecord(value) ||
+    value.type !== 'GeometryCollection' ||
+    !Array.isArray(value.geometries)
+  ) {
+    throw new Error(`${label} is not a GeoJSON GeometryCollection.`);
+  }
+
+  for (const geometry of value.geometries) {
+    if (
+      !isRecord(geometry) ||
+      (geometry.type !== 'LineString' && geometry.type !== 'MultiLineString')
+    ) {
+      throw new Error(`${label} contains a geometry that is not a line.`);
+    }
+  }
+
+  return value.geometries.length;
+}
+
 async function run() {
   const { check, baseSource, supplementSource } = parseArguments(
     process.argv.slice(2),
@@ -496,8 +560,13 @@ async function run() {
   }
 
   await writeFile(OUTPUT_PATH, canonicalBytes);
+  const meshBytes = await createMeshBytes(canonicalBytes);
+  await writeFile(MESH_OUTPUT_PATH, meshBytes);
   globalThis.console.info(
     `Wrote ${EXPECTED_RUNTIME_UNIT_COUNT} canonical world units to ${OUTPUT_PATH}.`,
+  );
+  globalThis.console.info(
+    `Wrote ${countMeshGeometries(meshBytes, MESH_FILE_LABEL)} interior-border geometries (${meshBytes.length} bytes, sha256 ${calculateSha256(meshBytes)}) to ${MESH_OUTPUT_PATH}.`,
   );
 }
 
