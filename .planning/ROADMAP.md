@@ -273,10 +273,22 @@ the breakdown here.
    PNG bytes; a refusal path for text overflowing the square (mirrors legend overflow
    blocking).
 8. `04-08` **Legend overhaul.** Fix the editability gaps found in UAT (labels, order,
-   position, style must be *reachably* editable from the HUD); add range-entry mode
-   ("6.0–10.0") alongside label mode; add an optional "no data" row bound to the
-   neutral-unit grey. *Gate:* e2e drives every editing affordance; the "no data" row must
-   fail RED if the neutral color and the row's swatch diverge.
+   position, style must be *reachably* editable from the HUD); ship **two legend forms** —
+   a **stacked bar** whose contiguous swatches carry short tick leaders and print **break
+   boundaries between ticks**, and a restyled **rows** form — with the form defaulting from
+   the colouring technique and an explicit creator override; add an optional "no data" row
+   bound to the neutral-unit grey. *Gate:* e2e drives every editing affordance; the "no
+   data" row must fail RED if the neutral color and the row's swatch diverge.
+
+   > **Amended 2026-08-07 (CD-8, plan `04-13`).** This bullet asked for a mode that prints
+   > a literal range per row alongside label mode. That is **not what the owner's own
+   > reference does**: `04-CONTEXT.md § specifics` characterises the Eurostat image as a
+   > stacked colour bar whose numbers are **break boundaries read *between* ticks**, never
+   > printed as row text — a *different legend form*, not a variant of this one.
+   > `04-UI-SPEC.md § 6.7` follows CONTEXT on the stated ground that the owner's reference
+   > outranks an earlier straw man, and flagged that this line needed correcting. The
+   > sentence above now describes what shipped. **Reported and corrected, never silently
+   > diverged from.**
 9. `04-09` **Persistence V3.** Compositions persist ramp/water/border choices, bands, and
    text boxes; V2 migrates in memory; the same pre-parse raw/depth/node bounds extended and
    re-tested. *Gate:* storage unit suite (bounds, migration, round-trip) + persistence e2e.
