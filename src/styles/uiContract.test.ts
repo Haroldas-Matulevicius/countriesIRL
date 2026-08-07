@@ -454,8 +454,38 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * flyout - 15 selectors, and nothing else moved. The rail contributes ZERO new
  * selectors because `ToolRailRow` styles rows by id rather than by position, so
  * a seventh row needed no rule at all.
+ *
+ * **LOWERED 341 -> 331 by `04-07` (D4-04), and lowering is the half of the
+ * maintenance rule that usually goes unread.** Both totals were MEASURED by
+ * running this assertion with the ceiling set to 0, once against the pre-plan
+ * stylesheets and once against these; neither is an estimate. Per file, also
+ * measured:
+ *
+ * | sheet | before | after |
+ * |---|---|---|
+ * | `controls/colorPicker.css` | 17 | 12 |
+ * | `controls/mapStyle.css` | 15 | 1 |
+ * | `controls/selectionPanel.css` | 11 | 11 |
+ * | `editor.css` | 94 | 105 |
+ *
+ * `colorPicker.css` lost the card, the `auto-fit` preset grid, the tile and its
+ * hairline, the tile label, the active modifier, the check positioning, and the
+ * custom-preview box, and gained the strip, its segments, three state rules,
+ * the check, and the readout. `mapStyle.css`'s fourteen are a **MOVE, not a
+ * deletion**, and are reported as one: its private section / label / pill /
+ * swatch / field / error / ghost rules went into `editor.css`'s shared
+ * `.panel-*` block rather than being copied into the Colors panel, which
+ * `04-UI-SPEC.md` section 11 rule 1 names as a defect by name.
+ * `selectionPanel.css` landing on the same number is a coincidence of the card
+ * being replaced by one Porcelain row, not a sign it was untouched.
+ *
+ * The per-file numbers do not sum to the totals, and that is the metric
+ * working: the inventory is DISTINCT selectors across every sheet, so a part
+ * two sheets share is counted once.
+ *
+ * A ceiling that only ever goes up is not being read. This one went down.
  */
-const SELECTOR_INVENTORY_CEILING = 341;
+const SELECTOR_INVENTORY_CEILING = 331;
 
 /**
  * Every selector a rule declares, one per comma-separated part.
@@ -1933,6 +1963,70 @@ describe('Phase 3 motion tokens (assertion 6)', (): void => {
     });
     expect(MOTION_DURATION_TOKENS).toHaveLength(4);
   });
+
+  /**
+   * **A8, `04-07`: hover paint on a palette is INSTANT.** Themely's own words,
+   * carried into D-29 — an ease here is "a regression, not polish". A 150ms
+   * fade between two five-step shades is not a flourish; it is the creator
+   * waiting to find out what colour they just picked.
+   *
+   * The subject is real and the default is against us: `theme.css` gives every
+   * `button` a `background-color` transition, so the ramp segments inherit one
+   * unless something cancels it. Two halves, because either alone is weak —
+   * the surfaces must RESOLVE to `transition: none`, AND no rule anywhere may
+   * transition a background on a selector that reaches them.
+   *
+   * Counted from the PARSER, never `grep -c`: a comment naming a property
+   * would satisfy a text scan, and this very file's comments name several.
+   */
+  it('lets no transition touch the ramp strip or the family pills', (): void => {
+    const instantSurfaces = ['.ramp-strip__step', '.panel-pill'] as const;
+
+    instantSurfaces.forEach((selector): void => {
+      const declared = ALL_RULES.flatMap(([, rules]): string[] =>
+        rules
+          .filter((rule): boolean =>
+            rule.selector
+              .split(',')
+              .some((part): boolean => part.trim() === selector),
+          )
+          .flatMap((rule): string[] =>
+            declarationsOf(rule.body)
+              .filter(([property]): boolean => property === 'transition')
+              .map(([, value]): string => value.trim()),
+          ),
+      );
+
+      expect(
+        declared,
+        `"${selector}" declares no transition at all, so it inherits the ` +
+          "global button background fade from theme.css. Hover paint on a " +
+          'palette is instant; declare `transition: none`.',
+      ).toContain('none');
+    });
+
+    ALL_RULES.forEach(([file, rules]): void => {
+      rules.forEach((rule): void => {
+        const touchesStrip = instantSurfaces.some((selector): boolean =>
+          rule.selector.includes(selector),
+        );
+        if (!touchesStrip) {
+          return;
+        }
+
+        declarationsOf(rule.body).forEach(([property, value]): void => {
+          if (!property.startsWith('transition')) {
+            return;
+          }
+          expect(
+            value.trim(),
+            `${file}: "${rule.selector}" animates "${value.trim()}". An ease ` +
+              'between two ramp shades is a regression, not polish.',
+          ).toBe('none');
+        });
+      });
+    });
+  });
 });
 
 describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
@@ -2118,6 +2212,18 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['--destructive', '--themely-porcelain'],
   ['--destructive', '--themely-powder'],
   ['--destructive', '--destructive-tint'],
+  /*
+   * `04-07`, A3. The ONE genuinely new pair the two redesigned panels
+   * introduce, and it is easy to miss: `.panel-field[aria-invalid="true"]`
+   * repaints the field's background to the destructive tint while the text
+   * inside it is still the creator's own typing in Midnight Ink. Every other
+   * pair the flat vocabulary produces - Midnight Ink and Slate Blue on
+   * Platinum, Porcelain, and Powder, and `--destructive` for the error line -
+   * was already rated above, so the row count moves by exactly one. Recorded
+   * as one rather than padded: a matrix that grows to look thorough is not a
+   * stronger gate than a matrix that grows by what actually changed.
+   */
+  ['--themely-midnight-ink', '--destructive-tint'],
   // Mode-invariant by declaration; rated in BOTH modes anyway, so a `.dark`
   // redefinition would surface here as a failing ratio and not only as a
   // firewall violation.
@@ -2127,8 +2233,9 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * Six mode-by-preference combinations times sixteen pairs, written as a
- * LITERAL and deliberately not derived from the two tables above.
+ * Six mode-by-preference combinations times SEVENTEEN pairs (`04-07` added the
+ * Midnight-Ink-on-destructive-tint pair the invalid hex field produces),
+ * written as a LITERAL and deliberately not derived from the two tables above.
  *
  * `PREFERENCE_CASES.length * TEXT_ON_SURFACE_PAIRS.length` reads like the same
  * claim and is not one: emptying either table would move the expectation with
@@ -2137,7 +2244,7 @@ const TEXT_ON_SURFACE_PAIRS: ReadonlyArray<readonly [string, string]> = [
  * against this matrix, run with the derived form, failed only on a secondary
  * table-length check while the row count itself stayed green at zero rows.
  */
-const EXPECTED_CONTRAST_ROWS = 96;
+const EXPECTED_CONTRAST_ROWS = 102;
 
 describe('Phase 3 contrast matrix (assertion 19)', (): void => {
   /**
@@ -2190,7 +2297,7 @@ describe('Phase 3 contrast matrix (assertion 19)', (): void => {
 
     expect(rows).toBe(EXPECTED_CONTRAST_ROWS);
     expect(PREFERENCE_CASES).toHaveLength(6);
-    expect(TEXT_ON_SURFACE_PAIRS).toHaveLength(16);
+    expect(TEXT_ON_SURFACE_PAIRS).toHaveLength(17);
   });
 
   /**

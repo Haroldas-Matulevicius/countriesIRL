@@ -139,6 +139,11 @@ export function legendDisclosure(page: Page): ReturnType<Page['getByRole']> {
  *   twice - once as the accessible name and once in the hidden tooltip chip -
  *   so a raw `textContent` reads `Export PNGExport PNG`, and an assertion
  *   written against that string pins the duplication as if it were the label.
+ * - form controls resolve through `aria-labelledby` and their associated
+ *   `<label>` (`04-07`). A radio inside a pill and a text field named by its
+ *   section legend both have NO child text of their own, so the walk used to
+ *   report them as `''` - and an order asserted against a run of empty strings
+ *   is an order nobody can read and nothing can catch a swap in.
  */
 export async function collectTabOrder(
   page: Page,
@@ -161,6 +166,26 @@ export async function collectTabOrder(
         }
         if (active.hasAttribute('aria-label')) {
           return active.getAttribute('aria-label') ?? '';
+        }
+        const labelledBy = active.getAttribute('aria-labelledby');
+        if (labelledBy !== null) {
+          const named = labelledBy
+            .split(/\s+/u)
+            .map((id): string => document.getElementById(id)?.textContent ?? '')
+            .join(' ')
+            .trim();
+          if (named !== '') {
+            return named;
+          }
+        }
+        const labels = (
+          active as HTMLInputElement & { labels?: NodeListOf<HTMLLabelElement> }
+        ).labels;
+        if (labels !== undefined && labels !== null && labels.length > 0) {
+          const labelled = labels[0].textContent?.trim() ?? '';
+          if (labelled !== '') {
+            return labelled.slice(0, 40);
+          }
         }
         return [...active.childNodes]
           .filter(
