@@ -206,7 +206,7 @@ catalog, and independent factual and topology review. Specifically:
 **Effective entities, not raw features.** A scene's selectable set is the *effective* entity list
 for the active snapshot — the entities that scene actually contains — and selection/colour can
 never reach a country outside it. Out-of-scene rows in `CountryList` and Locate are **disabled,
-never removed**: the modern 195-core catalog stays whole so the creator sees a stable list.
+never removed**: the modern colourable catalog stays whole so the creator sees a stable list.
 
 **Colour survives a period change; selection is reconciled in the same write.** History is
 colours-only. `commitScene` reconciles the selection against the new scene in the same write as
@@ -215,6 +215,42 @@ country the active scene does not contain.
 
 **Failure retains the prior scene.** A snapshot that fails validation, hash check, or fetch
 leaves the previous scene on screen; it never blanks the map.
+
+### Three colour policies, two counts (D4-10, landed in 04-03)
+
+**There is no unit in the Modern scene a creator cannot colour.** The manifest's `colorPolicy`
+takes exactly three values, and each one is a separate branch in
+`prepareWorldData.mjs`'s `createRuntimeFeature`, in `useGeoData.readNonCoreUnit`, and in the
+`SceneFeature` union:
+
+| `colorPolicy` | Units | `parentCoreId` | `isSelectable` | Meaning |
+|---|---|---|---|---|
+| *(core record)* | 195 | its own id | `true` | A core state. Owns its colour. |
+| `self-colorable` | 12 | its own id | `true` | Owns its colour but is **not** a core state. `ATA COK CYN FLK GIB IOT KAS KOS NIU SAH SOL TWN`. |
+| `inherit-parent` | 41 | a core id | `false` | Coloured *by* its parent — Greenland by Denmark and the rest. Untouched by D4-10. |
+
+**Two counts, and they are never interchangeable.** `policy.coreStateCount` is **195** and still
+means *193 UN member states plus the Holy See and State of Palestine*; `policy.coreDefinition` is
+byte-unchanged. `policy.selectableCount` is **207** and means *units a creator can paint*. A
+reader who conflates them gets the wrong answer about what "core" means — which is the known,
+accepted cost of the route D4-10 took, so say which one you mean every time. The `--check`
+success line states both: *"248 units, 195 selectable core states, and 207 colorable units."*
+
+**The counts are derived and cross-checked, never re-hard-coded.** `createCanonicalBytes` asserts
+`selectableCount === coreStateCount + selfColorableCount`, then asserts that the self-colorable
+records actually present match the recorded `selfColorableCount`, and refuses the manifest on
+either disagreement. Adding a fourth literal somewhere else is how these fall out of step.
+
+**Adding a `self-colorable` branch is not the same as loosening a `throw`.** Both pre-existing
+policy throws — *non-core units must be non-selectable*, and
+*`parentCoreId === null ? neutral : inherit-parent`* — stay in force for every unit outside the
+new category. A dependency must not be able to become selectable by dropping a field.
+
+**This was a product-policy change on already-shipped, hash-verified Modern geometry.** No
+geometry was promoted, no snapshot was added, and no historical packet was touched, so **no
+rights, factual, or topology approval was implicated** — but the manifest changed, so the hash
+chain was **re-derived, not waived**. The approval chain below is unchanged and still governs
+everything that reaches `public/data/`.
 
 ### The approved-id filter on the saved-map row resolver (OPEN ITEM 4, decided in 03-07)
 
@@ -428,17 +464,27 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
-*Last updated: 2026-08-06 — § World Asset and Snapshot Catalog gained the approved-id filter on
-the saved-map row resolver (OPEN ITEM 4): `getPeriodShortLabel` resolves through the ids the
-approved manifest yields and returns `null` otherwise, the storage validator is deliberately
-unchanged, an unapproved V2 record is not relabelled as legacy, and the filter is RED-proven with
-a planted `1914` record (plan 03-07).*
-*Last updated: 2026-08-06 + earlier, condensed — § File Paths gained the single base-path home in
+*Last updated: 2026-08-06 — **D4-10 (plan 04-03): there is no unit in the Modern scene a creator
+cannot colour.** New § Three colour policies, two counts: the twelve formerly `neutral` units
+(`ATA COK CYN FLK GIB IOT KAS KOS NIU SAH SOL TWN`) carry an explicit third `colorPolicy`,
+`self-colorable`, owning their own colour; the 41 `inherit-parent` units are unchanged.
+`coreStateCount` stays **195** and `coreDefinition` is byte-unchanged; `selectableCount` **207**
+is a separate quantity and the two are never interchangeable. Counts are derived and
+cross-checked rather than re-hard-coded, both pre-existing policy throws stay in force outside
+the new category, and the `--check` line states 248 / 195 / 207. **No geometry was promoted and
+no approval was implicated** — a product-policy change on already-shipped, hash-verified Modern
+geometry, with the hash chain re-derived, not waived. § the approval chain is byte-unchanged, and
+§ Effective entities now says "colourable catalog" rather than "195-core catalog".*
+*Last updated: 2026-08-06 + earlier, condensed — § World Asset and Snapshot Catalog gained the
+approved-id filter on the saved-map row resolver (OPEN ITEM 4): `getPeriodShortLabel` resolves
+through the ids the approved manifest yields and returns `null` otherwise, the storage validator
+is deliberately unchanged, an unapproved V2 record is not relabelled as legacy, RED-proven with a
+planted `1914` record (plan 03-07). § File Paths gained the single base-path home in
 `src/config/editorConfig.ts` with the two `historicalValidation.ts` safety predicates exempted by
-source text and the condition under which they would change (plan 03-05); § Vendored binary
-assets: `src/assets/` vs `public/data/`, the README-row integrity record, the no-network-font
-rule, and recording a subset's coverage gap with its price (plan 03-01). 2026-07-26: the world
-asset and approved snapshot catalog replaced the Phase 1 sketch (plan 02-25); 2026-07-25: the
-filesystem-identity rule after a Windows inode-precision defect.*
+source text (plan 03-05); § Vendored binary assets: `src/assets/` vs `public/data/`, the
+README-row integrity record, the no-network-font rule, and recording a subset's coverage gap with
+its price (plan 03-01). 2026-07-26: the world asset and approved snapshot catalog replaced the
+Phase 1 sketch (plan 02-25); 2026-07-25: the filesystem-identity rule after a Windows
+inode-precision defect.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/data.md`.*

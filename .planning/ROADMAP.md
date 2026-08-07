@@ -338,11 +338,15 @@ treatment) and Phase 3 (HUD slot for the Data section).
    decision. *Gate:* unit suite over malformed fixtures (unterminated quote, BOM, CRLF,
    10MB bomb → refused), each refusal RED-provable.
 2. `05-02` **Country matcher.** Column mapping UI + matcher: exact ISO-3 first, then
-   case/diacritic-insensitive name match against the 195-core catalog + alias table
-   ("Czechia"/"Czech Republic", "Türkiye"/"Turkey"); ambiguous or unmatched rows go to an
-   explicit report, never silently dropped; neutral units (Kosovo et al.) are reported as
-   "not colorable", not matched. *Gate:* unit fixtures for alias, ambiguity, and
-   neutral-unit rows; a silent-drop mutation must go RED.
+   case/diacritic-insensitive name match against the 207-unit colourable catalog + alias
+   table ("Czechia"/"Czech Republic", "Türkiye"/"Turkey"); ambiguous or unmatched rows go to
+   an explicit report, never silently dropped; the twelve `self-colorable` units (Kosovo et
+   al.) are **ordinary match targets** like any core state — a CSV row naming Kosovo matches
+   it and paints it. *Gate:* unit fixtures for alias, ambiguity, and self-colorable rows; a
+   silent-drop mutation must go RED.
+   *Amended 2026-08-06 by D4-10 (Phase 4, plan `04-03`): this bullet previously said the
+   neutral units were reported as uncolourable rather than matched. That is no longer true —
+   every unit in the Modern scene is colourable, so there is no such bucket to report.*
 3. `05-03` **Classing engine.** Pure functions: quantile, equal-interval, and manual break
    arrays; adjustable class count (3–9); stable tie/edge handling; missing → "no data".
    *Gate:* property-style unit tests (every value lands in exactly one class; class edges
