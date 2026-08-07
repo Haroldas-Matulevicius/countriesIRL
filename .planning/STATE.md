@@ -16,14 +16,29 @@ progress:
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-08-06):** Phase 4 — **EXECUTING · 3/16 plans.** Waves 1–2 done.
-> `04-01` (tracer) proved water colour reaches real exported PNG pixels through a serialized
-> `rect[data-layer="surface"]`. `04-02` added the ramp data model and **substituted a palette
-> rather than loosening a gate** — ColorBrewer's `#3182BD` cannot carry either ink at AA.
-> **`04-03` landed the first one-way decision (`D4-10`):** the twelve neutral units are colourable,
-> `coreStateCount` stays **195** and factually true with `selectableCount: 207` alongside it. The
-> manifest hash chain was **re-derived, not waived**. **No geometry promoted, no snapshot added, no
-> rights/factual/topology approval implicated.**
+> **Status (2026-08-07):** Phase 4 — **EXECUTING · 12/16 plans.** Waves 1–9 done; `04-13`…`04-16`
+> remain. Gate at this point: lint clean · **832/832** unit (47 files) · build clean ·
+> **131/131** Playwright · `data:world:check` PASS · selector ceiling **335**.
+> **All three one-way decisions have landed.** `D4-10` — twelve neutral units colourable,
+> `coreStateCount` stays **195** and factually true with `selectableCount: 207` beside it, hash
+> chain **re-derived, not waived**, **no geometry promoted and no approval implicated**.
+> `D4-02` — colour identity is `{rampId, t}` behind one `resolveColorValue` chokepoint
+> (**Live Invariant 10**). `D4-11` — legend box chrome deleted, so **every saved map reopens
+> without its box and exports differently than a PNG the creator may already have posted.**
+> ⚠️ **`U-6` ships UNREVIEWED.** `04-11` took `ink-one` (single composition ink `#111827`),
+> the one place the spec **knowingly departs from the owner's Eurostat reference** — and
+> `04-UI-SPEC.md § 12` calls it the row most worth the owner's eye. The arithmetic forcing it:
+> a second grey ink `#4B5563` (L = 0.0889) needs surface L ≥ 0.575, near-white water only, which
+> would retire three of the four shipped presets. Must appear as a named item in `04-ACCEPTANCE.md`.
+> ⚠️ **Browser scope drifted mid-phase:** `04-01`…`04-06` certified on installed
+> **Chrome 151.0.7922.75**, `04-07` onward on **.76**. The acceptance record must state both.
+> **Every plan so far found at least one gate in its own plan that could not fail.** The sharpest:
+> `04-11` proved a crop derived from its subject's own layout moves with the subject, and
+> `drawImage` off-bitmap returns **transparent black that every ink counter reads as solid ink** —
+> content floors passed on **28,050 phantom pixels** while the defect they cover had happened.
+> Rule now in `coding-rules/export.md`. Others: a prescribed "inversion" that was really a removal
+> (`04-10`); a gate measuring 0 either way because a second mechanism hid the subject (`04-09`);
+> the vacuous `clone.ids === 0` warned about since `03-11`, which finally bit (`04-10`).
 > ⚠️ **Running under a blanket, in-advance, sight-unseen proceed-authorization**
 > ([`04-AUTHORIZATION.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-AUTHORIZATION.md)).
 > It **authorizes proceeding**; it is **not a content review** and it is **not hash-bound.**
