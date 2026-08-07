@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  WCAG_AA_BODY_RATIO,
+  contrastRatio,
+  parseHexColor,
+} from '../utils/contrast';
 import { APPROVED_PERIOD_ANNOUNCEMENTS } from '../utils/periods';
 
 /**
@@ -244,57 +249,14 @@ function resolveTokenValue(
   return resolveTokenValue(tokens, alias[1], new Set([...seen, token]));
 }
 
-function parseHexColor(value: string): [number, number, number] | null {
-  const match = /^#(?<digits>[\da-f]{6}|[\da-f]{3})$/iu.exec(value.trim());
-  if (match?.groups === undefined) {
-    return null;
-  }
-
-  const digits = match.groups.digits;
-  const expanded =
-    digits.length === 3
-      ? [...digits].map((digit): string => digit + digit).join('')
-      : digits;
-
-  return [
-    Number.parseInt(expanded.slice(0, 2), 16),
-    Number.parseInt(expanded.slice(2, 4), 16),
-    Number.parseInt(expanded.slice(4, 6), 16),
-  ];
-}
-
-/** WCAG 2.2 relative luminance. */
-function relativeLuminance([red, green, blue]: readonly [
-  number,
-  number,
-  number,
-]): number {
-  const channel = (raw: number): number => {
-    const srgb = raw / 255;
-    return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
-  };
-
-  return (
-    0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
-  );
-}
-
-function contrastRatio(foreground: string, background: string): number {
-  const foregroundRgb = parseHexColor(foreground);
-  const backgroundRgb = parseHexColor(background);
-  if (foregroundRgb === null || backgroundRgb === null) {
-    throw new Error(
-      `Contrast needs two hex colors, got "${foreground}" on "${background}".`,
-    );
-  }
-
-  const first = relativeLuminance(foregroundRgb);
-  const second = relativeLuminance(backgroundRgb);
-  const lighter = Math.max(first, second);
-  const darker = Math.min(first, second);
-
-  return (lighter + 0.05) / (darker + 0.05);
-}
+/*
+ * `parseHexColor`, `relativeLuminance`, and `contrastRatio` used to live here as
+ * file-private helpers. `04-01` moved them VERBATIM to `src/utils/contrast.ts`
+ * because Phase 4 gates every shipped water preset against the same arithmetic,
+ * and two independent copies of a luminance transfer function is the drift this
+ * project already paid for once. This file now imports them; it must never
+ * redeclare them.
+ */
 
 /*
  * The one deliberate change to the ported infrastructure: the Phase 2 file
@@ -1373,7 +1335,13 @@ describe('Phase 3 export frame (D-32)', (): void => {
   });
 });
 
-/* Kept exported-by-use so the ported helpers cannot rot unnoticed. */
+/*
+ * Kept exported-by-use so the ported helpers cannot rot unnoticed. Since `04-01`
+ * the contrast half is imported from `src/utils/contrast.ts` rather than defined
+ * here, so this also asserts the import is wired to the same arithmetic Phase 2
+ * shipped - a module swap that changed the numbers would surface here as well as
+ * in `contrast.test.ts`.
+ */
 describe('Phase 3 ported helpers', (): void => {
   it('resolves alias chains and WCAG ratios the same way Phase 2 did', (): void => {
     const tokens = new Map([
@@ -1916,8 +1884,6 @@ describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
 /* ------------------------------------------------------------------ *
  * Assertion 19 - the contrast matrix, resolved through the real cascade
  * ------------------------------------------------------------------ */
-
-const WCAG_AA_BODY_RATIO = 4.5;
 
 const CONTRAST_CONDITION = '@media (prefers-contrast: more)';
 const FORCED_COLORS_CONDITION = '@media (forced-colors: active)';
