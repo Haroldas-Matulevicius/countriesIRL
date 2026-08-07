@@ -23,11 +23,14 @@
   "policy": {
     "coreDefinition": "193 UN member states plus the Holy See and State of Palestine",
     "coreStateCount": 195,
+    "selfColorableCount": 12,
+    "selectableCount": 207,
     "runtimeUnitCount": 248,
     "coreSelectable": true,
-    "nonCoreSelectable": false,
+    "selfColorableSelectable": true,
+    "inheritParentSelectable": false,
     "parentInheritance": "Only reviewed clear dependencies inherit a core-state color through parentCoreId.",
-    "neutralUnits": "Disputed, indeterminate, and ambiguous associated units remain visible, neutral, and non-selectable.",
+    "neutralUnits": "Disputed, indeterminate, and ambiguous associated units are visible and self-colorable: each owns its own color under colorPolicy \"self-colorable\" and inherits from no core state (decision D4-10, Phase 4). They are not core states. coreStateCount 195 counts UN-member core states and is unchanged; selectableCount 207 counts colorable units and is a different quantity. The two are never interchangeable.",
     "runtimeNetwork": "The browser loads only the committed same-origin world asset; upstream URLs are build-time provenance."
   },
   "sourceIdExceptions": [
@@ -1479,9 +1482,9 @@
       "name": "Antarctica",
       "sourceId": "ATA",
       "sourceType": "Indeterminate",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "ATA",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "ATC",
@@ -1524,9 +1527,9 @@
       "name": "Cook Islands",
       "sourceId": "COK",
       "sourceType": "Dependency",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "COK",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "CUW",
@@ -1551,18 +1554,18 @@
       "name": "Northern Cyprus",
       "sourceId": "CYN",
       "sourceType": "Sovereign country",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "CYN",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "FLK",
       "name": "Falkland Islands / Malvinas",
       "sourceId": "FLK",
       "sourceType": "Disputed",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "FLK",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "FRO",
@@ -1641,9 +1644,9 @@
       "name": "British Indian Ocean Territory",
       "sourceId": "IOT",
       "sourceType": "Disputed",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "IOT",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "JEY",
@@ -1659,18 +1662,18 @@
       "name": "Siachen Glacier",
       "sourceId": "KAS",
       "sourceType": "Indeterminate",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "KAS",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "KOS",
       "name": "Kosovo",
       "sourceId": "KOS",
       "sourceType": "Disputed",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "KOS",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "MAC",
@@ -1731,9 +1734,9 @@
       "name": "Niue",
       "sourceId": "NIU",
       "sourceType": "Dependency",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "NIU",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "PCN",
@@ -1767,9 +1770,9 @@
       "name": "Western Sahara",
       "sourceId": "SAH",
       "sourceType": "Indeterminate",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "SAH",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "SGS",
@@ -1794,9 +1797,9 @@
       "name": "Somaliland",
       "sourceId": "SOL",
       "sourceType": "Sovereign country",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "SOL",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "SPM",
@@ -1830,9 +1833,9 @@
       "name": "Taiwan",
       "sourceId": "TWN",
       "sourceType": "Sovereign country",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "TWN",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "VGB",
@@ -1895,9 +1898,9 @@
       "name": "Gibraltar",
       "sourceId": "GIB",
       "sourceType": "Disputed",
-      "parentCoreId": null,
-      "isSelectable": false,
-      "colorPolicy": "neutral"
+      "parentCoreId": "GIB",
+      "isSelectable": true,
+      "colorPolicy": "self-colorable"
     },
     {
       "id": "UMI",

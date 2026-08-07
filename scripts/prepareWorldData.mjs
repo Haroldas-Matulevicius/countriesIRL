@@ -23,6 +23,15 @@ const EXPECTED_SUPPLEMENT_SOURCE_SHA256 =
 const EXPECTED_CORE_COUNT = 195;
 const EXPECTED_SUPPLEMENT_COUNT = 6;
 const EXPECTED_RUNTIME_UNIT_COUNT = 248;
+/**
+ * D4-10 (Phase 4): the twelve formerly `neutral` units own their own color.
+ * `EXPECTED_CORE_COUNT` still means *core states* and is still 195 - the core
+ * definition did not move. This is the separate quantity: how many units a
+ * creator can paint. Every count assertion below is derived from the manifest
+ * and cross-checked against these two, never re-hard-coded a third time.
+ */
+const SELF_COLORABLE_POLICY = 'self-colorable';
+const EXPECTED_SELF_COLORABLE_COUNT = 12;
 const REQUIRED_FEATURE_PROPERTY_KEYS = [
   'colorOwnerId',
   'isSelectable',
@@ -225,6 +234,8 @@ function createRuntimeFeature(record, sourceFeature, isCore) {
     throw new Error('World manifest contains an invalid unit record.');
   }
 
+  const isSelfColorable =
+    !isCore && record.colorPolicy === SELF_COLORABLE_POLICY;
   const parentCoreId = isCore ? record.id : record.parentCoreId;
   if (isCore) {
     const sourceMatchValue = sourceFeature.properties[record.sourceMatchField];
@@ -235,6 +246,18 @@ function createRuntimeFeature(record, sourceFeature, isCore) {
       sourceMatchValue.trim().toUpperCase() !== record.sourceMatchValue
     ) {
       throw new Error(`Core state ${record.id} does not match its reviewed source join.`);
+    }
+  } else if (isSelfColorable) {
+    // The third branch (D4-10). It is a branch rather than a loosening of the
+    // two throws below: those still fire for every unit outside this category,
+    // so a dependency cannot quietly become selectable by dropping a field.
+    if (parentCoreId !== record.id) {
+      throw new Error(
+        `Self-colorable world unit ${record.id} must own its own color.`,
+      );
+    }
+    if (record.isSelectable !== true) {
+      throw new Error(`Self-colorable world unit ${record.id} must be selectable.`);
     }
   } else {
     if (parentCoreId !== null && typeof parentCoreId !== 'string') {
@@ -256,7 +279,7 @@ function createRuntimeFeature(record, sourceFeature, isCore) {
       name: record.name,
       sourceFeatureId: record.sourceId,
       colorOwnerId: parentCoreId,
-      isSelectable: isCore,
+      isSelectable: isCore || isSelfColorable,
     },
     geometry: readGeometry(sourceFeature, record.sourceId),
   };
@@ -266,7 +289,12 @@ function compareFeatureIds(left, right) {
   return left.id.localeCompare(right.id);
 }
 
-function validateRuntimeFeatures(features, coreIds) {
+function validateRuntimeFeatures(
+  features,
+  coreIds,
+  selfColorableIds,
+  expectedSelectableCount,
+) {
   if (features.length !== EXPECTED_RUNTIME_UNIT_COUNT) {
     throw new Error(`Expected ${EXPECTED_RUNTIME_UNIT_COUNT} world units, received ${features.length}.`);
   }
@@ -294,7 +322,9 @@ function validateRuntimeFeatures(features, coreIds) {
 
     if (feature.properties.isSelectable) {
       selectableCount += 1;
-      if (!coreIds.has(feature.id) || feature.properties.colorOwnerId !== feature.id) {
+      const isRecognizedOwner =
+        coreIds.has(feature.id) || selfColorableIds.has(feature.id);
+      if (!isRecognizedOwner || feature.properties.colorOwnerId !== feature.id) {
         throw new Error(`Selectable world unit ${feature.id} does not match core policy.`);
       }
     } else {
@@ -305,20 +335,33 @@ function validateRuntimeFeatures(features, coreIds) {
     }
   }
 
-  if (selectableCount !== EXPECTED_CORE_COUNT) {
-    throw new Error(`Expected ${EXPECTED_CORE_COUNT} selectable states, received ${selectableCount}.`);
+  if (selectableCount !== expectedSelectableCount) {
+    throw new Error(
+      `Expected ${expectedSelectableCount} colorable units, received ${selectableCount}.`,
+    );
   }
 }
 
 function createCanonicalBytes(manifest, baseValue, supplementValue) {
+  const policy = manifest.policy;
   if (
-    !isRecord(manifest.policy) ||
-    manifest.policy.coreStateCount !== EXPECTED_CORE_COUNT ||
-    manifest.policy.runtimeUnitCount !== EXPECTED_RUNTIME_UNIT_COUNT ||
-    manifest.policy.coreSelectable !== true ||
-    manifest.policy.nonCoreSelectable !== false
+    !isRecord(policy) ||
+    policy.coreStateCount !== EXPECTED_CORE_COUNT ||
+    policy.runtimeUnitCount !== EXPECTED_RUNTIME_UNIT_COUNT ||
+    policy.coreSelectable !== true ||
+    policy.selfColorableSelectable !== true ||
+    policy.inheritParentSelectable !== false ||
+    typeof policy.selfColorableCount !== 'number' ||
+    typeof policy.selectableCount !== 'number'
   ) {
     throw new Error('World manifest count or selectability policy is invalid.');
+  }
+  // The two counts are checked against each other, not against a third
+  // literal: 195 core states plus however many units own their own color.
+  if (policy.selectableCount !== policy.coreStateCount + policy.selfColorableCount) {
+    throw new Error(
+      `World manifest selectableCount ${policy.selectableCount} does not equal coreStateCount ${policy.coreStateCount} plus selfColorableCount ${policy.selfColorableCount}.`,
+    );
   }
 
   const coreRecords = readManifestRecords(manifest, 'coreStates', EXPECTED_CORE_COUNT);
@@ -331,6 +374,27 @@ function createCanonicalBytes(manifest, baseValue, supplementValue) {
   const coreIds = new Set(coreRecords.map((record) => record.id));
   if (coreIds.size !== EXPECTED_CORE_COUNT) {
     throw new Error('World manifest core IDs are not unique.');
+  }
+
+  // Derived from the records themselves, then compared with what the manifest
+  // claims. A manifest whose recorded count disagrees with its own records is
+  // refused here rather than silently regenerating a different asset.
+  const selfColorableIds = new Set(
+    [...nonCoreRecords, ...supplementRecords]
+      .filter(
+        (record) => isRecord(record) && record.colorPolicy === SELF_COLORABLE_POLICY,
+      )
+      .map((record) => record.id),
+  );
+  if (selfColorableIds.size !== policy.selfColorableCount) {
+    throw new Error(
+      `World manifest records ${selfColorableIds.size} self-colorable units but selfColorableCount is ${policy.selfColorableCount}.`,
+    );
+  }
+  if (selfColorableIds.size !== EXPECTED_SELF_COLORABLE_COUNT) {
+    throw new Error(
+      `Expected ${EXPECTED_SELF_COLORABLE_COUNT} self-colorable units, received ${selfColorableIds.size}.`,
+    );
   }
 
   const baseFeatures = indexSourceFeatures(baseValue, 'Natural Earth 50m source');
@@ -366,7 +430,12 @@ function createCanonicalBytes(manifest, baseValue, supplementValue) {
   }
 
   features.sort(compareFeatureIds);
-  validateRuntimeFeatures(features, coreIds);
+  validateRuntimeFeatures(
+    features,
+    coreIds,
+    selfColorableIds,
+    policy.selectableCount,
+  );
 
   return Buffer.from(
     `${JSON.stringify({ type: 'FeatureCollection', features })}\n`,
@@ -417,8 +486,11 @@ async function run() {
         'public/data/world-modern.geojson differs from deterministic output.',
       );
     }
+    // Two numbers, stated separately and read from the manifest the check just
+    // validated. 195 is core states; 207 is colorable units. Collapsing them
+    // into one figure is the misreading this line exists to prevent.
     globalThis.console.info(
-      'World GeoJSON check passed: 248 units and 195 selectable core states.',
+      `World GeoJSON check passed: ${manifest.policy.runtimeUnitCount} units, ${manifest.policy.coreStateCount} selectable core states, and ${manifest.policy.selectableCount} colorable units.`,
     );
     return;
   }
