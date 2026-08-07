@@ -3143,3 +3143,155 @@ describe('Phase 3 carried-forward layout rules', (): void => {
     });
   });
 });
+
+/**
+ * **T-04-16-03 - Phase 4 installed nothing, proved by a RANGE diff.**
+ *
+ * `04-15` already asserts the dependency SETS against a hand-transcribed
+ * phase-start literal (`tests/e2e/final-integration.spec.ts` - *no package was
+ * installed during phase 4*). That gate is real and stays. It is not, however,
+ * the whole claim: it compares four JSON objects, so it cannot see a changed
+ * `resolved` URL or `integrity` hash on a pinned version, an added `overrides`
+ * or `resolutions` block, or an edited `scripts` entry - and its literal is a
+ * transcription, which is a thing a human can get wrong in the same commit that
+ * changes what it transcribes. This one compares BYTES, against git.
+ *
+ * ⚠ **It must be a range diff, and this is the reason.** `CLAUDE.md`
+ * § Guardrails records a `git diff --quiet HEAD` evidence check in this
+ * repository that *passed silently on a committed change* - the exact threat it
+ * existed to catch - because a working-tree diff compares the tree against the
+ * last commit and a change already committed is invisible to it. Every
+ * dependency claim in Phase 4 is therefore stated relative to the phase-start
+ * SHA below, never to HEAD.
+ *
+ * Both halves are needed and neither is redundant: the range covers everything
+ * committed during the phase, `git status --porcelain` covers anything sitting
+ * uncommitted right now, and a range diff on its own would pass with an
+ * unstaged install in the tree.
+ */
+
+/**
+ * `0df7fff` - *"docs(04): phase 4 PLANNED - 16 plans/13 waves; STATE+ROADMAP
+ * reconciled by hand"*. The commit immediately before `04-01`'s first commit
+ * (`42b2f0d`), and therefore the last tree that predates any Phase 4 code.
+ */
+const PHASE_4_START_SHA = '0df7fff9d1060e6ab3efa5aacdb8c3228a88b7cb';
+
+/**
+ * A file `04-02` created, used only as a structural floor below. A pathspec
+ * that resolves to nothing returns an empty diff, and an empty diff is exactly
+ * what this gate reads as success - so the range is proved live against a file
+ * known to be inside it before the manifest claim is trusted.
+ */
+const PHASE_4_ANCHOR_FILE = 'src/utils/ramps.ts';
+
+interface ChildProcessModule {
+  readonly execFileSync: (
+    file: string,
+    args: readonly string[],
+    options: { readonly cwd: string; readonly encoding: 'utf8' },
+  ) => string;
+}
+
+interface UrlModule {
+  readonly fileURLToPath: (url: URL) => string;
+}
+
+interface NodeBuiltinHost {
+  readonly getBuiltinModule: {
+    (name: 'node:child_process'): ChildProcessModule;
+    (name: 'node:url'): UrlModule;
+  };
+}
+
+function nodeBuiltins(): NodeBuiltinHost {
+  const nodeProcess = Reflect.get(globalThis, 'process') as
+    | NodeBuiltinHost
+    | undefined;
+
+  if (nodeProcess === undefined) {
+    throw new Error('Expected the Vitest Node process.');
+  }
+
+  return nodeProcess;
+}
+
+/**
+ * `cwd` is this file's own directory rather than `process.cwd()` on purpose. A
+ * pathspec is resolved relative to the working directory, so a runner invoked
+ * from a subdirectory would make `-- package.json` match nothing and hand this
+ * gate a very tidy empty diff. `rev-parse --show-toplevel` then re-roots every
+ * subsequent call explicitly.
+ *
+ * `execFileSync` throws on a non-zero exit, so an unresolvable SHA, a shallow
+ * clone, or a missing `git` fails this test loudly instead of skipping it.
+ */
+function git(...args: readonly string[]): string {
+  const builtins = nodeBuiltins();
+  const testFileDirectory = builtins
+    .getBuiltinModule('node:url')
+    .fileURLToPath(new URL('.', import.meta.url));
+
+  return builtins
+    .getBuiltinModule('node:child_process')
+    .execFileSync('git', args, {
+      cwd: testFileDirectory,
+      encoding: 'utf8',
+    });
+}
+
+describe('Phase 4 added no package (T-04-16-03)', (): void => {
+  it('has no committed manifest change across the whole phase range', (): void => {
+    const repositoryRoot = git('rev-parse', '--show-toplevel').trim();
+
+    const changedInRange = git(
+      '-C',
+      repositoryRoot,
+      'diff',
+      '--name-only',
+      `${PHASE_4_START_SHA}..HEAD`,
+    )
+      .split('\n')
+      .filter((line): boolean => line.length > 0);
+
+    expect(
+      changedInRange,
+      `The Phase 4 range ${PHASE_4_START_SHA}..HEAD does not contain ` +
+        `${PHASE_4_ANCHOR_FILE}, so the range is not resolving to the phase ` +
+        'and the empty manifest diff below would mean nothing.',
+    ).toContain(PHASE_4_ANCHOR_FILE);
+
+    expect(
+      git(
+        '-C',
+        repositoryRoot,
+        'diff',
+        `${PHASE_4_START_SHA}..HEAD`,
+        '--',
+        'package.json',
+        'package-lock.json',
+      ),
+      'package.json or package-lock.json was COMMITTED during Phase 4. The ' +
+        'phase adds zero packages; a failed or unexpected install is a ' +
+        'human-verification checkpoint, never an auto-substituted alternative.',
+    ).toBe('');
+  });
+
+  it('has no uncommitted manifest change either', (): void => {
+    const repositoryRoot = git('rev-parse', '--show-toplevel').trim();
+
+    expect(
+      git(
+        '-C',
+        repositoryRoot,
+        'status',
+        '--porcelain',
+        '--',
+        'package.json',
+        'package-lock.json',
+      ),
+      'package.json or package-lock.json is modified in the working tree. The ' +
+        'range diff above cannot see this, which is why both halves exist.',
+    ).toBe('');
+  });
+});
