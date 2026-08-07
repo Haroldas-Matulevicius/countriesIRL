@@ -118,9 +118,57 @@ Two consequences, both load-bearing:
 
 `collectCompositionFonts(clone)` walks the clone and returns the distinct named families it
 actually references (`font-family` attributes and inline styles, generic keywords excluded).
-`injectExportFontFace(clone, families)` embeds an `@font-face` for each family the
-`EXPORT_FONT_FACE_BUILDERS` registry has bytes for. **Only Inter is registered in Phase 3.**
+`injectExportFontFace(clone, families)` embeds the CSS for each family the
+`EXPORT_FONT_FACE_BUILDERS` registry has bytes for. **Only Inter is registered.**
 Phase 4's text tools add registry entries; they do not re-open the rasterisation path.
+
+**A named family the registry does not know renders as fallback — SILENTLY.** This is the trap
+`04-UI-SPEC.md` § 6.8 raises, and it is real: `collectCompositionFonts` reports the family,
+`injectExportFontFace` looks it up, misses, and embeds nothing; the export then rasterises in
+whatever the isolated document falls back to, with **no error, no refusal, and no toast**. The
+creator sees their chosen typeface on screen and downloads a different one. **If a font picker
+ever ships, derive its option list from `EXPORT_FONT_FACE_BUILDERS.keys()` — never from a separate
+list**, which is a drift hazard wearing the shape of a feature.
+
+### Two faces, ONE family, ONE registry entry (04-04, D4-15)
+
+`buildExportFontFaceCss()` returns **two** `@font-face` rules for `Inter`, each scoped by its own
+`unicode-range`: the vendored latin subset and the vendored latin-ext subset. Google Fonts always
+splits Inter by range, so a single file covering both is not obtainable from it, and producing one
+needs a subsetting toolchain (`pyftsubset` / `fonttools` / `woff2_compress`) **measured absent on
+this machine**. The two-face route needs none of it.
+
+- **The registry does not change, and must not.** It maps family → CSS, so one family emitting
+  several faces is a property of the *builder*. A second registry entry would mean a second
+  **family** — a design decision the owner has not made. `export.test.ts` asserts
+  `EXPORT_FONT_FACE_BUILDERS.size` against the literal 1 for exactly this reason.
+- **The latin face needs an explicit `unicode-range` too.** Without one it matches every codepoint
+  and the two faces — same family, same weight, same style — collapse to "last declaration wins"
+  instead of dividing the character space. This is why the latin rule gained a range it did not
+  have before 04-04.
+- **Both ranges are pasted verbatim from the live fetch** recorded in `src/assets/README.md`. A
+  hand-typed range is a **silent coverage hole**: the rule parses, the face is present, the glyphs
+  still fall back. `export.test.ts` asserts the two ranges are not equal to each other, because a
+  duplicated range is a no-op that still counts as two faces.
+- **Always inlined, never conditional on composition content.** `src/utils/export.ts` is the most
+  safety-critical file in the repo; a content-dependent branch makes the export non-deterministic
+  in exchange for a saving that does not change the PNG at all. (The *family*-level conditionality
+  in `collectCompositionFonts` is a different, structural thing and it stays.)
+- **`src/styles/theme.css` carries the matching pair.** The clone cannot see that stylesheet, so
+  the two must be kept in step by hand — a range present in one and not the other makes the editor
+  and the download disagree about which glyphs fall back.
+
+**Measured cost, on the right artifact.** Both files are same-origin vendored bytes with recorded
+SHA-256s: latin 48,432 B raw / 64,576 B base64; latin-ext 85,272 B raw / 113,696 B base64. Adding
+the second face grew the injected `<style>` from 64,714 to 178,942 characters (**+114,228**) and the
+serialised `encodeURIComponent` data URL by **+121,418** characters. Measured on the built bundle
+(one-face control vs two-face, same `vite build`): `index.js` **560.48 kB → 674.41 kB (+113.93 kB
+raw, +86.01 kB gzipped)**; the CSS bundle is byte-unchanged at 50.34 kB, because the editor's faces
+reference the woff2 files by URL rather than inlining them. **The exported PNG's file size
+is unaffected**: the base64 rides in the bundle and the intermediate SVG, and the PNG encoder is
+handed a raster, never a font byte. The Phase 3-era "+113 KB per export" framing named the wrong
+artifact and is corrected here and in `src/assets/README.md`. Headroom is two orders of magnitude —
+a 3,000,269-character data URL loaded fine in installed Chrome.
 
 **The test-only suppression seam.** `EXPORT_FONT_FACE_SUPPRESSION_FLAG` is a `globalThis`
 sentinel that makes `injectExportFontFace` a no-op. It exists so assertion 25 can export a
@@ -128,17 +176,28 @@ font-suppressed control run and go RED when the injection is deleted. It is set 
 Playwright (`addInitScript`/`evaluate`); nothing in the product writes it, it is not read from
 storage, and no creator-facing control reaches it. Keep it that way.
 
-### Coverage is latin-only, and that is recorded, not hidden (CF-2)
+### Coverage is latin + latin-ext, and the rest is recorded, not hidden (CF-2, closed by D4-15)
 
-The vendored subset stops at `U+00FF` (48,432 B raw / 64,576 B base64 — `src/assets/README.md`
-holds provenance, SHA-256, and the measured cost of widening). Latin-ext glyphs — `Ł ą ę ś ż`
-(Polish), `č ė š ų ū ž` (Lithuanian), `ě ř ů` (Czech), `č ć đ š ž` (Balkan), `ā ē ģ ķ` (Latvian),
-`ș ț` (Romanian) — fall back to the generic stack **mid-string**, in the editor and in the
-exported PNG. Bundled Natural Earth names are ASCII; the real exposure is creator-typed legend
-labels in native orthography. A test in `tests/e2e/export.spec.ts` documents the observed
-fallback so it is a known outcome, not a surprise. **No claim of full Unicode coverage may be
-made anywhere.** These bytes ship inside every export bundle; widening to latin-ext (+85,272 B
-raw / +113,696 B base64) is a recorded owner decision for v1.1, not an executor's.
+**Superseded 2026-08-06 by plan `04-04`.** CF-2 read: *the vendored subset stops at `U+00FF`, so
+`Ł ą ę ś ż` (Polish), `č ė š ų ū ž` (Lithuanian), `ě ř ů` (Czech), `č ć đ š ž` (Balkan),
+`ā ē ģ ķ` (Latvian) and `ș ț` (Romanian) fall back to the generic stack mid-string, in the editor
+and in the exported PNG* — and it named widening as an owner decision. **D4-15 made that decision
+and `04-04` executed it.** All of those glyphs sit inside `U+0100-02BA` and are now drawn by the
+vendored latin-ext face, in the editor and in the export.
+
+What has **not** changed:
+
+- **No claim of full Unicode coverage may be made anywhere.** Greek, Cyrillic, Vietnamese
+  precomposed forms (`U+1EA0-1EF9`), and CJK are separate Google Fonts subsets and are **not**
+  vendored. A composition using them still falls back mid-string.
+- The real exposure was always **creator-typed legend labels in native orthography** — bundled
+  Natural Earth `properties.name` values are ASCII.
+- **What the automated gate proves is bounded.** `tests/e2e/export.spec.ts` proves the two faces
+  reach the clone and that a latin-ext string rasterises **differently** from the same string with
+  the font suppressed. It does **not** prove the glyphs are *correct*. That is requirement **A12**,
+  a ⛔ **physical check** — a human opening an exported PNG and looking at the diacritics —
+  scheduled in plan `04-16`. It was one of the nine Phase 3 UAT cells **never performed**;
+  **skipped is not passed, it cannot be inherited, and no automated result substitutes for it.**
 
 ---
 
@@ -503,22 +562,31 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-06 (later) — § Background Color Contract amended for D4-03 / CD-6 (plan
-04-01): the three white layers are now named as the OPACITY floor and `rect[data-layer="surface"]`
-as the COLOUR layer, with the "do not simplify one away" warning intact and `--map-surface`'s
-unchanged chrome-only job annotated. Two RED proofs are recorded inline — `var(--map-surface)` and
-a missing `fill` both export rgb(0, 0, 0) while the editor looks correct. The canonical clone shape
-gained the surface rect, with the sibling-layer rule the rest of Phase 4 inherits. Persistence is
-called out as NOT wired: `surfaceColor` is in-memory only until `04-14`'s V3 record.*
-*Last updated: 2026-08-06 — rewritten for D-34 (plan 03-11): html2canvas removed and the whole Last updated: 2026-08-06 (earlier) — `03-09`'s theme-independence-by-placement analysis (now*
-serialise → SVG-as-image → drawImage → toBlob path owned in `export.ts`; the canonical clone
-shape gains a leading injected `<style>`; the generalised font-embedding seam (D-34a) with its
-test-only suppression flag; the sandbox boundary as the structural reason for both font
-embedding and export theme-independence, replacing the expired `03-09` placement-and-hard-set
-analysis; the 540-intrinsic / scale-2 geometry recorded as the border-weight contract; CF-2's
-latin-only coverage limit recorded with no full-Unicode claim.*
-expired and replaced above); `EXPORT_BORDER_WIDTH` 0.75 with the `non-scaling-stroke` contract;
-journey rules from 02-27 (region-disjoint counting, discrimination controls, bytes follow
-history); no-refresh copy enforced and the Phase 2 legend inside the canonical SVG (02-25).*
+*Last updated: 2026-08-06 (latest) — § the font-embedding seam rewritten for D4-15 (plan `04-04`):
+two `unicode-range`-scoped `@font-face` rules for the ONE `Inter` family, why the latin face needed
+an explicit range it never had, why the registry stays at one entry, why both ranges are pasted
+verbatim from the live fetch, and why the second face is always inlined rather than conditional on
+composition content. Added the silent-fallback trap (`04-UI-SPEC.md` § 6.8): an unregistered named
+family renders as fallback with no error, so a future font picker derives its options from
+`EXPORT_FONT_FACE_BUILDERS.keys()`. § CF-2 superseded — latin-ext is now covered; Greek, Cyrillic,
+Vietnamese and CJK are not, and A12 remains an unperformed physical check owned by `04-16`. Cost
+framing corrected onto the right artifact: +114,228 characters of injected `<style>` and +121,418
+of serialised data URL, with **exported PNG file size unaffected**.*
+
+*Last updated: 2026-08-06 (earlier, condensed per the two-entry rule) — § Background Color Contract
+amended for D4-03 / CD-6 (plan `04-01`): the three white layers named as the OPACITY floor and
+`rect[data-layer="surface"]` as the COLOUR layer, the "do not simplify one away" warning intact,
+`--map-surface`'s chrome-only job annotated, two RED proofs recorded inline (`var(--map-surface)`
+and a missing `fill` both export rgb(0, 0, 0) while the editor looks correct), the canonical clone
+shape gained the surface rect with the sibling-layer rule the rest of Phase 4 inherits, and
+persistence called out as NOT wired until `04-14`'s V3 record. Earlier, for D-34 (plan `03-11`):
+html2canvas removed and the whole serialise → SVG-as-image → drawImage → toBlob path owned in
+`export.ts`; the canonical clone shape gains a leading injected `<style>`; the generalised
+font-embedding seam (D-34a) with its test-only suppression flag; the sandbox boundary as the
+structural reason for both font embedding and export theme-independence, replacing the expired
+`03-09` placement-and-hard-set analysis; the 540-intrinsic / scale-2 geometry as the border-weight
+contract; `EXPORT_BORDER_WIDTH` 0.75 with the `non-scaling-stroke` contract; and the 02-25/02-27
+journey rules (region-disjoint counting, discrimination controls, bytes follow history, no-refresh
+copy, legend inside the canonical SVG).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

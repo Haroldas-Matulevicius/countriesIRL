@@ -75,13 +75,28 @@ function isExportFontFaceSuppressed(): boolean {
 }
 
 /**
- * The generalised font-embedding registry (D-34a): family name → `@font-face`
- * rule with the bytes inlined. Only Inter is registered in Phase 3; Phase 4's
- * text tools add entries here instead of re-opening the rasterisation path.
+ * The generalised font-embedding registry (D-34a): family name → the CSS that
+ * embeds that family's bytes. Only Inter is registered; Phase 4's text tools
+ * add entries here instead of re-opening the rasterisation path.
+ *
+ * **One entry, two faces (04-04).** `buildExportFontFaceCss` returns TWO
+ * `@font-face` rules for Inter — latin and latin-ext, each scoped by its own
+ * `unicode-range`. That is a property of the builder, not of the registry: the
+ * map is family-to-CSS, so a family emitting several faces needs no second
+ * entry and the mechanism is unchanged.
+ *
+ * **The trap this registry sets** (`04-UI-SPEC.md` § 6.8): a family a
+ * composition NAMES but the registry does not KNOW renders as fallback,
+ * silently — `collectCompositionFonts` reports it, the lookup misses, and the
+ * export produces the wrong typeface with no error anywhere. If a font picker
+ * ever ships, its option list must be derived from `.keys()` here, never from
+ * a separate list that can drift.
+ *
+ * Exported for `export.test.ts`, which asserts the entry count against a
+ * literal so "two faces" can never be mistaken for "two families".
  */
-const EXPORT_FONT_FACE_BUILDERS: ReadonlyMap<string, () => string> = new Map([
-  [EXPORT_FONT_FAMILY, buildExportFontFaceCss],
-]);
+export const EXPORT_FONT_FACE_BUILDERS: ReadonlyMap<string, () => string> =
+  new Map([[EXPORT_FONT_FAMILY, buildExportFontFaceCss]]);
 
 const GENERIC_FONT_FAMILY_KEYWORDS: ReadonlySet<string> = new Set([
   'serif',

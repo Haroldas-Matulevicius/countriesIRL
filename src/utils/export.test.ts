@@ -7,6 +7,7 @@ import {
   EXPORT_SIZE,
 } from '../constants/config';
 import {
+  EXPORT_FONT_FACE_BUILDERS,
   EXPORT_FONT_FACE_SUPPRESSION_FLAG,
   collectCompositionFonts,
   createExportFilename,
@@ -636,7 +637,7 @@ describe('the generalised font-embedding seam (D-34a)', (): void => {
     ]);
   });
 
-  it('embeds one @font-face per referenced family the registry has bytes for', (): void => {
+  it('embeds the registered families and nothing else', (): void => {
     const svg = new FakeElement('SVG', true);
     svg.appendChild(new FakeElement('G'));
 
@@ -653,7 +654,71 @@ describe('the generalised font-embedding seam (D-34a)', (): void => {
     expect(css).toMatch(/src:\s*url\(data:font\/woff2;base64,/u);
     // Only registered families are embedded; an unregistered one adds nothing.
     expect(css).not.toMatch(/Fraunces/u);
-    expect(css.match(/@font-face/gu)).toHaveLength(1);
+  });
+
+  it('emits TWO unicode-range-scoped faces for the ONE Inter family (04-04)', (): void => {
+    /*
+     * Google Fonts splits Inter by unicode-range, so latin and latin-ext are
+     * two vendored files and one family emits two faces. Both halves matter
+     * and each is asserted separately:
+     *
+     *  - the COUNT is asserted against the literal 2, never against something
+     *    derived from the code under test (a derived count is green at zero);
+     *  - the two ranges must DIFFER, because a second face carrying the same
+     *    range as the first is a no-op that still counts as two.
+     */
+    const svg = new FakeElement('SVG', true);
+    svg.appendChild(new FakeElement('G'));
+
+    injectExportFontFace(svg as unknown as SVGSVGElement, ['Inter']);
+
+    const css = svg.firstChild?.textContent ?? '';
+    expect(
+      css.match(/@font-face/gu),
+      'the injected style does not carry exactly two @font-face rules — ' +
+        'latin-ext coverage is missing from the export clone',
+    ).toHaveLength(2);
+    expect(
+      css.match(/font-family:'Inter'/gu),
+      'the two faces do not both name Inter, so they are two families ' +
+        'rather than one family split by unicode-range',
+    ).toHaveLength(2);
+    expect(
+      css.match(/src:\s*url\(data:font\/woff2;base64,/gu),
+      'a face is not carrying inlined woff2 bytes — the isolated export ' +
+        'document can issue no request, so an un-inlined face draws nothing',
+    ).toHaveLength(2);
+
+    const ranges = [...css.matchAll(/unicode-range:([^;}]+)/gu)].map(
+      (match: RegExpMatchArray): string => match[1].trim(),
+    );
+    expect(
+      ranges,
+      'a face is missing its unicode-range — without one the two faces ' +
+        'collapse to "last declaration wins" instead of dividing the ' +
+        'character space',
+    ).toHaveLength(2);
+    expect(
+      ranges[0],
+      'both faces carry the SAME unicode-range, so the second one can never ' +
+        'be selected and adds bytes for nothing',
+    ).not.toBe(ranges[1]);
+    // The latin-ext block must actually cover the glyphs it exists for.
+    expect(
+      ranges.some((range: string): boolean => range.includes('U+0100-02BA')),
+      'no face covers U+0100-02BA — the latin-ext diacritics D4-15 is about ' +
+        'still fall back mid-string',
+    ).toBe(true);
+  });
+
+  it('keeps the family registry at one entry — two faces is not two families', (): void => {
+    /*
+     * The registry is family-to-CSS. One family legitimately emitting two
+     * faces must NOT show up here as a second entry: that would mean a second
+     * family had been added, which is an owner decision, not a plan's.
+     */
+    expect(EXPORT_FONT_FACE_BUILDERS.size).toBe(1);
+    expect([...EXPORT_FONT_FACE_BUILDERS.keys()]).toStrictEqual(['Inter']);
   });
 
   it('inserts nothing when no referenced family is registered', (): void => {
