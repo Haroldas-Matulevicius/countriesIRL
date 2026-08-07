@@ -80,8 +80,23 @@
         // Assertion 25 Part 1: the injected export @font-face, observed on the
         // real clone as it lands in the body — never by stubbing.
         const fontStyle = svg.querySelector('style');
+        // 04-04: one family now emits TWO faces split by unicode-range. Split
+        // the injected text per rule so the spec can assert the count, the
+        // family of each face, and that the two ranges actually DIFFER — a
+        // second face repeating the first's range is a silent no-op.
+        const fontFaces = (fontStyle?.textContent ?? '')
+          .split('@font-face')
+          .slice(1)
+          .map((block) => ({
+            family: (block.match(/font-family:\s*'([^']+)'/) ?? [])[1] ?? null,
+            unicodeRange:
+              ((block.match(/unicode-range:\s*([^;}]+)/) ?? [])[1] ?? '').trim() ||
+              null,
+            hasWoff2DataUrl: /src:\s*url\(data:font\/woff2;base64,/.test(block),
+          }));
 
         return {
+          fontFaces,
           svgCount: svgs.length,
           frameBackgroundColor: frame.style.backgroundColor,
           fontStyle:

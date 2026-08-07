@@ -468,6 +468,31 @@ is therefore two parts, and **Part 2 is the load-bearing half**:
    counts zero ink). Three empty regions satisfy a bare inequality perfectly; this repo has
    shipped that defect once already.
 
+**One comparator, not one per gate.** `measureLegendCrops` in `tests/e2e/export.spec.ts` owns the
+decode → crop → count → diff path for both font gates. Two decode paths in one spec is how a
+"sampled pixel" assertion quietly starts measuring a differently decoded image from the one beside
+it — the same reason `samplePngPoints` was generalised.
+
+### The latin-ext gate (04-04) — and the probe string that could not fail
+
+Two claims, gated separately because they are different claims: the clone **carries** two
+`unicode-range` faces, and the embedded faces **draw** a latin-ext string.
+
+**The probe label for the raster claim must be PURE latin-ext.** `04-04-PLAN.md` proposed
+`Košice`, `Łódź`, `Magyarország`. Those strings are mostly latin-1, so embedding the font changes
+their raster whether or not the latin-ext face ever resolves — the assertion stays **green** with
+the latin-ext range narrowed to nothing, which is the "cannot fail on its own subject" shape this
+repo keeps shipping. The label used is `ŠŁŹČĘȘ šłźčęș`: every **inked** glyph sits in
+`U+0100-02BA`, so the diff can only move if the latin-ext face is selected. `ó` and `á` are
+excluded on purpose — they are latin-1 and would contaminate the measurement.
+
+**"Present" is not "selected", and one mutation separates them.** Pointing the latin-ext face's
+`src` at the *latin* bytes leaves the structural claim perfectly green — two faces, one family,
+both inlined, ranges distinct, `U+0100-02BA` covered — while the raster claim goes red. That
+mutation, not the range-narrowing one, is what proves the raster claim is more than a restatement
+of the structural one: narrowing the range reddens **both**, because the structural claim asserts
+the range actually covers `U+0100-02BA`.
+
 ### Journey evidence: `tests/e2e/final-integration.spec.ts`
 
 **One spec owns the interactions between domains; the focused specs own the domains.** Do not

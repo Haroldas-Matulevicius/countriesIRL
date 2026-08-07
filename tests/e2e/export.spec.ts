@@ -31,6 +31,21 @@ const DEFAULT_BORDER_COLOR = '#000000';
 const UNNAMED_FILENAME = 'CountriesIRL_2026-07-21.png';
 const LEGEND_LABEL = 'Pacific route';
 const DATE_LINE_COUNTRY = 'FJI';
+/*
+ * Restated here rather than imported, exactly like `DEFAULT_BORDER_COLOR` and
+ * for the same reason the suppression flag's NAME lives in `constants/config`:
+ * importing from `src/styles/interFontFace.ts` would drag two base64-inlined
+ * woff2 files into this node-side spec. This is the literal the PNG must carry.
+ */
+const EXPORT_FONT_FAMILY = 'Inter';
+/** The first block of the vendored latin-ext subset's range (04-04). */
+const LATIN_EXT_RANGE_START = 'U+0100-02BA';
+/**
+ * Every INKED character is latin-ext (U+0100-02BA); the spaces are latin-1 but
+ * draw nothing. See the claim-2 test for why a realistic mixed string such as
+ * `Košice` would make that assertion unable to fail on its own subject.
+ */
+const LATIN_EXT_PROBE_LABEL = 'ŠŁŹČĘȘ šłźčęș';
 
 interface CloneFontStyleSummary {
   readonly isFirstChild: boolean;
@@ -38,10 +53,17 @@ interface CloneFontStyleSummary {
   readonly hasWoff2DataUrl: boolean;
 }
 
+interface CloneFontFace {
+  readonly family: string | null;
+  readonly unicodeRange: string | null;
+  readonly hasWoff2DataUrl: boolean;
+}
+
 interface CloneSummary {
   readonly svgCount: number;
   readonly frameBackgroundColor: string;
   readonly fontStyle: CloneFontStyleSummary | null;
+  readonly fontFaces: ReadonlyArray<CloneFontFace>;
   readonly layerOrder: ReadonlyArray<string | null>;
   readonly cameraTransform: string | null;
   readonly legendTransform: string | null;
@@ -303,6 +325,144 @@ async function countInkAroundRegion(
       threshold: inkThreshold,
     },
   );
+}
+
+interface LegendCropMeasurement {
+  readonly inkA: number;
+  readonly inkB: number;
+  readonly inkBlank: number;
+  readonly diffAB: number;
+  readonly diffABlank: number;
+  readonly diffBBlank: number;
+}
+
+/**
+ * The ONE legend-crop comparator. Both font gates run through it: assertion 25
+ * (does the embedded font change the raster at all?) and `04-04`'s latin-ext
+ * claim (do the embedded faces draw the latin-ext glyphs?). Extracted rather
+ * than copied, for the same reason `samplePngPoints` was generalised — two PNG
+ * decode paths in one spec is how a "sampled pixel" assertion quietly starts
+ * measuring a differently decoded image from the one beside it.
+ *
+ * The blank crop is an all-white buffer of the SAME size run through the SAME
+ * counter, so it validates the instrument rather than merely sitting beside it.
+ */
+async function measureLegendCrops(
+  page: Page,
+  a: Buffer,
+  b: Buffer,
+  box: LegendRegion,
+): Promise<LegendCropMeasurement> {
+  return page.evaluate(
+    async ({
+      first,
+      second,
+      region,
+      threshold,
+    }: {
+      first: string;
+      second: string;
+      region: LegendRegion;
+      threshold: number;
+    }): Promise<LegendCropMeasurement> => {
+      const decode = async (base64: string): Promise<ImageData> => {
+        const binary = atob(base64);
+        const buffer = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          buffer[index] = binary.charCodeAt(index);
+        }
+        const bitmap = await createImageBitmap(
+          new Blob([buffer], { type: 'image/png' }),
+        );
+        const canvas = document.createElement('canvas');
+        canvas.width = region.width;
+        canvas.height = region.height;
+        const context = canvas.getContext('2d');
+        if (context === null) {
+          throw new Error('2D context is unavailable for PNG inspection.');
+        }
+        // Crop to the legend region while drawing.
+        context.drawImage(
+          bitmap,
+          region.x,
+          region.y,
+          region.width,
+          region.height,
+          0,
+          0,
+          region.width,
+          region.height,
+        );
+        return context.getImageData(0, 0, region.width, region.height);
+      };
+
+      const countInk = (crop: ImageData): number => {
+        let ink = 0;
+        for (let offset = 0; offset < crop.data.length; offset += 4) {
+          if (
+            crop.data[offset] < threshold ||
+            crop.data[offset + 1] < threshold ||
+            crop.data[offset + 2] < threshold
+          ) {
+            ink += 1;
+          }
+        }
+        return ink;
+      };
+
+      const countDiff = (left: ImageData, right: ImageData): number => {
+        let differing = 0;
+        for (let offset = 0; offset < left.data.length; offset += 4) {
+          if (
+            Math.abs(left.data[offset] - right.data[offset]) > 8 ||
+            Math.abs(left.data[offset + 1] - right.data[offset + 1]) > 8 ||
+            Math.abs(left.data[offset + 2] - right.data[offset + 2]) > 8
+          ) {
+            differing += 1;
+          }
+        }
+        return differing;
+      };
+
+      const cropA = await decode(first);
+      const cropB = await decode(second);
+      // The deliberately blank crop: an all-white buffer of the same size, run
+      // through the SAME counting machinery. It validates the instrument — a
+      // counter that reads ink into anything fails on it — and it is what the
+      // two real crops must both differ from.
+      const blankCrop = new ImageData(region.width, region.height);
+      blankCrop.data.fill(255);
+
+      return {
+        inkA: countInk(cropA),
+        inkB: countInk(cropB),
+        inkBlank: countInk(blankCrop),
+        diffAB: countDiff(cropA, cropB),
+        diffABlank: countDiff(cropA, blankCrop),
+        diffBBlank: countDiff(cropB, blankCrop),
+      };
+    },
+    {
+      first: a.toString('base64'),
+      second: b.toString('base64'),
+      region: box,
+      threshold: INK_CHANNEL_THRESHOLD,
+    },
+  );
+}
+
+/** The legend crop bounds, derived from `resolveLegendRender` — never hard-coded. */
+async function resolveLegendRegion(page: Page): Promise<LegendRegion> {
+  const legendState = await page.evaluate(
+    (): LegendState => window.__exportFixture.legendState,
+  );
+  const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
+  return {
+    x: render.position.x,
+    y: render.position.y,
+    width: render.bounds.width,
+    height: render.bounds.height,
+  };
 }
 
 test.describe('PNG export', (): void => {
@@ -583,112 +743,22 @@ test.describe('PNG export', (): void => {
 
     // Part 2 — crop both PNGs to the legend region, derived from
     // resolveLegendRender applied to the live legend state. Never hard-coded.
-    const legendState = await page.evaluate(
-      (): LegendState => window.__exportFixture.legendState,
-    );
-    const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
-    const region: LegendRegion = {
-      x: render.position.x,
-      y: render.position.y,
-      width: render.bounds.width,
-      height: render.bounds.height,
-    };
-
-    const measured = await page.evaluate(
-      async ({ normal, suppressed, box, threshold }) => {
-        const decode = async (base64: string): Promise<ImageData> => {
-          const binary = atob(base64);
-          const buffer = new Uint8Array(binary.length);
-          for (let index = 0; index < binary.length; index += 1) {
-            buffer[index] = binary.charCodeAt(index);
-          }
-          const bitmap = await createImageBitmap(
-            new Blob([buffer], { type: 'image/png' }),
-          );
-          const canvas = document.createElement('canvas');
-          canvas.width = box.width;
-          canvas.height = box.height;
-          const context = canvas.getContext('2d');
-          if (context === null) {
-            throw new Error('2D context is unavailable for PNG inspection.');
-          }
-          // Crop to the legend region while drawing.
-          context.drawImage(
-            bitmap,
-            box.x,
-            box.y,
-            box.width,
-            box.height,
-            0,
-            0,
-            box.width,
-            box.height,
-          );
-          return context.getImageData(0, 0, box.width, box.height);
-        };
-
-        const countInk = (crop: ImageData): number => {
-          let ink = 0;
-          for (let offset = 0; offset < crop.data.length; offset += 4) {
-            if (
-              crop.data[offset] < threshold ||
-              crop.data[offset + 1] < threshold ||
-              crop.data[offset + 2] < threshold
-            ) {
-              ink += 1;
-            }
-          }
-          return ink;
-        };
-
-        const countDiff = (left: ImageData, right: ImageData): number => {
-          let differing = 0;
-          for (let offset = 0; offset < left.data.length; offset += 4) {
-            if (
-              Math.abs(left.data[offset] - right.data[offset]) > 8 ||
-              Math.abs(left.data[offset + 1] - right.data[offset + 1]) > 8 ||
-              Math.abs(left.data[offset + 2] - right.data[offset + 2]) > 8
-            ) {
-              differing += 1;
-            }
-          }
-          return differing;
-        };
-
-        const normalCrop = await decode(normal);
-        const suppressedCrop = await decode(suppressed);
-        // The deliberately blank crop: an all-white buffer of the same size,
-        // run through the SAME counting machinery. It validates the
-        // instrument — a counter that reads ink into anything fails on it —
-        // and it is what the two real crops must both differ from.
-        const blankCrop = new ImageData(box.width, box.height);
-        blankCrop.data.fill(255);
-
-        return {
-          inkNormal: countInk(normalCrop),
-          inkSuppressed: countInk(suppressedCrop),
-          inkBlank: countInk(blankCrop),
-          diffNormalVsSuppressed: countDiff(normalCrop, suppressedCrop),
-          diffNormalVsBlank: countDiff(normalCrop, blankCrop),
-          diffSuppressedVsBlank: countDiff(suppressedCrop, blankCrop),
-        };
-      },
-      {
-        normal: normalBytes.toString('base64'),
-        suppressed: suppressedBytes.toString('base64'),
-        box: region,
-        threshold: INK_CHANNEL_THRESHOLD,
-      },
+    const region = await resolveLegendRegion(page);
+    const measured = await measureLegendCrops(
+      page,
+      normalBytes,
+      suppressedBytes,
+      region,
     );
 
     // Content floor FIRST: two blank corners satisfy "they differ" perfectly,
     // and that exact defect shape has shipped here once.
     expect(
-      measured.inkNormal,
+      measured.inkA,
       'the Inter-embedded legend crop is blank',
     ).toBeGreaterThan(500);
     expect(
-      measured.inkSuppressed,
+      measured.inkB,
       'the font-suppressed legend crop is blank',
     ).toBeGreaterThan(500);
 
@@ -696,7 +766,7 @@ test.describe('PNG export', (): void => {
     // CHANGE the rasterised legend pixels. If Chrome ignored the data-URI
     // font, both runs fall back identically and this reads ~0.
     expect(
-      measured.diffNormalVsSuppressed,
+      measured.diffAB,
       'the embedded @font-face did not change the rasterised legend — ' +
         'Inter never resolved in the exported PNG',
     ).toBeGreaterThan(200);
@@ -704,19 +774,205 @@ test.describe('PNG export', (): void => {
     // Blank-crop discrimination control: the counting machinery reads the
     // blank as blank, and both real crops differ from it.
     expect(measured.inkBlank).toBe(0);
-    expect(measured.diffNormalVsBlank).toBeGreaterThan(500);
-    expect(measured.diffSuppressedVsBlank).toBeGreaterThan(500);
+    expect(measured.diffABlank).toBeGreaterThan(500);
+    expect(measured.diffBBlank).toBeGreaterThan(500);
   });
 
-  test('CF-2: a latin-ext glyph falls back mid-string — observed, documented behaviour', async ({
+  test('04-04 claim 1: the clone carries two unicode-range font faces for one family', async ({
     page,
   }): Promise<void> => {
     /*
-     * The vendored Inter subset is latin-only (stops at U+00FF). This test
-     * pins the consequence as an observed fact rather than a surprise:
-     * embedding the font changes latin glyphs ('sss') and does NOT change
-     * latin-ext glyphs ('ššš') — 'š' falls back to the same generic face
-     * with or without the embedded font. No full-Unicode claim is made.
+     * Structural half of the latin-ext gate (D4-15). Read off the REAL clone
+     * as it lands in the body, via the fixture's MutationObserver — never by
+     * stubbing and never off the source file.
+     *
+     * Two faces for ONE family is the whole shape: Google Fonts splits Inter
+     * by codepoint range, so latin and latin-ext are separate vendored files.
+     * Every part of that sentence is asserted, because each can break
+     * silently and separately: the COUNT (a dropped face), the FAMILY (two
+     * families instead of one split family), the inlined BYTES (an
+     * un-inlined face draws nothing in an isolated document that can issue no
+     * request), and the RANGES (a second face repeating the first's range is
+     * a no-op that still counts as two).
+     */
+    await openExportFixture(page);
+    expect((await runExport(page)).ok).toBe(true);
+    const clone = await readClone(page);
+
+    expect(
+      clone.fontFaces,
+      'the export clone does not carry exactly two @font-face rules — ' +
+        'latin-ext coverage is missing from the rasterised PNG',
+    ).toHaveLength(2);
+    expect(
+      clone.fontFaces.map((face: CloneFontFace): string | null => face.family),
+      'the two faces do not both name Inter, so a second FAMILY was added ' +
+        'rather than one family split by codepoint range',
+    ).toStrictEqual([EXPORT_FONT_FAMILY, EXPORT_FONT_FAMILY]);
+    expect(
+      clone.fontFaces.every(
+        (face: CloneFontFace): boolean => face.hasWoff2DataUrl,
+      ),
+      'a face is not carrying inlined woff2 bytes — the isolated export ' +
+        'document can issue no request, so that face draws nothing',
+    ).toBe(true);
+
+    const ranges = clone.fontFaces.map(
+      (face: CloneFontFace): string | null => face.unicodeRange,
+    );
+    expect(
+      ranges.every((range: string | null): boolean => range !== null),
+      'a face is missing its unicode-range — without one the two faces ' +
+        'collapse to "last declaration wins" instead of dividing the ' +
+        'character space between them',
+    ).toBe(true);
+    expect(
+      ranges[0],
+      'both faces carry the SAME unicode-range, so the second can never be ' +
+        'selected and ships bytes for nothing',
+    ).not.toBe(ranges[1]);
+    expect(
+      ranges.some((range: string | null): boolean =>
+        (range ?? '').includes(LATIN_EXT_RANGE_START),
+      ),
+      `no face covers ${LATIN_EXT_RANGE_START} — the latin-ext diacritics ` +
+        'D4-15 exists for still fall back mid-string',
+    ).toBe(true);
+  });
+
+  test('04-04 claim 2: the embedded faces draw a latin-ext string, measured on font pixels', async ({
+    page,
+  }): Promise<void> => {
+    /*
+     * Rasterisation half of the latin-ext gate. Same shape as assertion 25 —
+     * content floor, then the inequality, then the blank control — through
+     * the same `measureLegendCrops` machinery.
+     *
+     * WHY THE LABEL IS PURE LATIN-EXT, and not `Košice / Łódź / Magyarország`
+     * as 04-04-PLAN.md Task 3 suggested. Those strings are mostly latin-1, so
+     * embedding the font changes their raster whether or not the latin-ext
+     * face resolves — the assertion would stay GREEN with the latin-ext range
+     * narrowed to nothing, which is precisely the "cannot fail on its own
+     * subject" shape this repo keeps shipping. Every INKED glyph below sits in
+     * U+0100-02BA, so the only thing that can draw it is the latin-ext face:
+     * š (Košice), ł and ź (Łódź), plus č ę ș. `ó` and `á` are deliberately
+     * EXCLUDED — they are latin-1 and would contaminate the measurement.
+     * Spaces are latin-1 but contribute no ink.
+     *
+     * ⚠ WHAT THIS DOES AND DOES NOT PROVE. It proves the embedded faces
+     * CHANGED the raster for a latin-ext string — i.e. these vendored bytes,
+     * not the fallback stack, are what drew those glyphs. It does NOT prove
+     * the glyphs are CORRECT. Only a human opening an exported PNG and
+     * looking at the diacritics can say that. That is requirement A12
+     * (`04-UI-SPEC.md` § 8), a ⛔ PHYSICAL CHECK scheduled in plan 04-16 and
+     * one of the nine Phase 3 UAT cells that were NEVER PERFORMED. Skipped is
+     * not passed, it cannot be inherited, and this automated result may never
+     * be substituted for it.
+     */
+    await openExportFixture(page);
+    await page.evaluate((label: string): void => {
+      window.__exportFixture.setLegendLabel(label);
+    }, LATIN_EXT_PROBE_LABEL);
+    await expect(page.locator('[data-layer="legend"] text')).toHaveText(
+      LATIN_EXT_PROBE_LABEL,
+    );
+
+    // Export 1 — both faces embedded.
+    const embeddedDownload = page.waitForEvent('download');
+    expect((await runExport(page)).ok).toBe(true);
+    const embeddedBytes = await saveDownload(
+      await embeddedDownload,
+      `latin-ext-embedded-${UNNAMED_FILENAME}`,
+    );
+
+    // Export 2 — the SAME composition with the font embedding suppressed, so
+    // every glyph falls back. Same browser context, same run.
+    await page.evaluate((flag: string): void => {
+      Reflect.set(window, flag, true);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+    const suppressedDownload = page.waitForEvent('download');
+    expect((await runExport(page)).ok).toBe(true);
+    const suppressedBytes = await saveDownload(
+      await suppressedDownload,
+      `latin-ext-suppressed-${UNNAMED_FILENAME}`,
+    );
+    await page.evaluate((flag: string): void => {
+      Reflect.deleteProperty(window, flag);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+
+    const region = await resolveLegendRegion(page);
+    const measured = await measureLegendCrops(
+      page,
+      embeddedBytes,
+      suppressedBytes,
+      region,
+    );
+
+    /*
+     * Thresholds are derived from THIS change's measurement, never guessed.
+     * Measured 2026-08-06 on installed Chrome 151.0.7922.75, this exact
+     * composition and this exact label:
+     *
+     *   inkA (both faces embedded) = 6,268   inkB (font suppressed) = 6,065
+     *   diffAB                     = 2,979   inkBlank               = 0
+     *   diffABlank                 = 6,877   diffBBlank             = 6,685
+     *
+     * Every floor below sits at roughly a third of its measured value — margin
+     * for anti-aliasing and font-version drift, not a number chosen to pass.
+     * (`diffABlank` exceeds `inkA` because the diff counter registers any
+     * channel moving more than 8 from white, which includes the red swatch and
+     * pale anti-alias haloes that the <240 ink counter correctly ignores.)
+     */
+    expect(
+      measured.inkA,
+      'the latin-ext legend crop is blank with the faces embedded — two ' +
+        'blank crops satisfy "they differ" perfectly, so this floor comes first',
+    ).toBeGreaterThan(2000);
+    expect(
+      measured.inkB,
+      'the latin-ext legend crop is blank with the font suppressed — the ' +
+        'fallback must still draw something for the comparison to mean anything',
+    ).toBeGreaterThan(2000);
+
+    // The load-bearing inequality. Every inked glyph here is latin-ext, so
+    // this can only move if the latin-ext face is SELECTED, not merely present.
+    expect(
+      measured.diffAB,
+      'suppressing the embedded faces did not change the rasterised ' +
+        'latin-ext string — the latin-ext face is present but never selected, ' +
+        'and those glyphs are still being drawn by the fallback stack',
+    ).toBeGreaterThan(1000);
+
+    // Blank-crop discrimination control, through the same counter.
+    expect(
+      measured.inkBlank,
+      'the ink counter reads ink into an all-white buffer, so every count ' +
+        'above is untrustworthy',
+    ).toBe(0);
+    expect(measured.diffABlank).toBeGreaterThan(2000);
+    expect(measured.diffBBlank).toBeGreaterThan(2000);
+  });
+
+  test('CF-2: the latin subset FILE alone cannot draw latin-ext — why 04-04 added a second face', async ({
+    page,
+  }): Promise<void> => {
+    /*
+     * This test's SUBJECT is one file: `inter-latin-variable.woff2`, embedded
+     * on its own. That file stops at U+00FF and always will, so embedding it
+     * changes latin glyphs ('sss') and does NOT change latin-ext glyphs
+     * ('ššš') — 'š' falls back to the same generic face either way.
+     *
+     * 04-04 UPDATE (D4-15). Written in Phase 3 this pinned a shipped
+     * limitation; it now pins the MEASUREMENT that justified widening. The
+     * export path no longer behaves this way — it embeds a second,
+     * latin-ext-scoped face beside this one, and `04-04 claim 2` above proves
+     * that face is what draws those glyphs. Keep both: this one still catches
+     * a latin subset that silently changes coverage, and it is deliberately
+     * NOT routed through the export builder, so it cannot go green just
+     * because the second face exists.
+     *
+     * Still no full-Unicode claim: Greek, Cyrillic, Vietnamese precomposed
+     * forms and CJK are not vendored at all.
      */
     await page.goto('/');
     const fontBase64 = readFileSync(
