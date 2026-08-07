@@ -10,19 +10,29 @@ progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 86
-  completed_plans: 60
-  percent: 70
+  completed_plans: 61
+  percent: 71
 ---
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-08-06):** Phase 4 — **PLANNED, nothing built.** 16 plans across 13 waves,
-> tracer-first. Plan-checker returned **0 blockers**; 3 warnings were folded in.
-> ⚠️ **Planned is not built.** No code was written and no gate was executed this session — the
-> plans are a contract, not a result.
-> **Execution will stop early and by design:** **6 owner decision-gates + 2 human-verify gates**
-> are `autonomous: false`. **3 decisions are one-way** — D4-10 (selectable core 195 → 207) and
+> **Status (2026-08-06):** Phase 4 — **EXECUTING · 1/16 plans.** Wave 1 (`04-01`, the tracer) is
+> done: water colour now reaches real exported PNG pixels through a serialized
+> `rect[data-layer="surface"]`, proving the phase's architecture rather than assuming it.
+> ⚠️ **Running under a blanket, in-advance, sight-unseen proceed-authorization**
+> ([`04-AUTHORIZATION.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-AUTHORIZATION.md)).
+> It **authorizes proceeding**; it is **not a content review** and it is **not hash-bound.**
+> The orchestrator takes the **6 decision gates** and records each option id and its reasoning.
+> The **2 human-verify gates are proceeded past, never passed** — `04-13` leaves `OQ-3`/`OQ-5`
+> OPEN, and `04-16`'s **eight physical checks are recorded `NOT PERFORMED`** unless a human
+> performs them. **Writing PASS into a cell nobody executed would be fabricating evidence.**
+> **3 decisions are one-way** — D4-10 (selectable core 195 → 207) and
 > D4-11/D4-17, which delete legend box chrome so **saved compositions change appearance on load**.
+> **Three corrections `04-01` landed against the plans' own text:** a prescribed RED probe
+> **could not go red** (replaced with one on the real subject); the spec's `0.216` luminance floor
+> is **too permissive** and ships as `0.2164`; and the rail-height floor is **552px, not 540px** —
+> **`OQ-2` is open and worse than the spec assumed**, and Phase 5's `05-05` Data HUD would add an
+> eighth row (~600px).
 > ⚠️ **The decision-coverage gate did not pass — it could not run** (`could-not-parse`: it expects
 > `D-NN`, this phase uses `D4-NN`). Recorded **inconclusive**, never as passed; coverage was
 > established independently instead, 18/18.
