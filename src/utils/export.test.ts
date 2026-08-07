@@ -9,6 +9,7 @@ import {
   EXPORT_STROKE_WEIGHT_ATTRIBUTE,
 } from '../constants/config';
 import { strokeWidthFor } from '../constants/mapStyle';
+import { resolveCompositionTextLines } from './compositionText';
 import {
   EXPORT_BORDER_WIDTH,
   EXPORT_FONT_FACE_BUILDERS,
@@ -63,6 +64,15 @@ const BAND_HANDLE_STROKE_SENTINEL = '#2E7D32';
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 const LEGEND_FONT_FAMILY_DECLARATION =
   "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+/**
+ * 04-11 / D4-15. Written out rather than imported from `utils/contrast.ts` for
+ * the reason `DEFAULT_BORDER_COLOR` is: this is the literal the exported PNG
+ * must carry, and importing the value under test would make the assertion agree
+ * with any ink the module happened to hold.
+ */
+const COMPOSITION_INK_LITERAL = '#111827';
+const COMPOSITION_TITLE_SENTINEL = 'Košice · Łódź';
+const COMPOSITION_ATTRIBUTION_SENTINEL = 'Made with CountriesIRL';
 
 class FakeStyleDeclaration {
   public cssText = '';
@@ -689,6 +699,45 @@ function createSource(): FakeSource {
   svg.appendChild(legend);
 
   /*
+   * 04-11 / D4-15 - the composition's type, the LAST composition layer and a
+   * sibling AFTER the legend (U-8: bands, then legend, then text).
+   *
+   * The lines come from `resolveCompositionTextLines`, the same pure function
+   * `MapCanvas` maps over, so the fixture cannot disagree with the renderer
+   * about WHICH fields render - the load-bearing decision. What it does restate
+   * is the attribute set, and that is stated as a limit rather than hidden: the
+   * claim these node-side assertions make is about the SANITIZER, and the real
+   * renderer's own attributes are proven by the Playwright pixel gates.
+   *
+   * Every declaration is INLINE, because the clone is rasterised as an isolated
+   * document with no host stylesheet.
+   */
+  const textLayer = new FakeElement('G');
+  textLayer.setAttribute('data-layer', 'text');
+  resolveCompositionTextLines(
+    {
+      title: COMPOSITION_TITLE_SENTINEL,
+      subtitle: '',
+      attribution: COMPOSITION_ATTRIBUTION_SENTINEL,
+    },
+    { title: 'medium', subtitle: 'medium' },
+    'left',
+  ).forEach((line): void => {
+    const textNode = new FakeElement('TEXT');
+    textNode.setAttribute('data-text-role', line.role);
+    textNode.setAttribute('x', String(line.x));
+    textNode.setAttribute('y', String(line.y));
+    textNode.setAttribute('fill', COMPOSITION_INK_LITERAL);
+    textNode.setAttribute('font-family', LEGEND_FONT_FAMILY_DECLARATION);
+    textNode.setAttribute('font-size', String(line.fontSize));
+    textNode.setAttribute('font-weight', String(line.fontWeight));
+    textNode.setAttribute('text-anchor', line.textAnchor);
+    textNode.textContent = line.value;
+    textLayer.appendChild(textNode);
+  });
+  svg.appendChild(textLayer);
+
+  /*
    * A7's resize affordances. They must be GONE, and the line carries an INLINE
    * `stroke` so that absence is a claim about paint rather than about markup:
    * `04-09` measured that an editor-only element painted only from a stylesheet
@@ -810,6 +859,49 @@ describe('the generalised font-embedding seam (D-34a)', (): void => {
       'Segoe UI',
       'Fraunces',
     ]);
+  });
+
+  /**
+   * **D4-15 - an empty field renders NO `<text>`, and that is a behavioural
+   * claim rather than a tidiness one.**
+   *
+   * The counterfactual is what makes it non-vacuous: an empty SVG trivially has
+   * no fonts, so the second half puts an EMPTY `<text>` carrying the family
+   * into the same layer and shows the family DOES get registered. `04-11`
+   * renders no element at all precisely so that cannot happen.
+   */
+  it('registers no family for a composition with no type, and would if an empty <text> existed', (): void => {
+    // The renderer emits nothing because the resolver yields nothing.
+    expect(
+      resolveCompositionTextLines(
+        { title: '', subtitle: '', attribution: '' },
+        { title: 'medium', subtitle: 'medium' },
+        'left',
+      ),
+    ).toStrictEqual([]);
+
+    const svg = new FakeElement('SVG');
+    const textLayer = new FakeElement('G');
+    textLayer.setAttribute('data-layer', 'text');
+    svg.appendChild(textLayer);
+
+    expect(
+      collectCompositionFonts(svg as unknown as SVGSVGElement),
+      'an empty text layer must cost the export no embedded font at all.',
+    ).toEqual([]);
+
+    // THE COUNTERFACTUAL: an empty <text> that still declared the family.
+    const emptyText = new FakeElement('TEXT');
+    emptyText.setAttribute('font-family', LEGEND_FONT_FAMILY_DECLARATION);
+    emptyText.textContent = '';
+    textLayer.appendChild(emptyText);
+
+    expect(
+      collectCompositionFonts(svg as unknown as SVGSVGElement),
+      'an empty <text> carrying a font-family does NOT register a family, so ' +
+        'the claim above is vacuous and rendering an empty element would be ' +
+        'free after all.',
+    ).toContain('Inter');
   });
 
   it('embeds the registered families and nothing else', (): void => {
@@ -1033,6 +1125,38 @@ describe('exportMapPng', (): void => {
     expect(clonedLegend?.querySelector('TEXT')?.getAttribute('fill')).toBe('#111827');
     expect(clonedLegend?.querySelector('[data-editor-only]')).toBeNull();
 
+    /*
+     * D4-15. The creator's type survives with every declaration INLINE. The
+     * `font-family` matters twice: it is what `collectCompositionFonts` reports
+     * and therefore what puts Inter's bytes in the clone, and a `var()` or a
+     * class in its place would render the latin-ext title as nothing while the
+     * editor still looked perfect.
+     *
+     * The value is asserted as TEXT CONTENT: it reached the clone as a text
+     * node, which is the whole mitigation for T-04-11-01 - the element is never
+     * built from a string, so `XMLSerializer` escapes it on the way out.
+     */
+    const clonedTitle = clonedSvg.querySelector('[data-text-role="title"]');
+    expect(clonedTitle?.textContent).toBe(COMPOSITION_TITLE_SENTINEL);
+    expect(clonedTitle?.getAttribute('fill')).toBe(COMPOSITION_INK_LITERAL);
+    expect(clonedTitle?.getAttribute('font-family')).toBe(
+      LEGEND_FONT_FAMILY_DECLARATION,
+    );
+    expect(clonedTitle?.getAttribute('font-size')).toBe('44');
+    expect(clonedTitle?.getAttribute('font-weight')).toBe('600');
+    expect(clonedTitle?.getAttribute('text-anchor')).toBe('start');
+    // The attribution is the OTHER end of the square and the other weight.
+    const clonedAttribution = clonedSvg.querySelector(
+      '[data-text-role="attribution"]',
+    );
+    expect(clonedAttribution?.textContent).toBe(
+      COMPOSITION_ATTRIBUTION_SENTINEL,
+    );
+    expect(clonedAttribution?.getAttribute('font-size')).toBe('20');
+    expect(clonedAttribution?.getAttribute('font-weight')).toBe('400');
+    // The EMPTY subtitle contributed no element at all.
+    expect(clonedSvg.querySelector('[data-text-role="subtitle"]')).toBeNull();
+
     // The leading <style> shifts the camera and legend indices EQUALLY, so
     // camera-before-legend still holds and isPreservedComposition passed.
     const clonedLayers = clonedSvg.children.map(
@@ -1045,6 +1169,7 @@ describe('exportMapPng', (): void => {
       'camera',
       'bands',
       'legend',
+      'text',
     ]);
     expect(clonedSvg.children[0]?.tagName).toBe('STYLE');
 
@@ -1352,6 +1477,7 @@ describe('exportMapPng', (): void => {
       'paint',
       'bands',
       'legend',
+      'text',
       'band-handles',
       'camera',
     ]);
@@ -1687,7 +1813,15 @@ describe('sanitizeExportClone honours the composition border contract', (): void
         clone.children.map((child: FakeElement): string | null =>
           child.getAttribute('data-layer'),
         ),
-      ).toEqual([null, 'surface', 'paint', 'camera', 'bands', 'legend']);
+      ).toEqual([
+        null,
+        'surface',
+        'paint',
+        'camera',
+        'bands',
+        'legend',
+        'text',
+      ]);
       expect(
         clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
       ).toBe(CAMERA_TRANSFORM);
@@ -1830,7 +1964,15 @@ describe('sanitizeExportClone honours the composition border contract', (): void
         clone.children.map((child: FakeElement): string | null =>
           child.getAttribute('data-layer'),
         ),
-      ).toEqual([null, 'surface', 'paint', 'camera', 'bands', 'legend']);
+      ).toEqual([
+        null,
+        'surface',
+        'paint',
+        'camera',
+        'bands',
+        'legend',
+        'text',
+      ]);
       expect(
         clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
       ).toBe(CAMERA_TRANSFORM);

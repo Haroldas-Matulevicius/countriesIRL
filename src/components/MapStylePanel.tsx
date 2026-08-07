@@ -12,9 +12,14 @@ import {
   WATER_PRESETS,
 } from "../constants/mapStyle";
 import type { MapStylePatch } from "../providers/CompositionStateProvider";
-import type { StrokeWeight } from "../types/composition";
+import type {
+  CompositionTextAlignment,
+  CompositionTextSize,
+  StrokeWeight,
+} from "../types/composition";
 import type { MapStyleColorPreset } from "../types/ui";
 import { normalizeColor } from "../utils/colors";
+import { CompositionTextPanel } from "./CompositionTextPanel";
 
 const WATER_SECTION_LABEL = "Water";
 const UNCOLORED_SECTION_LABEL = "Uncolored countries";
@@ -47,6 +52,13 @@ interface MapStylePanelProps {
   readonly topBandHeight: number;
   readonly bottomBandVisible: boolean;
   readonly bottomBandHeight: number;
+  /** D4-15. Sanitised by the reducer; this panel only reads and writes it. */
+  readonly title: string;
+  readonly titleSize: CompositionTextSize;
+  readonly subtitle: string;
+  readonly subtitleSize: CompositionTextSize;
+  readonly attribution: string;
+  readonly textAlignment: CompositionTextAlignment;
   /**
    * Owned by `App` (`useInspectorUiState`): the 1200px transition remounts this
    * subtree, so an in-progress hex would otherwise be lost on resize.
@@ -104,6 +116,12 @@ export function MapStylePanel({
   topBandHeight,
   bottomBandVisible,
   bottomBandHeight,
+  title,
+  titleSize,
+  subtitle,
+  subtitleSize,
+  attribution,
+  textAlignment,
   customDraft,
   onCustomDraftChange,
   uncoloredDraft,
@@ -246,6 +264,12 @@ export function MapStylePanel({
       topBandHeight: DEFAULT_COMPOSITION_SETTINGS.topBandHeight,
       bottomBandVisible: DEFAULT_COMPOSITION_SETTINGS.bottomBandVisible,
       bottomBandHeight: DEFAULT_COMPOSITION_SETTINGS.bottomBandHeight,
+      title: DEFAULT_COMPOSITION_SETTINGS.title,
+      titleSize: DEFAULT_COMPOSITION_SETTINGS.titleSize,
+      subtitle: DEFAULT_COMPOSITION_SETTINGS.subtitle,
+      subtitleSize: DEFAULT_COMPOSITION_SETTINGS.subtitleSize,
+      attribution: DEFAULT_COMPOSITION_SETTINGS.attribution,
+      textAlignment: DEFAULT_COMPOSITION_SETTINGS.textAlignment,
     });
     onCustomDraftChange("");
     onUncoloredDraftChange("");
@@ -260,7 +284,13 @@ export function MapStylePanel({
     topBandVisible === DEFAULT_COMPOSITION_SETTINGS.topBandVisible &&
     topBandHeight === DEFAULT_COMPOSITION_SETTINGS.topBandHeight &&
     bottomBandVisible === DEFAULT_COMPOSITION_SETTINGS.bottomBandVisible &&
-    bottomBandHeight === DEFAULT_COMPOSITION_SETTINGS.bottomBandHeight;
+    bottomBandHeight === DEFAULT_COMPOSITION_SETTINGS.bottomBandHeight &&
+    title === DEFAULT_COMPOSITION_SETTINGS.title &&
+    titleSize === DEFAULT_COMPOSITION_SETTINGS.titleSize &&
+    subtitle === DEFAULT_COMPOSITION_SETTINGS.subtitle &&
+    subtitleSize === DEFAULT_COMPOSITION_SETTINGS.subtitleSize &&
+    attribution === DEFAULT_COMPOSITION_SETTINGS.attribution &&
+    textAlignment === DEFAULT_COMPOSITION_SETTINGS.textAlignment;
 
   const renderSwatchPills = (
     presets: ReadonlyArray<MapStyleColorPreset>,
@@ -508,6 +538,33 @@ export function MapStylePanel({
         </p>
         <p className="map-style__sublabel">{BAND_HEIGHT_HINT}</p>
       </fieldset>
+
+      {/*
+        D4-15 / `04-UI-SPEC.md` section 6.8 - the creator's type.
+
+        THE FIFTH SECTION, and the owner's `04-11` Task 1 Decision A
+        (`text-in-map-style`). `04-UI-SPEC.md` specifies these controls but
+        assigns them no panel: section 6.1's rail table lists five tool rows and
+        section 6.4's `Map style` diagram shows only Water, Uncolored
+        countries, and Borders. An eighth rail row was measured to cost ~600px
+        of viewport height against a floor `04-01` measured at 552, and Phase
+        5's `05-05` Data HUD is the row that needs that headroom.
+
+        The accepted cost is stated rather than glossed: "Map style" now
+        stretches to cover typed content, and this panel WILL scroll. A panel
+        scrolling is fine - it is the rail that must not, because a tooltip has
+        to escape the 48px column.
+      */}
+      <CompositionTextPanel
+        title={title}
+        titleSize={titleSize}
+        subtitle={subtitle}
+        subtitleSize={subtitleSize}
+        attribution={attribution}
+        textAlignment={textAlignment}
+        onMapStyleChange={onMapStyleChange}
+        isDisabled={isDisabled}
+      />
 
       {/*
           The owner's Decision B, extended by `04-08` to every Map style

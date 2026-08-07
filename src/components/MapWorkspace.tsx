@@ -3,6 +3,8 @@ import type { ReactNode, Ref } from 'react';
 
 import type {
   CameraState,
+  CompositionTextAlignment,
+  CompositionTextSize,
   MapCanvasHandle,
   SnapshotId,
   StrokeWeight,
@@ -60,6 +62,13 @@ interface MapWorkspaceProps {
   bottomBandVisible?: boolean;
   bottomBandHeight?: number;
   onBandHeightChange?: (edge: 'top' | 'bottom', height: number) => void;
+  /** D4-15: the composition's type, forwarded verbatim to `MapCanvas`. */
+  title?: string;
+  titleSize?: CompositionTextSize;
+  subtitle?: string;
+  subtitleSize?: CompositionTextSize;
+  attribution?: string;
+  textAlignment?: CompositionTextAlignment;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
@@ -113,6 +122,12 @@ export function MapWorkspace({
   bottomBandVisible,
   bottomBandHeight,
   onBandHeightChange,
+  title,
+  titleSize,
+  subtitle,
+  subtitleSize,
+  attribution,
+  textAlignment,
   selectedIds,
   exportSourceRef,
   legendSlot,
@@ -198,6 +213,12 @@ export function MapWorkspace({
               bottomBandVisible={bottomBandVisible}
               bottomBandHeight={bottomBandHeight}
               onBandHeightChange={onBandHeightChange}
+              title={title}
+              titleSize={titleSize}
+              subtitle={subtitle}
+              subtitleSize={subtitleSize}
+              attribution={attribution}
+              textAlignment={textAlignment}
               borderMesh={geoData.borderMesh}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}

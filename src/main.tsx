@@ -26,6 +26,8 @@ import './styles/controls/saveLoad.css';
 import './styles/controls/toast.css';
 import './styles/controls/legendEditor.css';
 import './styles/controls/locateCountry.css';
+/* `04-11`: the `Text` section inside the `map-style` flyout. */
+import './styles/controls/compositionText.css';
 /*
  * Last, so the shell's structural rules win over the surface rules above it.
  * Assertion 20 in `src/styles/uiContract.test.ts` compares this list against a

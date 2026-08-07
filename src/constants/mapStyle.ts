@@ -1,4 +1,6 @@
 import type {
+  CompositionTextAlignment,
+  CompositionTextSize,
   StrokeWeight,
   VisibleCompositionSettings,
 } from '../types/composition';
@@ -169,6 +171,32 @@ export const BAND_LABELS = {
 } as const;
 
 /**
+ * D4-15 — the composition text defaults.
+ *
+ * **All three strings start EMPTY, and that is the shipped-export contract.**
+ * An empty field renders no `<text>` at all, so a creator who never opens the
+ * `Text` section exports exactly the PNG they exported before this plan. A
+ * seeded placeholder title would put the product's own words in every first
+ * export.
+ *
+ * `medium` is the middle step for both size controls, and `left` matches the
+ * `text-anchor: start` default `04-UI-SPEC.md` § 4.2 gives the title.
+ */
+export const DEFAULT_COMPOSITION_TEXT = '';
+export const DEFAULT_TITLE_SIZE: CompositionTextSize = 'medium';
+export const DEFAULT_SUBTITLE_SIZE: CompositionTextSize = 'medium';
+export const DEFAULT_TEXT_ALIGNMENT: CompositionTextAlignment = 'left';
+
+/** The `Text` section's own labels. `04-UI-SPEC.md § 6.8` vocabulary. */
+export const COMPOSITION_TEXT_LABELS = {
+  section: 'Text',
+  title: 'Title',
+  subtitle: 'Subtitle',
+  attribution: 'Attribution',
+  alignment: 'Alignment',
+} as const;
+
+/**
  * The ONE default `settings` object. The provider, the legacy save-migration
  * path, and the storage reader all seed from this rather than each spelling
  * their own literal — three copies of a default is how two "default"
@@ -189,4 +217,10 @@ export const DEFAULT_COMPOSITION_SETTINGS: VisibleCompositionSettings =
     topBandHeight: BAND_DEFAULT_HEIGHT,
     bottomBandVisible: DEFAULT_BOTTOM_BAND_VISIBLE,
     bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    title: DEFAULT_COMPOSITION_TEXT,
+    titleSize: DEFAULT_TITLE_SIZE,
+    subtitle: DEFAULT_COMPOSITION_TEXT,
+    subtitleSize: DEFAULT_SUBTITLE_SIZE,
+    attribution: DEFAULT_COMPOSITION_TEXT,
+    textAlignment: DEFAULT_TEXT_ALIGNMENT,
   });

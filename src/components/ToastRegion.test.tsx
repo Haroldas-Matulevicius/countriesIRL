@@ -2,6 +2,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  ATTRIBUTION_TEXT_FIT_MESSAGE,
+  SUBTITLE_TEXT_FIT_MESSAGE,
+  TITLE_TEXT_FIT_MESSAGE,
+  characterBoundFor,
+  getCompositionTextBlockingMessage,
+} from '../utils/compositionText';
+import {
   LEGEND_LABEL_FIT_MESSAGE,
   LEGEND_OVERFLOW_MESSAGE,
   getLegendBlockingMessage,
@@ -88,6 +95,90 @@ describe('color application messages', (): void => {
         { code: 'invalid-label', path: 'entries[0].label' },
       ]),
     ).toBe(LEGEND_LABEL_FIT_MESSAGE);
+  });
+
+  /*
+   * D4-15. THREE positive tests for the three entries `04-11` adds to the
+   * allowlist, which is the evidence assertion 23's raised counts stand on.
+   * Each pairs the RENDERED string with the classifier that produces it, so an
+   * entry cannot survive here while the product stops emitting it.
+   */
+  it('surfaces a title that will not fit, without a refresh instruction or retry', (): void => {
+    const overBound = 'W'.repeat(characterBoundFor('title', 'medium') + 1);
+    const markup = renderToStaticMarkup(
+      <ToastRegion
+        message={{
+          id: 'title-block',
+          severity: 'error',
+          message: TITLE_TEXT_FIT_MESSAGE,
+          retry: vi.fn(),
+        }}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain(TITLE_TEXT_FIT_MESSAGE);
+    expect(markup).not.toContain('Refresh the page');
+    expect(markup).not.toContain('Try Export Again');
+    expect(markup).not.toContain(
+      'The operation could not be completed. Please try again.',
+    );
+    expect(
+      getCompositionTextBlockingMessage(
+        { title: overBound, subtitle: '', attribution: '' },
+        { title: 'medium', subtitle: 'medium' },
+      ),
+    ).toBe(TITLE_TEXT_FIT_MESSAGE);
+  });
+
+  it('surfaces a subtitle that will not fit, without a refresh instruction or retry', (): void => {
+    const overBound = 'W'.repeat(characterBoundFor('subtitle', 'medium') + 1);
+    const markup = renderToStaticMarkup(
+      <ToastRegion
+        message={{
+          id: 'subtitle-block',
+          severity: 'error',
+          message: SUBTITLE_TEXT_FIT_MESSAGE,
+          retry: vi.fn(),
+        }}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain(SUBTITLE_TEXT_FIT_MESSAGE);
+    expect(markup).not.toContain('Refresh the page');
+    expect(markup).not.toContain('Try Export Again');
+    expect(
+      getCompositionTextBlockingMessage(
+        { title: '', subtitle: overBound, attribution: '' },
+        { title: 'medium', subtitle: 'medium' },
+      ),
+    ).toBe(SUBTITLE_TEXT_FIT_MESSAGE);
+  });
+
+  it('surfaces an attribution that will not fit, without a refresh instruction or retry', (): void => {
+    const overBound = 'W'.repeat(characterBoundFor('attribution') + 1);
+    const markup = renderToStaticMarkup(
+      <ToastRegion
+        message={{
+          id: 'attribution-block',
+          severity: 'error',
+          message: ATTRIBUTION_TEXT_FIT_MESSAGE,
+          retry: vi.fn(),
+        }}
+        onDismiss={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain(ATTRIBUTION_TEXT_FIT_MESSAGE);
+    expect(markup).not.toContain('Refresh the page');
+    expect(markup).not.toContain('Try Export Again');
+    expect(
+      getCompositionTextBlockingMessage(
+        { title: '', subtitle: '', attribution: overBound },
+        { title: 'medium', subtitle: 'medium' },
+      ),
+    ).toBe(ATTRIBUTION_TEXT_FIT_MESSAGE);
   });
 
   it('surfaces a refused composition without a refresh instruction or retry', (): void => {

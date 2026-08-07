@@ -65,6 +65,7 @@ import { resolveEffectiveSnapshotScene } from './utils/snapshotScene';
 import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
 import { areColorMapsEqual } from './utils/colors';
+import { getCompositionTextBlockingMessage } from './utils/compositionText';
 import {
   getActiveLegendEntries,
   getLegendBlockingMessage,
@@ -341,6 +342,35 @@ export default function App(): JSX.Element {
     );
     return validation.ok ? null : getLegendBlockingMessage(validation.issues);
   }, [compositionState.legend, effectiveColors, legendBounds]);
+  /*
+   * D4-15, and the SAME shape as the legend blocker directly above: one
+   * derivation feeds both the counter the creator watches turn `--destructive`
+   * and the refusal that blocks Export PNG, so the two can never disagree.
+   *
+   * Refusal, not truncation - the creator's words reach the PNG verbatim or
+   * not at all.
+   */
+  const compositionTextBlocker = useMemo(
+    (): string | null =>
+      getCompositionTextBlockingMessage(
+        {
+          title: compositionState.settings.title,
+          subtitle: compositionState.settings.subtitle,
+          attribution: compositionState.settings.attribution,
+        },
+        {
+          title: compositionState.settings.titleSize,
+          subtitle: compositionState.settings.subtitleSize,
+        },
+      ),
+    [
+      compositionState.settings.attribution,
+      compositionState.settings.subtitle,
+      compositionState.settings.subtitleSize,
+      compositionState.settings.title,
+      compositionState.settings.titleSize,
+    ],
+  );
   const legendCommands = useMemo<LegendEditorCommands>(
     () => ({
       setLegendEntry,
@@ -825,6 +855,10 @@ export default function App(): JSX.Element {
     (): string | null => legendExportBlocker,
     [legendExportBlocker],
   );
+  const getCompositionTextBlocker = useCallback(
+    (): string | null => compositionTextBlocker,
+    [compositionTextBlocker],
+  );
   const getCompositionName = useCallback(
     (): string | undefined => compositionName ?? undefined,
     [compositionName],
@@ -833,6 +867,14 @@ export default function App(): JSX.Element {
     (outcome: CompositionExportTransactionOutcome): void => {
       if (outcome.ok) {
         showStatus(TOAST_MESSAGES.exportSucceeded);
+        return;
+      }
+      if (outcome.reason === 'text-blocked') {
+        // Same reasoning as the legend blocker below: the refusal is
+        // synchronous and structural, so a retry re-enters it forever, and the
+        // composition is in-memory only, so "Refresh the page" would destroy
+        // the creator's unsaved map instead of shortening their title.
+        showError(outcome.message);
         return;
       }
       if (outcome.reason === 'legend-blocked') {
@@ -858,6 +900,7 @@ export default function App(): JSX.Element {
   const { isExporting, exportPng } = useCompositionExportTransaction({
     getMapCanvasHandle,
     getLegendBlocker,
+    getCompositionTextBlocker,
     getCompositionName,
     commitCamera: setCamera,
     onOutcome: handleExportOutcome,
@@ -1069,6 +1112,12 @@ export default function App(): JSX.Element {
         bottomBandVisible={compositionState.settings.bottomBandVisible}
         bottomBandHeight={compositionState.settings.bottomBandHeight}
         onBandHeightChange={handleBandHeightChange}
+        title={compositionState.settings.title}
+        titleSize={compositionState.settings.titleSize}
+        subtitle={compositionState.settings.subtitle}
+        subtitleSize={compositionState.settings.subtitleSize}
+        attribution={compositionState.settings.attribution}
+        textAlignment={compositionState.settings.textAlignment}
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
         legendSlot={legendSlot}
@@ -1124,6 +1173,12 @@ export default function App(): JSX.Element {
         topBandHeight={compositionState.settings.topBandHeight}
         bottomBandVisible={compositionState.settings.bottomBandVisible}
         bottomBandHeight={compositionState.settings.bottomBandHeight}
+        title={compositionState.settings.title}
+        titleSize={compositionState.settings.titleSize}
+        subtitle={compositionState.settings.subtitle}
+        subtitleSize={compositionState.settings.subtitleSize}
+        attribution={compositionState.settings.attribution}
+        textAlignment={compositionState.settings.textAlignment}
         customDraft={inspectorUi.customSurfaceDraft}
         onCustomDraftChange={inspectorUi.setCustomSurfaceDraft}
         uncoloredDraft={inspectorUi.customUncoloredDraft}

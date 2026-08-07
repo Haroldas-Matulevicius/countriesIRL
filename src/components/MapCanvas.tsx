@@ -19,6 +19,8 @@ import { geoPath, select, type Selection } from 'd3';
 
 import type {
   CameraState,
+  CompositionTextAlignment,
+  CompositionTextSize,
   MapCanvasHandle,
   SnapshotId,
   StrokeWeight,
@@ -48,8 +50,12 @@ import {
   BAND_LABELS,
   DEFAULT_BOTTOM_BAND_VISIBLE,
   DEFAULT_COASTLINE_WEIGHT,
+  DEFAULT_COMPOSITION_TEXT,
   DEFAULT_INTERIOR_WEIGHT,
+  DEFAULT_SUBTITLE_SIZE,
   DEFAULT_SURFACE_COLOR,
+  DEFAULT_TEXT_ALIGNMENT,
+  DEFAULT_TITLE_SIZE,
   DEFAULT_TOP_BAND_VISIBLE,
   DEFAULT_UNCOLORED_FILL,
   hasStroke,
@@ -68,6 +74,8 @@ import {
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
 import { getEffectiveCountryColor } from '../utils/colors';
+import { resolveCompositionTextLines } from '../utils/compositionText';
+import { COMPOSITION_INK_COLOR } from '../utils/contrast';
 import type { BorderMesh } from '../utils/geojson';
 import { assertUniqueSceneIdentities } from '../utils/scene';
 import { getBoundaryLine, getMapAccessibleLabel } from '../utils/periods';
@@ -75,6 +83,7 @@ import {
   createSafeMapPath,
   createWorldProjection,
 } from '../utils/mapProjection';
+import { COMPOSITION_FONT_FAMILY } from '../styles/interFontFace';
 import {
   MOTION_SCENE_TOKEN,
   resolveCameraEasing,
@@ -348,6 +357,20 @@ export interface MapCanvasProps {
    * are not rendered at all - there is nothing for them to write to.
    */
   onBandHeightChange?: (edge: BandEdge, height: number) => void;
+  /**
+   * D4-15 - the composition's type. Already sanitised by the reducer
+   * (`canonicalizeCompositionText`); this component sets it as `<text>` CHILDREN
+   * and never as markup, so the value can only ever become a text node.
+   *
+   * Optional with empty defaults: a caller that renders a read-only composition
+   * (the export fixture) draws no type rather than failing.
+   */
+  title?: string;
+  titleSize?: CompositionTextSize;
+  subtitle?: string;
+  subtitleSize?: CompositionTextSize;
+  attribution?: string;
+  textAlignment?: CompositionTextAlignment;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -795,6 +818,12 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       bottomBandVisible = DEFAULT_BOTTOM_BAND_VISIBLE,
       bottomBandHeight = BAND_DEFAULT_HEIGHT,
       onBandHeightChange,
+      title = DEFAULT_COMPOSITION_TEXT,
+      titleSize = DEFAULT_TITLE_SIZE,
+      subtitle = DEFAULT_COMPOSITION_TEXT,
+      subtitleSize = DEFAULT_SUBTITLE_SIZE,
+      attribution = DEFAULT_COMPOSITION_TEXT,
+      textAlignment = DEFAULT_TEXT_ALIGNMENT,
       selectedIds,
       onSelectCountry,
       onClearSelection,
@@ -1500,6 +1529,22 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       [surfaceColor],
     );
 
+    /*
+     * D4-15. The ONE reader of "what type renders, and where". Every placement
+     * decision - the baselines, the anchor x, the size, the weight, and which
+     * fields render at all - is made by the pure module so it is `node`-testable
+     * without a DOM, and this component only maps over the result.
+     */
+    const compositionTextLines = useMemo(
+      () =>
+        resolveCompositionTextLines(
+          { title, subtitle, attribution },
+          { title: titleSize, subtitle: subtitleSize },
+          textAlignment,
+        ),
+      [attribution, subtitle, subtitleSize, textAlignment, title, titleSize],
+    );
+
     const handleBackgroundClick = useCallback(
       (event: ReactMouseEvent<SVGSVGElement>): void => {
         const target = event.target;
@@ -1743,6 +1788,59 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
             ) : null}
           </g>
           {legendSlot}
+          {/*
+            04-11 / D4-15 / `04-UI-SPEC.md` sections 4.2 and 6.8 - the creator's
+            type, and the LAST composition layer.
+
+            OUTSIDE `[data-layer="camera"]` for the same reason the water, the
+            bands, and the legend are: a title that panned and zoomed with the
+            map would slide off the square the moment a creator reframed. AFTER
+            the legend, which completes U-8's paint order - bands, then legend,
+            then text - so the band is a backdrop for the type rather than a
+            veil over it.
+
+            **Every declaration is an INLINE ATTRIBUTE, and that is the whole
+            contract.** The clone is serialised into a `data:image/svg+xml` URL
+            and rasterised as an isolated document that sees no host stylesheet:
+            a `class` here renders as SVG default black at the default 16px, and
+            a fill naming the `--map-fixed-text` custom property renders as
+            nothing at all. The ink is `COMPOSITION_INK_COLOR` written as a
+            literal - never the matching token, which exists for the
+            editor-side preview only. (Spelled that way round on purpose: the
+            token-in-a-fill grep is a gate, and `04-10` twice reddened one with
+            its own prose.)
+
+            **`{line.value}` is React CHILDREN, so it can only ever become a
+            text node** (T-04-11-01). The element is never built from a string,
+            and no markup-injection API of any kind appears on this path - the
+            three the threat register names are grepped for at zero, and this
+            comment deliberately does not spell them, because `04-10` twice
+            reddened a gate with its own prose. `XMLSerializer` escapes `<`,
+            `>`, and `&` in the text node React produces, which is exactly why
+            `sanitizeCompositionText` must NOT pre-escape them.
+
+            The group renders unconditionally and is empty when the composition
+            has no type. An empty `<text>` would still carry a `font-family` and
+            register a family in `collectCompositionFonts`; an empty `<g>`
+            carries none, so a type-free composition embeds no font.
+          */}
+          <g data-layer="text" pointerEvents="none">
+            {compositionTextLines.map((line): JSX.Element => (
+              <text
+                key={line.role}
+                data-text-role={line.role}
+                x={line.x}
+                y={line.y}
+                fill={COMPOSITION_INK_COLOR}
+                fontFamily={COMPOSITION_FONT_FAMILY}
+                fontSize={line.fontSize}
+                fontWeight={line.fontWeight}
+                textAnchor={line.textAnchor}
+              >
+                {line.value}
+              </text>
+            ))}
+          </g>
           {/*
             A7. The resize affordances, ABOVE the legend so a creator can still
             grab a handle the legend overlaps, and `data-editor-only` so the

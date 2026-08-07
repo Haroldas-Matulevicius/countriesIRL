@@ -185,6 +185,20 @@ export interface LegendState {
  */
 export type StrokeWeight = 'none' | 'hairline' | 'thin' | 'medium' | 'bold';
 
+/**
+ * D4-15 — the composition-text vocabulary, declared HERE beside `StrokeWeight`
+ * and `LegendTextSize` rather than in `utils/compositionText.ts`.
+ *
+ * The reason is structural, not stylistic: `compositionText.ts` imports
+ * `LEGEND_SAFE_INSET` from `utils/legend.ts`, which imports this module. Naming
+ * the types here keeps that edge one-way — `general.md` forbids a circular
+ * dependency, and a `import type` cycle that only survives because the compiler
+ * erases it is still a cycle in the module graph.
+ */
+export type CompositionTextSize = 'small' | 'medium' | 'large';
+export type CompositionTextAlignment = 'left' | 'center' | 'right';
+export type CompositionTextAnchor = 'start' | 'middle' | 'end';
+
 export interface VisibleCompositionSettings {
   /**
    * The V2 persisted field, pinned to white and read by nothing that renders.
@@ -250,6 +264,43 @@ export interface VisibleCompositionSettings {
   readonly bottomBandVisible: boolean;
   /** D4-16, the bottom twin of `topBandHeight`. Same clamp, same cap. */
   readonly bottomBandHeight: number;
+  /**
+   * D4-15 — the creator's title, sanitised by `sanitizeCompositionText` at the
+   * reducer boundary. It reaches the exported PNG as the **text content** of a
+   * `<text>` in `g[data-layer="text"]`, never as markup and never through a
+   * class: the clone is rasterised as an isolated document with no host
+   * stylesheet, so the ink, the size, and the weight are inline attributes.
+   *
+   * An empty string renders NO element at all — not an empty one, which would
+   * still register a family in `collectCompositionFonts`.
+   *
+   * **In-memory only**, exactly like `surfaceColor` and the bands. `04-14`
+   * owns the V3 record.
+   */
+  readonly title: string;
+  /** D4-15 — S 36 / M 44 / L 56 at weight 600 (`04-UI-SPEC.md` § 4.2). */
+  readonly titleSize: CompositionTextSize;
+  /** D4-15 — the optional second line, same sanitisation, same layer. */
+  readonly subtitle: string;
+  /** D4-15 — S 22 / M 26 / L 32 at weight 400. */
+  readonly subtitleSize: CompositionTextSize;
+  /**
+   * D4-15 — the bottom-corner credit line. Fixed at 20 units, weight 400, and
+   * **no size step**: it is meta, and a size control on meta is a control
+   * nobody uses.
+   */
+  readonly attribution: string;
+  /**
+   * D4-15 — one alignment for the whole composition, `Left` / `Center` /
+   * `Right` mapped to `text-anchor` `start` / `middle` / `end`.
+   *
+   * ONE control rather than one per field: `04-UI-SPEC.md` § 6.8's control
+   * contract lists exactly one Alignment row with three pills and no per-field
+   * qualifier, and § 4.2's per-row "Anchor" column describes where each line
+   * can sit rather than prescribing a second control. Reported as a spec
+   * disagreement in `04-11-SUMMARY.md` rather than resolved silently.
+   */
+  readonly textAlignment: CompositionTextAlignment;
 }
 
 export interface Composition {

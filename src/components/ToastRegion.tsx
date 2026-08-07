@@ -1,5 +1,10 @@
 import type { ToastMessage } from '../types/ui';
 import {
+  ATTRIBUTION_TEXT_FIT_MESSAGE,
+  SUBTITLE_TEXT_FIT_MESSAGE,
+  TITLE_TEXT_FIT_MESSAGE,
+} from '../utils/compositionText';
+import {
   LEGEND_LABEL_FIT_MESSAGE,
   LEGEND_OVERFLOW_MESSAGE,
 } from '../utils/legend';
@@ -69,6 +74,20 @@ const APPROVED_STATIC_MESSAGES = new Set<string>([
   // the allowlist stays fail-closed on anything else.
   LEGEND_LABEL_FIT_MESSAGE,
   LEGEND_OVERFLOW_MESSAGE,
+  /*
+   * D4-15. THREE new entries, and moving assertion 23's pinned counts by
+   * exactly three is the deliberate act that lets them in - stated in the same
+   * commit, never a drive-by. They are the exact output of
+   * `getCompositionTextBlockingMessage`, so the allowlist stays fail-closed on
+   * anything else a future call site might pass.
+   *
+   * Each names the fix imperatively and none says to refresh the page: the
+   * composition lives only in browser memory, and a refresh would destroy the
+   * unsaved map rather than shorten the title.
+   */
+  TITLE_TEXT_FIT_MESSAGE,
+  SUBTITLE_TEXT_FIT_MESSAGE,
+  ATTRIBUTION_TEXT_FIT_MESSAGE,
   // Reset View and the period switch announce approved copy only: a period
   // label supplied by the catalog can never reach the live region.
   ...APPROVED_PERIOD_ANNOUNCEMENTS,

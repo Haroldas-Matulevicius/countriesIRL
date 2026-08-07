@@ -44,6 +44,26 @@ import interLatinExtDataUrl from '../assets/inter-latin-ext-variable.woff2?inlin
 
 export const EXPORT_FONT_FAMILY = 'Inter';
 
+/**
+ * The ONE `font-family` declaration a composition layer writes (`04-11`).
+ *
+ * It names `EXPORT_FONT_FAMILY` first, which is what `collectCompositionFonts`
+ * reports and `EXPORT_FONT_FACE_BUILDERS` has bytes for; the system tail is the
+ * editor-side fallback while the woff2 is still decoding, and it is dropped by
+ * `parseFontFamilyList`'s generic filter before the registry lookup.
+ *
+ * Declared HERE rather than a second time in each layer: `LegendOverlay` had the
+ * only copy and `04-11`'s text layer would have been the second. Two font stacks
+ * that must agree is how the legend and the title end up in different typefaces
+ * in the same PNG.
+ *
+ * ⚠ **Inter only, and no font picker ships** (U-9). If one ever does, its option
+ * list must derive from `EXPORT_FONT_FACE_BUILDERS.keys()` — a family the
+ * registry does not know is reported, found to have no builder, and rendered as
+ * a silent fallback with no error anywhere.
+ */
+export const COMPOSITION_FONT_FAMILY = `${EXPORT_FONT_FAMILY}, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+
 const INTER_LATIN_UNICODE_RANGE =
   'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, ' +
   'U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, ' +

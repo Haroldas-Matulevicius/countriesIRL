@@ -641,6 +641,10 @@ test.describe('PNG export', (): void => {
     // BEFORE the camera, so it shifts camera and legend equally too and the
     // order check still holds. Re-baselined with the layer named, not widened
     // to a "contains" check - the ORDER is the contract.
+    // `04-11` adds `g[data-layer="text"]` AFTER the legend (U-8: bands, then
+    // legend, then text). A sibling appended after both shifts neither index,
+    // so camera-before-legend still holds - and the layer is NAMED here rather
+    // than the check being widened, because the order IS the contract.
     expect(clone.layerOrder).toEqual([
       null,
       'surface',
@@ -648,6 +652,7 @@ test.describe('PNG export', (): void => {
       'camera',
       'bands',
       'legend',
+      'text',
     ]);
     expect(clone.legendTransform).toBe(legendTransform);
     expect(clone.legendTexts).toEqual([LEGEND_LABEL]);

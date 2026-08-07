@@ -1,4 +1,9 @@
 import { MAP_VIEWBOX_SIZE } from '../constants/config';
+import type {
+  CompositionTextAlignment,
+  CompositionTextAnchor,
+  CompositionTextSize,
+} from '../types/composition';
 import { LEGEND_SAFE_INSET } from './legend';
 
 /**
@@ -40,10 +45,18 @@ import { LEGEND_SAFE_INSET } from './legend';
  * flagged for `04-ACCEPTANCE.md`.
  */
 
+/**
+ * The role is this module's own: nothing outside it needs to name a composition
+ * string by role. The size, alignment, and anchor vocabularies live in
+ * `types/composition.ts` beside `StrokeWeight` and are re-exported here so a
+ * consumer of the text module has one import site.
+ */
 export type CompositionTextRole = 'title' | 'subtitle' | 'attribution';
-export type CompositionTextSize = 'small' | 'medium' | 'large';
-export type CompositionTextAlignment = 'left' | 'center' | 'right';
-export type CompositionTextAnchor = 'start' | 'middle' | 'end';
+export type {
+  CompositionTextAlignment,
+  CompositionTextAnchor,
+  CompositionTextSize,
+};
 
 /**
  * The vocabulary, in ONE home. The composition reducer's canonicaliser, the

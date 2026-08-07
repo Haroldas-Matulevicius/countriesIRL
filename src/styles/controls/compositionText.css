@@ -1,0 +1,59 @@
+/*
+ * `CompositionTextPanel` - the `Text` section of the `Map style` flyout
+ * (`04-11`, D4-15, `04-UI-SPEC.md` section 6.8).
+ *
+ * **Three rules, and the count is the point.** Everything this surface could
+ * reuse, it reuses: `.panel-section`, `.panel-section__label`, `.panel-field`,
+ * `.panel-pills`, `.panel-pill`, and `.map-style__sublabel` / `.map-style__
+ * readout` are all shared vocabulary. A copied pill is the defect
+ * `04-UI-SPEC.md` section 11 rule 1 names by name, so nothing here restates a
+ * pill, a section, a divider, or a label.
+ *
+ * **Nothing in this file reaches the exported PNG, and that is structural.**
+ * The type in the PNG is a `<text>` in `g[data-layer="text"]` whose fill, font,
+ * size, and weight are INLINE ATTRIBUTES - the clone is rasterised as an
+ * isolated document with no host stylesheet, so a rule here would render as
+ * nothing. This sheet styles the editing surface only.
+ */
+
+/*
+ * A field, its counter, and its size pills read as ONE control. The panel
+ * section's own `--space-md` gap is the distance BETWEEN fields; inside a field
+ * the parts sit at `--space-xs` so a counter belongs to the input above it
+ * rather than floating between two of them.
+ */
+.composition-text__group {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+/*
+ * `.panel-field` is monospaced because it was authored for HEX ENTRY, where a
+ * fixed advance is what makes `#RRGGBB` legible. A creator's title is prose:
+ * it takes the interface family and `--text-body-sm`, matching section 6.8's
+ * contract rather than the hex field's.
+ *
+ * `resize: vertical` is for the subtitle's `<textarea rows=2>`. It is declared
+ * on the shared class rather than a fourth selector because it is inert on an
+ * `<input>`, and horizontal resize is excluded deliberately - the panel is a
+ * fixed 360px column and a widened field would overflow it.
+ */
+.composition-text__field {
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  resize: vertical;
+}
+
+/*
+ * The counter at and past its bound. It rides `.map-style__readout` for size,
+ * colour, and `tabular-nums` - a counter is a readout - and this rule adds only
+ * the state, so there is no second base rule to keep in step.
+ *
+ * `--destructive` and not a red literal: the token carries its own dark value,
+ * and this is chrome rather than composition ink, so Live Invariant 9's
+ * mode-invariant set is untouched.
+ */
+.composition-text__counter--over {
+  color: var(--destructive);
+}

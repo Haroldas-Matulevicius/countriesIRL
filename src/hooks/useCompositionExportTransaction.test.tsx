@@ -138,6 +138,7 @@ function createHarness(
   const dependencies: CompositionExportTransactionDependencies = {
     getMapCanvasHandle: vi.fn(() => handle),
     getLegendBlocker: vi.fn(() => null),
+    getCompositionTextBlocker: vi.fn(() => null),
     getCompositionName: vi.fn(() => undefined),
     commitCamera: vi.fn((camera: CameraState): void => {
       calls.push(`commit-camera:${camera.centerLongitude}`);
@@ -282,6 +283,101 @@ describe('createCompositionExportTransaction', (): void => {
     expect(probe.handle.freezeAndSnapshot).not.toHaveBeenCalled();
     expect(harness.dependencies.setBusy).not.toHaveBeenCalled();
     expect(harness.dependencies.exportMap).not.toHaveBeenCalled();
+  });
+
+  /**
+   * **D4-15 - the text blocker is read BEFORE the camera lease, asserted as an
+   * ORDERING rather than by reading the source.**
+   *
+   * `calls` is the shared recorder every other test in this file uses, so the
+   * position of `text-blocker` inside it is a measurement: moving the read
+   * below `freezeAndSnapshot` moves the entry and reddens this.
+   */
+  it('reads the composition-text blocker before taking a camera lease', async (): Promise<void> => {
+    const calls: string[] = [];
+    const probe = createHandleProbe('visible', calls);
+    const harness = createHarness(
+      {
+        getMapCanvasHandle: vi.fn(() => probe.handle),
+        getCompositionTextBlocker: vi.fn((): string | null => {
+          calls.push('text-blocker');
+          return null;
+        }),
+      },
+      calls,
+    );
+
+    await expect(
+      createCompositionExportTransaction(harness.dependencies).run(),
+    ).resolves.toMatchObject({ ok: true });
+
+    const blockerIndex = calls.indexOf('text-blocker');
+    const freezeIndex = calls.indexOf('visible:freeze');
+    expect(
+      blockerIndex,
+      'the composition-text blocker was never read, so the ordering below ' +
+        'would be comparing two -1s.',
+    ).toBeGreaterThanOrEqual(0);
+    expect(freezeIndex).toBeGreaterThanOrEqual(0);
+    expect(
+      blockerIndex,
+      'the text blocker is read AFTER the camera freeze, so an over-long ' +
+        'title costs the creator a lease and a busy lock before it refuses.',
+    ).toBeLessThan(freezeIndex);
+    expect(calls.indexOf('busy:true')).toBeGreaterThan(blockerIndex);
+  });
+
+  it('reports the composition-text blocker before acquiring a lease or a busy lock', async (): Promise<void> => {
+    const calls: string[] = [];
+    const probe = createHandleProbe('visible', calls);
+    const harness = createHarness(
+      {
+        getMapCanvasHandle: vi.fn(() => probe.handle),
+        getCompositionTextBlocker: vi.fn(
+          () => 'Shorten the title so it fits in the exported map.',
+        ),
+      },
+      calls,
+    );
+
+    const outcome = await createCompositionExportTransaction(
+      harness.dependencies,
+    ).run();
+
+    expect(outcome).toEqual({
+      ok: false,
+      reason: 'text-blocked',
+      message: 'Shorten the title so it fits in the exported map.',
+    });
+    expect(calls).toEqual(['outcome:text-blocked']);
+    expect(probe.handle.freezeAndSnapshot).not.toHaveBeenCalled();
+    expect(harness.dependencies.setBusy).not.toHaveBeenCalled();
+    expect(harness.dependencies.exportMap).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A composition failing BOTH reports one message deterministically. Without
+   * this, whichever read happened to run first would decide, and the choice
+   * would be an accident of edit order rather than a contract.
+   */
+  it('reports the legend blocker first when both refuse', async (): Promise<void> => {
+    const harness = createHarness({
+      getLegendBlocker: vi.fn(() => 'Shorten the legend label.'),
+      getCompositionTextBlocker: vi.fn(
+        () => 'Shorten the title so it fits in the exported map.',
+      ),
+    });
+
+    await expect(
+      createCompositionExportTransaction(harness.dependencies).run(),
+    ).resolves.toEqual({
+      ok: false,
+      reason: 'legend-blocked',
+      message: 'Shorten the legend label.',
+    });
+    expect(
+      harness.dependencies.getCompositionTextBlocker,
+    ).not.toHaveBeenCalled();
   });
 
   it('fails without a bound map canvas handle', async (): Promise<void> => {

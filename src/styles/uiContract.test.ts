@@ -421,10 +421,28 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
    * the shell's structural rules win over the surface rules of equal
    * specificity, and an alphabetised list would move it into the middle.
    */
+  /**
+   * **Asserted as an ORDERING, never as a count.** `04-11` re-derived this on
+   * its own subject: a `grep -c` for the `editor.css` import returns 1 whether
+   * the sheet is imported first, last, or in the middle, so a count cannot fail
+   * on the defect this exists to catch. The comparison below is positional -
+   * the last `./styles/*.css` specifier in `main.tsx` must BE `editor.css` -
+   * and appending any sheet after it reddens exactly this assertion.
+   */
   it('imports the shell sheet last', (): void => {
     const raw = rawStyleSheetImports();
 
-    expect(raw[raw.length - 1]).toBe(`${STYLES_IMPORT_PREFIX}editor.css`);
+    expect(raw.length).toBeGreaterThan(3);
+    expect(
+      raw[raw.length - 1],
+      'editor.css is no longer the LAST stylesheet main.tsx imports, so the ' +
+        "shell's structural rules stopped winning over the surface rules of " +
+        'equal specificity beneath them. That is a silent restyle, not a ' +
+        'lint nit.',
+    ).toBe(`${STYLES_IMPORT_PREFIX}editor.css`);
+    expect(raw.indexOf(`${STYLES_IMPORT_PREFIX}editor.css`)).toBe(
+      raw.length - 1,
+    );
   });
 });
 
@@ -544,8 +562,30 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * `.panel-pill input[type="radio"]` to `.panel-pill input` rather than adding a
  * `[type="checkbox"]` copy beside it — the duplicated-pill defect
  * `04-UI-SPEC.md` § 11 rule 1 names by name.
+ *
+ * **Raised 335 -> 338 by `04-11` (D4-15).** MEASURED both ways by running this
+ * assertion: 335 before, 338 after, so the delta is exactly the three rules the
+ * new `src/styles/controls/compositionText.css` declares and nothing else
+ * moved. They are the three things the shared vocabulary genuinely does not
+ * carry:
+ *
+ * | rule | why it is not folded into something existing |
+ * |---|---|
+ * | `.composition-text__group` | a field, its counter, and its size pills are ONE control at `--space-xs`; the section's own `--space-md` is the distance BETWEEN fields, and reusing it would leave a counter floating equidistant between two inputs |
+ * | `.composition-text__field` | `.panel-field` is MONOSPACED, authored for `#RRGGBB` entry. A creator's title is prose and takes the interface family at `--text-body-sm` (section 6.8). It rides `.panel-field` for the box and overrides only the type |
+ * | `.composition-text__counter--over` | the counter's `--destructive` state. The BASE is `.map-style__readout`, reused rather than copied - a counter is a readout, and `tabular-nums` is exactly what stops the number jogging as a creator types |
+ *
+ * **The whole `Text` section otherwise cost ZERO.** Its labels are
+ * `.map-style__sublabel`, its size and alignment rows are `.panel-pills` /
+ * `.panel-pill` radios, and its container is `.panel-section` - reused, not
+ * re-authored, which is section 11 rule 1 working as intended.
+ *
+ * **The exported type itself costs ZERO**, and structurally so: the fill, the
+ * family, the size, the weight, and the anchor on every composition `<text>`
+ * are inline attributes, because the clone is rasterised as an isolated
+ * document and a rule in a stylesheet cannot reach it.
  */
-const SELECTOR_INVENTORY_CEILING = 335;
+const SELECTOR_INVENTORY_CEILING = 338;
 
 /**
  * Every selector a rule declares, one per comma-separated part.
@@ -1228,10 +1268,23 @@ describe('Phase 3 period surface source (assertion 13)', (): void => {
  * growing the allowlist - or its positive-test file - fails a hard number
  * here. If the allowlist grows, a message was introduced without a test.
  */
-const APPROVED_STATIC_MESSAGE_SOURCE_ENTRIES = 25;
+/**
+ * **Raised 25 -> 28 by `04-11` (D4-15), deliberately and with the reason
+ * here.** The three entries are `TITLE_TEXT_FIT_MESSAGE`,
+ * `SUBTITLE_TEXT_FIT_MESSAGE`, and `ATTRIBUTION_TEXT_FIT_MESSAGE` - the exact
+ * output of `getCompositionTextBlockingMessage`, and the first creator-facing
+ * strings Phase 4 introduces. Every earlier Phase 4 plan claimed "no new
+ * message" and this number held them to it.
+ *
+ * The positive-test count below moves by exactly three in the same commit,
+ * which is what stops a message entering the allowlist without evidence that
+ * the product still emits it.
+ */
+const APPROVED_STATIC_MESSAGE_SOURCE_ENTRIES = 28;
 const APPROVED_LOAD_WARNING_SOURCE_ENTRIES = 7;
 const APPROVED_PERIOD_ANNOUNCEMENT_COUNT = 11;
-const TOAST_REGION_POSITIVE_TEST_COUNT = 14;
+/** 14 -> 17 with `04-11`'s three refusals; see the note above. */
+const TOAST_REGION_POSITIVE_TEST_COUNT = 17;
 const TOAST_DYNAMIC_PATTERN_NAMES = [
   'CENTERED_MESSAGE_PATTERN',
   'COLOR_MESSAGE_PATTERN',

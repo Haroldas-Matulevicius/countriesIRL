@@ -24,6 +24,18 @@ export type CompositionExportTransactionOutcome =
       /** The blocking condition itself, already phrased for the creator. */
       readonly message: string;
     }
+  /**
+   * D4-15. The same shape as `legend-blocked` and for the same reason: a
+   * synchronous refusal decided BEFORE any work begins, carrying the sentence
+   * the creator can act on. It is deliberately NOT an `ExportFailureReason` -
+   * Phase 4 adds no variant to that union, because a refusal is a different
+   * thing from a failure.
+   */
+  | {
+      readonly ok: false;
+      readonly reason: 'text-blocked';
+      readonly message: string;
+    }
   | {
       readonly ok: false;
       readonly reason: CompositionExportFailureReason;
@@ -32,6 +44,13 @@ export type CompositionExportTransactionOutcome =
 export interface CompositionExportTransactionDependencies {
   readonly getMapCanvasHandle: () => MapCanvasHandle | null;
   readonly getLegendBlocker: () => string | null;
+  /**
+   * D4-15. Read in the SAME place as the legend blocker - before a lease, a
+   * busy lock, or a clone - so an over-long title costs the creator nothing but
+   * a message. Required rather than optional: a caller that forgot to pass it
+   * would export a PNG with clipped type and no error anywhere.
+   */
+  readonly getCompositionTextBlocker: () => string | null;
   readonly getCompositionName?: () => string | undefined;
   readonly commitCamera: (camera: CameraState) => void;
   readonly setBusy: (isBusy: boolean) => void;
@@ -109,6 +128,20 @@ export function createCompositionExportTransaction(
             ok: false,
             reason: 'legend-blocked',
             message: legendBlocker,
+          });
+        }
+        /*
+         * D4-15, immediately after the legend and for identical reasons. The
+         * legend is checked first so that a composition failing both reports
+         * one message deterministically rather than whichever the reader
+         * happened to run.
+         */
+        const textBlocker = dependencies.getCompositionTextBlocker();
+        if (textBlocker !== null) {
+          return report({
+            ok: false,
+            reason: 'text-blocked',
+            message: textBlocker,
           });
         }
         mapCanvasHandle = dependencies.getMapCanvasHandle();
@@ -204,6 +237,8 @@ export function useCompositionExportTransaction(
           optionsRef.current.getMapCanvasHandle(),
         getLegendBlocker: (): string | null =>
           optionsRef.current.getLegendBlocker(),
+        getCompositionTextBlocker: (): string | null =>
+          optionsRef.current.getCompositionTextBlocker(),
         getCompositionName: (): string | undefined =>
           optionsRef.current.getCompositionName?.(),
         commitCamera: (camera): void => {

@@ -11,6 +11,8 @@ import type {
   CameraState,
   Composition,
   CompositionState,
+  CompositionTextAlignment,
+  CompositionTextSize,
   LegendEntryState,
   LegendPosition,
   LegendState,
@@ -23,13 +25,21 @@ import {
   DEFAULT_COASTLINE_WEIGHT,
   DEFAULT_COMPOSITION_SETTINGS,
   DEFAULT_INTERIOR_WEIGHT,
+  DEFAULT_SUBTITLE_SIZE,
   DEFAULT_SURFACE_COLOR,
+  DEFAULT_TEXT_ALIGNMENT,
+  DEFAULT_TITLE_SIZE,
   DEFAULT_UNCOLORED_FILL,
   DEFAULT_BOTTOM_BAND_VISIBLE,
   DEFAULT_TOP_BAND_VISIBLE,
   STROKE_WEIGHTS,
 } from '../constants/mapStyle';
 import { clampBandHeight } from '../utils/bands';
+import {
+  COMPOSITION_TEXT_ALIGNMENTS,
+  COMPOSITION_TEXT_SIZES,
+  sanitizeCompositionText,
+} from '../utils/compositionText';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
@@ -87,6 +97,12 @@ export type MapStylePatch = Partial<
     | 'topBandHeight'
     | 'bottomBandVisible'
     | 'bottomBandHeight'
+    | 'title'
+    | 'titleSize'
+    | 'subtitle'
+    | 'subtitleSize'
+    | 'attribution'
+    | 'textAlignment'
   >
 >;
 
@@ -281,6 +297,35 @@ function canonicalizeBandVisible(value: boolean, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+/**
+ * T-04-11-01 / T-04-11-02. Creator text is untrusted input on its way to a
+ * `<text>` node in markup that gets serialised into a data URL, so it is
+ * sanitised HERE, at the ONE boundary every write crosses, rather than at the
+ * render site — the same reasoning `canonicalizeSurfaceColor` records for a hex.
+ *
+ * It deliberately does not escape. The value is set as SVG text content and
+ * `XMLSerializer` escapes `<`, `>`, and `&` in a text node itself; pre-escaping
+ * would double-escape and put a literal entity in the exported PNG.
+ */
+function canonicalizeCompositionText(value: string): string {
+  return sanitizeCompositionText(typeof value === 'string' ? value : '');
+}
+
+function canonicalizeTextSize(
+  value: CompositionTextSize,
+  fallback: CompositionTextSize,
+): CompositionTextSize {
+  return COMPOSITION_TEXT_SIZES.has(value) ? value : fallback;
+}
+
+function canonicalizeTextAlignment(
+  value: CompositionTextAlignment,
+): CompositionTextAlignment {
+  return COMPOSITION_TEXT_ALIGNMENTS.has(value)
+    ? value
+    : DEFAULT_TEXT_ALIGNMENT;
+}
+
 function canonicalizeSettings(
   settings: VisibleCompositionSettings,
 ): VisibleCompositionSettings {
@@ -320,6 +365,15 @@ function canonicalizeSettings(
       DEFAULT_BOTTOM_BAND_VISIBLE,
     ),
     bottomBandHeight: clampBandHeight(settings.bottomBandHeight),
+    title: canonicalizeCompositionText(settings.title),
+    titleSize: canonicalizeTextSize(settings.titleSize, DEFAULT_TITLE_SIZE),
+    subtitle: canonicalizeCompositionText(settings.subtitle),
+    subtitleSize: canonicalizeTextSize(
+      settings.subtitleSize,
+      DEFAULT_SUBTITLE_SIZE,
+    ),
+    attribution: canonicalizeCompositionText(settings.attribution),
+    textAlignment: canonicalizeTextAlignment(settings.textAlignment),
   };
 }
 
@@ -337,7 +391,13 @@ function areSettingsEqual(
     left.topBandVisible === right.topBandVisible &&
     left.topBandHeight === right.topBandHeight &&
     left.bottomBandVisible === right.bottomBandVisible &&
-    left.bottomBandHeight === right.bottomBandHeight
+    left.bottomBandHeight === right.bottomBandHeight &&
+    left.title === right.title &&
+    left.titleSize === right.titleSize &&
+    left.subtitle === right.subtitle &&
+    left.subtitleSize === right.subtitleSize &&
+    left.attribution === right.attribution &&
+    left.textAlignment === right.textAlignment
   );
 }
 

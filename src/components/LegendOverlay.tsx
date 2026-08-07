@@ -10,7 +10,7 @@ import type {
   LegendState,
   LegendTextSize,
 } from '../types/composition';
-import { EXPORT_FONT_FAMILY } from '../styles/interFontFace';
+import { COMPOSITION_FONT_FAMILY } from '../styles/interFontFace';
 import {
   LEGEND_CHARACTERS_PER_LINE,
   clampLegendPosition,
@@ -39,12 +39,16 @@ const LEGEND_TEXT_SIZE: Readonly<Record<LegendTextSize, number>> = {
   large: 40,
 };
 /**
- * The legend names the SAME family the export path embeds
- * (`EXPORT_FONT_FAMILY`), so the editor and the exported PNG resolve the same
- * typeface — the chrome via `theme.css`'s `@font-face`, the export via the
- * `@font-face` `injectExportFontFace` rides into the serialised clone (D-25).
+ * The legend names the SAME family the export path embeds, so the editor and
+ * the exported PNG resolve the same typeface — the chrome via `theme.css`'s
+ * `@font-face`, the export via the `@font-face` `injectExportFontFace` rides
+ * into the serialised clone (D-25).
+ *
+ * `04-11` MOVED the stack into `interFontFace.ts` as `COMPOSITION_FONT_FAMILY`
+ * rather than letting the new text layer author a second copy of it. This alias
+ * is kept so the reader of a legend `<text>` still sees a legend-named constant.
  */
-const LEGEND_FONT_FAMILY = `${EXPORT_FONT_FAMILY}, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+const LEGEND_FONT_FAMILY = COMPOSITION_FONT_FAMILY;
 
 interface LegendOverlayProps {
   legend: LegendState;
