@@ -19,6 +19,8 @@ import './styles/MapCanvas.css';
 import './styles/controls/controls.css';
 import './styles/controls/selectionPanel.css';
 import './styles/controls/colorPicker.css';
+/* `04-01`: the new `map-style` flyout, placed beside the other colour surface. */
+import './styles/controls/mapStyle.css';
 import './styles/controls/countryList.css';
 import './styles/controls/saveLoad.css';
 import './styles/controls/toast.css';

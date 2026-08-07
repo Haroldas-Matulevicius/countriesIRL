@@ -13,6 +13,9 @@ export interface InspectorUiState {
   readonly setCountryQuery: (query: string) => void;
   readonly customColorDraft: string;
   readonly setCustomColorDraft: (draft: string) => void;
+  /** The `Map style` panel's custom water hex, held here for the same reason. */
+  readonly customSurfaceDraft: string;
+  readonly setCustomSurfaceDraft: (draft: string) => void;
   readonly isLegendExpanded: boolean;
   readonly setLegendExpanded: (isExpanded: boolean) => void;
   readonly locateState: LocateState;
@@ -38,6 +41,7 @@ export function useInspectorUiState(
 ): InspectorUiState {
   const [countryQuery, setCountryQuery] = useState('');
   const [customColorDraft, setCustomColorDraft] = useState('');
+  const [customSurfaceDraft, setCustomSurfaceDraft] = useState('');
   const [isLegendExpanded, setLegendExpanded] = useState(false);
   const locateReducer = useCallback(
     (state: LocateState, action: LocateAction): LocateState =>
@@ -63,11 +67,19 @@ export function useInspectorUiState(
       setCountryQuery,
       customColorDraft,
       setCustomColorDraft,
+      customSurfaceDraft,
+      setCustomSurfaceDraft,
       isLegendExpanded,
       setLegendExpanded,
       locateState,
       dispatchLocate,
     }),
-    [countryQuery, customColorDraft, isLegendExpanded, locateState],
+    [
+      countryQuery,
+      customColorDraft,
+      customSurfaceDraft,
+      isLegendExpanded,
+      locateState,
+    ],
   );
 }

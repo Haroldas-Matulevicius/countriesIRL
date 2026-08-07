@@ -446,8 +446,16 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * **Maintenance rule** (also recorded in `coding-rules/frontend.md`): lower it
  * when rules are deleted; raise it only with a stated reason in the commit that
  * raises it.
+ *
+ * **Raised 326 -> 341 by `04-01` (D4-07).** Both numbers were MEASURED by
+ * running this assertion before and after, not estimated: the pre-change
+ * inventory was 326 and the post-change inventory is 341. The delta is one new
+ * per-surface sheet, `src/styles/controls/mapStyle.css`, for the `Map style`
+ * flyout - 15 selectors, and nothing else moved. The rail contributes ZERO new
+ * selectors because `ToolRailRow` styles rows by id rather than by position, so
+ * a seventh row needed no rule at all.
  */
-const SELECTOR_INVENTORY_CEILING = 326;
+const SELECTOR_INVENTORY_CEILING = 341;
 
 /**
  * Every selector a rule declares, one per comma-separated part.

@@ -87,7 +87,7 @@ function createCompositionSnapshot(
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF' },
+    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
   };
 }
 
@@ -676,7 +676,7 @@ describe('createStorageAdapter', () => {
         camera: INITIAL_WORLD_CAMERA,
         snapshotId: 'modern',
         legend: expectedLegend,
-        settings: { backgroundColor: '#FFFFFF' },
+        settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
       },
       sourceVersion: 1,
       warnings: [{ code: 'legacy-migrated' }],

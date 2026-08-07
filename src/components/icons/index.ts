@@ -16,6 +16,8 @@ export { PaletteIcon } from './PaletteIcon';
 export type { PaletteIconHandle, PaletteIconProps } from './PaletteIcon';
 export { ListIcon } from './ListIcon';
 export type { ListIconHandle, ListIconProps } from './ListIcon';
+export { DropletIcon } from './DropletIcon';
+export type { DropletIconHandle, DropletIconProps } from './DropletIcon';
 export { LayersIcon } from './LayersIcon';
 export type { LayersIconHandle, LayersIconProps } from './LayersIcon';
 export { FolderIcon } from './FolderIcon';

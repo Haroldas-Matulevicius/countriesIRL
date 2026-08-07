@@ -42,6 +42,26 @@ const MOBILE_VIEWPORT = { width: 360, height: 740 };
  * not labelled as physical zoom evidence. `02-28` still owns the physical cell.
  */
 const ZOOM_200_EQUIVALENT_VIEWPORT = { width: 640, height: 400 };
+/**
+ * The rail-height floor, stated as a number instead of discovered (`04-01`
+ * U-5 / OQ-2, `04-UI-SPEC.md § 6.1`).
+ *
+ * ⚠ **MEASURED at 552px, not the 540px the spec estimated.** `04-UI-SPEC.md
+ * § 6.1` predicted "6 rows ~492px today; the seventh makes it ~540px". Driven in
+ * installed Chrome at 1280 wide, the rail's minimum content height with the
+ * seventh row is **552px**: at a 540px viewport the rail's bottom edge lands at
+ * 552, i.e. **12px past the fold**. The estimate was optimistic and the number
+ * here is the one the browser produced. The seven ROWS are not the part that
+ * overflows - the last row's bottom sits at 432px - the pinned HUD footer is.
+ *
+ * **Below this floor the rail overflows and its footer is unreachable. That is
+ * a documented floor, not a fix** - the rail cannot become a scroll container,
+ * because `overflow-y: auto` computes `overflow-x: auto` and would clip every
+ * rail tooltip out of the 48px column (`coding-rules/frontend.md:1338-1339`),
+ * and compressing, grouping, or shrinking rows is forbidden with reasons in the
+ * spec. **OQ-2 stays OPEN, and is 12px worse than the spec assumed.**
+ */
+const RAIL_HEIGHT_FLOOR_VIEWPORT = { width: 1280, height: 552 };
 
 const STANDARD_TARGET_HEIGHT = 48;
 const COMPACT_TARGET_SIZE = 44;
@@ -53,6 +73,8 @@ const COMPACT_TARGET_SIZE = 44;
  */
 const RAIL_TAB_STOPS = [
   'Colors',
+  // `04-01` (D4-07): second, immediately after `Colors` (U-4, an ASSUMPTION).
+  'Map style',
   'Countries',
   'Legend',
   'Saved Maps',
@@ -539,6 +561,116 @@ test.describe('responsive world workspace', (): void => {
    * canvas region - and the canvas is MOVED, never remounted, which is what
    * keeps Live Invariant 4 true across the transition.
    */
+  /**
+   * D4-07's cost to the rail, gated rather than assumed. The rail is NOT a
+   * scroll container, so an overflow here means chrome is simply unreachable
+   * with nothing on screen saying so.
+   *
+   * Two subjects, because either one alone passes while the other is broken:
+   * the tools list must not clip internally, AND the rail box must fit the
+   * viewport. The Phase 3 failure mode is the second - the tools list measured
+   * clean at 540px while the pinned footer hung 12px below the fold.
+   */
+  const railOverflowAt = async (
+    page: Page,
+    height: number,
+  ): Promise<{
+    toolsScroll: number;
+    toolsClient: number;
+    railHeight: number;
+    viewport: number;
+    lastRowBottom: number;
+  }> => {
+    await page.setViewportSize({
+      width: RAIL_HEIGHT_FLOOR_VIEWPORT.width,
+      height,
+    });
+    return page.evaluate(() => {
+      const tools = document.querySelector('.tool-rail__tools');
+      const rail = document.querySelector('.tool-rail');
+      const allRows = document.querySelectorAll('.tool-rail__row');
+      const lastRow = allRows[allRows.length - 1];
+      if (tools === null || rail === null || lastRow === undefined) {
+        throw new Error('The rail, its tools list, or its last row is absent.');
+      }
+      return {
+        toolsScroll: tools.scrollHeight,
+        toolsClient: tools.clientHeight,
+        railHeight: rail.getBoundingClientRect().height,
+        viewport: window.innerHeight,
+        lastRowBottom: lastRow.getBoundingClientRect().bottom,
+      };
+    });
+  };
+
+  test('fits all seven rail rows with no overflow at the measured height floor', async ({
+    page,
+  }): Promise<void> => {
+    await page.setViewportSize(RAIL_HEIGHT_FLOOR_VIEWPORT);
+    await waitForApp(page);
+    await expectLayout(page, 'desktop');
+
+    const rows = page.locator('.tool-rail__row');
+    expect(
+      await rows.count(),
+      'seven rows: five tools plus the two pinned history rows. If this is ' +
+        'six, the map-style row is missing and every measurement below is of ' +
+        'the Phase 3 rail.',
+    ).toBe(7);
+
+    const atFloor = await railOverflowAt(
+      page,
+      RAIL_HEIGHT_FLOOR_VIEWPORT.height,
+    );
+
+    expect(
+      atFloor.toolsScroll,
+      `the rail's tools list needs ${atFloor.toolsScroll}px but has ` +
+        `${atFloor.toolsClient}px. The rail has no scroll container by design ` +
+        '(a tooltip must escape the 48px column), so this is rows the creator ' +
+        'cannot reach.',
+    ).toBeLessThanOrEqual(atFloor.toolsClient);
+
+    expect(
+      Math.round(atFloor.railHeight),
+      `the rail needs ${Math.round(atFloor.railHeight)}px at a ` +
+        `${atFloor.viewport}px viewport. Anything above the viewport height is ` +
+        'chrome below the fold - the pinned Export and theme controls first.',
+    ).toBeLessThanOrEqual(atFloor.viewport);
+
+    expect(
+      atFloor.lastRowBottom,
+      'the last rail row is below the fold at the stated floor.',
+    ).toBeLessThanOrEqual(atFloor.viewport);
+
+    /*
+     * The discrimination control. Without it the floor could be any comfortably
+     * large number and this test would still be green - which is how a "floor"
+     * stops describing anything. One pixel below it, the rail must overflow.
+     *
+     * If this fails because the rail now FITS one pixel lower, that is an
+     * improvement: lower `RAIL_HEIGHT_FLOOR_VIEWPORT` to the new measurement
+     * rather than deleting the control.
+     */
+    const belowFloor = await railOverflowAt(
+      page,
+      RAIL_HEIGHT_FLOOR_VIEWPORT.height - 1,
+    );
+    expect(
+      Math.round(belowFloor.railHeight),
+      'the recorded floor is not tight - the rail still fits a pixel below ' +
+        'it, so the number is describing nothing.',
+    ).toBeGreaterThan(belowFloor.viewport);
+
+    await page.setViewportSize(RAIL_HEIGHT_FLOOR_VIEWPORT);
+    // The new row is reachable and opens its panel, not just present in the DOM.
+    await openRailTool(page, 'Map style');
+    await expect(page.locator('.map-editor')).toHaveAttribute(
+      'data-panel-open',
+      'true',
+    );
+  });
+
   test('the narrow layout collapses to a bottom bar without a second DOM', async ({
     page,
   }): Promise<void> => {

@@ -456,30 +456,46 @@ describe('App composition root', () => {
      * `data-tool`, so the inventory is asserted as an ordered, enumerated list
      * rather than as a count.
      */
+    /*
+     * `[a-z-]+`, not `[a-z]+`. `04-01` added `map-style`, and the old character
+     * class silently skipped every hyphenated id - the enumeration would have
+     * stayed green at six entries while a seventh row shipped unasserted, which
+     * is precisely the "gate that cannot fail on its own subject" shape.
+     */
     expect(
-      [...markup.matchAll(/data-tool="([a-z]+)"/gu)].map(
+      [...markup.matchAll(/data-tool="([a-z-]+)"/gu)].map(
         (match): string => match[1],
       ),
-    ).toEqual(['colors', 'countries', 'legend', 'saved', 'undo', 'redo']);
+    ).toEqual([
+      'colors',
+      'map-style',
+      'countries',
+      'legend',
+      'saved',
+      'undo',
+      'redo',
+    ]);
 
-    // Four tools point at the one panel; the two pinned rows expand nothing,
+    // Five tools point at the one panel; the two pinned rows expand nothing,
     // so they carry no `aria-expanded` at all rather than a permanent `false`.
     const rowTag = (tool: string): string =>
       new RegExp(`<button[^>]*data-tool="${tool}"[^>]*>`, 'u').exec(
         markup,
       )?.[0] ?? '';
 
-    ['colors', 'countries', 'legend', 'saved'].forEach((tool): void => {
-      expect(rowTag(tool)).toContain('aria-controls="map-editor-tool-panel"');
-      expect(rowTag(tool)).toContain('aria-expanded="false"');
-    });
+    ['colors', 'map-style', 'countries', 'legend', 'saved'].forEach(
+      (tool): void => {
+        expect(rowTag(tool)).toContain('aria-controls="map-editor-tool-panel"');
+        expect(rowTag(tool)).toContain('aria-expanded="false"');
+      },
+    );
     ['undo', 'redo'].forEach((tool): void => {
       expect(rowTag(tool)).not.toContain('aria-expanded');
       expect(rowTag(tool)).not.toContain('aria-controls');
     });
     expect(
       countOccurrences(markup, 'aria-controls="map-editor-tool-panel"'),
-    ).toBe(4);
+    ).toBe(5);
   });
 
   it('opens the first run closed and still mounts the workspace landmark', () => {

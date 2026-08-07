@@ -9,6 +9,7 @@ import {
   STORAGE_KEY,
   THEME_MODE_KEY,
 } from '../constants/config';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import { CLOSED_TOOL_VALUE, isToolId } from '../constants/tools';
 import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import type {
@@ -545,7 +546,7 @@ function normalizeComposition(value: unknown): CompositionNormalization {
     camera: cameraResult.camera,
     snapshotId: value.snapshotId as SnapshotId,
     legend: legendResult.legend,
-    settings: { backgroundColor: '#FFFFFF' },
+    settings: DEFAULT_COMPOSITION_SETTINGS,
   };
 
   return {
@@ -573,7 +574,7 @@ function createLegacyOutcome(
         Object.values(colors),
         createDefaultLegendState(),
       ),
-      settings: { backgroundColor: '#FFFFFF' },
+      settings: DEFAULT_COMPOSITION_SETTINGS,
     },
     sourceVersion: 1,
     warnings: [{ code: 'legacy-migrated' }],

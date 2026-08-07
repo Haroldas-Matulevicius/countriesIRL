@@ -54,6 +54,7 @@ const EXPECTED_ICON_FILES: readonly string[] = [
   'CheckIcon.tsx',
   'CrosshairIcon.tsx',
   'DownloadIcon.tsx',
+  'DropletIcon.tsx',
   'FolderIcon.tsx',
   'LayersIcon.tsx',
   'ListIcon.tsx',
@@ -105,7 +106,10 @@ const TAILWIND_SIZING = /\b(?:h|w|size|min-h|min-w|max-h|max-w)-(?:\d|\[)/u;
 describe('vendored icon contract (assertion 22)', () => {
   it('vendors exactly the glyph inventory the UI-SPEC names', () => {
     expect([...ICON_FILES].sort()).toEqual([...EXPECTED_ICON_FILES].sort());
-    expect(ICON_FILES).toHaveLength(14);
+    // 14 through Phase 3; `04-01` vendors `DropletIcon` for the `map-style`
+    // rail row (D4-07). A literal, so a glyph silently dropped fails here
+    // rather than shrinking what the loop above iterates.
+    expect(ICON_FILES).toHaveLength(15);
   });
 
   it.each(EXPECTED_ICON_FILES)(

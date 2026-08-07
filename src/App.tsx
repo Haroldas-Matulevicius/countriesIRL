@@ -20,6 +20,7 @@ import type {
 import type { ColorMap, CountryId, GeoFeature } from './types/map';
 import type { EditorThemeMode, ToastMessage, ToolId } from './types/ui';
 import { ColorPicker } from './components/ColorPicker';
+import { MapStylePanel } from './components/MapStylePanel';
 import { Controls } from './components/Controls';
 import { CountryList } from './components/CountryList';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -166,6 +167,7 @@ export default function App(): JSX.Element {
     setLegendStyle,
     setLegendOrder,
     setLegendPosition,
+    setSurfaceColor,
     loadComposition,
     markSaved,
     restoreState: restoreCompositionState,
@@ -1074,6 +1076,24 @@ export default function App(): JSX.Element {
     </div>
   );
 
+  /*
+   * D4-07: the `map-style` tool's panel. One section in wave 1 (Water); `04-08`
+   * adds uncolored fill and borders, `04-10` bands, `04-11` text. The custom
+   * hex draft lives in `useInspectorUiState` above this switch, so switching
+   * tools unmounts the markup without discarding in-progress work.
+   */
+  const mapStyleControls = (
+    <div key="map-style" className="workspace__map-style">
+      <MapStylePanel
+        surfaceColor={compositionState.settings.surfaceColor}
+        customDraft={inspectorUi.customSurfaceDraft}
+        onCustomDraftChange={inspectorUi.setCustomSurfaceDraft}
+        onSurfaceColorChange={setSurfaceColor}
+        isDisabled={!isMapReady}
+      />
+    </div>
+  );
+
   const legendControls = (
     <div key="legend" className="workspace__legend">
       <LegendDisclosure
@@ -1146,11 +1166,13 @@ export default function App(): JSX.Element {
       ? null
       : openTool === 'colors'
         ? selectionAndColorControls
-        : openTool === 'countries'
-          ? countryList
-          : openTool === 'legend'
-            ? legendControls
-            : savedMapsControls;
+        : openTool === 'map-style'
+          ? mapStyleControls
+          : openTool === 'countries'
+            ? countryList
+            : openTool === 'legend'
+              ? legendControls
+              : savedMapsControls;
 
   /*
    * Transition-readiness (e): the theme class lands on the editor mount root

@@ -2,6 +2,7 @@ import type { ReactNode, RefObject } from 'react';
 
 import { TOOL_DEFINITIONS } from '../../constants/tools';
 import type { ToolId } from '../../types/ui';
+import { DropletIcon } from '../icons/DropletIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { LayersIcon } from '../icons/LayersIcon';
 import { ListIcon } from '../icons/ListIcon';
@@ -24,6 +25,9 @@ type IconRenderer = (iconRef: RefObject<ToolRailIconHandle>) => ReactNode;
 const TOOL_ICONS: Readonly<Record<ToolId, IconRenderer>> = {
   colors: (iconRef): ReactNode => (
     <PaletteIcon ref={iconRef} size={RAIL_GLYPH_SIZE} />
+  ),
+  'map-style': (iconRef): ReactNode => (
+    <DropletIcon ref={iconRef} size={RAIL_GLYPH_SIZE} />
   ),
   countries: (iconRef): ReactNode => (
     <ListIcon ref={iconRef} size={RAIL_GLYPH_SIZE} />

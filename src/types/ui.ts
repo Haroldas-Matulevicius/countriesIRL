@@ -5,6 +5,18 @@ export interface ColorPreset {
   value: string;
 }
 
+/**
+ * A water/background preset pill. Structurally identical to `ColorPreset` and
+ * kept separate on purpose: the two sets answer to different gates. A country
+ * colour may be any legal hex; a composition surface must clear
+ * `MIN_COMPOSITION_SURFACE_LUMINANCE`, and merging the types would make it
+ * possible to pass one where the other is gated.
+ */
+export interface WaterPreset {
+  readonly name: string;
+  readonly value: string;
+}
+
 export type ColorNormalizationError =
   | 'empty-input'
   | 'invalid-format'
@@ -25,7 +37,12 @@ export type SavedMap = LegacySavedComposition;
  * is the boundary, and a boundary that depends on the UI it persists for is not
  * one.
  */
-export type ToolId = 'colors' | 'countries' | 'legend' | 'saved';
+export type ToolId =
+  | 'colors'
+  | 'map-style'
+  | 'countries'
+  | 'legend'
+  | 'saved';
 
 /**
  * D-30. An explicit creator choice written as a class on the editor mount root,

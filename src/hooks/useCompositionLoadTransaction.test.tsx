@@ -64,7 +64,7 @@ function createSnapshot(
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF' },
+    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
   };
 }
 

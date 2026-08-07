@@ -121,9 +121,13 @@ test.describe('the tool rail', (): void => {
      * "including controls whose disabled state removes them" half of the
      * contract, and the half a documented deviation would have skipped.
      */
-    const beforeColoring = await collectTabOrder(page, 6);
-    expect(beforeColoring.slice(0, 6)).toEqual([
+    const beforeColoring = await collectTabOrder(page, 7);
+    expect(beforeColoring.slice(0, 7)).toEqual([
       'Colors',
+      // `04-01` (D4-07): second, immediately after `Colors` (U-4). The order is
+      // an ASSUMPTION recorded in the plan, not an owner decision - reversing
+      // it is one array move in `constants/tools.ts` and this line.
+      'Map style',
       'Countries',
       'Legend',
       'Saved Maps',
@@ -133,15 +137,16 @@ test.describe('the tool rail', (): void => {
     expect(beforeColoring).not.toContain('Undo Color Change');
 
     // Colour a country so Undo becomes enabled, then re-read: the pair takes
-    // its spec'd place AFTER the four tools and BEFORE the footer.
+    // its spec'd place AFTER the five tools and BEFORE the footer.
     const france = page.locator('path.country-path[data-country-id="FRA"]');
     await france.focus();
     await france.press('Enter');
     await page.getByRole('button', { name: 'Apply Red' }).click();
 
-    const afterColoring = await collectTabOrder(page, 7);
-    expect(afterColoring.slice(0, 7)).toEqual([
+    const afterColoring = await collectTabOrder(page, 8);
+    expect(afterColoring.slice(0, 8)).toEqual([
       'Colors',
+      'Map style',
       'Countries',
       'Legend',
       'Saved Maps',
@@ -365,17 +370,25 @@ test.describe('the tool rail', (): void => {
       );
     }
 
-    // Every tooltip in the rail, counted rather than sampled: one per tool
-    // row, one per pinned row, one for Export, one for the theme toggle.
+    /*
+     * Every tooltip in the rail, counted rather than sampled: one per tool row
+     * (five since `04-01` added `map-style`), one per pinned row, one for
+     * Export, one for the theme toggle. A literal, and the same literal drives
+     * the shape below - `Array.from({ length: n })` off `await count()` would
+     * be green against zero tooltips.
+     */
+    const expectedTooltipCount = 9;
     const tooltips = page.locator('.tool-rail .rail-tooltip');
-    await expect(tooltips).toHaveCount(8);
+    await expect(tooltips).toHaveCount(expectedTooltipCount);
     expect(
       await tooltips.evaluateAll((elements): ReadonlyArray<string | null> =>
         elements.map((element): string | null =>
           element.getAttribute('data-editor-only'),
         ),
       ),
-    ).toStrictEqual(Array.from({ length: 8 }, (): string => 'true'));
+    ).toStrictEqual(
+      Array.from({ length: expectedTooltipCount }, (): string => 'true'),
+    );
 
     // And none of it is inside the export source.
     await expect(

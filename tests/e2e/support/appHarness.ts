@@ -33,7 +33,12 @@ export async function waitForApp(page: Page): Promise<void> {
  * carry duplicated camera helpers as a recorded pending todo, and a rail helper
  * copied into eight files is the same debt with eight places to drift.
  */
-export type RailToolLabel = 'Colors' | 'Countries' | 'Legend' | 'Saved Maps';
+export type RailToolLabel =
+  | 'Colors'
+  | 'Map style'
+  | 'Countries'
+  | 'Legend'
+  | 'Saved Maps';
 
 export async function openRailTool(
   page: Page,

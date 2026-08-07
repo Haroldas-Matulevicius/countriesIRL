@@ -18,6 +18,10 @@ import type {
   VisibleCompositionSettings,
 } from '../types/composition';
 import { DEFAULT_COLOR } from '../constants/colors';
+import {
+  DEFAULT_COMPOSITION_SETTINGS,
+  DEFAULT_SURFACE_COLOR,
+} from '../constants/mapStyle';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
@@ -38,9 +42,8 @@ const DEFAULT_BACKGROUND_COLOR: VisibleCompositionSettings['backgroundColor'] =
 // contradicted the "Top right" label the disclosure summary showed.
 const DEFAULT_LEGEND: LegendState = Object.freeze(createDefaultLegendState());
 const DEFAULT_LEGEND_POSITION: LegendPosition = DEFAULT_LEGEND.position;
-const DEFAULT_SETTINGS: VisibleCompositionSettings = Object.freeze({
-  backgroundColor: DEFAULT_BACKGROUND_COLOR,
-});
+const DEFAULT_SETTINGS: VisibleCompositionSettings =
+  DEFAULT_COMPOSITION_SETTINGS;
 const MIN_LEGEND_BACKGROUND_OPACITY = 70;
 const MAX_LEGEND_BACKGROUND_OPACITY = 100;
 const MIN_LEGEND_ORDER = 0;
@@ -73,6 +76,7 @@ export type CompositionAction =
       type: 'SET_BACKGROUND_COLOR';
       payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
     }
+  | { type: 'SET_SURFACE_COLOR'; payload: { surfaceColor: string } }
   | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
   | { type: 'MARK_SAVED'; payload?: { composition: Composition } }
   | { type: 'RESTORE_STATE'; payload: { state: CompositionState } };
@@ -90,6 +94,7 @@ export interface CompositionStateContextValue {
   setBackgroundColor: (
     backgroundColor: VisibleCompositionSettings['backgroundColor'],
   ) => void;
+  setSurfaceColor: (surfaceColor: string) => void;
   loadComposition: (composition: Composition) => void;
   markSaved: (composition?: Composition) => void;
   restoreState: (state: CompositionState) => void;
@@ -206,8 +211,25 @@ function canonicalizeLegend(legend: LegendState): LegendState {
   };
 }
 
-function canonicalizeSettings(): VisibleCompositionSettings {
-  return { backgroundColor: DEFAULT_BACKGROUND_COLOR };
+/**
+ * T-04-01-01. The custom `#RRGGBB` entry is untrusted creator text on its way to
+ * an SVG `fill`, so it is validated here, at the state boundary, rather than at
+ * the render site. `normalizeColor` is the repo's one home for that check and
+ * returns the canonical uppercase form; anything it rejects falls back to the
+ * default instead of being written to the attribute.
+ */
+function canonicalizeSurfaceColor(value: string): string {
+  const result = normalizeColor(value);
+  return result.ok ? result.value : DEFAULT_SURFACE_COLOR;
+}
+
+function canonicalizeSettings(
+  settings: VisibleCompositionSettings,
+): VisibleCompositionSettings {
+  return {
+    backgroundColor: DEFAULT_BACKGROUND_COLOR,
+    surfaceColor: canonicalizeSurfaceColor(settings.surfaceColor),
+  };
 }
 
 function canonicalizeComposition(composition: Composition): Composition {
@@ -215,7 +237,7 @@ function canonicalizeComposition(composition: Composition): Composition {
     camera: canonicalizeCamera(composition.camera),
     snapshotId: canonicalizeSnapshotId(composition.snapshotId),
     legend: canonicalizeLegend(composition.legend),
-    settings: canonicalizeSettings(),
+    settings: canonicalizeSettings(composition.settings),
   };
 }
 
@@ -274,7 +296,8 @@ function areCompositionsEqual(left: Composition, right: Composition): boolean {
     areCamerasEqual(left.camera, right.camera) &&
     left.snapshotId === right.snapshotId &&
     areLegendsEqual(left.legend, right.legend) &&
-    left.settings.backgroundColor === right.settings.backgroundColor
+    left.settings.backgroundColor === right.settings.backgroundColor &&
+    left.settings.surfaceColor === right.settings.surfaceColor
   );
 }
 
@@ -414,10 +437,27 @@ export function compositionStateReducer(
     }
 
     case 'SET_BACKGROUND_COLOR': {
-      const settings = canonicalizeSettings();
+      const settings = canonicalizeSettings(state.settings);
       return state.settings.backgroundColor === settings.backgroundColor
         ? state
         : { ...state, settings };
+    }
+
+    /*
+     * D4-03. Deliberately NOT part of the colours-only undo history: Live
+     * Invariant 2 says the history stores colours and nothing else, and
+     * Invariant 1 holds because of that. The owner chose `undo-b-reset-action`
+     * at `04-01`'s Task 2 gate, so the escape hatch is the Map style panel's
+     * `Reset Map Style` action, not a history entry - which is also what keeps
+     * the `Undo Color Change` / `Redo Color Change` rail labels truthful.
+     */
+    case 'SET_SURFACE_COLOR': {
+      const surfaceColor = canonicalizeSurfaceColor(
+        action.payload.surfaceColor,
+      );
+      return state.settings.surfaceColor === surfaceColor
+        ? state
+        : { ...state, settings: { ...state.settings, surfaceColor } };
     }
 
     case 'LOAD_COMPOSITION': {
@@ -507,6 +547,10 @@ export function CompositionStateProvider({
     [],
   );
 
+  const setSurfaceColor = useCallback((surfaceColor: string): void => {
+    dispatch({ type: 'SET_SURFACE_COLOR', payload: { surfaceColor } });
+  }, []);
+
   const loadComposition = useCallback((composition: Composition): void => {
     dispatch({ type: 'LOAD_COMPOSITION', payload: { composition } });
   }, []);
@@ -537,6 +581,7 @@ export function CompositionStateProvider({
       setLegendOrder,
       setLegendPosition,
       setBackgroundColor,
+      setSurfaceColor,
       loadComposition,
       markSaved,
       restoreState,
@@ -552,6 +597,7 @@ export function CompositionStateProvider({
       setLegendOrder,
       setLegendPosition,
       setBackgroundColor,
+      setSurfaceColor,
       loadComposition,
       markSaved,
       restoreState,

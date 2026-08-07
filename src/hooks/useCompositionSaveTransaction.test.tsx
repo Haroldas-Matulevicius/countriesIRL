@@ -29,7 +29,7 @@ function createComposition(camera: CameraState): Composition {
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF' },
+    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
   };
 }
 

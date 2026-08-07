@@ -16,7 +16,7 @@ not looked for.
 
 ## How these files came to exist
 
-The 14 glyph components were **authored in this repo** from lucide glyph path data, in the shape of
+The 15 glyph components were **authored in this repo** from lucide glyph path data, in the shape of
 `themely/src/components/ui/search.tsx` (the exemplar, read in full 2026-08-06). **No registry
 install, no network at build or run time, no file copied byte-for-byte across the repo boundary.**
 The upstream Tailwind `className` strings were **translated, not copied** — this repo has no
@@ -36,6 +36,7 @@ repository on 2026-08-06 — `motion@12.40.0` with a transitive `framer-motion@1
 - `CheckIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
 - `CrosshairIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
 - `DownloadIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
+- `DropletIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
 - `FolderIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
 - `LayersIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
 - `ListIcon.tsx` — read in full — flags: `xmlns="http://www.w3.org/2000/svg"` (the SVG namespace URI — an XML identifier, never dereferenced; no other pattern hit) — 2026-08-06
@@ -102,6 +103,10 @@ patch, and a 2px glyph next to a 1.5px one is a difference nobody reads as a reg
 
 ---
 
+*Last updated: 2026-08-06 (later) — `DropletIcon.tsx` vendored for the new `map-style` rail row
+(plan 04-01, D4-07). Authored in this repo from lucide `droplet` path data in the same exemplar
+shape; **no registry install and no lockfile change in this plan or this phase** (`04-16` gates
+`package.json` and `package-lock.json` as unchanged across Phase 4). The glyph inventory is now 15.*
 *Last updated: 2026-08-06 — the three unconsumed glyphs' `Consumer:` lines corrected: they named
 the floating map controls, which import none of them; the choice to correct rather than wire is
 recorded above (plan 03-10). Earlier the same day: created with the 14-glyph inventory, and the

@@ -19,6 +19,11 @@ export interface ToolDefinition {
 
 export const TOOL_DEFINITIONS: ReadonlyArray<ToolDefinition> = [
   { id: 'colors', label: 'Colors' },
+  // U-4, `04-UI-SPEC.md § 6.1`: second, immediately after `Colors`. The owner
+  // was unavailable for the order, the label, and the glyph; all three are
+  // recorded as assumptions in `04-01-PLAN.md`. Reversing the order is one
+  // array move.
+  { id: 'map-style', label: 'Map style' },
   { id: 'countries', label: 'Countries' },
   { id: 'legend', label: 'Legend' },
   { id: 'saved', label: 'Saved Maps' },

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type {
   CompositionLoadOutcome,
   CompositionSnapshot,
@@ -61,7 +62,7 @@ export function createLegacyCompatibleSnapshot(
       Object.values(colors),
       createDefaultLegendState(),
     ),
-    settings: { backgroundColor: '#FFFFFF' },
+    settings: DEFAULT_COMPOSITION_SETTINGS,
   };
 }
 

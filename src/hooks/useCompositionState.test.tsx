@@ -52,7 +52,7 @@ describe('compositionStateReducer', () => {
       camera: INITIAL_WORLD_CAMERA,
       snapshotId: 'modern',
       legend: DEFAULT_LEGEND,
-      settings: { backgroundColor: '#FFFFFF' },
+      settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
     });
     expect(state.savedBaseline).toEqual(toComposition(state));
   });
@@ -200,7 +200,7 @@ describe('compositionStateReducer', () => {
         backgroundOpacity: 85,
         borderStyle: 'none',
       },
-      settings: { backgroundColor: '#FFFFFF' },
+      settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
     };
 
     const state = reduce(createInitialCompositionState(), {

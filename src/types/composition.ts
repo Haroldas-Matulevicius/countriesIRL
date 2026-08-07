@@ -178,7 +178,22 @@ export interface LegendState {
 }
 
 export interface VisibleCompositionSettings {
+  /**
+   * The V2 persisted field, pinned to white and read by nothing that renders.
+   * It is the schema's record that the composition is opaque; `04-14` decides
+   * its fate when the V3 record lands. Do not repurpose it as the water colour.
+   */
   readonly backgroundColor: '#FFFFFF';
+  /**
+   * D4-03 — the creator-chosen water/background colour, canonical uppercase
+   * `#RRGGBB`. It reaches the exported PNG through a serialized inline `fill`
+   * on `rect[data-layer="surface"]`, never through a CSS token.
+   *
+   * **In-memory only in Phase 4 wave 1.** Persistence is `04-14`'s V3 work;
+   * `src/utils/storage.ts` neither validates nor restores this field, so a
+   * saved composition reloads with the default surface.
+   */
+  readonly surfaceColor: string;
 }
 
 export interface Composition {
