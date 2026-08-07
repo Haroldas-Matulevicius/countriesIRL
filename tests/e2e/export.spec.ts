@@ -20,7 +20,21 @@ import {
   BAND_KEYBOARD_STEP,
   BAND_MAX_HEIGHT,
 } from '../../src/utils/bands';
-import { openRailTool, waitForApp } from './support/appHarness';
+import {
+  WIDEST_CHARACTER_ADVANCE_EM,
+  compositionTextLength,
+  resolveCompositionTextLines,
+} from '../../src/utils/compositionText';
+import {
+  createDefaultLegendState,
+  reconcileLegend,
+} from '../../src/utils/legend';
+import {
+  RAMP_RED_HEX,
+  applyRampRed,
+  openRailTool,
+  waitForApp,
+} from './support/appHarness';
 
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
 const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
@@ -375,6 +389,16 @@ async function measureLegendCrops(
   a: Buffer,
   b: Buffer,
   box: LegendRegion,
+  /**
+   * `04-11` made this a parameter, on the `countInkAroundRegion` precedent and
+   * for the identical reason. The legend gates want "anything not white" (240);
+   * a composition-text crop sits on a light water TINT, and `#F5EFE6` is
+   * (245, 239, 230) - two channels under 240 - so at the default threshold the
+   * whole crop counts as ink and the content floor stops measuring anything.
+   * ONE comparator, two thresholds: a second crop-diff function is how two
+   * "sampled pixel" assertions quietly start decoding differently.
+   */
+  inkThreshold: number = INK_CHANNEL_THRESHOLD,
 ): Promise<LegendCropMeasurement> {
   return page.evaluate(
     async ({
@@ -469,7 +493,7 @@ async function measureLegendCrops(
       first: a.toString('base64'),
       second: b.toString('base64'),
       region: box,
-      threshold: INK_CHANNEL_THRESHOLD,
+      threshold: inkThreshold,
     },
   );
 }
@@ -3095,5 +3119,502 @@ test.describe('band', (): void => {
     await expect(
       page.locator('svg.map-canvas [data-layer="band-handles"]'),
     ).toHaveAttribute('data-editor-only', 'true');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-11 / D4-15 - composition text, from a creator's keystrokes to
+ * exported pixels
+ * ------------------------------------------------------------------ */
+
+/**
+ * Two strings, and each earns its place.
+ *
+ * `COMPOSITION_TITLE` is latin-1 and is what Gate A counts. `LATIN_EXT_TITLE`
+ * is the string this product exists for - `04-04` widened the font precisely so
+ * the countries CountriesIRL is about can be named correctly - and it is what
+ * Gate B measures against the font-suppressed control.
+ *
+ * ⛔ **Neither gate claims the diacritics are CORRECT.** They claim ink landed
+ * and that the embedded faces are what drew it. Requirement **A12** - opening
+ * the exported PNG and looking at whether `š` and `ł` are the right glyphs - is
+ * a PHYSICAL check scheduled in `04-16`. It was never performed in Phase 3,
+ * skipped is not passed, and it cannot be inherited.
+ */
+const COMPOSITION_TITLE = 'Baltic Tour';
+const COMPOSITION_LATIN_EXT_TITLE = 'Košice Łódź';
+/** Breathing room around a derived glyph box, in viewBox user units. */
+const TEXT_REGION_MARGIN = 8;
+/**
+ * DERIVED FROM MEASUREMENTS taken in this change, installed Chrome
+ * **151.0.7922.76**, water `Warm paper`, title at the medium step:
+ *
+ * | measurement | value |
+ * |---|---|
+ * | title-region ink below `DARK_INK_THRESHOLD`, title set | **2,842** |
+ * | the same region with the title cleared | **0** |
+ * | latin-ext crop ink, faces embedded / suppressed | **3,291** / **3,023** |
+ * | latin-ext crop pixels differing between the two | **4,875** |
+ * | text-over-legend crop ink, title set / cleared | **2,557** / **0** |
+ *
+ * Every floor below is under half its measurement, and none is tight: this
+ * repository has shipped a `<= 1px` tolerance that passed against its own 1px
+ * probe.
+ */
+const MIN_TITLE_INK_PIXELS = 1_000;
+const MIN_FONT_CROP_INK_PIXELS = 1_000;
+const MIN_FONT_CROP_DIFF_PIXELS = 1_500;
+const MIN_TEXT_OVER_LEGEND_INK_PIXELS = 800;
+/** The water this whole block runs on; non-white so the band is not a no-op. */
+const TEXT_WATER_PRESET_NAME = 'Warm paper';
+
+async function setCompositionTitle(page: Page, value: string): Promise<void> {
+  const field = page.getByLabel('Title', { exact: true });
+  await field.fill(value);
+  await expect(field).toHaveValue(value);
+}
+
+function compositionTitleNode(page: Page): ReturnType<Page['locator']> {
+  return page.locator(
+    'svg.map-canvas > [data-layer="text"] > [data-text-role="title"]',
+  );
+}
+
+/**
+ * **PRESENCE FIRST, THEN CORRECTNESS.** A gate that only samples "is there ink
+ * here" goes green for text rendered in the wrong font, at the wrong size, or
+ * showing the wrong string - and `04-10` measured the cost of getting probe
+ * order wrong: a missing subject reported as a malformed one. So every pixel
+ * claim below is preceded by this, which fails on the specific thing that is
+ * wrong rather than on "the pixels moved".
+ */
+async function expectTitleRendered(page: Page, value: string): Promise<void> {
+  const node = compositionTitleNode(page);
+  await expect(node, 'no title <text> exists in the text layer.').toHaveCount(1);
+  await expect(node).toHaveText(value);
+  await expect(node).toHaveAttribute('font-size', '44');
+  await expect(node).toHaveAttribute('font-weight', '600');
+  await expect(node).toHaveAttribute('text-anchor', 'start');
+  // The ink is a literal, never a token: the clone is rasterised as an isolated
+  // document, and a `var()` here renders as nothing at all.
+  await expect(node).toHaveAttribute('fill', '#111827');
+  // The family the composition NAMES is what `collectCompositionFonts` reports
+  // and therefore the only reason Inter's bytes ride into the clone.
+  await expect(node).toHaveAttribute('font-family', /^Inter,/u);
+}
+
+/**
+ * The crop a title's glyphs must land in, DERIVED from the same pure function
+ * `MapCanvas` renders from - never a pasted rectangle. Width is the worst-case
+ * run of the string at the recorded 1.0202em advance, so the box provably
+ * contains the whole line however it sets.
+ */
+function titleInkRegion(value: string): LegendRegion {
+  const [line] = resolveCompositionTextLines(
+    { title: value, subtitle: '', attribution: '' },
+    { title: 'medium', subtitle: 'medium' },
+    'left',
+  );
+  if (line === undefined) {
+    throw new Error('the gate title produced no line at all.');
+  }
+  const region: LegendRegion = {
+    x: line.x - TEXT_REGION_MARGIN,
+    y: line.y - line.fontSize,
+    width:
+      Math.ceil(
+        compositionTextLength(value) * line.fontSize * WIDEST_CHARACTER_ADVANCE_EM,
+      ) +
+      2 * TEXT_REGION_MARGIN,
+    height: Math.ceil(line.fontSize * 1.25),
+  };
+
+  /*
+   * THE CROP MUST BE INSIDE THE 1080 FRAME, and this guard was added because a
+   * RED proof defeated the gates without it. Moving the text outside the
+   * viewBox moves this DERIVED crop with it, and `drawImage` from a source rect
+   * off the bitmap yields TRANSPARENT BLACK - which every ink counter in this
+   * spec reads as solid ink. The content floors then passed on 28,050 phantom
+   * pixels while the thing they exist to catch had happened. Bounding the crop
+   * is what makes the floors mean what they say.
+   */
+  expect(region.x, 'the title crop starts left of the frame.').toBeGreaterThanOrEqual(0);
+  expect(region.y, 'the title crop starts above the frame.').toBeGreaterThanOrEqual(0);
+  expect(
+    region.x + region.width,
+    'the title crop runs off the right of the 1080 frame, where every ' +
+      'sampled pixel is transparent black and reads as ink.',
+  ).toBeLessThanOrEqual(EXPORT_SIZE);
+  expect(
+    region.y + region.height,
+    'the title crop runs off the bottom of the 1080 frame.',
+  ).toBeLessThanOrEqual(EXPORT_SIZE);
+
+  return region;
+}
+
+async function chooseTextGateWater(page: Page): Promise<void> {
+  const preset = WATER_PRESETS.find(
+    (candidate): boolean => candidate.name === TEXT_WATER_PRESET_NAME,
+  );
+  expect(preset).toBeDefined();
+  expect(
+    preset?.value,
+    'the text gates run on a NON-WHITE surface so the band under the title ' +
+      'is not a silent no-op.',
+  ).not.toBe(DEFAULT_SURFACE_COLOR);
+  await chooseWaterPreset(page, TEXT_WATER_PRESET_NAME);
+}
+
+test.describe('composition text', (): void => {
+  /**
+   * **GATE A - the creator's title reaches the PNG, and leaves with it.**
+   *
+   * Two exports, one property, both directions. The title region is DISJOINT
+   * from every other ink source at the default world camera, which is a
+   * measurement rather than an assumption: with the title cleared it reads
+   * exactly ZERO ink, the same level the flood-filled blank control reads
+   * through the same counter.
+   */
+  test('a creator title inks the exported PNG, and clearing it takes the ink away', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+    await chooseTextGateWater(page);
+
+    const region = titleInkRegion(COMPOSITION_TITLE);
+    // The crop sits inside the top band, so this gate also exercises type on a
+    // band rather than type on bare water.
+    expect(region.y + region.height).toBeLessThan(BAND_DEFAULT_HEIGHT);
+
+    await setCompositionTitle(page, COMPOSITION_TITLE);
+    await expectTitleRendered(page, COMPOSITION_TITLE);
+    const withTitle = await exportRealApp(page, 'text-title');
+
+    await setCompositionTitle(page, '');
+    // An empty field renders NO element - not an empty one, which would still
+    // register a font family in `collectCompositionFonts`.
+    await expect(compositionTitleNode(page)).toHaveCount(0);
+    const withoutTitle = await exportRealApp(page, 'text-no-title');
+
+    [withTitle, withoutTitle].forEach((bytes: Buffer): void => {
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+    });
+
+    // The instrument, through the SAME counting function, at zero ink.
+    await expectBlankControlReadsZeroInk(page, region);
+
+    const inked = await countInkAroundRegion(
+      page,
+      withTitle,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      inked.inside,
+      `the title region carries ${inked.inside} ink pixels against a floor ` +
+        `of ${MIN_TITLE_INK_PIXELS}. The creator's title did not reach the ` +
+        'exported PNG at all.',
+    ).toBeGreaterThan(MIN_TITLE_INK_PIXELS);
+
+    const blanked = await countInkAroundRegion(
+      page,
+      withoutTitle,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      blanked.inside,
+      `with the title cleared the region still carries ${blanked.inside} ink ` +
+        'pixels. Either the text layer kept a stale value, or the region is ' +
+        'measuring geography and the count above was never about the title.',
+    ).toBe(0);
+  });
+
+  /**
+   * **GATE B - the EMBEDDED faces are what drew it, proven separately.**
+   *
+   * "Text rendered" and "the vendored face rendered it" are different claims,
+   * and a single assertion would conflate them. Same composition, same browser
+   * context, two exports: one with `injectExportFontFace` live and one with it
+   * suppressed through the test-only seam.
+   *
+   * ⛔ It does NOT claim the latin-ext glyphs are correct. See A12 above.
+   */
+  test('the embedded faces are what draw a latin-ext title, measured on PNG pixels', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+    await chooseTextGateWater(page);
+
+    await setCompositionTitle(page, COMPOSITION_LATIN_EXT_TITLE);
+    await expectTitleRendered(page, COMPOSITION_LATIN_EXT_TITLE);
+
+    const embeddedDownload = exportRealApp(page, 'text-font-embedded');
+    const embedded = await embeddedDownload;
+
+    await page.evaluate((flag: string): void => {
+      Reflect.set(window, flag, true);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+    const suppressed = await exportRealApp(page, 'text-font-suppressed');
+    await page.evaluate((flag: string): void => {
+      Reflect.deleteProperty(window, flag);
+    }, EXPORT_FONT_FACE_SUPPRESSION_FLAG);
+
+    [embedded, suppressed].forEach((bytes: Buffer): void => {
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+    });
+
+    const region = titleInkRegion(COMPOSITION_LATIN_EXT_TITLE);
+    const measured = await measureLegendCrops(
+      page,
+      embedded,
+      suppressed,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+
+    /*
+     * CONTENT FLOOR FIRST, on BOTH crops. Two blank crops satisfy "they differ"
+     * perfectly, and that exact defect has shipped in this repository once.
+     * The fallback face draws glyphs too, so both crops must be full of ink
+     * before their difference means anything.
+     */
+    expect(
+      measured.inkA,
+      `the embedded crop carries ${measured.inkA} ink pixels against a floor ` +
+        `of ${MIN_FONT_CROP_INK_PIXELS}: it is blank, so the difference ` +
+        'below would be a comparison of two empty boxes.',
+    ).toBeGreaterThan(MIN_FONT_CROP_INK_PIXELS);
+    expect(
+      measured.inkB,
+      `the font-suppressed crop carries ${measured.inkB} ink pixels: the ` +
+        'control rendered nothing, so it is not a control.',
+    ).toBeGreaterThan(MIN_FONT_CROP_INK_PIXELS);
+    // The instrument itself: an all-white buffer of the same size, same counter.
+    expect(measured.inkBlank).toBe(0);
+
+    expect(
+      measured.diffAB,
+      `only ${measured.diffAB} pixels differ between the embedded and ` +
+        `font-suppressed exports, against a floor of ` +
+        `${MIN_FONT_CROP_DIFF_PIXELS}. The composition names Inter, but the ` +
+        'vendored bytes are not what rasterised the title - it fell back ' +
+        'silently, which is the failure mode that produces no error anywhere.',
+    ).toBeGreaterThan(MIN_FONT_CROP_DIFF_PIXELS);
+  });
+
+  /**
+   * **GATE C - the paint order at a DELIBERATELY FORCED overlap.**
+   *
+   * The top band is dragged to its cap, the legend sits at its default
+   * top-left, and the title is set in the same region, so all three occupy one
+   * rectangle. Two of U-8's three orderings are then proven on real pixels:
+   *
+   * - **bands BEFORE legend** - the legend's swatch is an opaque `#DE2D26`
+   *   fill under a max-height band. It must read that colour EXACTLY. A band
+   *   painted over it would blend the water colour in at the gradient's alpha
+   *   for that row.
+   * - **legend BEFORE text** - the title's glyphs must ink a crop that lies
+   *   inside the legend's 90%-opaque background. Text painted UNDER it would be
+   *   attenuated to a tenth and read as light grey, i.e. zero ink.
+   *
+   * ⚠ **The THIRD ordering - bands versus legend measured on the BAND rather
+   * than on the swatch - is HELD OUT, with the reason measured.** See the
+   * SUMMARY: the legend background is 90 % opaque, and the largest band signal
+   * this product can produce anywhere in the top band is 3.490 luminance
+   * (`04-10`), which arrives under the legend as 0.35 - below the noise floor.
+   * Measured directly here: the biggest band-on / band-off channel delta
+   * anywhere inside the legend box is **3 of 765**. The swatch assertion is
+   * what replaces it, and it is a stronger claim, not a weaker one.
+   */
+  test('at a forced overlap the PNG paints bands, then legend, then text', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+    await chooseTextGateWater(page);
+
+    // A coloured country is what creates the legend entry the overlap needs.
+    const france = page.locator(
+      'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+    );
+    await france.focus();
+    await france.press('Enter');
+    await openRailTool(page, 'Colors');
+    await applyRampRed(page);
+    await openRailTool(page, 'Map style');
+
+    // FORCE the overlap: the top band at its cap reaches well past the legend.
+    const handle = page.locator('[role="slider"][aria-label="Top band"]');
+    await handle.focus();
+    await handle.press('End');
+    await expect(handle).toHaveAttribute(
+      'aria-valuenow',
+      String(BAND_MAX_HEIGHT),
+    );
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveAttribute('height', String(BAND_MAX_HEIGHT));
+
+    /*
+     * The legend region is DERIVED from `resolveLegendRender` - never
+     * hard-coded, which is assertion 25's existing practice - and then checked
+     * against the live DOM. The check is what makes the derivation safe: a
+     * derivation that drifted would otherwise sample a box the legend is not
+     * in and report a tidy zero.
+     */
+    const legendState = reconcileLegend(
+      [RAMP_RED_HEX],
+      createDefaultLegendState(),
+    );
+    const render = resolveLegendRender(legendState, [RAMP_RED_HEX]);
+    const legendLayer = page.locator('svg.map-canvas [data-layer="legend"]');
+    await expect(legendLayer).toHaveAttribute(
+      'transform',
+      `translate(${String(render.position.x)} ${String(render.position.y)})`,
+    );
+    const background = legendLayer.locator('rect').first();
+    await expect(background).toHaveAttribute(
+      'width',
+      String(render.bounds.width),
+    );
+    await expect(background).toHaveAttribute(
+      'height',
+      String(render.bounds.height),
+    );
+
+    // THE OVERLAP IS REAL, asserted structurally before anything is sampled.
+    expect(
+      render.position.y + render.bounds.height,
+      'the legend does not reach into the band, so there is no overlap to ' +
+        'sample and every assertion below is about three separate regions.',
+    ).toBeLessThanOrEqual(BAND_MAX_HEIGHT);
+
+    // The swatch's own box, read from the live DOM and offset by the DERIVED
+    // legend position - so the sample point is located, not guessed.
+    const swatch = legendLayer.locator(`rect[fill="${RAMP_RED_HEX}"]`);
+    await expect(swatch).toHaveCount(1);
+    const swatchBox = await swatch.evaluate((node: Element) => ({
+      x: Number(node.getAttribute('x')),
+      y: Number(node.getAttribute('y')),
+      width: Number(node.getAttribute('width')),
+      height: Number(node.getAttribute('height')),
+    }));
+    const swatchCentre: readonly [number, number] = [
+      Math.round(render.position.x + swatchBox.x + swatchBox.width / 2),
+      Math.round(render.position.y + swatchBox.y + swatchBox.height / 2),
+    ];
+    expect(swatchCentre[1]).toBeLessThan(BAND_MAX_HEIGHT);
+
+    /*
+     * The crop that proves text over legend: inside the legend background,
+     * inside the title's glyph band, and ABOVE the legend's own label - whose
+     * top is derived from the live `<text>`'s baseline and size rather than
+     * guessed, so the control below can be a hard zero.
+     */
+    const legendLabel = legendLayer.locator('text').first();
+    const labelTop = await legendLabel.evaluate(
+      (node: Element): number =>
+        Number(node.getAttribute('y')) - Number(node.getAttribute('font-size')),
+    );
+    const overlapCrop: LegendRegion = {
+      x: render.position.x + TEXT_REGION_MARGIN,
+      y: render.position.y + TEXT_REGION_MARGIN,
+      width: render.bounds.width - 2 * TEXT_REGION_MARGIN,
+      height:
+        render.position.y + labelTop - (render.position.y + TEXT_REGION_MARGIN),
+    };
+    expect(overlapCrop.height).toBeGreaterThan(0);
+    expect(overlapCrop.y + overlapCrop.height).toBeLessThan(BAND_MAX_HEIGHT);
+
+    const overlapTitle = 'W'.repeat(22);
+    await setCompositionTitle(page, overlapTitle);
+    await expectTitleRendered(page, overlapTitle);
+    const withTitle = await exportRealApp(page, 'text-overlap');
+
+    await setCompositionTitle(page, '');
+    await expect(compositionTitleNode(page)).toHaveCount(0);
+    const withoutTitle = await exportRealApp(page, 'text-overlap-control');
+
+    [withTitle, withoutTitle].forEach((bytes: Buffer): void => {
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+    });
+    await expectBlankControlReadsZeroInk(page, overlapCrop);
+
+    /*
+     * 0. THE PIXEL PRESENCE PROBE, and it runs FIRST for the reason `04-10`
+     *    measured: without it, text that never reached the frame at all
+     *    reddens the ordering claim below, whose message blames the legend.
+     *    A missing subject must not report as a mis-ordered one.
+     */
+    const ownRegion = titleInkRegion(overlapTitle);
+    const ownInk = await countInkAroundRegion(
+      page,
+      withTitle,
+      ownRegion,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      ownInk.inside,
+      `the title inked ${ownInk.inside} pixels in its OWN region against a ` +
+        `floor of ${MIN_TITLE_INK_PIXELS}. It did not reach the exported PNG ` +
+        'anywhere, so the ordering claims below are not about paint order.',
+    ).toBeGreaterThan(MIN_TITLE_INK_PIXELS);
+
+    // 1. BANDS BEFORE LEGEND. Read on the title-free frame, so a glyph landing
+    //    on the swatch can never be what satisfies or breaks it.
+    const swatchSample = await samplePngPoints(page, withoutTitle, [
+      swatchCentre,
+    ]);
+    expect(
+      (swatchSample.pixels[0] ?? []).slice(0, 3),
+      `the legend swatch at (${swatchCentre[0]}, ${swatchCentre[1]}) does not ` +
+        `read ${RAMP_RED_HEX}. A band at its cap is covering it, so the band ` +
+        'is painting AFTER the legend instead of before it.',
+    ).toEqual([...hexToRgb(RAMP_RED_HEX)]);
+
+    // 2. LEGEND BEFORE TEXT. Presence was already asserted above, so a zero
+    //    here means the legend covered the type rather than that no type exists.
+    const overText = await countInkAroundRegion(
+      page,
+      withTitle,
+      overlapCrop,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      overText.inside,
+      `the title inked ${overText.inside} pixels inside the legend region ` +
+        `against a floor of ${MIN_TEXT_OVER_LEGEND_INK_PIXELS}. The <text> ` +
+        'exists and carries the right string, so the legend background is ' +
+        'painting OVER it - the paint order is legend after text.',
+    ).toBeGreaterThan(MIN_TEXT_OVER_LEGEND_INK_PIXELS);
+
+    const overControl = await countInkAroundRegion(
+      page,
+      withoutTitle,
+      overlapCrop,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      overControl.inside,
+      `the title-free frame carries ${overControl.inside} ink pixels in the ` +
+        'same crop, so the count above was not measuring the title. Most ' +
+        "likely the crop has drifted onto the legend's own label.",
+    ).toBe(0);
   });
 });
