@@ -131,9 +131,21 @@ export function composeEffectiveScene(input: EffectiveSceneInput): EffectiveScen
   };
 }
 
+/**
+ * `uncoloredFill` is the RENDER-TIME mapping of the `#FFFFFF` sentinel (D4-09).
+ *
+ * **Its default is `DEFAULT_COLOR`, which means "do not map".** That looks like
+ * a missing default and is the opposite: this function's other caller is
+ * `getEffectiveSceneColors`, which feeds `reconcileLegend`. `reconcileLegend`
+ * excludes exactly `DEFAULT_COLOR`, so mapping by default would hand it a grey
+ * hex for every unpainted country and auto-add a legend row to every
+ * composition on earth. Legend exclusion is untouched **because** the render is
+ * the only caller that opts in. `src/utils/scene.test.ts` gates both halves.
+ */
 export function getEffectiveFeatureColor(
   feature: SceneFeature,
   colors: ColorMap,
+  uncoloredFill: string = DEFAULT_COLOR,
 ): string {
   // A null owner takes the neutral fill. After D4-10 no Modern unit has a null
   // owner, so on the Modern scene this branch no longer fires - it stays for
@@ -147,7 +159,11 @@ export function getEffectiveFeatureColor(
     return DEFAULT_COLOR;
   }
 
-  return getEffectiveCountryColor(colors, feature.colorOwnerId);
+  const resolved = getEffectiveCountryColor(colors, feature.colorOwnerId);
+  // The map is READ, never written: the stored value stays the `#FFFFFF`
+  // sentinel and only the pixel changes. `canonicalizeColorMap` deletes an
+  // entry equal to the sentinel, so "uncoloured" is an absent key here.
+  return resolved === DEFAULT_COLOR ? uncoloredFill : resolved;
 }
 
 /**

@@ -343,6 +343,138 @@ describe('composeEffectiveScene', (): void => {
   });
 });
 
+/* ------------------------------------------------------------------ *
+ * 04-08 / D4-09 - the render-time uncoloured fill
+ * ------------------------------------------------------------------ */
+
+describe('getEffectiveFeatureColor and the uncolored fill', (): void => {
+  const UNCOLORED_FILL = '#E5E7EB';
+  const CUSTOM_UNCOLORED_FILL = '#D1D5DB';
+
+  function createTwoCountryScene(): EffectiveScene {
+    return composeEffectiveScene({
+      snapshotId: 'modern',
+      modernFeatures: [
+        createSelectableFeature({
+          sourceFeatureId: 'modern-FRA',
+          entityId: 'FRA',
+          name: 'France',
+          boundaryMode: 'modern',
+        }),
+        createSelectableFeature({
+          sourceFeatureId: 'modern-DEU',
+          entityId: 'DEU',
+          name: 'Germany',
+          boundaryMode: 'modern',
+        }),
+      ],
+    });
+  }
+
+  it('renders the creator fill for a country with no stored colour', (): void => {
+    const scene = createTwoCountryScene();
+    const colors: ColorMap = { FRA: customColor('#DC2626') };
+    const [france, germany] = scene.features;
+    if (france === undefined || germany === undefined) {
+      throw new Error('The fixture scene lost a feature.');
+    }
+
+    expect(getEffectiveFeatureColor(france, colors, UNCOLORED_FILL)).toBe(
+      '#DC2626',
+    );
+    expect(getEffectiveFeatureColor(germany, colors, UNCOLORED_FILL)).toBe(
+      UNCOLORED_FILL,
+    );
+  });
+
+  it('renders a CUSTOM fill rather than the default when one is given', (): void => {
+    const scene = createTwoCountryScene();
+    const [, germany] = scene.features;
+    if (germany === undefined) {
+      throw new Error('The fixture scene lost a feature.');
+    }
+
+    expect(
+      getEffectiveFeatureColor(germany, {}, CUSTOM_UNCOLORED_FILL),
+      'the render must follow settings.uncoloredFill, not a constant baked ' +
+        'into this function.',
+    ).toBe(CUSTOM_UNCOLORED_FILL);
+    expect(CUSTOM_UNCOLORED_FILL).not.toBe(UNCOLORED_FILL);
+  });
+
+  /**
+   * The assertion that stops a future refactor from "simplifying" the sentinel
+   * away. `#FFFFFF` is what STORAGE holds for an uncoloured country and what
+   * `reconcileLegend` excludes; if the render mapping ever wrote back, every
+   * uncoloured country would silently acquire a legend row.
+   */
+  it('reads the colour map and never writes it', (): void => {
+    const scene = createTwoCountryScene();
+    const colors: ColorMap = { FRA: customColor('#FFFFFF') };
+    const [france] = scene.features;
+    if (france === undefined) {
+      throw new Error('The fixture scene lost a feature.');
+    }
+
+    expect(getEffectiveFeatureColor(france, colors, UNCOLORED_FILL)).toBe(
+      UNCOLORED_FILL,
+    );
+    expect(
+      colors['FRA'],
+      'the stored value moved. #FFFFFF is the sentinel for "not coloured" and ' +
+        'the render maps it; the map itself is read-only here.',
+    ).toStrictEqual(customColor('#FFFFFF'));
+  });
+
+  /**
+   * Legend exclusion is UNTOUCHED, and this is the gate that keeps it so.
+   * `getEffectiveSceneColors` is `reconcileLegend`'s feed, and `reconcileLegend`
+   * excludes exactly `#FFFFFF`. It must therefore keep reporting the sentinel,
+   * not the grey a creator sees.
+   */
+  it('keeps the legend feed on the sentinel, so no grey row appears', (): void => {
+    const scene = createTwoCountryScene();
+    const colors: ColorMap = { FRA: customColor('#DC2626') };
+
+    expect(getEffectiveSceneColors(scene, colors)).toEqual([
+      '#DC2626',
+      '#FFFFFF',
+    ]);
+
+    const legend = reconcileLegend(
+      getEffectiveSceneColors(scene, colors),
+      createDefaultLegendState(),
+    );
+    expect(legend.entries.map((entry): string => entry.color)).toEqual([
+      '#DC2626',
+    ]);
+    expect(
+      legend.entries.some((entry): boolean => entry.color === UNCOLORED_FILL),
+      'an uncoloured country reached the legend. The render-time fill must not ' +
+        'be visible to reconcileLegend.',
+    ).toBe(false);
+  });
+
+  it('leaves a null-owner unit on the neutral fill, not the creator fill', (): void => {
+    const scene = composeEffectiveScene({
+      snapshotId: 'modern',
+      modernFeatures: [
+        createNeutralFeature('modern-ATA', 'neutral', 'modern'),
+      ],
+    });
+    const [antarctica] = scene.features;
+    if (antarctica === undefined) {
+      throw new Error('The fixture scene lost a feature.');
+    }
+
+    expect(
+      getEffectiveFeatureColor(antarctica, {}, CUSTOM_UNCOLORED_FILL),
+      'a null-owner unit is not "uncoloured" - it is uncolourABLE, and D4-09 ' +
+        'did not merge the two treatments.',
+    ).toBe(NEUTRAL_UNIT_COLOR);
+  });
+});
+
 describe('reconcileSelectionForScene', (): void => {
   it('retains only identities selectable in the incoming effective scene', (): void => {
     const incomingScene = composeHistoricalScene(

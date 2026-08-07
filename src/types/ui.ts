@@ -12,10 +12,18 @@ import type { LegacySavedComposition, SnapshotId } from './composition';
  * type that also accepted an ungated country colour would make it possible to
  * pass one where the other is gated.
  */
-export interface WaterPreset {
+/**
+ * A named colour choice in one of the `Map style` pill rows. `04-08` added the
+ * uncoloured-fill and border-colour rows, which are the same shape as `04-01`'s
+ * water row; one interface rather than three identical ones.
+ */
+export interface MapStyleColorPreset {
   readonly name: string;
   readonly value: string;
 }
+
+/** The water row's name for the shape above. Kept because `04-01` shipped it. */
+export type WaterPreset = MapStyleColorPreset;
 
 export type ColorNormalizationError =
   | 'empty-input'

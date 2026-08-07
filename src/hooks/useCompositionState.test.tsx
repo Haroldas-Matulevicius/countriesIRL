@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import {
   CompositionStateProvider,
   compositionStateReducer,
@@ -52,7 +53,7 @@ describe('compositionStateReducer', () => {
       camera: INITIAL_WORLD_CAMERA,
       snapshotId: 'modern',
       legend: DEFAULT_LEGEND,
-      settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+      settings: DEFAULT_COMPOSITION_SETTINGS,
     });
     expect(state.savedBaseline).toEqual(toComposition(state));
   });
@@ -200,7 +201,7 @@ describe('compositionStateReducer', () => {
         backgroundOpacity: 85,
         borderStyle: 'none',
       },
-      settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+      settings: DEFAULT_COMPOSITION_SETTINGS,
     };
 
     const state = reduce(createInitialCompositionState(), {

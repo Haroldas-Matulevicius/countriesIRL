@@ -15,12 +15,17 @@ import type {
   LegendPosition,
   LegendState,
   SnapshotId,
+  StrokeWeight,
   VisibleCompositionSettings,
 } from '../types/composition';
-import { DEFAULT_COLOR } from '../constants/colors';
+import { DEFAULT_BORDER_COLOR, DEFAULT_COLOR } from '../constants/colors';
 import {
+  DEFAULT_COASTLINE_WEIGHT,
   DEFAULT_COMPOSITION_SETTINGS,
+  DEFAULT_INTERIOR_WEIGHT,
   DEFAULT_SURFACE_COLOR,
+  DEFAULT_UNCOLORED_FILL,
+  STROKE_WEIGHTS,
 } from '../constants/mapStyle';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
@@ -61,6 +66,23 @@ export type LegendStyleState = Pick<
   'theme' | 'textSize' | 'backgroundOpacity' | 'borderStyle'
 >;
 
+/**
+ * Every creator-editable `Map style` field, as a partial. ONE action for the
+ * whole surface rather than one per field: `Reset Map Style` has to put all
+ * five back in a single dispatch, and five sibling actions is five places for
+ * the canonicaliser to be forgotten.
+ */
+export type MapStylePatch = Partial<
+  Pick<
+    VisibleCompositionSettings,
+    | 'surfaceColor'
+    | 'uncoloredFill'
+    | 'borderColor'
+    | 'interiorWeight'
+    | 'coastlineWeight'
+  >
+>;
+
 export type CompositionAction =
   | { type: 'SET_CAMERA'; payload: { camera: CameraState } }
   | { type: 'SET_SNAPSHOT'; payload: { snapshotId: SnapshotId } }
@@ -76,7 +98,7 @@ export type CompositionAction =
       type: 'SET_BACKGROUND_COLOR';
       payload: { backgroundColor: VisibleCompositionSettings['backgroundColor'] };
     }
-  | { type: 'SET_SURFACE_COLOR'; payload: { surfaceColor: string } }
+  | { type: 'SET_MAP_STYLE'; payload: { patch: MapStylePatch } }
   | { type: 'LOAD_COMPOSITION'; payload: { composition: Composition } }
   | { type: 'MARK_SAVED'; payload?: { composition: Composition } }
   | { type: 'RESTORE_STATE'; payload: { state: CompositionState } };
@@ -95,6 +117,7 @@ export interface CompositionStateContextValue {
     backgroundColor: VisibleCompositionSettings['backgroundColor'],
   ) => void;
   setSurfaceColor: (surfaceColor: string) => void;
+  setMapStyle: (patch: MapStylePatch) => void;
   loadComposition: (composition: Composition) => void;
   markSaved: (composition?: Composition) => void;
   restoreState: (state: CompositionState) => void;
@@ -223,13 +246,62 @@ function canonicalizeSurfaceColor(value: string): string {
   return result.ok ? result.value : DEFAULT_SURFACE_COLOR;
 }
 
+/**
+ * T-04-08-03, the same boundary as `canonicalizeSurfaceColor` and for the same
+ * reason: `uncoloredFill` and `borderColor` are untrusted creator text on their
+ * way to an SVG `fill` / `stroke`. Validated here, once, rather than at each
+ * render site; the attribute is then set through the DOM property and never by
+ * string concatenation.
+ */
+function canonicalizeColorSetting(value: string, fallback: string): string {
+  const result = normalizeColor(value);
+  return result.ok ? result.value : fallback;
+}
+
+function canonicalizeStrokeWeight(
+  value: StrokeWeight,
+  fallback: StrokeWeight,
+): StrokeWeight {
+  return STROKE_WEIGHTS.has(value) ? value : fallback;
+}
+
 function canonicalizeSettings(
   settings: VisibleCompositionSettings,
 ): VisibleCompositionSettings {
   return {
     backgroundColor: DEFAULT_BACKGROUND_COLOR,
     surfaceColor: canonicalizeSurfaceColor(settings.surfaceColor),
+    uncoloredFill: canonicalizeColorSetting(
+      settings.uncoloredFill,
+      DEFAULT_UNCOLORED_FILL,
+    ),
+    borderColor: canonicalizeColorSetting(
+      settings.borderColor,
+      DEFAULT_BORDER_COLOR,
+    ),
+    interiorWeight: canonicalizeStrokeWeight(
+      settings.interiorWeight,
+      DEFAULT_INTERIOR_WEIGHT,
+    ),
+    coastlineWeight: canonicalizeStrokeWeight(
+      settings.coastlineWeight,
+      DEFAULT_COASTLINE_WEIGHT,
+    ),
   };
+}
+
+function areSettingsEqual(
+  left: VisibleCompositionSettings,
+  right: VisibleCompositionSettings,
+): boolean {
+  return (
+    left.backgroundColor === right.backgroundColor &&
+    left.surfaceColor === right.surfaceColor &&
+    left.uncoloredFill === right.uncoloredFill &&
+    left.borderColor === right.borderColor &&
+    left.interiorWeight === right.interiorWeight &&
+    left.coastlineWeight === right.coastlineWeight
+  );
 }
 
 function canonicalizeComposition(composition: Composition): Composition {
@@ -296,8 +368,7 @@ function areCompositionsEqual(left: Composition, right: Composition): boolean {
     areCamerasEqual(left.camera, right.camera) &&
     left.snapshotId === right.snapshotId &&
     areLegendsEqual(left.legend, right.legend) &&
-    left.settings.backgroundColor === right.settings.backgroundColor &&
-    left.settings.surfaceColor === right.settings.surfaceColor
+    areSettingsEqual(left.settings, right.settings)
   );
 }
 
@@ -451,13 +522,14 @@ export function compositionStateReducer(
      * `Reset Map Style` action, not a history entry - which is also what keeps
      * the `Undo Color Change` / `Redo Color Change` rail labels truthful.
      */
-    case 'SET_SURFACE_COLOR': {
-      const surfaceColor = canonicalizeSurfaceColor(
-        action.payload.surfaceColor,
-      );
-      return state.settings.surfaceColor === surfaceColor
+    case 'SET_MAP_STYLE': {
+      const settings = canonicalizeSettings({
+        ...state.settings,
+        ...action.payload.patch,
+      });
+      return areSettingsEqual(state.settings, settings)
         ? state
-        : { ...state, settings: { ...state.settings, surfaceColor } };
+        : { ...state, settings };
     }
 
     case 'LOAD_COMPOSITION': {
@@ -547,8 +619,12 @@ export function CompositionStateProvider({
     [],
   );
 
+  const setMapStyle = useCallback((patch: MapStylePatch): void => {
+    dispatch({ type: 'SET_MAP_STYLE', payload: { patch } });
+  }, []);
+
   const setSurfaceColor = useCallback((surfaceColor: string): void => {
-    dispatch({ type: 'SET_SURFACE_COLOR', payload: { surfaceColor } });
+    dispatch({ type: 'SET_MAP_STYLE', payload: { patch: { surfaceColor } } });
   }, []);
 
   const loadComposition = useCallback((composition: Composition): void => {
@@ -582,6 +658,7 @@ export function CompositionStateProvider({
       setLegendPosition,
       setBackgroundColor,
       setSurfaceColor,
+      setMapStyle,
       loadComposition,
       markSaved,
       restoreState,
@@ -598,6 +675,7 @@ export function CompositionStateProvider({
       setLegendPosition,
       setBackgroundColor,
       setSurfaceColor,
+      setMapStyle,
       loadComposition,
       markSaved,
       restoreState,

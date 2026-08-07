@@ -6,6 +6,7 @@ import type {
   CompositionSnapshot,
   MapCanvasHandle,
 } from '../types/composition';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { ColorMap } from '../types/map';
 import { customColor } from '../utils/colors';
 import type { StorageResult } from '../types/ui';
@@ -30,7 +31,7 @@ function createComposition(camera: CameraState): Composition {
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+    settings: DEFAULT_COMPOSITION_SETTINGS,
   };
 }
 

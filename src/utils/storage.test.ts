@@ -13,6 +13,7 @@ import type {
   CompositionSnapshot,
   SnapshotId,
 } from '../types/composition';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { ColorMap } from '../types/map';
 import { repairCameraState } from './camera';
 import { customColor, rampColor } from './colors';
@@ -88,7 +89,7 @@ function createCompositionSnapshot(
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+    settings: DEFAULT_COMPOSITION_SETTINGS,
   };
 }
 
@@ -703,7 +704,7 @@ describe('createStorageAdapter', () => {
         camera: INITIAL_WORLD_CAMERA,
         snapshotId: 'modern',
         legend: expectedLegend,
-        settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+        settings: DEFAULT_COMPOSITION_SETTINGS,
       },
       sourceVersion: 1,
       warnings: [{ code: 'legacy-migrated' }],

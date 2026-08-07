@@ -6,6 +6,7 @@ import type {
   EffectiveScene,
   MapCanvasHandle,
 } from '../types/composition';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { CountryId } from '../types/map';
 import { customColor } from '../utils/colors';
 import type { StorageResult } from '../types/ui';
@@ -65,7 +66,7 @@ function createSnapshot(
       backgroundOpacity: 85,
       borderStyle: 'strong',
     },
-    settings: { backgroundColor: '#FFFFFF', surfaceColor: '#FFFFFF' },
+    settings: DEFAULT_COMPOSITION_SETTINGS,
   };
 }
 

@@ -18,7 +18,14 @@ const MAX_FILENAME_NAME_TOKEN_LENGTH = 60;
 const PNG_MIME_TYPE = 'image/png';
 const SVG_VIEWBOX = `0 0 ${EXPORT_SIZE} ${EXPORT_SIZE}`;
 const SVG_PRESERVE_ASPECT_RATIO = 'xMidYMid meet';
-const EXPORT_BORDER_WIDTH = '0.75';
+/**
+ * The pre-`04-08` fixed border width, retained as the FALLBACK the sanitizer
+ * uses when a source declares no stroke contract of its own — see
+ * `readStrokeContract`. Exported so `src/utils/mapStyle.test.ts` can pin
+ * `strokeWidthFor('thin')` to it rather than retyping `0.75`, which is what
+ * makes `thin` provably the no-visual-change step.
+ */
+export const EXPORT_BORDER_WIDTH = '0.75';
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 
 const CAMERA_LAYER_SELECTOR = '[data-layer="camera"]';

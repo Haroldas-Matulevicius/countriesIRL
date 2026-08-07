@@ -177,6 +177,14 @@ export interface LegendState {
   readonly borderStyle: LegendBorderStyle;
 }
 
+/**
+ * D4-08 — the five named border weights, in the same shape `LegendTextSize`
+ * already uses. Discrete steps rather than a slider because each step is then
+ * individually gateable on real exported pixels; a slider can only be asserted
+ * to round-trip. `src/constants/mapStyle.ts` owns the name-to-user-unit table.
+ */
+export type StrokeWeight = 'none' | 'hairline' | 'thin' | 'medium' | 'bold';
+
 export interface VisibleCompositionSettings {
   /**
    * The V2 persisted field, pinned to white and read by nothing that renders.
@@ -194,6 +202,34 @@ export interface VisibleCompositionSettings {
    * saved composition reloads with the default surface.
    */
   readonly surfaceColor: string;
+  /**
+   * D4-09 — what a country with NO creator colour renders as, canonical
+   * uppercase `#RRGGBB`. The country's **stored** value stays the `#FFFFFF`
+   * sentinel; only the render maps it, exactly as `getEffectiveFeatureColor`
+   * already maps a null-owner unit. It exists because D4-08 makes coastlines
+   * quiet: with white water and no coastline stroke, a white country vanishes.
+   */
+  readonly uncoloredFill: string;
+  /**
+   * D4-08 — the stroke colour every country boundary draws in, canonical
+   * uppercase `#RRGGBB`. Unchanged default (`DEFAULT_BORDER_COLOR`).
+   */
+  readonly borderColor: string;
+  /**
+   * D4-08 — the weight of the shared interior boundaries. Rendered by `04-09`'s
+   * `world-borders-modern` layer; declared here so the vocabulary, the panel,
+   * and the props boundary land together rather than in three plans.
+   */
+  readonly interiorWeight: StrokeWeight;
+  /**
+   * D4-08 — the weight of the country outline itself. Defaults to `none` (U-3):
+   * `ROADMAP.md § Phase 4`'s goal sentence is an interior-borders-only stroke
+   * system *"so country outlines all but disappear against water"*.
+   *
+   * **In-memory only, exactly like `surfaceColor`.** `04-14` owns the V3 record;
+   * a saved composition reloads with these defaults.
+   */
+  readonly coastlineWeight: StrokeWeight;
 }
 
 export interface Composition {
