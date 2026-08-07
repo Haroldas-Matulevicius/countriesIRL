@@ -9,7 +9,6 @@ import {
   DEFAULT_SURFACE_COLOR,
   WATER_PRESETS,
 } from '../../src/constants/mapStyle';
-import { createWorldProjection } from '../../src/utils/mapProjection';
 import {
   LEGEND_CHARACTERS_PER_LINE,
   LEGEND_SAFE_INSET,
@@ -24,19 +23,24 @@ import {
 } from '../../src/utils/bands';
 import type { BandExtents } from '../../src/utils/bands';
 import {
-  WIDEST_CHARACTER_ADVANCE_EM,
-  compositionTextLength,
-  resolveCompositionTextLines,
-} from '../../src/utils/compositionText';
-import {
   createDefaultLegendState,
   reconcileLegend,
 } from '../../src/utils/legend';
 import {
+  AUSTRALIA_WEST_COAST_LON_LAT,
+  BOTTOM_BAND_MERIDIAN,
+  COASTLINE_BAND_RADIUS,
+  FRANCO_GERMAN_BORDER_LON_LAT,
+  PACIFIC_LON_LAT,
   RAMP_RED_HEX,
-  applyRampRed,
+  RAMP_RED_STEP,
+  SAHARA_LON_LAT,
   legendDisclosure,
   openRailTool,
+  paintCountryWithRampShade,
+  projectLonLat as project,
+  projectToExportPixel,
+  toExportPixels,
   waitForApp,
 } from './support/appHarness';
 /*
@@ -50,12 +54,14 @@ import {
 import {
   DARK_INK_THRESHOLD,
   INK_CHANNEL_THRESHOLD,
+  compositionTitleInkRegion as titleInkRegion,
   countInkAroundRegion,
   expectBlankControlReadsZeroInk as expectBlankControlReadsZeroInkAt,
   expectRegionInsideFrame,
   hexToRgb,
   makeFloodFilledPng,
   readPngDimensions,
+  rec709Luminance as luminanceOf,
   samplePngPoints,
 } from './support/pngProbe';
 import type { PngRegion } from './support/pngProbe';
@@ -249,11 +255,11 @@ async function saveDownload(download: Download, name: string): Promise<Buffer> {
 const LEGEND_ENTRY_COLOR = '#DC2626';
 /**
  * D4-12 — the legend form the REAL app resolves to in the two gates below that
- * paint with `applyRampRed`.
+ * paint with `paintCountryWithRampShade` at the red ramp's shipped step.
  *
  * It is **`bar`**, and it is not a choice this spec makes: `inferLegendForm`
  * returns `bar` for any composition holding a ramp assignment, and
- * `applyRampRed` writes one. Stated as a named constant so a reader can see
+ * that helper writes one. Stated as a named constant so a reader can see
  * which form's geometry every derived crop below is measuring — the fixture
  * gates use `rows`, because the export fixture paints a bare custom hex.
  */
@@ -1333,63 +1339,15 @@ const WHOLE_FRAME_REGION: LegendRegion = {
   height: EXPORT_SIZE,
 };
 
-/**
- * Two sample points, converted through the real projection rather than
- * hard-coded as pixels. If either classification is wrong the gate goes RED -
- * a mislabelled "ocean" point fails the colour assertion and a mislabelled
- * "land" point fails the inequality - so a geography mistake here cannot
- * become a false pass.
+
+
+/*
+ * `project` and `toExportPixels` used to be declared here. `04-15` promoted
+ * both — with `projectToExportPixel` — into `support/appHarness.ts`, because
+ * `final-integration.spec.ts` derives its composite-frame sample points the
+ * same way. A copied projection still "works" while sampling a different
+ * place, which is worse than a copied decode path, not better.
  */
-const PACIFIC_LON_LAT: readonly [number, number] = [-140, 0];
-const SAHARA_LON_LAT: readonly [number, number] = [20, 26];
-
-
-function project(
-  lonLat: readonly [number, number],
-): readonly [number, number] {
-  const projected = createWorldProjection()([lonLat[0], lonLat[1]]);
-  if (projected === null) {
-    throw new Error(`(${lonLat[0]}, ${lonLat[1]}) does not project.`);
-  }
-  return [Math.round(projected[0]), Math.round(projected[1])];
-}
-
-/**
- * Camera user space -> the SVG's 0..1080 viewBox space, read from the live
- * document rather than assumed to be the identity. The PNG is 1080 wide over a
- * `0 0 1080 1080` viewBox, so a viewBox coordinate IS a PNG pixel.
- */
-async function toExportPixels(
-  page: Page,
-  points: ReadonlyArray<readonly [number, number]>,
-): Promise<ReadonlyArray<readonly [number, number]>> {
-  return page.evaluate(
-    (cameraPoints: ReadonlyArray<readonly [number, number]>) => {
-      const svg = document.querySelector('svg.map-canvas');
-      const camera = document.querySelector('[data-layer="camera"]');
-      if (
-        !(svg instanceof SVGSVGElement) ||
-        !(camera instanceof SVGGraphicsElement)
-      ) {
-        throw new Error('The canonical canvas or its camera layer is absent.');
-      }
-      const svgToScreen = svg.getScreenCTM();
-      const cameraToScreen = camera.getScreenCTM();
-      if (svgToScreen === null || cameraToScreen === null) {
-        throw new Error('The canvas is not rendered, so it has no CTM.');
-      }
-      const cameraToViewBox = svgToScreen.inverse().multiply(cameraToScreen);
-      return cameraPoints.map(([x, y]): readonly [number, number] => {
-        const point = svg.createSVGPoint();
-        point.x = x;
-        point.y = y;
-        const mapped = point.matrixTransform(cameraToViewBox);
-        return [Math.round(mapped.x), Math.round(mapped.y)];
-      });
-    },
-    points,
-  );
-}
 
 /**
  * A genuinely flat 1080 square in the water colour, produced through the same
@@ -1600,44 +1558,6 @@ test.describe('water preset', (): void => {
  * 04-08 - border weight and the uncolored fill, on downloaded PNG bytes
  * ------------------------------------------------------------------ */
 
-/**
- * A point that is certainly ON a coastline at the default world camera, derived
- * through `createWorldProjection()` rather than hard-coded.
- *
- * **MOVED by `04-09`, and the move is a repair rather than a re-baseline.**
- * `04-08` sampled Cabo da Roca (-9.5, 38.78), the western tip of mainland
- * Portugal, on the stated ground that a 6px radius "excludes the neighbouring
- * Spanish border". That was true only while nothing drew interior borders. It
- * is 1.5 degrees of longitude to the Portugal/Spain line, which at 1080px for
- * 360 degrees is **4.5 PNG pixels** - inside the band. Once `04-09` rendered
- * the interior mesh, the band measured interior ink at `coastlineWeight: none`
- * and the gate stopped measuring its advertised subject.
- *
- * The repair is a coastline with **no interior border anywhere in the country**:
- * Australia's west coast near North West Cape. Australia has no land neighbours
- * at all, so the exclusion is structural rather than a distance that has to be
- * re-checked whenever a line layer is added. Cabo da Roca measured **23** ink
- * pixels at `coastlineWeight: none` once the mesh rendered; this point measures
- * **0**. See `MIN_COASTLINE_BAND_INK_PIXELS` for the restated table.
- *
- * `COASTLINE_BAND_RADIUS` is in PNG pixels and is UNCHANGED. The viewBox is
- * 1080 over an EXPORT_SIZE of 1080, so a viewBox coordinate IS a PNG pixel; a
- * radius of 6 comfortably contains a `bold` (2 user unit -> 4px) stroke plus
- * its anti-aliasing.
- */
-const AUSTRALIA_WEST_COAST_LON_LAT: readonly [number, number] = [113.7, -22.3];
-const COASTLINE_BAND_RADIUS = 6;
-/**
- * `04-09` Gate A's INLAND sample: the Franco-German Rhine, a boundary between
- * two large neighbours, so the sample survives sub-pixel placement. It is
- * nowhere near a coast, so ink measured here at `coastlineWeight: none` can
- * only have come from the interior mesh.
- *
- * The pairing with `AUSTRALIA_WEST_COAST_LON_LAT` is what makes Gate A an
- * INEQUALITY rather than two separate claims: the two samples are read from the
- * SAME export, through the same counter, at the same band radius.
- */
-const FRANCO_GERMAN_BORDER_LON_LAT: readonly [number, number] = [7.8, 48.7];
 
 /** An interior point of a large country, well clear of any boundary. */
 const CENTRAL_BRAZIL_LON_LAT: readonly [number, number] = [-52, -10];
@@ -1655,16 +1575,6 @@ function bandAround(
   };
 }
 
-async function projectToExportPixel(
-  page: Page,
-  lonLat: readonly [number, number],
-): Promise<readonly [number, number]> {
-  const [pixel] = await toExportPixels(page, [project(lonLat)]);
-  if (pixel === undefined) {
-    throw new Error(`(${lonLat[0]}, ${lonLat[1]}) did not map into the frame.`);
-  }
-  return pixel;
-}
 
 
 /* ------------------------------------------------------------------ *
@@ -2550,16 +2460,6 @@ const BAND_WATER_PRESET_NAME = 'Warm paper';
  */
 const TOP_BAND_MERIDIAN = -73.3;
 const TOP_BAND_SAMPLE_ROWS: readonly [number, number, number] = [66, 90, 114];
-/**
- * Queen Maud Land. Antarctica fills the whole bottom band (y 960..1080 is
- * 80.3 S to 85 S) at this meridian, and unlike the Arctic it is continental
- * rather than a scatter of islands. Measured: `#E5E7EB` at every sampled row.
- *
- * Not every meridian works - the Bellingshausen Sea at about 73 W reads WATER
- * at y 958..970 - which is exactly why the land check below is an assertion
- * rather than a comment.
- */
-const BOTTOM_BAND_MERIDIAN = 0;
 const BOTTOM_BAND_SAMPLE_ROWS: readonly [number, number, number] = [
   1070, 1020, 970,
 ];
@@ -2631,14 +2531,13 @@ const MEASURED_BAND_WATER_LUMINANCE = 239.626;
  */
 const BAND_HANDLE_TARGET_CSS_PX = 44;
 
-/** Rec. 709 relative luminance on the 0..255 scale, one definition for this gate. */
-function luminanceOf(pixel: ReadonlyArray<number>): number {
-  return (
-    0.2126 * (pixel[0] ?? 0) +
-    0.7152 * (pixel[1] ?? 0) +
-    0.0722 * (pixel[2] ?? 0)
-  );
-}
+/*
+ * `luminanceOf` used to be declared here. `04-15` moved it into
+ * `support/pngProbe.ts` as `rec709Luminance` — a second spec needed the same
+ * definition, and two spellings of a luminance is the drift shape this suite
+ * already retired for its decode path. Imported under the old name so every
+ * call site below reads exactly as it did.
+ */
 
 /**
  * The column a band gate samples, taken from a MERIDIAN through the real
@@ -3007,8 +2906,6 @@ test.describe('band', (): void => {
  */
 const COMPOSITION_TITLE = 'Baltic Tour';
 const COMPOSITION_LATIN_EXT_TITLE = 'Košice Łódź';
-/** Breathing room around a derived glyph box, in viewBox user units. */
-const TEXT_REGION_MARGIN = 8;
 /**
  * DERIVED FROM MEASUREMENTS taken in this change, installed Chrome
  * **151.0.7922.76**, water `Warm paper`, title at the medium step:
@@ -3090,55 +2987,15 @@ async function expectTitleRendered(page: Page, value: string): Promise<void> {
   await expect(node).toHaveAttribute('font-family', /^Inter,/u);
 }
 
-/**
- * The crop a title's glyphs must land in, DERIVED from the same pure function
- * `MapCanvas` renders from - never a pasted rectangle. Width is the worst-case
- * run of the string at the recorded 1.0202em advance, so the box provably
- * contains the whole line however it sets.
+/*
+ * `titleInkRegion` used to be declared here. `04-15` moved it into
+ * `support/pngProbe.ts` as `compositionTitleInkRegion` and imports it under
+ * the old name: `final-integration.spec.ts` derives the same box for the
+ * composite reference frame, and two spellings of a derived crop is how two
+ * gates quietly start measuring different rectangles. The 1080-frame bound the
+ * old body carried inline is `expectRegionInsideFrame`, which the shared
+ * function calls before it returns.
  */
-function titleInkRegion(value: string): LegendRegion {
-  const [line] = resolveCompositionTextLines(
-    { title: value, subtitle: '', attribution: '' },
-    { title: 'medium', subtitle: 'medium' },
-    'left',
-  );
-  if (line === undefined) {
-    throw new Error('the gate title produced no line at all.');
-  }
-  const region: LegendRegion = {
-    x: line.x - TEXT_REGION_MARGIN,
-    y: line.y - line.fontSize,
-    width:
-      Math.ceil(
-        compositionTextLength(value) * line.fontSize * WIDEST_CHARACTER_ADVANCE_EM,
-      ) +
-      2 * TEXT_REGION_MARGIN,
-    height: Math.ceil(line.fontSize * 1.25),
-  };
-
-  /*
-   * THE CROP MUST BE INSIDE THE 1080 FRAME, and this guard was added because a
-   * RED proof defeated the gates without it. Moving the text outside the
-   * viewBox moves this DERIVED crop with it, and `drawImage` from a source rect
-   * off the bitmap yields TRANSPARENT BLACK - which every ink counter in this
-   * spec reads as solid ink. The content floors then passed on 28,050 phantom
-   * pixels while the thing they exist to catch had happened. Bounding the crop
-   * is what makes the floors mean what they say.
-   */
-  expect(region.x, 'the title crop starts left of the frame.').toBeGreaterThanOrEqual(0);
-  expect(region.y, 'the title crop starts above the frame.').toBeGreaterThanOrEqual(0);
-  expect(
-    region.x + region.width,
-    'the title crop runs off the right of the 1080 frame, where every ' +
-      'sampled pixel is transparent black and reads as ink.',
-  ).toBeLessThanOrEqual(EXPORT_SIZE);
-  expect(
-    region.y + region.height,
-    'the title crop runs off the bottom of the 1080 frame.',
-  ).toBeLessThanOrEqual(EXPORT_SIZE);
-
-  return region;
-}
 
 async function chooseTextGateWater(page: Page): Promise<void> {
   const preset = WATER_PRESETS.find(
@@ -3341,13 +3198,7 @@ test.describe('composition text', (): void => {
     // A non-white surface, so the band under the legend is not a silent no-op.
     await chooseTextGateWater(page);
 
-    const france = page.locator(
-      'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
-    );
-    await france.focus();
-    await france.press('Enter');
-    await openRailTool(page, 'Colors');
-    await applyRampRed(page);
+    await paintCountryWithRampShade(page, 'FRA', 'Reds', RAMP_RED_STEP);
     await openRailTool(page, 'Map style');
 
     const legendLayer = page.locator('svg.map-canvas [data-layer="legend"]');
@@ -3582,13 +3433,7 @@ test.describe('composition text', (): void => {
     await chooseTextGateWater(page);
 
     // A coloured country is what creates the legend entry the overlap needs.
-    const france = page.locator(
-      'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
-    );
-    await france.focus();
-    await france.press('Enter');
-    await openRailTool(page, 'Colors');
-    await applyRampRed(page);
+    await paintCountryWithRampShade(page, 'FRA', 'Reds', RAMP_RED_STEP);
 
     /*
      * `04-13`: the "no data" row is switched ON, and it is load-bearing rather

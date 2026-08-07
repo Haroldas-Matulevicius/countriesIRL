@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../../src/constants/config';
+import { createWorldProjection } from '../../../src/utils/mapProjection';
 
 /**
  * D4-10: the count of COLORABLE units, not of core states. 195 core states
@@ -110,6 +111,42 @@ export async function applyRampRed(page: Page): Promise<void> {
 }
 
 /**
+ * Select ONE country on the map and paint it a named ramp shade — the whole
+ * five-line sequence, in one place (`04-15`).
+ *
+ * Three specs already spelled it out by hand and `04-15` needed a fourth
+ * spelling with a per-call STEP, which is the point at which a copied sequence
+ * becomes a drift hazard rather than a convenience. Two details it gets right
+ * that a hand-rolled copy keeps getting wrong:
+ *
+ * - it names `[data-path-kind="logical"]`. Every visible unit is drawn three
+ *   times (-360 deg, 0, +360 deg) so the Pacific composition has no date-line
+ *   seam, and a bare `[data-country-id]` selector matches all three copies.
+ * - it opens the Colors tool AFTER the selection. D-18 opens a first run with
+ *   the panel CLOSED, so a colour can only be applied through its rail tool,
+ *   and focusing the path first is what makes `Enter` select rather than
+ *   re-target.
+ *
+ * Selection REPLACES rather than accumulates, so consecutive calls paint
+ * different countries different shades — which is what makes a multi-shade
+ * composition buildable through the real UI.
+ */
+export async function paintCountryWithRampShade(
+  page: Page,
+  countryId: string,
+  family: RampFamilyLabel,
+  step: number,
+): Promise<void> {
+  const country = page.locator(
+    `path.country-path[data-country-id="${countryId}"][data-path-kind="logical"]`,
+  );
+  await country.focus();
+  await country.press('Enter');
+  await openRailTool(page, 'Colors');
+  await applyRampShade(page, family, step);
+}
+
+/**
  * The legend DISCLOSURE inside the open Legend panel.
  *
  * `getByRole('button', { name: /^Legend/ })` now matches two controls - the
@@ -203,6 +240,151 @@ export async function collectTabOrder(
     );
   }
   return order;
+}
+
+/* ------------------------------------------------------------------ *
+ * Named geography -> exported PNG pixels (`04-15` promoted these here)
+ *
+ * Every sample point in every pixel gate is derived from a named lon/lat
+ * through the REAL projection and the LIVE camera transform, never pasted as a
+ * pixel. `export.spec.ts` owned these three functions until a second spec — the
+ * composite reference frame — needed the same derivation; a copied projection
+ * is the same drift shape as a copied decode path, with the added trap that the
+ * copy still "works" while silently sampling a different place.
+ * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * Named sample GEOGRAPHY (`04-15` promoted these here too)
+ *
+ * Each point below carries the derivation that chose it, and each was chosen
+ * because a nearby alternative measured WRONG — `04-09` moved the coastline
+ * sample after the interior mesh contaminated Cabo da Roca, and `04-10` had to
+ * reject the Bellingshausen meridian because it reads water. A copy of one of
+ * these in a second spec would not move when the original does, and the copy
+ * would keep passing while sampling the wrong place.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Two sample points, converted through the real projection rather than
+ * hard-coded as pixels. If either classification is wrong the gate goes RED —
+ * a mislabelled "ocean" point fails the colour assertion and a mislabelled
+ * "land" point fails the inequality — so a geography mistake here cannot
+ * become a false pass.
+ */
+export const PACIFIC_LON_LAT: readonly [number, number] = [-140, 0];
+export const SAHARA_LON_LAT: readonly [number, number] = [20, 26];
+
+/**
+ * A point that is certainly ON a coastline at the default world camera, derived
+ * through `createWorldProjection()` rather than hard-coded.
+ *
+ * **MOVED by `04-09`, and the move is a repair rather than a re-baseline.**
+ * `04-08` sampled Cabo da Roca (-9.5, 38.78), the western tip of mainland
+ * Portugal, on the stated ground that a 6px radius "excludes the neighbouring
+ * Spanish border". That was true only while nothing drew interior borders. It
+ * is 1.5 degrees of longitude to the Portugal/Spain line, which at 1080px for
+ * 360 degrees is **4.5 PNG pixels** - inside the band. Once `04-09` rendered
+ * the interior mesh, the band measured interior ink at `coastlineWeight: none`
+ * and the gate stopped measuring its advertised subject.
+ *
+ * The repair is a coastline with **no interior border anywhere in the country**:
+ * Australia's west coast near North West Cape. Australia has no land neighbours
+ * at all, so the exclusion is structural rather than a distance that has to be
+ * re-checked whenever a line layer is added. Cabo da Roca measured **23** ink
+ * pixels at `coastlineWeight: none` once the mesh rendered; this point measures
+ * **0**. See `MIN_COASTLINE_BAND_INK_PIXELS` for the restated table.
+ *
+ * `COASTLINE_BAND_RADIUS` is in PNG pixels and is UNCHANGED. The viewBox is
+ * 1080 over an EXPORT_SIZE of 1080, so a viewBox coordinate IS a PNG pixel; a
+ * radius of 6 comfortably contains a `bold` (2 user unit -> 4px) stroke plus
+ * its anti-aliasing.
+ */
+export const AUSTRALIA_WEST_COAST_LON_LAT: readonly [number, number] = [113.7, -22.3];
+export const COASTLINE_BAND_RADIUS = 6;
+
+/**
+ * `04-09` Gate A's INLAND sample: the Franco-German Rhine, a boundary between
+ * two large neighbours, so the sample survives sub-pixel placement. It is
+ * nowhere near a coast, so ink measured here at `coastlineWeight: none` can
+ * only have come from the interior mesh.
+ *
+ * The pairing with `AUSTRALIA_WEST_COAST_LON_LAT` is what makes Gate A an
+ * INEQUALITY rather than two separate claims: the two samples are read from the
+ * SAME export, through the same counter, at the same band radius.
+ */
+export const FRANCO_GERMAN_BORDER_LON_LAT: readonly [number, number] = [7.8, 48.7];
+
+/**
+ * Queen Maud Land. Antarctica fills the whole bottom band (y 960..1080 is
+ * 80.3 S to 85 S) at this meridian, and unlike the Arctic it is continental
+ * rather than a scatter of islands. Measured: `#E5E7EB` at every sampled row.
+ *
+ * Not every meridian works - the Bellingshausen Sea at about 73 W reads WATER
+ * at y 958..970 - which is exactly why the land check below is an assertion
+ * rather than a comment.
+ */
+export const BOTTOM_BAND_MERIDIAN = 0;
+
+/** A named lon/lat in the camera's own user space, rounded to whole units. */
+export function projectLonLat(
+  lonLat: readonly [number, number],
+): readonly [number, number] {
+  const projected = createWorldProjection()([lonLat[0], lonLat[1]]);
+  if (projected === null) {
+    throw new Error(`(${String(lonLat[0])}, ${String(lonLat[1])}) does not project.`);
+  }
+  return [Math.round(projected[0]), Math.round(projected[1])];
+}
+
+/**
+ * Camera user space -> the SVG's 0..1080 viewBox space, read from the live
+ * document rather than assumed to be the identity. The PNG is 1080 wide over a
+ * `0 0 1080 1080` viewBox, so a viewBox coordinate IS a PNG pixel.
+ */
+export async function toExportPixels(
+  page: Page,
+  points: ReadonlyArray<readonly [number, number]>,
+): Promise<ReadonlyArray<readonly [number, number]>> {
+  return page.evaluate(
+    (cameraPoints: ReadonlyArray<readonly [number, number]>) => {
+      const svg = document.querySelector('svg.map-canvas');
+      const camera = document.querySelector('[data-layer="camera"]');
+      if (
+        !(svg instanceof SVGSVGElement) ||
+        !(camera instanceof SVGGraphicsElement)
+      ) {
+        throw new Error('The canonical canvas or its camera layer is absent.');
+      }
+      const svgToScreen = svg.getScreenCTM();
+      const cameraToScreen = camera.getScreenCTM();
+      if (svgToScreen === null || cameraToScreen === null) {
+        throw new Error('The canvas is not rendered, so it has no CTM.');
+      }
+      const cameraToViewBox = svgToScreen.inverse().multiply(cameraToScreen);
+      return cameraPoints.map(([x, y]): readonly [number, number] => {
+        const point = svg.createSVGPoint();
+        point.x = x;
+        point.y = y;
+        const mapped = point.matrixTransform(cameraToViewBox);
+        return [Math.round(mapped.x), Math.round(mapped.y)];
+      });
+    },
+    points,
+  );
+}
+
+/** The one-point convenience over the two functions above. */
+export async function projectToExportPixel(
+  page: Page,
+  lonLat: readonly [number, number],
+): Promise<readonly [number, number]> {
+  const [pixel] = await toExportPixels(page, [projectLonLat(lonLat)]);
+  if (pixel === undefined) {
+    throw new Error(
+      `(${String(lonLat[0])}, ${String(lonLat[1])}) did not map into the frame.`,
+    );
+  }
+  return pixel;
 }
 
 export async function clearSavedMaps(page: Page): Promise<void> {

@@ -4,6 +4,11 @@ import { resolve } from 'node:path';
 import { expect, type Download, type Page } from '@playwright/test';
 
 import { MAP_VIEWBOX_SIZE } from '../../../src/constants/config';
+import {
+  WIDEST_CHARACTER_ADVANCE_EM,
+  compositionTextLength,
+  resolveCompositionTextLines,
+} from '../../../src/utils/compositionText';
 
 /**
  * The ONE PNG decode path for the whole Playwright suite (`04-13`).
@@ -109,6 +114,63 @@ export function expectRegionInsideFrame(region: PngRegion): void {
     'a derived crop runs off the bottom of the 1080 frame — off-bitmap ' +
       'samples read as transparent black and count as ink (04-11)',
   ).toBeLessThanOrEqual(EXPORT_PNG_SIZE);
+}
+
+/**
+ * Rec. 709 relative luminance on the **0..255** scale — the ONE definition
+ * behind every band and luminance-ordering claim in the suite.
+ *
+ * ⚠ It is deliberately NOT `src/utils/contrast.ts`'s `relativeLuminance`, which
+ * is the gamma-linearised WCAG quantity on 0..1. The two answer different
+ * questions and a caller that swaps one for the other silently changes every
+ * threshold. `04-15` moved this here from `export.spec.ts` because a second
+ * spec needed it, and two spellings of a luminance is the same drift shape as
+ * two decode paths.
+ */
+export function rec709Luminance(pixel: ReadonlyArray<number>): number {
+  return (
+    0.2126 * (pixel[0] ?? 0) +
+    0.7152 * (pixel[1] ?? 0) +
+    0.0722 * (pixel[2] ?? 0)
+  );
+}
+
+/** Breathing room around a derived glyph box, in viewBox user units. */
+export const TEXT_REGION_MARGIN = 8;
+
+/**
+ * The crop a composition TITLE's glyphs must land in, DERIVED from the same
+ * pure function `MapCanvas` renders from — never a pasted rectangle. The width
+ * is the worst-case run of the string at the recorded 1.0202em advance, so the
+ * box provably contains the whole line however it sets.
+ *
+ * Bounded to the 1080 frame before it is returned: `04-11` measured 28,050
+ * phantom pixels from a derived crop that moved off-bitmap with its own
+ * subject.
+ */
+export function compositionTitleInkRegion(value: string): PngRegion {
+  const [line] = resolveCompositionTextLines(
+    { title: value, subtitle: '', attribution: '' },
+    { title: 'medium', subtitle: 'medium' },
+    'left',
+  );
+  if (line === undefined) {
+    throw new Error('the gate title produced no line at all.');
+  }
+  const region: PngRegion = {
+    x: line.x - TEXT_REGION_MARGIN,
+    y: line.y - line.fontSize,
+    width:
+      Math.ceil(
+        compositionTextLength(value) *
+          line.fontSize *
+          WIDEST_CHARACTER_ADVANCE_EM,
+      ) +
+      2 * TEXT_REGION_MARGIN,
+    height: Math.ceil(line.fontSize * 1.25),
+  };
+  expectRegionInsideFrame(region);
+  return region;
 }
 
 /**
@@ -228,6 +290,124 @@ export async function countInkAroundRegion(
       base64: bytes.toString('base64'),
       box: region,
       threshold: inkThreshold,
+    },
+  );
+}
+
+export interface RegionColorCounts {
+  /**
+   * One row per requested region, in order; one column per requested colour,
+   * in order. `regions[r][c]` is how many pixels inside region `r` match
+   * colour `c` EXACTLY.
+   */
+  readonly regions: ReadonlyArray<ReadonlyArray<number>>;
+  readonly totalNonWhitePixels: number;
+}
+
+/**
+ * Count EXACT colour matches inside arbitrary, caller-chosen regions.
+ *
+ * *"Count colors in disjoint regions, never in the whole frame"*
+ * (`coding-rules/export.md`). A legend swatch is painted in the country's own
+ * colour, so a whole-frame count cannot tell "the country reached the PNG"
+ * from "its legend mark did". This is the ONE implementation of that count:
+ * `04-15` generalised `final-integration.spec.ts`'s private corner-box counter
+ * rather than adding a third `createImageBitmap` beside it.
+ *
+ * Regions are HALF-OPEN — `x <= px < x + width` — and every one of them is
+ * bounded to the 1080 frame before a pixel is read (`04-11`).
+ */
+export async function countExactColorsInRegions(
+  page: Page,
+  bytes: Buffer,
+  colors: ReadonlyArray<string>,
+  regions: ReadonlyArray<PngRegion>,
+): Promise<RegionColorCounts> {
+  regions.forEach((region: PngRegion): void => {
+    expectRegionInsideFrame(region);
+  });
+
+  return page.evaluate(
+    async ({
+      base64,
+      wanted,
+      boxes,
+    }: {
+      base64: string;
+      wanted: ReadonlyArray<ReadonlyArray<number>>;
+      boxes: ReadonlyArray<PngRegion>;
+    }): Promise<RegionColorCounts> => {
+      const binary = atob(base64);
+      const buffer = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        buffer[index] = binary.charCodeAt(index);
+      }
+      const bitmap = await createImageBitmap(
+        new Blob([buffer], { type: 'image/png' }),
+      );
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const context = canvas.getContext('2d');
+      if (context === null) {
+        throw new Error('2D context is unavailable for PNG inspection.');
+      }
+      context.drawImage(bitmap, 0, 0);
+      const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height)
+        .data;
+
+      const counts = boxes.map((): number[] => wanted.map((): number => 0));
+      let totalNonWhitePixels = 0;
+
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        const red = pixels[offset];
+        const green = pixels[offset + 1];
+        const blue = pixels[offset + 2];
+        if (red !== 255 || green !== 255 || blue !== 255) {
+          totalNonWhitePixels += 1;
+        }
+
+        let matched = -1;
+        for (let index = 0; index < wanted.length; index += 1) {
+          const triple = wanted[index];
+          if (red === triple[0] && green === triple[1] && blue === triple[2]) {
+            matched = index;
+            break;
+          }
+        }
+        if (matched < 0) {
+          continue;
+        }
+
+        const pixelIndex = offset / 4;
+        const x = pixelIndex % bitmap.width;
+        const y = (pixelIndex - x) / bitmap.width;
+        for (let box = 0; box < boxes.length; box += 1) {
+          const region = boxes[box];
+          if (
+            x >= region.x &&
+            x < region.x + region.width &&
+            y >= region.y &&
+            y < region.y + region.height
+          ) {
+            counts[box][matched] += 1;
+          }
+        }
+      }
+
+      return { regions: counts, totalNonWhitePixels };
+    },
+    {
+      base64: bytes.toString('base64'),
+      wanted: colors.map((hex): ReadonlyArray<number> => {
+        const value = hex.replace('#', '');
+        return [
+          Number.parseInt(value.slice(0, 2), 16),
+          Number.parseInt(value.slice(2, 4), 16),
+          Number.parseInt(value.slice(4, 6), 16),
+        ];
+      }),
+      boxes: regions,
     },
   );
 }

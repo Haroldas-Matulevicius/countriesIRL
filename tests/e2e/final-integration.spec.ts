@@ -13,17 +13,30 @@ import { LEGEND_BAR_WIDTH } from '../../src/utils/legend';
  */
 const DEFAULT_UNCOLORED_FILL = '#E5E7EB';
 import {
-  applyRampShade,
   type RampFamilyLabel,
   LOGICAL_PATH_SELECTOR,
   clearSavedMaps,
   legendDisclosure,
   openRailTool,
+  paintCountryWithRampShade,
   readCameraTransform,
   waitForApp,
   waitForSettledCamera,
   type CameraTransform,
 } from './support/appHarness';
+/*
+ * `04-13` moved the suite's PNG decode path into `support/pngProbe.ts`; `04-15`
+ * finished the job for this file. `measurePng` below used to carry a SECOND
+ * `createImageBitmap` + `getImageData` implementation, which is precisely the
+ * drift shape `04-12` named — two sampled-pixel assertions quietly measuring
+ * differently decoded images. It now delegates, and the new reference-frame
+ * gate uses the same helpers rather than growing a third.
+ */
+import {
+  countExactColorsInRegions,
+  readPngDimensions,
+} from './support/pngProbe';
+import type { PngRegion } from './support/pngProbe';
 
 /**
  * Cross-domain journey coverage. The six focused specs each prove one domain,
@@ -47,16 +60,19 @@ const LOGICAL_CORE_COUNT = 207;
 /*
  * `04-07` replaced the ten-tile preset grid with the ramp model, so the two
  * colours this session paints are now ramp shades: `Reds` step 4 and `Blues`
- * step 4. The hexes and their RGB triples are declared together and derived
- * from the same pair, so a palette change cannot move one and leave the other.
+ * step 4.
+ *
+ * `04-15` deleted the parallel `RED_RGB` / `BLUE_RGB` triples. They existed
+ * because the private pixel counter compared channels, and two spellings of one
+ * colour is exactly the drift they were commented as preventing;
+ * `countExactColorsInRegions` takes the hex and converts it through the shared
+ * `hexToRgb`, so there is now one spelling and nothing to keep in step.
  */
 const RED_FAMILY = 'Reds' as const;
 const BLUE_FAMILY = 'Blues' as const;
 const RAMP_STEP = 4;
 const RED = '#DE2D26';
 const BLUE = '#2171B5';
-const RED_RGB: readonly [number, number, number] = [0xde, 0x2d, 0x26];
-const BLUE_RGB: readonly [number, number, number] = [0x21, 0x71, 0xb5];
 
 const COMPOSITION_NAME = 'Grand tour';
 const EXPORTED_FILENAME_PATTERN = /^Grand_tour_\d{4}-\d{2}-\d{2}\.png$/u;
@@ -133,137 +149,61 @@ async function saveDownloadedPng(
   return readFile(target);
 }
 
-function readPngHeader(bytes: Buffer): { width: number; height: number } {
-  expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
-  expect(bytes.subarray(12, 16).toString('ascii')).toBe('IHDR');
-  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
-}
+/**
+ * The three disjoint boxes this journey counts in, as explicit HALF-OPEN
+ * rectangles rather than four fractions threaded into a private loop.
+ *
+ * They are byte-for-byte the regions the private counter used: `x >= mapStartX`
+ * becomes `[mapStartX, 1080)`, `x < cornerX && y < cornerY` becomes
+ * `[0, cornerX) x [0, cornerY)`, and the bottom-right pair becomes
+ * `[1080 - w, 1080) x [1080 - h, 1080)`.
+ */
+const MAP_COLUMN_REGION: PngRegion = {
+  x: EXPORT_SIZE * MAP_REGION_START_FRACTION,
+  y: 0,
+  width: EXPORT_SIZE * (1 - MAP_REGION_START_FRACTION),
+  height: EXPORT_SIZE,
+};
+const TOP_LEFT_CORNER_REGION: PngRegion = {
+  x: 0,
+  y: 0,
+  width: EXPORT_SIZE * CORNER_FRACTION,
+  height: EXPORT_SIZE * CORNER_FRACTION,
+};
+const BOTTOM_RIGHT_CORNER_REGION: PngRegion = {
+  x: EXPORT_SIZE * (1 - BOTTOM_RIGHT_CORNER_FRACTION),
+  y: EXPORT_SIZE * (1 - BOTTOM_RIGHT_CORNER_Y_FRACTION),
+  width: EXPORT_SIZE * BOTTOM_RIGHT_CORNER_FRACTION,
+  height: EXPORT_SIZE * BOTTOM_RIGHT_CORNER_Y_FRACTION,
+};
 
 async function measurePng(page: Page, bytes: Buffer): Promise<PngRegions> {
-  expect(readPngHeader(bytes)).toEqual({
+  expect(readPngDimensions(bytes)).toEqual({
     width: EXPORT_SIZE,
     height: EXPORT_SIZE,
   });
 
-  return page.evaluate(
-    async ({
-      base64,
-      red,
-      blue,
-      cornerFraction,
-      bottomRightCornerFraction,
-      bottomRightCornerYFraction,
-      mapStartFraction,
-    }): Promise<PngRegions> => {
-      const binary = atob(base64);
-      const buffer = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        buffer[index] = binary.charCodeAt(index);
-      }
-      const bitmap = await createImageBitmap(
-        new Blob([buffer], { type: 'image/png' }),
-      );
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const rendering = canvas.getContext('2d');
-      if (rendering === null) {
-        throw new Error('2D context is unavailable for PNG inspection.');
-      }
-      rendering.drawImage(bitmap, 0, 0);
-
-      const pixels = rendering.getImageData(
-        0,
-        0,
-        bitmap.width,
-        bitmap.height,
-      ).data;
-      const cornerX = bitmap.width * cornerFraction;
-      const cornerY = bitmap.height * cornerFraction;
-      const bottomRightCornerX = bitmap.width * bottomRightCornerFraction;
-      const bottomRightCornerY = bitmap.height * bottomRightCornerYFraction;
-      const mapStartX = bitmap.width * mapStartFraction;
-
-      const counts = {
-        mapRed: 0,
-        mapBlue: 0,
-        topLeftRed: 0,
-        topLeftBlue: 0,
-        bottomRightRed: 0,
-        bottomRightBlue: 0,
-        totalNonWhite: 0,
-      };
-
-      for (let offset = 0; offset < pixels.length; offset += 4) {
-        const pixelIndex = offset / 4;
-        const x = pixelIndex % bitmap.width;
-        const y = (pixelIndex - x) / bitmap.width;
-        const pixelRed = pixels[offset];
-        const pixelGreen = pixels[offset + 1];
-        const pixelBlue = pixels[offset + 2];
-
-        if (pixelRed !== 255 || pixelGreen !== 255 || pixelBlue !== 255) {
-          counts.totalNonWhite += 1;
-        }
-
-        const isRed =
-          pixelRed === red[0] &&
-          pixelGreen === red[1] &&
-          pixelBlue === red[2];
-        const isBlue =
-          pixelRed === blue[0] &&
-          pixelGreen === blue[1] &&
-          pixelBlue === blue[2];
-        if (!isRed && !isBlue) {
-          continue;
-        }
-
-        if (x >= mapStartX) {
-          if (isRed) {
-            counts.mapRed += 1;
-          } else {
-            counts.mapBlue += 1;
-          }
-        }
-        if (x < cornerX && y < cornerY) {
-          if (isRed) {
-            counts.topLeftRed += 1;
-          } else {
-            counts.topLeftBlue += 1;
-          }
-        }
-        if (
-          x >= bitmap.width - bottomRightCornerX &&
-          y >= bitmap.height - bottomRightCornerY
-        ) {
-          if (isRed) {
-            counts.bottomRightRed += 1;
-          } else {
-            counts.bottomRightBlue += 1;
-          }
-        }
-      }
-
-      return {
-        map: { red: counts.mapRed, blue: counts.mapBlue },
-        topLeft: { red: counts.topLeftRed, blue: counts.topLeftBlue },
-        bottomRight: {
-          red: counts.bottomRightRed,
-          blue: counts.bottomRightBlue,
-        },
-        totalNonWhitePixels: counts.totalNonWhite,
-      };
-    },
-    {
-      base64: bytes.toString('base64'),
-      red: [...RED_RGB],
-      blue: [...BLUE_RGB],
-      cornerFraction: CORNER_FRACTION,
-      bottomRightCornerFraction: BOTTOM_RIGHT_CORNER_FRACTION,
-      bottomRightCornerYFraction: BOTTOM_RIGHT_CORNER_Y_FRACTION,
-      mapStartFraction: MAP_REGION_START_FRACTION,
-    },
+  const counted = await countExactColorsInRegions(
+    page,
+    bytes,
+    [RED, BLUE],
+    [MAP_COLUMN_REGION, TOP_LEFT_CORNER_REGION, BOTTOM_RIGHT_CORNER_REGION],
   );
+  const [map, topLeft, bottomRight] = counted.regions;
+  if (map === undefined || topLeft === undefined || bottomRight === undefined) {
+    throw new Error('the region counter returned fewer boxes than requested.');
+  }
+
+  const read = (counts: ReadonlyArray<number>): ColorCounts => ({
+    red: counts[0] ?? 0,
+    blue: counts[1] ?? 0,
+  });
+  return {
+    map: read(map),
+    topLeft: read(topLeft),
+    bottomRight: read(bottomRight),
+    totalNonWhitePixels: counted.totalNonWhitePixels,
+  };
 }
 
 interface ExportMeasurement {
@@ -293,14 +233,7 @@ async function colorCountry(
   countryId: string,
   family: RampFamilyLabel,
 ): Promise<void> {
-  const country = page.locator(
-    `path.country-path[data-country-id="${countryId}"]`,
-  );
-  await country.focus();
-  await country.press('Enter');
-  // D-18 opens the panel CLOSED, so a colour is applied through its rail tool.
-  await openRailTool(page, 'Colors');
-  await applyRampShade(page, family, RAMP_STEP);
+  await paintCountryWithRampShade(page, countryId, family, RAMP_STEP);
 }
 
 async function labelLegendEntry(
