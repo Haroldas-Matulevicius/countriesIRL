@@ -344,6 +344,10 @@ None — no external service configuration required. `npm run data:world:check` 
 - **`04-16` is unaffected:** `package.json` and the lockfile are byte-unchanged and no npm script was added.
 - **One thing a later reader must not misread:** the mesh gate does not, and cannot, detect a properties-only change to `world-modern.geojson`. If a future plan needs that, the polygon asset's own byte-equality check already provides it — do not "strengthen" the mesh gate by binding it to the polygon hash, which is the precise mistake `04-RESEARCH.md` measured and this plan avoided.
 
+## Self-Check: PASSED
+
+All claimed artifacts verified present on disk (`world-borders-modern.geojson`, `prepareWorldData.mjs`, `world-manifest.json`, `worldDataAsset.test.ts`, `coding-rules/data.md`, `.gitattributes`, this SUMMARY) and all four commit hashes verified in `git log` (`380102b`, `c79bbf9`, `8472526`, `ec07a60`). `.planning/STATE.md` and `.planning/ROADMAP.md` have no commits in `b010f25..HEAD`. The pre-existing `.planning/debug/kosovo-renders-white-uncolorable.md` is intact (committed by `04-03` as `cb8321a`, not disturbed here). Working tree clean.
+
 ---
 *Phase: 04-visual-cartographic-system-1-5-2-weeks*
 *Completed: 2026-08-07*
