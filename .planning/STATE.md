@@ -10,8 +10,8 @@ progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 86
-  completed_plans: 66
-  percent: 77
+  completed_plans: 67
+  percent: 78
 ---
 
 # State: CountriesIRL Map Generator
