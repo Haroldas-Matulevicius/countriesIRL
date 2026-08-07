@@ -1,19 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../src/constants/config';
+/*
+ * `04-14`: the recorded wart in this file is CLOSED. It used to re-declare
+ * `LOGICAL_CORE_COUNT`, `CAMERA_GROUP_SELECTOR`, `LOGICAL_PATH_SELECTOR`,
+ * `waitForApp`, `readCameraTransform`, and `expectD3ZoomSynchronized` verbatim
+ * beside the shared fixtures it already imported. Six copies that drift
+ * independently is not a pattern; the shared module is.
+ */
 import {
+  LOGICAL_CORE_COUNT,
+  LOGICAL_PATH_SELECTOR,
+  RAMP_RED_HEX,
   applyRampRed,
+  expectD3ZoomSynchronized,
   legendDisclosure,
   openRailTool,
+  readCameraTransform,
+  waitForApp,
 } from './support/appHarness';
 
-const LOGICAL_CORE_COUNT = 207;
 // UI-SPEC section 20: the map label names the active period.
 const MODERN_MAP_LISTBOX_NAME =
   'Interactive world map, Modern — current borders';
 const PERSISTENCE_FIXTURE_URL = '/tests/e2e/fixtures/persistence.html';
-const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
-const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
 // The locate transition runs for 240ms, so a save at 120ms lands mid-flight
 // with roughly half of the eased travel already painted.
 const MID_MOTION_SAVE_DELAY_MS = 120;
@@ -35,7 +45,7 @@ interface FixtureSaveResult {
 interface FixtureLoadResult {
   readonly ok: boolean;
   readonly reason: string | null;
-  readonly sourceVersion: 1 | 2 | null;
+  readonly sourceVersion: 1 | 2 | 3 | null;
   readonly compositionWarnings: ReadonlyArray<string>;
 }
 
@@ -54,7 +64,7 @@ interface PersistenceFixtureApi {
   listSummaries(): ReadonlyArray<{
     name: string;
     timestamp: number;
-    sourceVersion: 1 | 2;
+    sourceVersion: 1 | 2 | 3;
     snapshotId: string | null;
     legendEntryCount: number;
     isWholeWorldView: boolean;
@@ -70,53 +80,6 @@ async function waitForFixture(page: Page): Promise<void> {
   await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
     LOGICAL_CORE_COUNT,
   );
-}
-
-async function waitForApp(page: Page): Promise<void> {
-  await page.goto('/');
-  await expect(page.locator(LOGICAL_PATH_SELECTOR)).toHaveCount(
-    LOGICAL_CORE_COUNT,
-  );
-  const startCreating = page.getByRole('button', { name: 'Start Creating' });
-  if (await startCreating.isVisible()) {
-    await startCreating.click();
-  }
-}
-
-async function readCameraTransform(
-  page: Page,
-): Promise<{ k: number; x: number; y: number }> {
-  return page.locator(CAMERA_GROUP_SELECTOR).first().evaluate((element) => {
-    const group = element as SVGGElement;
-    const matrix = group.transform.baseVal.consolidate()?.matrix;
-    if (matrix === undefined) {
-      throw new Error('Camera transform is unavailable');
-    }
-    return { k: matrix.a, x: matrix.e, y: matrix.f };
-  });
-}
-
-async function expectD3ZoomSynchronized(page: Page): Promise<void> {
-  const synchronization = await page
-    .locator('svg.map-canvas')
-    .evaluate((element) => {
-      const svg = element as SVGSVGElement & {
-        __zoom?: { readonly k: number; readonly x: number; readonly y: number };
-      };
-      const cameraGroup = svg.querySelector<SVGGElement>('[data-layer="camera"]');
-      const matrix = cameraGroup?.transform.baseVal.consolidate()?.matrix;
-      if (svg.__zoom === undefined || matrix === undefined) {
-        throw new Error('D3 zoom state is unavailable.');
-      }
-      return {
-        zoom: svg.__zoom,
-        transform: { k: matrix.a, x: matrix.e, y: matrix.f },
-      };
-    });
-
-  expect(synchronization.zoom.k).toBeCloseTo(synchronization.transform.k, 4);
-  expect(synchronization.zoom.x).toBeCloseTo(synchronization.transform.x, 2);
-  expect(synchronization.zoom.y).toBeCloseTo(synchronization.transform.y, 2);
 }
 
 async function readSettledFixtureCamera(page: Page): Promise<FixtureCamera> {
@@ -285,7 +248,10 @@ test('save during an animated Locate stores the visible frame and load restores 
     return fixture.load('Motion save');
   });
   expect(loaded.ok, loaded.reason ?? '').toBe(true);
-  expect(loaded.sourceVersion).toBe(2);
+  // RE-BASELINED by `04-14`: a save written by THIS build is a V3 record, so
+  // reading it back reports 3. A V2 record on disk still reports 2 - that is
+  // the branch `storage.test.ts` covers on hand-built bytes.
+  expect(loaded.sourceVersion).toBe(3);
   expect(loaded.compositionWarnings).toEqual([]);
 
   const restoredCamera = await readSettledFixtureCamera(page);
@@ -415,13 +381,13 @@ test('real app saves and loads the complete composition after responsive rebindi
     const records = JSON.parse(raw) as Array<{
       schemaVersion: number;
       composition: {
-        colors: Record<string, string>;
+        colors: Record<string, unknown>;
         camera: { zoom: number };
         snapshotId: string;
         legend: Record<string, unknown> & {
           entries: Array<{ label: string }>;
         };
-        settings: { backgroundColor: string };
+        settings: Record<string, unknown>;
       };
     }>;
     const record = records[0];
@@ -451,19 +417,44 @@ test('real app saves and loads the complete composition after responsive rebindi
        * comparison, not a loosened one.
        */
       legendKeys: Object.keys(record.composition.legend).sort().join(','),
-      backgroundColor: record.composition.settings.backgroundColor,
+      /*
+       * **RE-BASELINED by `04-14`, deliberately and itemised.** `settings` was
+       * `{ backgroundColor: '#FFFFFF' }` and the assertion read that one value.
+       * V3 persists every Phase 4 field and DROPS `backgroundColor` — it was
+       * V2's record that the composition is opaque, nothing renders from it,
+       * and `surfaceColor` is what actually paints. Asserting the key SET is
+       * what makes a field silently leaving the record visible, the same shape
+       * `legendKeys` has protected since D4-11.
+       */
+      settingsKeys: Object.keys(record.composition.settings).sort().join(','),
+      surfaceColor: record.composition.settings.surfaceColor,
     };
   }, STORAGE_KEY);
 
   expect(savedEvidence).toMatchObject({
-    schemaVersion: 2,
+    // RE-BASELINED: `04-14` bumps the record to V3 (D4-17, one rendering path).
+    schemaVersion: 3,
     zoom: 1.5,
     snapshotId: 'modern',
     legendLabel: 'Visited France',
     legendKeys: 'caption,entries,form,position,showNoData,textSize',
-    backgroundColor: '#FFFFFF',
+    settingsKeys:
+      'attribution,borderColor,bottomBandHeight,bottomBandVisible,' +
+      'coastlineWeight,interiorWeight,subtitle,subtitleSize,surfaceColor,' +
+      'textAlignment,title,titleSize,topBandHeight,topBandVisible,uncoloredFill',
+    surfaceColor: '#FFFFFF',
   });
-  expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);
+  /*
+   * **The headline of `04-14`, asserted on the real app's bytes.** France was
+   * painted through `applyRampRed`, and before this plan the record held the
+   * RESOLVED hex — `04-05`'s interim, lossy in the ramp identity. It now holds
+   * the assignment itself, so a reopened map can still be re-skinned.
+   */
+  expect(savedEvidence.color).toEqual({
+    kind: 'ramp',
+    rampId: 'reds',
+    t: expect.any(Number),
+  });
 
   // Saving marks the composition clean, so this row shows what was just saved.
   await expect(
@@ -517,9 +508,11 @@ test('real app saves and loads the complete composition after responsive rebindi
   expect(loadedTransform.x).toBeCloseTo(savedTransform.x, 5);
   expect(loadedTransform.y).toBeCloseTo(savedTransform.y, 5);
   await expectD3ZoomSynchronized(page);
+  // The ramp assignment came back as a ramp assignment, and it still resolves
+  // to the same paint — lossless AND visually identical, which is the pair.
   await expect(
     page.locator('path.country-path[data-country-id="FRA"]'),
-  ).toHaveAttribute('fill', savedEvidence.color);
+  ).toHaveAttribute('fill', RAMP_RED_HEX);
   await expect(page.locator('[data-layer="legend"] text')).toHaveText(
     'Visited France',
   );
@@ -798,4 +791,116 @@ test('a stored record naming a deferred period renders no period label on its ro
   // yield.
   await expect(row.locator('.saved-map-metadata')).not.toContainText('1914');
   await expect(row).not.toContainText('Legacy map');
+});
+
+/*
+ * `04-14` (D4-17) - the creator-visible half of the V3 round trip, in the REAL
+ * app and across a genuine page reload.
+ *
+ * The unit suite proves the bytes; this proves the loop a creator actually
+ * runs: paint with a ramp, choose water, turn a band on, type a title, save,
+ * **reload the browser**, load it back. The reload is the point - nothing can
+ * be carried across in memory, so anything that comes back came off disk.
+ */
+const V3_ROUND_TRIP_NAME = 'V3 round trip';
+const V3_WATER_PRESET_NAME = 'Warm paper';
+const V3_WATER_HEX = '#F5EFE6';
+const V3_TITLE = 'Populated title';
+
+test('a saved composition survives a page reload with its ramp, water, bands, and text', async ({
+  page,
+}): Promise<void> => {
+  await waitForApp(page);
+  await page.evaluate(
+    (storageKey): void => localStorage.removeItem(storageKey),
+    STORAGE_KEY,
+  );
+
+  const francePath = page.locator('path.country-path[data-country-id="FRA"]');
+  await francePath.focus();
+  await francePath.press('Enter');
+  await openRailTool(page, 'Colors');
+  await applyRampRed(page);
+  await expect(francePath).toHaveAttribute('fill', RAMP_RED_HEX);
+
+  await openRailTool(page, 'Map style');
+  const water = page.getByRole('radio', {
+    name: V3_WATER_PRESET_NAME,
+    exact: true,
+  });
+  await water.check();
+  await expect(water).toBeChecked();
+  const bottomBand = page.getByRole('checkbox', {
+    name: 'Bottom band',
+    exact: true,
+  });
+  await bottomBand.setChecked(true);
+  await expect(bottomBand).toBeChecked();
+  const title = page.getByLabel('Title', { exact: true });
+  await title.fill(V3_TITLE);
+  await expect(title).toHaveValue(V3_TITLE);
+
+  await openRailTool(page, 'Saved Maps');
+  await page
+    .getByRole('textbox', { name: 'Map name' })
+    .fill(V3_ROUND_TRIP_NAME);
+  await page.getByRole('button', { name: 'Save Map' }).click();
+
+  // The reload. Everything below came off disk.
+  await waitForApp(page);
+  await openRailTool(page, 'Saved Maps');
+  await page
+    .getByRole('button', { name: `Load This Map: ${V3_ROUND_TRIP_NAME}` })
+    .click();
+
+  // No corruption toast: a V3 record read by a V3 reader is not a repair.
+  await expect(page.getByText('Saved map loaded.')).toBeVisible();
+
+  // The RAMP assignment, not just the hex it happens to resolve to. The stored
+  // record is checked directly because a matching `fill` alone is exactly what
+  // `04-05`'s lossy interim also produced.
+  const storedColor = await page.evaluate((storageKey): unknown => {
+    const raw = localStorage.getItem(storageKey);
+    const records = JSON.parse(raw ?? 'null') as Array<{
+      composition: { colors: Record<string, unknown> };
+    }>;
+    return records[0]?.composition.colors.FRA;
+  }, STORAGE_KEY);
+  expect(storedColor).toEqual({
+    kind: 'ramp',
+    rampId: 'reds',
+    t: expect.any(Number),
+  });
+  await expect(
+    page.locator('path.country-path[data-country-id="FRA"]'),
+  ).toHaveAttribute('fill', RAMP_RED_HEX);
+
+  // The water, straight off the serialized surface rect the exporter reads.
+  await expect(page.locator('rect[data-layer="surface"]')).toHaveAttribute(
+    'fill',
+    V3_WATER_HEX,
+  );
+
+  // Both bands: the top is on by default and the bottom was turned on, so a
+  // reader that dropped `bottomBandVisible` would show one band, not two.
+  await expect(
+    page.locator('svg.map-canvas [data-layer="bands"] rect'),
+  ).toHaveCount(2);
+
+  // The title, as text content of the exported layer rather than a form value.
+  await expect(
+    page.locator(
+      'svg.map-canvas > [data-layer="text"] > [data-text-role="title"]',
+    ),
+  ).toHaveText(V3_TITLE);
+
+  // And the controls agree with the canvas after the reload.
+  await openRailTool(page, 'Map style');
+  await expect(
+    page.getByRole('radio', { name: V3_WATER_PRESET_NAME, exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole('checkbox', { name: 'Bottom band', exact: true }),
+  ).toBeChecked();
+  await expect(page.getByLabel('Title', { exact: true })).toHaveValue(V3_TITLE);
 });

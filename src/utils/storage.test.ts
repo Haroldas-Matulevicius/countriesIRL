@@ -18,15 +18,24 @@ import type {
 import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { ColorMap } from '../types/map';
 import type { SavedMap, StorageResult } from '../types/ui';
-import { BAND_MAX_HEIGHT } from './bands';
+import { BAND_MAX_HEIGHT, resolveBandExtents } from './bands';
 import { repairCameraState } from './camera';
-import { customColor, rampColor } from './colors';
+import { customColor, rampColor, resolveColorMapHexes } from './colors';
 import {
   MAX_COMPOSITION_TEXT_LENGTH,
   MAX_LEGEND_CAPTION_LENGTH,
   characterBoundFor,
 } from './compositionText';
-import { createDefaultLegendState, reconcileLegend } from './legend';
+import {
+  LEGEND_LABEL_FIT_MESSAGE,
+  LEGEND_OVERFLOW_MESSAGE,
+  createDefaultLegendState,
+  getLegendBlockingMessage,
+  inferLegendForm,
+  reconcileLegend,
+  resolveLegendRender,
+  validateActiveLegend,
+} from './legend';
 import {
   MAX_STORAGE_JSON_DEPTH,
   MAX_STORAGE_JSON_NODES,
@@ -1972,5 +1981,424 @@ describe('the node budget the V3 union costs (T-04-05-03)', () => {
     expectSuccess(result);
     expect(result.value).toHaveLength(10);
     expect(Object.keys(result.value[0].colors)).toHaveLength(207);
+  });
+});
+
+/*
+ * ------------------------------------------------------------------
+ * The V3 round trip, and the assertion that makes it a gate
+ * ------------------------------------------------------------------
+ *
+ * A naive round trip misses the failure mode that matters: a field WRITTEN but
+ * never READ BACK round-trips as `undefined === undefined` and passes
+ * perfectly. So there are three assertions here and each covers what the others
+ * cannot:
+ *
+ * 1. the stored BYTES are compared against a hand-written wire literal, so the
+ *    serializer is checked against something other than its own reader;
+ * 2. a fully-populated snapshot - every new field holding a NON-default value -
+ *    reloads deep-equal;
+ * 3. **the discrimination control**: for every new field, two snapshots that
+ *    differ in exactly that one field must still differ after a round trip.
+ *    Without 3, a deep comparison between two objects that both dropped the
+ *    same field passes perfectly.
+ */
+function createPopulatedSnapshot(): CompositionSnapshot {
+  return {
+    colors: {
+      FRA: rampColor('blues', 0.75),
+      DEU: customColor('#DC2626'),
+    },
+    camera: { zoom: 4.25, centerLongitude: -3.5, centerLatitude: 55.75 },
+    snapshotId: 'modern',
+    legend: {
+      entries: [
+        { color: '#2171B5', label: 'Visited', order: 0 },
+        { color: '#DC2626', label: 'Planned', order: 1 },
+      ],
+      position: { x: 96, y: 812, preset: null },
+      textSize: 'small',
+      form: 'bar',
+      caption: 'EU = 6.0%',
+      showNoData: true,
+    },
+    settings: {
+      backgroundColor: '#FFFFFF',
+      surfaceColor: '#F5EFE6',
+      uncoloredFill: '#D1D5DB',
+      borderColor: '#4B5563',
+      interiorWeight: 'bold',
+      coastlineWeight: 'medium',
+      topBandVisible: false,
+      topBandHeight: 77,
+      bottomBandVisible: true,
+      bottomBandHeight: 33,
+      title: 'Populated title',
+      titleSize: 'large',
+      subtitle: 'Populated subtitle',
+      subtitleSize: 'small',
+      attribution: 'Populated attribution',
+      textAlignment: 'right',
+    },
+  };
+}
+
+function roundTrip(snapshot: CompositionSnapshot): CompositionSnapshot {
+  const storage = new FakeStorage();
+  const writer = createStorageAdapter(storage, () => 100);
+  const saveResult = writer.save('Round trip', snapshot);
+  expectSuccess(saveResult);
+
+  // A SECOND adapter over the same bytes: nothing is carried across in memory.
+  const readResult = createStorageAdapter(storage).load('Round trip');
+  expectSuccess(readResult);
+  if (!readResult.value.ok) {
+    throw new Error(`The round trip failed to load: ${readResult.value.reason}`);
+  }
+
+  return readResult.value.value;
+}
+
+describe('the fully-populated V3 round trip (D4-17)', () => {
+  it('writes every non-default value into the stored BYTES, checked against a literal', () => {
+    /*
+     * Compared against a hand-written wire object rather than against what the
+     * reader produces. A save/load pair alone agrees with itself; this half
+     * cannot, because nothing in it consults `normalizeComposition`.
+     */
+    const storage = new FakeStorage();
+    expectSuccess(
+      createStorageAdapter(storage, () => 100).save(
+        'Round trip',
+        createPopulatedSnapshot(),
+      ),
+    );
+
+    expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
+      {
+        schemaVersion: 3,
+        name: 'Round trip',
+        timestamp: 100,
+        composition: {
+          colors: {
+            FRA: { kind: 'ramp', rampId: 'blues', t: 0.75 },
+            DEU: '#DC2626',
+          },
+          camera: { zoom: 4.25, centerLongitude: -3.5, centerLatitude: 55.75 },
+          snapshotId: 'modern',
+          legend: {
+            entries: [
+              { color: '#2171B5', label: 'Visited', order: 0 },
+              { color: '#DC2626', label: 'Planned', order: 1 },
+            ],
+            position: { x: 96, y: 812, preset: null },
+            textSize: 'small',
+            form: 'bar',
+            caption: 'EU = 6.0%',
+            showNoData: true,
+          },
+          settings: {
+            surfaceColor: '#F5EFE6',
+            uncoloredFill: '#D1D5DB',
+            borderColor: '#4B5563',
+            interiorWeight: 'bold',
+            coastlineWeight: 'medium',
+            topBandVisible: false,
+            topBandHeight: 77,
+            bottomBandVisible: true,
+            bottomBandHeight: 33,
+            title: 'Populated title',
+            titleSize: 'large',
+            subtitle: 'Populated subtitle',
+            subtitleSize: 'small',
+            attribution: 'Populated attribution',
+            textAlignment: 'right',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('reloads a fully-populated snapshot DEEP-equal', () => {
+    const populated = createPopulatedSnapshot();
+    expect(roundTrip(populated)).toEqual(populated);
+  });
+
+  it('keeps the ramp identity a RAMP, not the hex it resolves to', () => {
+    // The single claim `04-05`'s interim could not make.
+    const reloaded = roundTrip(createPopulatedSnapshot());
+
+    expect(reloaded.colors.FRA).toEqual(rampColor('blues', 0.75));
+    expect(reloaded.colors.FRA.kind).toBe('ramp');
+    expect(reloaded.colors.DEU).toEqual(customColor('#DC2626'));
+  });
+
+  it('DISCRIMINATES: two snapshots differing in exactly one new field still differ after a round trip', () => {
+    /*
+     * The control that makes the deep comparison above a gate. Drop any one of
+     * these from the serializer and the two round trips collapse onto the same
+     * object, which is precisely what this reddens on.
+     */
+    const alternatives: ReadonlyArray<
+      readonly [string, (snapshot: CompositionSnapshot) => CompositionSnapshot]
+    > = [
+      [
+        'colors (ramp identity)',
+        (snapshot): CompositionSnapshot => ({
+          ...snapshot,
+          colors: { ...snapshot.colors, FRA: rampColor('blues', 0.25) },
+        }),
+      ],
+      [
+        'colors (ramp id)',
+        (snapshot): CompositionSnapshot => ({
+          ...snapshot,
+          colors: { ...snapshot.colors, FRA: rampColor('reds', 0.75) },
+        }),
+      ],
+      [
+        'legend.form',
+        (snapshot): CompositionSnapshot => ({
+          ...snapshot,
+          legend: { ...snapshot.legend, form: 'rows' },
+        }),
+      ],
+      [
+        'legend.caption',
+        (snapshot): CompositionSnapshot => ({
+          ...snapshot,
+          legend: { ...snapshot.legend, caption: 'euro area = 6.3%' },
+        }),
+      ],
+      [
+        'legend.showNoData',
+        (snapshot): CompositionSnapshot => ({
+          ...snapshot,
+          legend: { ...snapshot.legend, showNoData: false },
+        }),
+      ],
+      ...(
+        [
+          ['surfaceColor', '#EAF2F7'],
+          ['uncoloredFill', '#E7E5E4'],
+          ['borderColor', '#9CA3AF'],
+          ['interiorWeight', 'hairline'],
+          ['coastlineWeight', 'thin'],
+          ['topBandVisible', true],
+          ['topBandHeight', 44],
+          ['bottomBandVisible', false],
+          ['bottomBandHeight', 88],
+          ['title', 'A different title'],
+          ['titleSize', 'small'],
+          ['subtitle', 'A different subtitle'],
+          ['subtitleSize', 'large'],
+          ['attribution', 'A different attribution'],
+          ['textAlignment', 'center'],
+        ] as ReadonlyArray<readonly [keyof VisibleCompositionSettings, unknown]>
+      ).map(
+        ([field, alternative]) =>
+          [
+            `settings.${field}`,
+            (snapshot: CompositionSnapshot): CompositionSnapshot => ({
+              ...snapshot,
+              settings: { ...snapshot.settings, [field]: alternative },
+            }),
+          ] as const,
+      ),
+    ];
+
+    const populated = createPopulatedSnapshot();
+    const roundTrippedPopulated = roundTrip(populated);
+
+    for (const [label, mutate] of alternatives) {
+      const oneFieldDifferent = mutate(populated);
+      expect(oneFieldDifferent, `${label} must differ BEFORE the round trip`).not.toEqual(
+        populated,
+      );
+      expect(
+        roundTrip(oneFieldDifferent),
+        `${label} must still differ AFTER the round trip`,
+      ).not.toEqual(roundTrippedPopulated);
+    }
+  });
+
+  it('refuses an oversized V3 store WITHOUT invoking the parser', () => {
+    /*
+     * The ordering assertion, on the V3 record specifically. The general form
+     * pre-dates this plan ('rejects oversized serialized input before invoking
+     * the injected parser'); this one proves the widened record did not route
+     * around it. `parser` is a spy, so "the bound ran FIRST" is observable
+     * rather than inferred.
+     */
+    const storage = new FakeStorage();
+    const parser = vi.fn((serialized: string): unknown => JSON.parse(serialized));
+    const oversized = JSON.stringify([createWorstCaseV3Record(0)]).padEnd(
+      MAX_STORAGE_SERIALIZED_LENGTH + 1,
+      ' ',
+    );
+    expect(oversized.length).toBeGreaterThan(MAX_STORAGE_SERIALIZED_LENGTH);
+    storage.values.set(STORAGE_KEY, oversized);
+
+    expect(createStorageAdapter(storage, Date.now, parser).list()).toEqual({
+      ok: true,
+      value: [],
+      warnings: [{ code: 'corrupt-data' }],
+    });
+    expect(parser).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * ------------------------------------------------------------------
+ * G-2 (D4-18) - exercised for the FIRST time in this project's history
+ * ------------------------------------------------------------------
+ *
+ * `03-UAT.md` § Gaps: *"A pre-restyle saved map with a 15-32 character legend
+ * label should load cleanly and then refuse to export. The owner had no such
+ * saved composition to test with. No automated test covers this path either."*
+ *
+ * `'Southern Europe'` is 15 characters and is the UAT's own worked example.
+ * `MAX_LEGEND_LABEL_LENGTH` is 32, so storage admits it.
+ *
+ * WARNING: **Step 2 is written against `getLegendBlockingMessage`'s BEHAVIOUR, never
+ * against the per-line character table.** `04-13` rewrote the legend renderer;
+ * binding this to that constant would let a later change silently defuse the
+ * only coverage G-2 has ever had.
+ */
+const G2_LONG_LABEL = 'Southern Europe';
+const G2_SHORT_LABEL = 'Visited';
+
+function createPreRestyleLabelRecord(label: string): Record<string, unknown> {
+  return {
+    schemaVersion: 2,
+    name: 'Pre-restyle label',
+    timestamp: 1_600_000_000_000,
+    composition: {
+      colors: { FRA: '#2563EB' },
+      camera: { zoom: 3, centerLongitude: 12.5, centerLatitude: 48.25 },
+      snapshotId: 'modern',
+      legend: {
+        entries: [{ color: '#2563EB', label, order: 0 }],
+        position: { x: 720, y: 64, preset: 'top-right' },
+        textSize: 'medium',
+        theme: 'light',
+        backgroundOpacity: 85,
+        borderStyle: 'hairline',
+      },
+      settings: { backgroundColor: '#FFFFFF' },
+    },
+  };
+}
+
+/** The exporter's own path: resolved render bounds, resolved band extents. */
+function exportBlockingMessageFor(snapshot: CompositionSnapshot): string | null {
+  const effectiveColors = resolveColorMapHexes(snapshot.colors);
+  const bandExtents = resolveBandExtents(snapshot.settings);
+  const render = resolveLegendRender(
+    snapshot.legend,
+    effectiveColors,
+    bandExtents,
+    inferLegendForm(snapshot.colors),
+  );
+  const validation = validateActiveLegend(
+    snapshot.legend,
+    effectiveColors,
+    render.bounds,
+    bandExtents,
+  );
+
+  return validation.ok ? null : getLegendBlockingMessage(validation.issues);
+}
+
+describe('G-2 - a pre-restyle saved map with a 15-32 character legend label', () => {
+  it('STEP 1: loads cleanly - ok, no corrupt-data, no composition-repaired', () => {
+    const result = loadStoredRecords(
+      [createPreRestyleLabelRecord(G2_LONG_LABEL)],
+      'Pre-restyle label',
+    );
+    expectSuccess(result);
+
+    expect(G2_LONG_LABEL).toHaveLength(15);
+    expect(result.warnings).toEqual([]);
+    expect(result.value).toMatchObject({
+      ok: true,
+      sourceVersion: 2,
+      warnings: [],
+    });
+
+    const outcome = result.value;
+    if (!outcome.ok) {
+      throw new Error('The pre-restyle record failed to load.');
+    }
+    // The label survives VERBATIM - it was never trimmed or repaired on the
+    // way in, which is the half that makes step 2 a creator-facing trap.
+    expect(outcome.value.legend.entries).toEqual([
+      { color: '#2563EB', label: G2_LONG_LABEL, order: 0 },
+    ]);
+  });
+
+  it('STEP 2: then REFUSES to export, with the label-fit message', () => {
+    const outcome = expectLoaded(
+      [createPreRestyleLabelRecord(G2_LONG_LABEL)],
+      'Pre-restyle label',
+    );
+
+    const message = exportBlockingMessageFor(outcome.value);
+    expect(message).not.toBeNull();
+    // Not the overflow message: this map has ONE colour, so the refusal has to
+    // be about the label rather than about the colour count.
+    expect(message).toBe(LEGEND_LABEL_FIT_MESSAGE);
+    expect(message).not.toBe(LEGEND_OVERFLOW_MESSAGE);
+  });
+
+  it('CONTROL: the same record with a short label loads cleanly AND exports', () => {
+    /*
+     * Without this, "step 2 blocks" could be true of every record the test
+     * knows how to build, and G-2 would be proving that the export gate exists
+     * rather than that the LABEL is what trips it.
+     */
+    const outcome = expectLoaded(
+      [createPreRestyleLabelRecord(G2_SHORT_LABEL)],
+      'Pre-restyle label',
+    );
+
+    expect(outcome.warnings).toEqual([]);
+    expect(exportBlockingMessageFor(outcome.value)).toBeNull();
+  });
+
+  it('holds across the whole 15-32 band storage admits', () => {
+    // `MAX_LEGEND_LABEL_LENGTH` is 32, so every length in this range loads; the
+    // UAT's claim is that every one of them then blocks. Checked, not assumed.
+    for (let length = 15; length <= 32; length += 1) {
+      const label = 'S'.repeat(length);
+      const outcome = expectLoaded(
+        [createPreRestyleLabelRecord(label)],
+        'Pre-restyle label',
+      );
+
+      expect(outcome.warnings, `${length} chars should load clean`).toEqual([]);
+      expect(
+        exportBlockingMessageFor(outcome.value),
+        `${length} chars should block export`,
+      ).toBe(LEGEND_LABEL_FIT_MESSAGE);
+    }
+  });
+
+  it('is a MEDIUM-size trap: the same label at small clears the gate', () => {
+    /*
+     * The finding, recorded rather than assumed. G-2 is not "15-32 characters
+     * always blocks" - it is "15-32 characters blocks at the DEFAULT text
+     * size". A record saved at `small` with the same 15-character label loads
+     * clean and exports clean, so the trap is the pairing of the label with the
+     * size a pre-restyle map was most likely saved at.
+     */
+    const record = createPreRestyleLabelRecord(G2_LONG_LABEL);
+    const legend = (record.composition as Record<string, unknown>)
+      .legend as Record<string, unknown>;
+    legend.textSize = 'small';
+
+    const outcome = expectLoaded([record], 'Pre-restyle label');
+    expect(outcome.warnings).toEqual([]);
+    expect(exportBlockingMessageFor(outcome.value)).toBeNull();
   });
 });
