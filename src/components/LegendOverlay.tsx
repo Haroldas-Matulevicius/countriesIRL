@@ -264,9 +264,10 @@ function renderLegendNoData(
  *
  * Contiguous segments with **no gap**, ONE hairline around the whole bar (never
  * one per segment), a tick leader at every boundary, and the entry labels
- * printed as **break boundaries** beside those ticks. No literal range text
- * (`6.0–10.0`) is ever produced — the range is read BETWEEN two boundaries
- * (CD-8).
+ * printed as **break boundaries** beside those ticks. No literal range text of
+ * the `low-to-high` row kind is ever produced — the range is read BETWEEN two
+ * boundaries (CD-8). This comment deliberately does not spell an example out:
+ * `04-13`'s acceptance criterion greps this file for the pattern.
  *
  * The segments carry **no stroke**: a per-segment hairline would draw a line
  * between adjacent swatches and destroy the contiguity that defines the form.
