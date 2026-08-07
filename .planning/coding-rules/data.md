@@ -252,6 +252,92 @@ rights, factual, or topology approval was implicated** — but the manifest chan
 chain was **re-derived, not waived**. The approval chain below is unchanged and still governs
 everything that reaches `public/data/`.
 
+### The interior-border mesh (D4-08, landed in 04-06)
+
+`public/data/world-borders-modern.geojson` holds the **shared interior boundaries** of the world
+asset — the edges present in exactly two polygons, so a coastline is absent by construction. It
+exists because `04-09` renders borders as their own line layer, which lets coastlines go to `none`
+without losing the lines *between* countries.
+
+**It is derived at build time, never hand-edited.** `scripts/prepareWorldData.mjs` owns one
+derivation function, `createMeshBytes`, and both the write path and `--check` call it with the
+*canonical* polygon bytes the script just regenerated:
+
+```
+mapshaper.applyCommands(
+  '-i input.geojson -innerlines -o format=geojson precision=0.0001 output.geojson',
+  { 'input.geojson': canonicalBytes },
+)
+```
+
+The **Node API** (`mapshaper.applyCommands`) is used rather than a `child_process` call on
+`node_modules/.bin/mapshaper`: it returns a `Buffer` per output key with no temp file and no
+process spawn, and it costs ~30 ms against the CLI's measured 0.22 s. `mapshaper 0.7.48` was
+already a devDependency — **no package and no npm script were added**, and `package.json` and the
+lockfile are byte-unchanged.
+
+**Measured, on the post-`04-03` asset (`d02b604a…`):**
+
+| Property | Value |
+|---|---|
+| Root type | **`GeometryCollection`**, *not* a `FeatureCollection` |
+| Geometries | **327** — **301 `LineString` + 26 `MultiLineString`** |
+| Line parts / coordinate points | 361 / **19,624** |
+| Bytes | **366,767** (~16 % of the polygon asset's 2,295,448) |
+| SHA-256 | `72939b8f1bb20bae624a429c4c76119cb0687a05712271f695804d4d8f093e41` |
+| Determinism | byte-identical across repeated runs |
+
+Two corrections to `04-RESEARCH.md`, which called the output "327 `LineString`s": the root is a
+`GeometryCollection` **whose members are not all `LineString`s**, and anything that counts only
+`LineString`s will agree happily with a mesh that has lost all 26 `MultiLineString`s. **Count
+geometries.**
+
+`precision=0.0001` is ≈11 m at the equator — far finer than a 1080 px world render can express.
+**Dropping the flag costs +78,028 bytes** (444,795 total); that is the escape hatch if a renderer
+ever finds it visibly lossy, and re-deriving without the flag is the whole change.
+
+**The rule, and the non-obvious part: the mesh is bound to its own SHA-256, never to
+`world-modern.geojson`'s.** `-innerlines` reads geometry only and is **insensitive to feature
+properties** — re-deriving after flipping `isSelectable` / `colorOwnerId` on the twelve D4-10 units
+*and* renaming a country yields the **same** mesh digest while the polygon digest moves [MEASURED
+in 04-06, re-confirming 04-RESEARCH]. `ROADMAP.md 04-04` reads as though the two hashes should be
+tied; they must not be, because a polygon-hash binding would report drift that has not happened
+every time a policy field moves.
+
+**The check is derivational, not a hash lookup.** `npm run data:world:check` re-derives the mesh
+and compares byte-for-byte, the same discipline the polygon asset already gets. Four assertions run
+in a deliberate order — **count, byte length, re-derived byte equality, manifest digest** — because
+a deleted geometry moves all four at once, and putting byte equality first would report a generic
+mismatch and leave the count assertion unfalsifiable. Each was RED-proved on its own subject.
+`worldDataAsset.test.ts` additionally pins the digest and cross-checks the manifest record offline,
+because `data:world:check` needs the network to fetch its Natural Earth sources and `npm test` does
+not.
+
+**State plainly what it does not cover.** Neither the mesh digest nor the mesh re-derivation can
+detect a **properties-only** change to `world-modern.geojson` — that is the same measured
+insensitivity, seen from the other side. The polygon asset's own byte-equality check is what covers
+it. A gate that advertised otherwise would be a gate that cannot fail on its advertised subject.
+
+**No geometry was promoted by this derivation.** The mesh is computed from already-shipped,
+hash-verified Modern geometry; no snapshot was added and no historical packet was touched, so **no
+rights, factual, or topology approval was implicated.** The approval chain above is unchanged and
+still governs everything that reaches `public/data/`.
+
+#### Two rendering questions this derivation deliberately does not answer — both belong to `04-09`
+
+1. **Date-line wrapping.** `MapCanvas` renders ±360° offset repeats of every polygon
+   (`WRAP_OFFSETS`, `createWrappedSceneModel`). **The mesh needs the same wrapping**, or a
+   Pacific-framed composition shows filled countries with no interior borders on the wrapped
+   copies. This is not in `ROADMAP.md`'s `04-05` description; it is written here so it cannot be
+   missed.
+2. **The mesh cannot carry hover or selection state (CD-11).** `src/constants/colors.ts` records
+   that border **weight**, not colour, carries interaction state — every border is black at every
+   state. A mesh segment belongs to **two** countries, so weighting one segment highlights both.
+   `ROADMAP.md § Phase 4 04-05`'s claim that weight states are *"re-expressed on [the interior
+   mesh]"* is therefore **not achievable**, and `04-UI-SPEC.md § 6.9` specifies a dedicated
+   editor-only highlight layer instead. `04-09` owns both the implementation and the ROADMAP
+   amendment; the finding is recorded here so it survives that plan being re-scoped.
+
 ### The approved-id filter on the saved-map row resolver (OPEN ITEM 4, decided in 03-07)
 
 **The fact, verified in the UI-SPEC:** `storage.ts` builds `SNAPSHOT_IDS` from **all five**
@@ -464,27 +550,39 @@ Applies to: `scripts/prepareHistoricalSnapshot.mjs` (`identityKey`, consumed by
 
 ---
 
-*Last updated: 2026-08-06 — **D4-10 (plan 04-03): there is no unit in the Modern scene a creator
-cannot colour.** New § Three colour policies, two counts: the twelve formerly `neutral` units
-(`ATA COK CYN FLK GIB IOT KAS KOS NIU SAH SOL TWN`) carry an explicit third `colorPolicy`,
-`self-colorable`, owning their own colour; the 41 `inherit-parent` units are unchanged.
-`coreStateCount` stays **195** and `coreDefinition` is byte-unchanged; `selectableCount` **207**
-is a separate quantity and the two are never interchangeable. Counts are derived and
-cross-checked rather than re-hard-coded, both pre-existing policy throws stay in force outside
-the new category, and the `--check` line states 248 / 195 / 207. **No geometry was promoted and
-no approval was implicated** — a product-policy change on already-shipped, hash-verified Modern
-geometry, with the hash chain re-derived, not waived. § the approval chain is byte-unchanged, and
-§ Effective entities now says "colourable catalog" rather than "195-core catalog".*
-*Last updated: 2026-08-06 + earlier, condensed — § World Asset and Snapshot Catalog gained the
-approved-id filter on the saved-map row resolver (OPEN ITEM 4): `getPeriodShortLabel` resolves
-through the ids the approved manifest yields and returns `null` otherwise, the storage validator
-is deliberately unchanged, an unapproved V2 record is not relabelled as legacy, RED-proven with a
-planted `1914` record (plan 03-07). § File Paths gained the single base-path home in
-`src/config/editorConfig.ts` with the two `historicalValidation.ts` safety predicates exempted by
-source text (plan 03-05); § Vendored binary assets: `src/assets/` vs `public/data/`, the
-README-row integrity record, the no-network-font rule, and recording a subset's coverage gap with
-its price (plan 03-01). 2026-07-26: the world asset and approved snapshot catalog replaced the
-Phase 1 sketch (plan 02-25); 2026-07-25: the filesystem-identity rule after a Windows
-inode-precision defect.*
+*Last updated: 2026-08-07 — **D4-08 (plan 04-06): the interior-border mesh.** New § The
+interior-border mesh: `public/data/world-borders-modern.geojson` is derived at build time by
+`mapshaper -innerlines` through the **Node API**, one `createMeshBytes` function serving both the
+write path and `--check`. Measured on the post-`04-03` asset: a **`GeometryCollection`** root, 327
+geometries (**301 `LineString` + 26 `MultiLineString`** — `04-RESEARCH.md`'s "327 `LineString`s"
+corrected), 19,624 points, 366,767 B, deterministic. The rule worth reading twice: the mesh is
+**insensitive to feature properties**, so it is bound to **its own** SHA-256 and **never** to
+`world-modern.geojson`'s, and the check is **derivational, not a hash lookup** — four assertions
+ordered count → byte length → re-derived byte equality → manifest digest, each RED-proved on its
+own subject, with the offline digest also pinned in `worldDataAsset.test.ts`. What it does **not**
+cover is stated too: a properties-only change to the polygon asset. Two rendering questions are
+handed to `04-09` — date-line wrapping of the mesh, and **CD-11**, that a shared segment cannot
+carry per-country hover/selection weight. **No geometry was promoted and no rights, factual, or
+topology approval was implicated**; zero new packages and no npm script.*
+*Last updated: 2026-08-06 + earlier, condensed — **D4-10 (plan 04-03): there is no unit in the
+Modern scene a creator cannot colour.** § Three colour policies, two counts: the twelve formerly
+`neutral` units (`ATA COK CYN FLK GIB IOT KAS KOS NIU SAH SOL TWN`) carry an explicit third
+`colorPolicy`, `self-colorable`, owning their own colour; the 41 `inherit-parent` units are
+unchanged. `coreStateCount` stays **195** and `coreDefinition` is byte-unchanged; `selectableCount`
+**207** is a separate quantity and the two are never interchangeable. Counts are derived and
+cross-checked rather than re-hard-coded, both pre-existing policy throws stay in force outside the
+new category, and the `--check` line states 248 / 195 / 207. **No geometry was promoted and no
+approval was implicated** — a product-policy change on already-shipped, hash-verified Modern
+geometry, with the hash chain re-derived, not waived; § the approval chain is byte-unchanged and
+§ Effective entities now says "colourable catalog". Earlier: the approved-id filter on the
+saved-map row resolver (OPEN ITEM 4) — `getPeriodShortLabel` resolves through the ids the approved
+manifest yields and returns `null` otherwise, the storage validator deliberately unchanged, an
+unapproved V2 record not relabelled as legacy, RED-proven with a planted `1914` record (03-07);
+§ File Paths' single base-path home in `src/config/editorConfig.ts` with the two
+`historicalValidation.ts` safety predicates exempted by source text (03-05); § Vendored binary
+assets — `src/assets/` vs `public/data/`, the README-row integrity record, the no-network-font
+rule, and recording a subset's coverage gap with its price (03-01). 2026-07-26: the world asset and
+approved snapshot catalog replaced the Phase 1 sketch (02-25); 2026-07-25: the filesystem-identity
+rule after a Windows inode-precision defect.*
 
 *Full edit history: `git log -p -- .planning/coding-rules/data.md`.*
