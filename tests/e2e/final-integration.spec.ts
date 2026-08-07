@@ -1373,3 +1373,99 @@ test.describe('phase 4 reference frame', (): void => {
     ).not.toBe(referenceCounts.totalNonWhitePixels);
   });
 });
+
+/**
+ * **T-04-11-SC / T-04-15-SC — nothing was installed during Phase 4, asserted
+ * rather than observed.**
+ *
+ * `04-VALIDATION.md § Wave 0` owes *"a `package.json`-unchanged assertion for
+ * `04-11`"*, and until `04-15` the row was satisfied only by a `git diff` a
+ * human had to remember to run. A per-plan SUMMARY saying "zero installs" is a
+ * self-report; this is a gate.
+ *
+ * The three-way agreement is the point. Asserting `package.json` alone misses
+ * a lockfile edited on its own; asserting the lockfile's hash alone fails
+ * opaquely and tells nobody WHICH package moved. Comparing both files against
+ * a recorded literal names the package in the diff.
+ *
+ * ⚠ **The literal is the phase-start state, and it is meant to be edited by
+ * hand — in the same commit as a deliberate dependency change.** That friction
+ * is the mitigation. `04-11` is where the phase committed to zero runtime
+ * packages and `04-13`/`04-14`/`04-15` each re-stated it; a slopsquatted or
+ * hallucinated package name cannot enter this repository without turning this
+ * gate red first.
+ *
+ * It lives in the Playwright suite rather than under Vitest because
+ * `vitest.config.ts` includes only `src/**` and this is a repository-hygiene
+ * claim, not application code. `04-13`'s baseline-absence scan set the
+ * precedent: a filesystem assertion that never opens a browser.
+ */
+const PHASE_4_RUNTIME_DEPENDENCIES: Readonly<Record<string, string>> = {
+  d3: '7.9.0',
+  motion: '12.40.0',
+  react: '18.3.1',
+  'react-dom': '18.3.1',
+};
+const PHASE_4_DEV_DEPENDENCIES: Readonly<Record<string, string>> = {
+  '@eslint/js': '10.0.1',
+  '@playwright/test': '1.61.1',
+  '@types/d3': '7.4.3',
+  '@types/geojson': '7946.0.16',
+  '@types/react': '18.3.31',
+  '@types/react-dom': '18.3.7',
+  '@vitejs/plugin-react': '6.0.3',
+  eslint: '10.7.0',
+  'eslint-plugin-react-hooks': '7.1.1',
+  globals: '17.7.0',
+  mapshaper: '0.7.48',
+  typescript: '6.0.2',
+  'typescript-eslint': '8.65.0',
+  vite: '8.1.5',
+  vitest: '4.1.10',
+};
+
+test.describe('no package was installed during phase 4', (): void => {
+  test('package.json and package-lock.json still declare the phase-start set', async (): Promise<void> => {
+    const manifest = JSON.parse(
+      await readFile(resolve('package.json'), 'utf8'),
+    ) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    const lockfile = JSON.parse(
+      await readFile(resolve('package-lock.json'), 'utf8'),
+    ) as {
+      packages: Record<
+        string,
+        {
+          dependencies?: Record<string, string>;
+          devDependencies?: Record<string, string>;
+        }
+      >;
+    };
+    const lockRoot = lockfile.packages[''];
+    if (lockRoot === undefined) {
+      throw new Error('package-lock.json has no root package entry to read.');
+    }
+
+    expect(
+      manifest.dependencies,
+      'package.json declares a runtime dependency Phase 4 did not start with. ' +
+        'Phase 4 adds ZERO runtime packages; a failed install is a ' +
+        'human-verification checkpoint, never an auto-substituted alternative.',
+    ).toEqual(PHASE_4_RUNTIME_DEPENDENCIES);
+    expect(
+      manifest.devDependencies,
+      'package.json declares a devDependency Phase 4 did not start with.',
+    ).toEqual(PHASE_4_DEV_DEPENDENCIES);
+    expect(
+      lockRoot.dependencies,
+      'package-lock.json and package.json disagree about the runtime set, so ' +
+        'one of the two was edited on its own.',
+    ).toEqual(PHASE_4_RUNTIME_DEPENDENCIES);
+    expect(
+      lockRoot.devDependencies,
+      'package-lock.json and package.json disagree about the dev set.',
+    ).toEqual(PHASE_4_DEV_DEPENDENCIES);
+  });
+});

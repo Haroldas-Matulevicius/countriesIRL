@@ -4,7 +4,7 @@ slug: visual-cartographic-system-1-5-2-weeks
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-08-06
 ---
 
@@ -96,21 +96,44 @@ recorded — it is not a missing-requirements defect.
 
 ## Wave 0 Requirements
 
-- [ ] `src/utils/contrast.ts` + `src/utils/contrast.test.ts` — extract `parseHexColor`,
+- [x] `src/utils/contrast.ts` + `src/utils/contrast.test.ts` — extract `parseHexColor`,
       `relativeLuminance`, `contrastRatio` from `uiContract.test.ts:255-296`; repoint
       `uiContract.test.ts` at the new module **in the same change** (D4-02)
-- [ ] `src/utils/ramps.ts` + `src/utils/ramps.test.ts` — monotonicity, disjointness, contrast
-      (D4-01, D4-02)
-- [ ] `src/utils/bands.ts` + `src/utils/bands.test.ts` — the 1/7 cap (D4-16)
-- [ ] `tests/e2e/export.spec.ts` — new describes for water, border, band, and text properties,
+      → **landed `04-01`.** Both files exist; `uiContract.test.ts:7` imports from
+      `'../utils/contrast'`. The shipped floor is `MIN_COMPOSITION_SURFACE_LUMINANCE`
+      **0.2164**, not the spec's 0.216.
+- [x] `src/utils/ramps.ts` + `src/utils/ramps.test.ts` — monotonicity, disjointness, contrast
+      (D4-01, D4-02) → **landed `04-02`.** `blues` step 3 is `#2171B5`, substituted on merit
+      rather than by loosening the gate.
+- [x] `src/utils/bands.ts` + `src/utils/bands.test.ts` — the 1/7 cap (D4-16)
+      → **landed `04-10`.** `BAND_MAX_HEIGHT = floor(1080 / 7)`, `BAND_DEFAULT_HEIGHT = 120`.
+- [x] `tests/e2e/export.spec.ts` — new describes for water, border, band, and text properties,
       **each with its own discrimination control** (D4-03, D4-05/D4-08, D4-16, D4-07)
-- [ ] `scripts/prepareWorldData.mjs` — mesh derivation + verification branch (D4-04)
-- [ ] `tests/e2e/support/appHarness.ts` — `LOGICAL_CORE_COUNT` 195 → 207 (D4-10;
-      **blocks every e2e spec until updated**)
-- [ ] A `package.json`-unchanged assertion for `04-11`
+      → **landed across `04-01`, `04-08`, `04-09`, `04-10`, `04-11`.** Eight describes:
+      `PNG export`, `water preset`, `interior borders`, `highlight layer`, `border weight`,
+      `uncolored fill`, `band`, `composition text`.
+- [x] `scripts/prepareWorldData.mjs` — mesh derivation + verification branch (D4-04)
+      → **landed `04-06`.** `--check` re-derives the mesh and matches it:
+      *"327 geometries, 366767 bytes."*
+- [x] `tests/e2e/support/appHarness.ts` — `LOGICAL_CORE_COUNT` 195 → 207 (D4-10;
+      **blocks every e2e spec until updated**) → **landed `04-03`.** `appHarness.ts:12`.
+- [x] A `package.json`-unchanged assertion for `04-11`
+      → **landed `04-15`**, and it was the ONE row still unsatisfied when this phase's
+      integration plan ran. Until then the row rested on a `git diff` a human had to remember
+      to run and on per-plan SUMMARY self-reports. It is now a gate:
+      `tests/e2e/final-integration.spec.ts` § *no package was installed during phase 4*
+      asserts `package.json` **and** `package-lock.json` against the phase-start dependency
+      set — three-way, so a lockfile edited on its own is caught and the failure names the
+      package. RED-proved by adding a slopsquat-shaped `reqeusts`.
 
 **No new framework install is needed** — Vitest and Playwright are both present and configured,
 and `mapshaper 0.7.48` is already a devDependency. Phase 4 should add **zero** runtime packages.
+
+**`wave_0_complete: true` was set by `04-15` on 2026-08-07**, after each row above was checked
+against a landed artifact rather than against a plan that said it would land one.
+`nyquist_compliant` and `status` are deliberately **untouched** — `04-16` sets those after the
+independent review, and a plan marking its own phase compliant is the self-report this project
+has learned not to trust.
 
 ---
 
