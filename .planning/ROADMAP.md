@@ -222,7 +222,15 @@ SVG composition layer and survives Phase 3's owned SVG→PNG rasterisation path
 **Depends on:** Phase 3 (tools live in the HUD; band/text editing needs its sections).
 Ramp model (`04-01`) is deliberately first — Phase 5's classing engine binds to it.
 
-**Plans:**
+**Plans:** 16 plans across 13 waves (planned 2026-08-06). The **executable** plan list is the
+checklist immediately after the design breakdown below.
+
+**Design breakdown (11 items, authored at roadmap time).** Retained verbatim: it is the phase's
+design narrative, and it is the amendment target for **CD-11** (in item 5, the claim about where
+hover and selected weight states are re-expressed) and **CD-8** (in item 8, the legend-entry mode).
+Both are amended **during execution** by `04-09` and `04-13` respectively, which negative-grep for
+the exact phrases — so **do not quote those phrases anywhere else in this file**, and do not rewrite
+the breakdown here.
 
 1. `04-01` **Ramp data model.** Pure module: a ramp = hue family + N ordered shades +
    `shadeForIndex(i, n)` / `shadeForValue(t)` accessors; serialization stable for
@@ -272,6 +280,28 @@ Ramp model (`04-01`) is deliberately first — Phase 5's classing engine binds t
 11. `04-11` **Independent non-author aggregate review + full gate** (lint/test/tsc/build +
     Chrome e2e), same bar as `03-11`. *(Edge is not installed on this machine — see D-33; state
     the browser scope plainly rather than inferring an Edge pass.)*
+
+**Executable plans (16, wave-ordered).** Phase 4 carries **no REQ-IDs** — coverage is tracked
+against `04-CONTEXT.md` decisions **D4-01 … D4-18**, which is what each plan's `requirements` field
+holds. Deliberate substitution, not dropped requirements.
+
+Plans:
+- [ ] `04-01-PLAN.md` — **TRACER.** Contrast module, water presets, the new `Map style` rail tool, and one path end-to-end: composition state → serialized `rect[data-layer=surface]` → export clone → sampled PNG pixels *(wave 1, owner gate: preset list + Map-style undo semantics)*
+- [ ] `04-02-PLAN.md` — Ramp data model: 5 families x 5 shades, `shadeForIndex` / `shadeForValue`, monotonicity + disjointness + label-contrast gates *(wave 2)*
+- [ ] `04-03-PLAN.md` — D4-10: all twelve neutral units become colourable; manifest + asset + script + runtime + harness at 207; four documents amended *(wave 2, owner gate: data-model route)*
+- [ ] `04-04-PLAN.md` — latin-ext font widening: two `@font-face` rules for one family with `unicode-range` *(wave 3)*
+- [ ] `04-05-PLAN.md` — `{rampId, t}` colour identity with one `resolveColorValue` chokepoint *(wave 3, owner gate: one-way identity model)*
+- [ ] `04-06-PLAN.md` — Interior-border mesh derivation, bound to its own hash and re-derived in `--check` *(wave 3)*
+- [ ] `04-07-PLAN.md` — Colors panel redesign (`G-3`) + the 280 → 360px widening and its CD-1 annotation *(wave 4)*
+- [ ] `04-08-PLAN.md` — Export stroke contract replaced, named weights, uncoloured fill *(wave 5)*
+- [ ] `04-09-PLAN.md` — Mesh + editor-only highlight layers; the CD-11 amendment *(wave 6)*
+- [ ] `04-10-PLAN.md` — Gradient bands, with a gate that fails on removal **and** inversion *(wave 7)*
+- [ ] `04-11-PLAN.md` — Text tools: title / subtitle / attribution, bounds, sanitisation, refusal *(wave 8, owner gate: text-tool home + one-ink deviation)*
+- [ ] `04-12-PLAN.md` — Legend chrome deleted; band-aware default position (`G-1`) *(wave 9, owner gate: one-way field deletion)*
+- [ ] `04-13-PLAN.md` — Two legend forms + the "no data" row; the CD-8 amendment *(wave 10, owner gate: `G-1` resolution + mixed-map default)*
+- [ ] `04-14-PLAN.md` — Persistence V3, and `G-2` exercised for the first time *(wave 11, owner gate: one-way migration)*
+- [ ] `04-15-PLAN.md` — Composition export integration: the reference frame in real PNG bytes, no baseline image *(wave 12)*
+- [ ] `04-16-PLAN.md` — Independent non-author review, the dependency gate, and the eight physical checks *(wave 13, owner gate)*
 
 **Key decisions at plan time:** exact ramp hex sets; whether hover/selected weight lives on
 the mesh or a duplicate highlight path; band gradient stops; text font stack (system vs.
