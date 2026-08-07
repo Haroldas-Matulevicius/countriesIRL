@@ -1,60 +1,58 @@
 /*
- * `SelectionPanel` - the Colors panel's summary block: what is selected, what
- * colour it currently carries, and the clear action.
+ * `SelectionPanel` - the Colors panel's first FLAT section (`04-UI-SPEC.md`
+ * section 6.3.3): what is selected, what colour it carries, and the clear
+ * action.
  *
- * The swatch chip rule below is shared with `ColorPicker`'s custom preview and
- * is homed here because the selection summary is where that chip's treatment is
- * defined; `controls/colorPicker.css` carries the second selector's surface.
+ * `04-07` (D4-04) deleted this surface's card. The section's frame, label,
+ * divider, and ghost action are the shared `.panel-*` vocabulary in
+ * `editor.css`; what is left here is the one Porcelain ROW that the section
+ * contains, which is the only bordered thing in it. Elevation runs Platinum ->
+ * Porcelain, one step, never two.
+ *
+ * The `.color-picker__custom-swatch` selector this file used to share with the
+ * colour picker is GONE with the custom-colour preview box `04-07` deleted -
+ * the applied hex is read back from this row instead, so there is one place a
+ * creator looks for "what colour is this".
  */
 
-.selection-panel p {
-  margin-bottom: var(--space-md);
+.selection-panel__empty-heading {
+  margin-bottom: 0;
+  font-size: var(--text-body);
+  font-weight: var(--text-subheading-weight);
+  line-height: var(--text-body-line-height);
+}
+
+.selection-panel__empty-body {
+  margin-bottom: 0;
   color: var(--themely-slate-blue);
   overflow-wrap: anywhere;
 }
 
-.selection-panel__summary p {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.selection-panel__current-color {
+/* The section's ONE Porcelain leaf. */
+.selection-panel__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   min-width: 0;
-  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-control);
+  background: var(--themely-porcelain);
   gap: var(--space-sm);
 }
 
-.selection-panel__color-label {
-  flex: 1 1 auto;
-  font-size: var(--text-body-sm);
-  font-weight: var(--text-subheading-weight);
-  line-height: var(--text-body-sm-line-height);
-}
-
-.selection-panel__color-value {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
-  gap: var(--space-sm);
-  overflow-wrap: anywhere;
-}
-
-.selection-panel__color-preview,
-.color-picker__custom-swatch {
+/*
+ * 24px at `--radius-control`, with the mode-invariant `--swatch-border` edge -
+ * the same edge the exported legend swatch carries. It is what keeps a WHITE
+ * selection visible on a Porcelain row in either theme, and a flipping border
+ * would lose that in one of the two.
+ */
+.selection-panel__preview {
   position: relative;
   display: inline-block;
   flex: 0 0 auto;
-  width: var(--space-2xl);
-  height: var(--space-2xl);
+  width: var(--space-lg);
+  height: var(--space-lg);
   overflow: hidden;
-  border: var(--border-width) solid var(--hairline-color);
+  border: var(--border-width) solid var(--swatch-border);
   border-radius: var(--radius-control);
   background: var(--map-fill-default);
 }
@@ -74,7 +72,30 @@
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
-.selection-panel > button {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
+.selection-panel__identity {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-xs);
+}
+
+.selection-panel__title {
+  overflow: hidden;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * `--themely-slate-blue`, never `--themely-ghost-gray`: measured against this
+ * palette the ghost value is 3.88:1 on Porcelain and a gate fails any rule that
+ * paints text with it.
+ */
+.selection-panel__meta,
+.selection-panel__detail {
+  color: var(--themely-slate-blue);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
+  overflow-wrap: anywhere;
 }

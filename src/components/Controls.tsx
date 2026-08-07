@@ -178,6 +178,7 @@ export function Controls({
         */}
         {variant === 'strip' ? (
           <ResetColorsAction
+            variant="strip"
             isDisabled={!isMapReady || !canReset}
             onReset={onReset}
             onStatusMessage={onStatusMessage}

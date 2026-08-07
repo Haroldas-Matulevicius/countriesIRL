@@ -1,16 +1,16 @@
 import type { LegacySavedComposition, SnapshotId } from './composition';
 
-export interface ColorPreset {
-  name: string;
-  value: string;
-}
-
 /**
- * A water/background preset pill. Structurally identical to `ColorPreset` and
- * kept separate on purpose: the two sets answer to different gates. A country
- * colour may be any legal hex; a composition surface must clear
- * `MIN_COMPOSITION_SURFACE_LUMINANCE`, and merging the types would make it
- * possible to pass one where the other is gated.
+ * A water/background preset pill.
+ *
+ * It used to sit beside a structurally identical `ColorPreset`, kept separate
+ * on purpose because the two sets answered to different gates. `04-07` deleted
+ * `ColorPreset` with the ten-tile country-colour grid it typed (D4-01: the ramp
+ * model replaces the presets), so only the gated one is left. The reason it was
+ * ever separate still holds and is why it is not renamed to something generic:
+ * a composition surface must clear `MIN_COMPOSITION_SURFACE_LUMINANCE`, and a
+ * type that also accepted an ungated country colour would make it possible to
+ * pass one where the other is gated.
  */
 export interface WaterPreset {
   readonly name: string;

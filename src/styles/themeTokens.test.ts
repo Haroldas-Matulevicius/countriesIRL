@@ -442,39 +442,61 @@ describe('Phase 3 palette values (D-03, D-04)', (): void => {
 
 describe('component theme tokens', (): void => {
   /**
-   * This test used to assert `repeat(5, minmax(0, 1fr))`, `width: max-content`
-   * and (implicitly) the tile's `overflow: hidden`, under the name "keeps preset
-   * labels complete". That combination is precisely what cut `Magenta` off at
-   * the tile edge in the 376px inspector. It now asserts the property that
-   * actually keeps labels whole - the column count is derived from a minimum
-   * track wide enough for the longest name, and nothing clips.
+   * **REPLACED by `04-07` (D4-04), because its subject was deleted.**
+   *
+   * This slot used to hold "sizes preset columns from a minimum track and never
+   * clips a label", which asserted `repeat(auto-fit, minmax(76px, 1fr))` on the
+   * ten-tile preset grid. That grid is GONE - the ramp model replaces the
+   * presets - so the old assertion would have matched nothing and passed
+   * vacuously, which is the exact shape this repository keeps shipping. It was
+   * not renumbered onto the ramp strip either: the strip's geometry is a
+   * different claim with its own gate.
+   *
+   * What replaces it is the claim `G-3` is actually about. The owner's third
+   * complaint - *"hate the multi boxes within"* - was already off-contract
+   * against `Design.md` section 9 (*"Don't put a border on top of a border.
+   * Stack by background shift"*), so it is gated rather than left to review:
+   * **the two Colors-panel surface sheets declare no card and no hairline
+   * box-shadow.** Elevation runs Platinum -> Porcelain, one step, never two.
    */
-  it('sizes preset columns from a minimum track and never clips a label', (): void => {
-    const controlsCss = readStyleSheet('./controls/colorPicker.css');
-    const gridRule =
-      controlsCss.match(/\.color-picker__preset-grid\s*\{([^}]*)\}/u)?.[1] ?? '';
-    const presetRule =
-      controlsCss.match(/\.color-picker__preset\s*\{([^}]*)\}/u)?.[1] ?? '';
-    const nameRule =
-      controlsCss.match(/\.color-picker__preset-name\s*\{([^}]*)\}/u)?.[1] ?? '';
+  it('keeps the Colors panel flat - no card, no border on top of a border', (): void => {
+    const colorsPanelSheets: ReadonlyArray<readonly [string, string]> = [
+      ['controls/colorPicker.css', readStyleSheet('./controls/colorPicker.css')],
+      [
+        'controls/selectionPanel.css',
+        readStyleSheet('./controls/selectionPanel.css'),
+      ],
+    ];
 
-    expect(gridRule).toMatch(
-      /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(\d+px,\s*1fr\)\);/u,
+    // A walk that resolved to nothing satisfies every negative below.
+    expect(colorsPanelSheets).toHaveLength(2);
+
+    colorsPanelSheets.forEach(([name, css]): void => {
+      const declarations = stripComments(css);
+
+      expect(declarations.length, name).toBeGreaterThan(0);
+      expect(
+        declarations,
+        `${name} declares a hairline box-shadow. Inside a Platinum panel the ` +
+          'Porcelain background IS the elevation step; a hairline on top of it ' +
+          'is the second border the owner reported.',
+      ).not.toContain('box-shadow');
+      expect(
+        declarations,
+        `${name} paints a card surface. A section is type plus a rule, not a box.`,
+      ).not.toContain('--radius-card');
+    });
+
+    // The deleted markup, gated so it cannot come back by copy-paste.
+    const colorPickerCss = stripComments(colorsPanelSheets[0][1]);
+    ['__preset', '__custom-preview', '__custom-swatch', '__active-check'].forEach(
+      (fragment): void => {
+        expect(
+          colorPickerCss,
+          `controls/colorPicker.css still styles "${fragment}", which 04-07 deleted.`,
+        ).not.toContain(fragment);
+      },
     );
-    expect(gridRule).not.toContain('repeat(5,');
-    /*
-     * `03-06` brought the tile to the SPEC'd 48px minimum (UI-SPEC 6) from the
-     * 64px it carried in the 376px inspector. It is asserted as the 48px token
-     * rather than as "some token", because the tile is a touch target and 48px
-     * is the floor the contract test enforces for every standard control.
-     */
-    expect(presetRule).toContain('min-height: var(--space-2xl);');
-    expect(presetRule).not.toContain('overflow: hidden;');
-    expect(nameRule).not.toContain('width: max-content;');
-    expect(nameRule).toContain('max-width: 100%;');
-    expect(nameRule).toContain('overflow-wrap: normal;');
-    expect(nameRule).toContain('white-space: nowrap;');
-    expect(nameRule).not.toContain('overflow-wrap: anywhere;');
   });
 
   /**

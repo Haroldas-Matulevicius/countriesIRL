@@ -387,7 +387,8 @@
  */
 .tool-rail__row,
 .tool-rail__action,
-.color-picker__preset {
+.ramp-strip__step,
+.panel-pill {
   transition: none;
 }
 
@@ -664,6 +665,7 @@
  * three different surfaces share it.
  */
 .workspace__selection-color,
+.workspace__map-style,
 .workspace__legend,
 .workspace__country-list,
 .workspace__saved-maps {
@@ -671,15 +673,191 @@
   max-width: 100%;
 }
 
-.workspace__selection-color {
+.workspace__selection-color,
+.workspace__map-style {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-xl);
 }
 
-/* UI-SPEC 11: the desktop home of `Reset All Colors`. */
-.workspace__selection-color > .controls__action {
+/* ------------------------------------------------------------------ *
+ * The FLAT panel vocabulary (`04-UI-SPEC.md` sections 6.3.2 / 11, D4-04)
+ *
+ * The owner's `G-3`: "too squished, not organized well, hate the multi boxes
+ * within." Three separable defects, and the third was already off-contract -
+ * `Design.md` section 9 says *"Don't put a border on top of a border. Stack by
+ * background shift"*, while the Colors panel was a Porcelain CARD holding
+ * hairlined tiles beside a bordered input. One card per panel becomes ZERO.
+ *
+ * These rules live in `editor.css` and NOT in a surface file for the reason
+ * `03-10` gave the section card: a rule shared by three surfaces belongs to the
+ * container that places them. Both new panels use these classes; `04-UI-SPEC.md`
+ * section 11 rule 1 is explicit that a copied pill is a defect, not a
+ * convenience, so `mapStyle.css` gave its private copies up to this block in
+ * the same commit rather than being duplicated here.
+ *
+ * Elevation runs Platinum (the body) -> Porcelain (a leaf control), ONE step,
+ * never two. A section is type plus a rule: a weight-500 label, its content,
+ * and a hairline on the NEXT section - a line, not a box.
+ * ------------------------------------------------------------------ */
+
+.panel-section {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: var(--space-md);
+}
+
+/*
+ * A whole group is disabled by `<fieldset disabled>` and nothing else. An
+ * `aria-disabled` on a still-clickable control announces one thing and does
+ * another; the native attribute removes the tab stop and the click together.
+ */
+.panel-section:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/*
+ * The divider belongs to the NEXT section, never as a box around the previous
+ * one. `--space-xl` sits on each side of the rule (the column's own gap above
+ * it, this padding below it), which is deliberate: the complaint being answered
+ * here is density, so the sections are given room rather than a border to
+ * separate them.
+ */
+.panel-section + .panel-section {
+  padding-block-start: var(--space-xl);
+  border-block-start: var(--border-width) solid var(--hairline-color);
+}
+
+/*
+ * Hierarchy is carried by WEIGHT, not by size. 16px and 14px are 2px apart and
+ * read as an accident rather than a hierarchy - CD-1 keeps that rule in force
+ * at 360px, because its subject was never the column width.
+ */
+.panel-section__label {
+  padding: 0;
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+  line-height: var(--text-body-sm-line-height);
+}
+
+/* Wrapping is the contract; shrinking the type to force one row is not. */
+.panel-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+/*
+ * Option pills over visually hidden radios: Porcelain + Slate Blue unselected,
+ * Powder + Midnight Ink selected, and NO accent - the accent budget is one
+ * thing per surface and the Colors panel spends it on `Apply Color`.
+ */
+.panel-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-compact);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-pill);
+  background: var(--themely-porcelain);
+  box-shadow: var(--hairline);
+  color: var(--themely-slate-blue);
+  font-size: var(--text-body-sm);
+  line-height: var(--text-body-sm-line-height);
+  gap: var(--space-xs);
+  cursor: pointer;
+}
+
+.panel-pill:has(input:checked) {
+  background: var(--themely-powder);
+  color: var(--themely-midnight-ink);
+}
+
+.panel-pill:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--themely-apple-blue);
+  outline-offset: var(--focus-offset);
+}
+
+/*
+ * Visually hidden but CLICK-BEARING - the input covers its whole pill at
+ * opacity 0 rather than being clipped to 1px. A clipped input sits under the
+ * label, which then intercepts the very pointer events a `.check()` aims at.
+ */
+.panel-pill input[type="radio"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/*
+ * `--swatch-border` is mode-invariant on purpose and is the same edge the
+ * exported legend swatch uses: it is what keeps a WHITE value visible on a
+ * Porcelain surface in either theme. A flipping border loses it in one of them.
+ */
+.panel-swatch {
+  flex: 0 0 auto;
+  width: var(--space-md);
+  height: var(--space-md);
+  border: var(--border-width) solid var(--swatch-border);
+  border-radius: var(--radius-pill);
+}
+
+.panel-field {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--space-2xl);
   padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  background: var(--themely-porcelain);
+  color: var(--themely-midnight-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+.panel-field[aria-invalid="true"] {
+  border-color: var(--destructive);
+  background: var(--destructive-tint);
+}
+
+.panel-error {
+  margin-bottom: 0;
+  color: var(--destructive);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption-line-height);
+}
+
+/*
+ * Ghost: transparent fill, Midnight Ink label, hairline, hover Porcelain, and
+ * no accent. `Reset All Colors` is the Colors panel's bottom section and both
+ * of `Map style`'s actions use this treatment.
+ */
+.panel-action {
+  width: 100%;
+  min-height: var(--target-compact);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--border-width) solid var(--hairline-color);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--themely-midnight-ink);
+  font-size: var(--text-body-sm);
+  cursor: pointer;
+}
+
+.panel-action:hover:not(:disabled) {
+  background: var(--themely-porcelain);
 }
 
 /*
@@ -687,9 +865,13 @@
  * `--radius-card`. `03-05`'s transparent-pane neutralisers are gone with the
  * inspector shell that needed them - inside a Platinum panel the card IS the
  * stacking mechanism, not a card inside a card.
+ *
+ * `04-07` (D4-04) took `.selection-panel` and `.color-picker` OUT of this rule:
+ * the Colors panel is now flat sections against the Platinum body. The country
+ * list keeps its card - D4-06 scoped this redesign to the two colour surfaces,
+ * and flattening a panel this plan does not otherwise touch would be a visual
+ * change nobody asked for and nobody will review.
  */
-.selection-panel,
-.color-picker,
 .country-list {
   min-width: 0;
   padding: var(--space-lg);
@@ -698,8 +880,6 @@
   background: var(--themely-porcelain);
 }
 
-.selection-panel h2,
-.color-picker h2,
 .country-list h2 {
   margin-bottom: var(--space-md);
 }
@@ -721,8 +901,6 @@
  * hairline-divided pane with no padding of its own at either width, and a
  * layout-scoped rule here would outrank that and give it one back.
  */
-.map-editor[data-layout='compact'] .selection-panel,
-.map-editor[data-layout='compact'] .color-picker,
 .map-editor[data-layout='compact'] .country-list {
   padding: var(--space-md);
 }

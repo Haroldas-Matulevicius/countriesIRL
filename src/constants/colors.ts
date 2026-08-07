@@ -1,5 +1,3 @@
-import type { ColorPreset } from '../types/ui';
-
 export const DEFAULT_COLOR = '#FFFFFF';
 // Country boundaries are black at every state. Once the resting border is
 // black, hover and selection cannot differentiate by going darker - they
@@ -22,15 +20,20 @@ export const NEUTRAL_UNIT_COLOR = '#E5E7EB';
 // `LegendOverlay.tsx`, whose literals are deliberate export-fixed values.
 export const CUSTOM_COLOR_PLACEHOLDER = '#RRGGBB or rgb(0, 0, 0)';
 
-export const COLOR_PRESETS = [
-  { name: 'Red', value: '#DC2626' },
-  { name: 'Green', value: '#16A34A' },
-  { name: 'Blue', value: '#2563EB' },
-  { name: 'Yellow', value: '#FACC15' },
-  { name: 'Magenta', value: '#C026D3' },
-  { name: 'Cyan', value: '#0891B2' },
-  { name: 'Orange', value: '#EA580C' },
-  { name: 'Violet', value: '#7C3AED' },
-  { name: 'White', value: '#FFFFFF' },
-  { name: 'Gray', value: '#6B7280' },
-] as const satisfies ReadonlyArray<ColorPreset>;
+/**
+ * `04-UI-SPEC.md § 9`, byte-exact. Here for the same reason the placeholder is:
+ * it spells a colour value, and assertion 8 allows a hex literal in exactly one
+ * component file - the one whose literals are exported into the PNG.
+ */
+export const CUSTOM_COLOR_ERROR_MESSAGE = 'Enter a hex color like #2563EB';
+
+/*
+ * `COLOR_PRESETS` and its ten-tile grid were DELETED by plan `04-07` (D4-01 /
+ * D4-04). The palette is the ramp model now: `src/utils/ramps.ts` holds five
+ * bounded five-step ramps, a country stores `{rampId, t}` rather than a frozen
+ * hex, and the Colors panel paints from a contiguous ramp strip.
+ *
+ * The presets are not archived here as a commented-out block. A creator's
+ * existing saved map is unaffected - a stored hex is still a valid `ColorValue`
+ * (the `custom` variant), and the hex field still produces one.
+ */

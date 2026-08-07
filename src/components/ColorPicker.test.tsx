@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { COLOR_PRESETS } from '../constants/colors';
+import { CUSTOM_COLOR_ERROR_MESSAGE } from '../constants/colors';
 import { customColor } from '../utils/colors';
 import type { ColorMap, CountryId, MapState } from '../types/map';
 import {
@@ -14,8 +14,8 @@ import { ColorPicker } from './ColorPicker';
 const NATIVE_DISABLED_ATTRIBUTE = /\sdisabled(?:=""|(?=[\s>]))/;
 const SELECTABLE_COUNTRY_IDS: ReadonlySet<CountryId> = new Set(['FR']);
 
-function renderColorPickerWithState(state: MapState): string {
-  const value: MapStateContextValue = {
+function createContextValue(state: MapState): MapStateContextValue {
+  return {
     state,
     canUndo: false,
     canRedo: false,
@@ -32,12 +32,17 @@ function renderColorPickerWithState(state: MapState): string {
     loadState: vi.fn(),
     restoreState: vi.fn(),
   };
+}
 
+function renderColorPickerWithState(
+  state: MapState,
+  customDraft = '',
+): string {
   return renderToStaticMarkup(
-    <MapStateContext.Provider value={value}>
+    <MapStateContext.Provider value={createContextValue(state)}>
       <ColorPicker
         selectableCountryIds={SELECTABLE_COUNTRY_IDS}
-        customDraft=""
+        customDraft={customDraft}
         onCustomDraftChange={vi.fn()}
         onStatus={vi.fn()}
       />
@@ -55,7 +60,33 @@ function createSelectedState(colors: ColorMap): MapState {
 }
 
 describe('ColorPicker', () => {
-  it('natively disables every color control when no countries are selected', () => {
+  /**
+   * The three defects `G-3` reports, gated on the markup rather than left to a
+   * visual review nobody is scheduled to perform on this commit.
+   *
+   * The deleted heading's id is asserted absent by a repo-wide grep in the
+   * plan's acceptance criteria; what is asserted here is the property that grep
+   * cannot see - the panel emits no `<h2>` AT ALL, so a rename to a different
+   * id would not slip a second heading back into a surface titled `Colors`.
+   */
+  it('emits a flat fieldset with no second heading and no preset grid', () => {
+    const markup = renderColorPickerWithState(createSelectedState({}));
+
+    expect(markup).not.toContain('<h2');
+    expect(markup).not.toContain('Choose a color');
+    expect(markup).not.toContain('color-picker__preset');
+    expect(markup).not.toContain('color-picker__custom-preview');
+    expect(markup).toContain('<fieldset class="panel-section"');
+    expect(markup).toContain('class="panel-section__label"');
+  });
+
+  /**
+   * A disabled GROUP is `<fieldset disabled>` and nothing else. `aria-disabled`
+   * on a still-clickable control announces one thing and does another, and the
+   * empty state must render the section **disabled rather than hidden** - a
+   * hidden control cannot be discovered.
+   */
+  it('natively disables the whole group when no countries are selected', () => {
     const onStatus = vi.fn();
     const markup = renderToStaticMarkup(
       <MapStateProvider>
@@ -68,55 +99,19 @@ describe('ColorPicker', () => {
       </MapStateProvider>,
     );
 
-    const presetButtons = markup.match(
-      /<button\b[^>]*class="color-picker__preset"[^>]*>/g,
-    ) ?? [];
+    const group = markup.match(/<fieldset\b[^>]*>/u)?.[0];
 
-    expect(COLOR_PRESETS).toHaveLength(10);
-    expect(presetButtons).toHaveLength(10);
-
-    COLOR_PRESETS.forEach((preset, index) => {
-      expect(presetButtons[index]).toContain(
-        `aria-label="Apply ${preset.name}"`,
-      );
-      expect(markup).toContain(
-        `<span class="color-picker__preset-name">${preset.name}</span>`,
-      );
-      expect(presetButtons[index]).toMatch(NATIVE_DISABLED_ATTRIBUTE);
-    });
-
-    const customInput = markup.match(
-      /<input\b[^>]*placeholder="#RRGGBB or rgb\(0, 0, 0\)"[^>]*>/,
-    )?.[0];
-    const customApplyButton = markup.match(
-      /<button\b[^>]*type="submit"[^>]*>Apply Color<\/button>/,
-    )?.[0];
-
-    expect(customInput).toMatch(NATIVE_DISABLED_ATTRIBUTE);
-    expect(customApplyButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    expect(group).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    expect(markup).not.toContain('aria-disabled');
+    // Disabled, never hidden: the section is still in the tree to be found.
+    expect(markup).toContain('Custom color');
+    expect(markup).toContain('Apply Color');
     expect(onStatus).not.toHaveBeenCalled();
   });
 
   it('ignores selected ids the active scene cannot render', () => {
-    const value: MapStateContextValue = {
-      state: createSelectedState({}),
-      canUndo: false,
-      canRedo: false,
-      canReset: false,
-      selectCountry: vi.fn(),
-      replaceSelection: vi.fn(),
-      toggleSelection: vi.fn(),
-      clearSelection: vi.fn(),
-      setColor: vi.fn(() => false),
-      setColors: vi.fn(() => false),
-      resetColors: vi.fn(),
-      undo: vi.fn(),
-      redo: vi.fn(),
-      loadState: vi.fn(),
-      restoreState: vi.fn(),
-    };
     const markup = renderToStaticMarkup(
-      <MapStateContext.Provider value={value}>
+      <MapStateContext.Provider value={createContextValue(createSelectedState({}))}>
         <ColorPicker
           selectableCountryIds={new Set()}
           customDraft=""
@@ -125,28 +120,63 @@ describe('ColorPicker', () => {
         />
       </MapStateContext.Provider>,
     );
-    const redButton = markup.match(
-      /<button\b[^>]*aria-label="Apply Red"[^>]*>/,
-    )?.[0];
 
-    expect(redButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    expect(markup.match(/<fieldset\b[^>]*>/u)?.[0]).toMatch(
+      NATIVE_DISABLED_ATTRIBUTE,
+    );
   });
 
-  it('natively disables the active preset for colored and effective-white selections', () => {
-    const redMarkup = renderColorPickerWithState(
-      createSelectedState({ FR: customColor('#DC2626') }),
-    );
-    const whiteMarkup = renderColorPickerWithState(createSelectedState({}));
-    const redButton = redMarkup.match(
-      /<button\b[^>]*aria-label="Apply Red"[^>]*>/,
-    )?.[0];
-    const whiteButton = whiteMarkup.match(
-      /<button\b[^>]*aria-label="Apply White"[^>]*>/,
-    )?.[0];
+  /**
+   * The field's accessible name is the section label, so the panel does not
+   * print `Custom color` twice at 328px of content. `getByLabel('Custom color')`
+   * is an existing e2e locator and the `aria-labelledby` reference is what keeps
+   * it resolving - asserted here because a broken id reference renders
+   * identically and silently un-names the field.
+   */
+  it('names the hex field from the section label it points at', () => {
+    const markup = renderColorPickerWithState(createSelectedState({}));
+    const labelId = /<legend class="panel-section__label" id="([^"]+)"/u.exec(
+      markup,
+    )?.[1];
+    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
 
-    expect(redButton).toContain('aria-pressed="true"');
-    expect(redButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
-    expect(whiteButton).toContain('aria-pressed="true"');
-    expect(whiteButton).toMatch(NATIVE_DISABLED_ATTRIBUTE);
+    expect(labelId).toBeDefined();
+    expect(input).toContain(`aria-labelledby="${String(labelId)}"`);
+    expect(markup).toContain(`>Custom color</legend>`);
+  });
+
+  /**
+   * `04-UI-SPEC.md § 9`, byte-exact, wired by BOTH `aria-invalid` and
+   * `aria-describedby`. A message that is rendered but not referenced is a
+   * message a screen-reader user never hears.
+   */
+  it('wires the invalid-hex message to the field by id and by aria-invalid', () => {
+    const markup = renderColorPickerWithState(
+      createSelectedState({ FR: customColor('#DC2626') }),
+      'not-a-color',
+    );
+    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
+    const errorId = /<p id="([^"]+)" class="panel-error">/u.exec(markup)?.[1];
+
+    expect(CUSTOM_COLOR_ERROR_MESSAGE).toBe('Enter a hex color like #2563EB');
+    expect(markup).toContain(
+      `class="panel-error">${CUSTOM_COLOR_ERROR_MESSAGE}</p>`,
+    );
+    expect(errorId).toBeDefined();
+    expect(input).toContain('aria-invalid="true"');
+    expect(input).toContain(`aria-describedby="${String(errorId)}"`);
+    expect(input).toContain('class="panel-field"');
+  });
+
+  it('renders no error and describes nothing while the draft is valid', () => {
+    const markup = renderColorPickerWithState(
+      createSelectedState({ FR: customColor('#DC2626') }),
+      '#123456',
+    );
+    const input = markup.match(/<input\b[^>]*>/u)?.[0] ?? '';
+
+    expect(markup).not.toContain('panel-error');
+    expect(input).toContain('aria-invalid="false"');
+    expect(input).not.toContain('aria-describedby');
   });
 });

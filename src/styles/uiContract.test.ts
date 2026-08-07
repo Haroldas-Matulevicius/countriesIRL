@@ -1977,6 +1977,66 @@ describe('Phase 3 accent fill is mode-invariant (assertion 26)', (): void => {
     expect(root.get('--accent-fill')).toBe('#0071e3');
     expect(root.get('--accent-fill-hover')).toBe('#005db8');
   });
+
+  /**
+   * **The accent BUDGET, asserted rather than reviewed (D-05, `04-07`).**
+   *
+   * One accent surface per panel. The Colors panel spends its on `Apply Color`,
+   * so `Reset All Colors` is a GHOST - transparent fill, Midnight Ink label,
+   * hairline, hover Porcelain - and the ramp strip and family pills carry no
+   * accent at all. Asserted in the CSS source rather than by eye, because a
+   * second filled button in a 360px column is exactly the kind of change that
+   * looks deliberate in a diff and reads as a mistake on screen.
+   *
+   * The enumeration is two-way: the shared ghost declares each ghost property,
+   * AND the set of rules that fill from `--accent-fill` is pinned to a literal
+   * list. A one-way check would let a third accent surface appear silently.
+   */
+  it('keeps the shared panel action a ghost and the accent surfaces enumerated', (): void => {
+    const ghost = new Map(
+      declarationsOf(findRule(rulesOf('editor.css'), '.panel-action').body),
+    );
+
+    expect(ghost.get('background')).toBe('transparent');
+    expect(ghost.get('color')).toBe('var(--themely-midnight-ink)');
+    expect(ghost.get('border')).toBe(
+      'var(--border-width) solid var(--hairline-color)',
+    );
+    expect(
+      new Map(
+        declarationsOf(
+          findRule(rulesOf('editor.css'), '.panel-action:hover:not(:disabled)')
+            .body,
+        ),
+      ).get('background'),
+    ).toBe('var(--themely-porcelain)');
+
+    const accentFilled = ALL_RULES.flatMap(([file, rules]): string[] =>
+      rules
+        .filter((rule): boolean =>
+          declarationsOf(rule.body).some(
+            ([property, value]): boolean =>
+              (property === 'background' || property === 'background-color') &&
+              value.includes('--accent-fill'),
+          ),
+        )
+        .map((rule): string => `${file} ${rule.selector}`),
+    ).sort();
+
+    expect(
+      accentFilled,
+      'a new surface fills from the accent. D-05 is one accent per surface: ' +
+        'the rail spends its on Export PNG and the Colors panel on Apply Color.',
+    ).toStrictEqual([
+      'controls/colorPicker.css .color-picker__submit:not(:disabled)',
+      'controls/colorPicker.css .color-picker__submit:not(:disabled):hover',
+      'controls/controls.css .controls__action--primary',
+      'controls/controls.css .controls__action--primary:hover:not(:disabled)',
+      // The Saved Maps panel's own single primary, `Save Map` (03-UI-SPEC :198).
+      'controls/saveLoad.css .save-load-submit:not(:disabled)',
+      'controls/saveLoad.css .save-load-submit:not(:disabled):hover',
+    ]);
+  });
 });
 
 /* ------------------------------------------------------------------ *

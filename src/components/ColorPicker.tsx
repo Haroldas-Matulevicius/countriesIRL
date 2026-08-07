@@ -1,17 +1,14 @@
 import { useCallback, useId, useMemo } from 'react';
-import type {
-  ChangeEvent,
-  FormEvent,
-  MouseEvent,
-} from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 
-import { COLOR_PRESETS, CUSTOM_COLOR_PLACEHOLDER } from '../constants/colors';
-import { CheckIcon } from './icons/CheckIcon';
+import {
+  CUSTOM_COLOR_ERROR_MESSAGE,
+  CUSTOM_COLOR_PLACEHOLDER,
+} from '../constants/colors';
 import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
 import {
   customColor,
-  getEffectiveCountryColor,
   hasEffectiveColorChange,
   normalizeColor,
 } from '../utils/colors';
@@ -19,10 +16,6 @@ import { TOAST_MESSAGES } from './ToastRegion';
 
 const CUSTOM_COLOR_LABEL = 'Custom color';
 const APPLY_COLOR_LABEL = 'Apply Color';
-/** UI-SPEC 6: 16px, on the TILE background rather than on the swatch. */
-const SELECTED_CHECK_SIZE = 16;
-const CUSTOM_COLOR_ERROR =
-  'Enter #RGB, #RRGGBB, or rgb values from 0 to 255.';
 
 interface ColorPickerProps {
   /**
@@ -41,6 +34,31 @@ interface ColorPickerProps {
   onStatus: (message: string) => void;
 }
 
+/**
+ * The Colors panel's `Custom color` section (`04-UI-SPEC.md § 6.3.3`).
+ *
+ * **`04-07` (D4-04) deleted three things from this component and none of them
+ * came back as a smaller version of itself:**
+ *
+ * - the `<h2>Choose a color</h2>`. One `<h2>` per panel and it is the panel
+ *   title; a second heading inside a surface already titled `Colors` was the
+ *   information-architecture half of the owner's `G-3` report;
+ * - the ten-tile `COLOR_PRESETS` grid. The ramp model replaces it, and the grid
+ *   resolved to exactly 3 × 76 = 232px inside 232px of content — literally zero
+ *   slack, which is the density half of the same report;
+ * - the custom-colour preview box. The applied colour is read back from the
+ *   `Selection` row, so there is one place a creator looks for "what colour is
+ *   this" instead of two that can disagree.
+ *
+ * What is left is a flat `<fieldset>`: a weight-500 label, the hex field beside
+ * `Apply Color`, and the error. The `<fieldset>` survives as **semantic
+ * grouping only** — it carries `disabled` for the whole group and is stripped
+ * of border, padding, and margin. A disabled group is `<fieldset disabled>`,
+ * never `aria-disabled` on a still-clickable control.
+ *
+ * `Apply Color` remains the panel's **one** accent surface (D-05), which is why
+ * the ramp strip and the family pills carry none.
+ */
 export function ColorPicker({
   selectableCountryIds,
   customDraft,
@@ -54,6 +72,7 @@ export function ColorPicker({
   } = useMapState();
   const inputId = useId();
   const errorId = `${inputId}-error`;
+  const labelId = `${inputId}-label`;
 
   const selectedCountryIds = useMemo(
     () =>
@@ -77,24 +96,6 @@ export function ColorPicker({
       selectedCountryIds,
       customColor(customColorResult.value),
     );
-
-  const handlePresetClick = useCallback(
-    (event: MouseEvent<HTMLButtonElement>): void => {
-      const colorName = event.currentTarget.dataset.colorName;
-      const colorValue = event.currentTarget.value;
-
-      if (colorName === undefined || selectedCountryIds.length === 0) {
-        return;
-      }
-
-      if (setColors(selectedCountryIds, colorValue)) {
-        onStatus(
-          TOAST_MESSAGES.presetApplied(colorName, selectedCountryIds.length),
-        );
-      }
-    },
-    [onStatus, selectedCountryIds, setColors],
-  );
 
   const handleCustomDraftChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>): void => {
@@ -138,67 +139,25 @@ export function ColorPicker({
   );
 
   return (
-    <section className="color-picker" aria-labelledby="color-picker-heading">
-      <h2 id="color-picker-heading">Choose a color</h2>
-
-      <fieldset className="color-picker__presets" disabled={controlsDisabled}>
-        <legend>Preset colors</legend>
-        <div className="color-picker__preset-grid">
-          {COLOR_PRESETS.map((preset) => {
-            const isActive =
-              selectedCount > 0 &&
-              selectedCountryIds.every(
-                (countryId) =>
-                  getEffectiveCountryColor(colors, countryId) === preset.value,
-              );
-
-            return (
-              <button
-                key={preset.value}
-                type="button"
-                className={`color-picker__preset${
-                  isActive ? ' color-picker__preset--active' : ''
-                }`}
-                value={preset.value}
-                data-color-name={preset.name}
-                aria-label={`Apply ${preset.name}`}
-                aria-pressed={isActive}
-                disabled={controlsDisabled || isActive}
-                onClick={handlePresetClick}
-              >
-                <span
-                  className="color-picker__preset-swatch"
-                  style={{ backgroundColor: preset.value }}
-                  aria-hidden="true"
-                />
-                <span className="color-picker__preset-name">{preset.name}</span>
-                {/*
-                  On the tile background, never on the swatch: the swatch
-                  carries a creator-chosen colour, and a glyph drawn on it is
-                  invisible against roughly half of them. This replaces the
-                  deleted `--active-check-*` trio, whose fixed
-                  `#111827`-on-white values went invisible under `.dark`.
-                */}
-                {isActive ? (
-                  <span className="color-picker__active-check" aria-hidden="true">
-                    <CheckIcon size={SELECTED_CHECK_SIZE} />
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
+    <fieldset className="panel-section" disabled={controlsDisabled}>
+      <legend className="panel-section__label" id={labelId}>
+        {CUSTOM_COLOR_LABEL}
+      </legend>
 
       <form className="color-picker__custom" onSubmit={handleCustomSubmit} noValidate>
-        <label htmlFor={inputId}>{CUSTOM_COLOR_LABEL}</label>
+        {/*
+          The field's accessible name is the section label itself, so the panel
+          does not print `Custom color` twice at 328px of content width. The id
+          reference is what keeps `getByLabel('Custom color')` working.
+        */}
         <input
           id={inputId}
           type="text"
+          className="panel-field"
+          aria-labelledby={labelId}
           value={customDraft}
           placeholder={CUSTOM_COLOR_PLACEHOLDER}
           onChange={handleCustomDraftChange}
-          disabled={controlsDisabled}
           aria-invalid={hasInvalidCustomDraft}
           aria-describedby={hasInvalidCustomDraft ? errorId : undefined}
           autoComplete="off"
@@ -206,20 +165,9 @@ export function ColorPicker({
         />
 
         {hasInvalidCustomDraft ? (
-          <p id={errorId} className="color-picker__error">
-            {CUSTOM_COLOR_ERROR}
+          <p id={errorId} className="panel-error">
+            {CUSTOM_COLOR_ERROR_MESSAGE}
           </p>
-        ) : null}
-
-        {customColorResult.ok ? (
-          <div className="color-picker__custom-preview">
-            <span
-              className="color-picker__custom-swatch"
-              style={{ backgroundColor: customColorResult.value }}
-              aria-hidden="true"
-            />
-            <span>{customColorResult.value}</span>
-          </div>
         ) : null}
 
         {/*
@@ -236,6 +184,6 @@ export function ColorPicker({
           {APPLY_COLOR_LABEL}
         </button>
       </form>
-    </section>
+    </fieldset>
   );
 }

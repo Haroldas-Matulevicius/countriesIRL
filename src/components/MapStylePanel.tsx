@@ -33,10 +33,16 @@ interface MapStylePanelProps {
  *
  * Authored directly against § 6.3.2's flat vocabulary — a `--text-body-sm`
  * weight-500 section label, its content, and a hairline divider on the *next*
- * section. **Zero cards, zero nested borders.** It deliberately does not copy
- * today's `colorPicker.css`, which the owner rejected as "too squished, not
- * organized well, hate the multi boxes within"; `04-07` brings the Colors panel
- * into this same vocabulary.
+ * section. **Zero cards, zero nested borders.** It deliberately did not copy
+ * the pre-`04-07` `colorPicker.css`, which the owner rejected as "too squished,
+ * not organized well, hate the multi boxes within".
+ *
+ * `04-07` brought the Colors panel into this same vocabulary and, in the same
+ * commit, moved the shared classes out of `mapStyle.css` into `editor.css`'s
+ * `.panel-*` block. Two copies of a pill is the defect `04-UI-SPEC.md § 11`
+ * rule 1 names by name, so this component consumes the shared classes rather
+ * than owning private ones. Only `.map-style__custom` — a sub-block *inside*
+ * the Water group, which no sibling-divider rule can reach — stays local.
  *
  * **No primary action, therefore no accent anywhere in this panel** (D-05).
  * Every pill applies immediately; the custom entry's submit is a ghost.
@@ -110,14 +116,14 @@ export function MapStylePanel({
      * margin in the stylesheet, and its `<legend>` IS the section label - no
      * second `<h2>`, because the panel title already owns that role.
      */
-    <fieldset className="map-style__group" disabled={isDisabled}>
-      <legend className="map-style__label" id={waterGroupId}>
+    <fieldset className="panel-section" disabled={isDisabled}>
+      <legend className="panel-section__label" id={waterGroupId}>
         {WATER_SECTION_LABEL}
       </legend>
 
-      <div className="map-style__pills">
+      <div className="panel-pills">
         {WATER_PRESETS.map((preset): JSX.Element => (
-          <label key={preset.value} className="map-style__pill">
+          <label key={preset.value} className="panel-pill">
             <input
               type="radio"
               name={waterGroupId}
@@ -126,7 +132,7 @@ export function MapStylePanel({
               onChange={handlePresetChange}
             />
             <span
-              className="map-style__swatch"
+              className="panel-swatch"
               style={{ background: preset.value }}
               aria-hidden="true"
             />
@@ -144,6 +150,7 @@ export function MapStylePanel({
         <input
           id={inputId}
           type="text"
+          className="panel-field"
           value={customDraft}
           placeholder={CUSTOM_SURFACE_COLOR_PLACEHOLDER}
           onChange={handleCustomDraftChange}
@@ -154,7 +161,7 @@ export function MapStylePanel({
         />
 
         {hasInvalidCustomDraft ? (
-          <p id={errorId} className="map-style__error">
+          <p id={errorId} className="panel-error">
             {CUSTOM_SURFACE_ERROR}
           </p>
         ) : null}
@@ -162,7 +169,7 @@ export function MapStylePanel({
         {/* Ghost, never accent: this panel has no primary action (D-05). */}
         <button
           type="submit"
-          className="map-style__action"
+          className="panel-action"
           disabled={!hasCustomChange}
         >
           {APPLY_SURFACE_LABEL}
@@ -177,7 +184,7 @@ export function MapStylePanel({
       <button
         type="button"
         data-action="reset-map-style"
-        className="map-style__action"
+        className="panel-action"
         onClick={handleReset}
         disabled={surfaceColor === DEFAULT_SURFACE_COLOR && !hasCustomDraft}
       >
