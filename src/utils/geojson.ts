@@ -1,4 +1,11 @@
-import type { MultiPolygon, Polygon, Position } from 'geojson';
+import type {
+  GeometryCollection,
+  LineString,
+  MultiLineString,
+  MultiPolygon,
+  Polygon,
+  Position,
+} from 'geojson';
 
 import type {
   GeoFeature,
@@ -69,6 +76,22 @@ function isMultiPolygonCoordinates(
     Array.isArray(value) &&
     value.length > 0 &&
     value.every(isPolygonCoordinates)
+  );
+}
+
+function isLineStringCoordinates(
+  value: unknown,
+): value is LineString['coordinates'] {
+  return Array.isArray(value) && value.length >= 2 && value.every(isPosition);
+}
+
+function isMultiLineStringCoordinates(
+  value: unknown,
+): value is MultiLineString['coordinates'] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(isLineStringCoordinates)
   );
 }
 
@@ -300,6 +323,119 @@ function readSceneFeatureMetadata(
   }
 
   return null;
+}
+
+/**
+ * The interior-border mesh (`public/data/world-borders-modern.geojson`, derived
+ * by `04-06`).
+ *
+ * **Its root is a `GeometryCollection`, not a `FeatureCollection`, and its
+ * members are NOT all `LineString`s.** `04-06` measured 327 geometries — 301
+ * `LineString` plus 26 `MultiLineString` — and `coding-rules/data.md` records
+ * the corollary in bold: *anything that counts only `LineString`s will agree
+ * happily with a mesh that has lost all 26 `MultiLineString`s.* Both member
+ * types are admitted here and the count below counts GEOMETRIES.
+ */
+export type BorderMeshGeometry = LineString | MultiLineString;
+
+export type BorderMesh = GeometryCollection<BorderMeshGeometry>;
+
+export type BorderMeshRefusal =
+  | 'invalid-collection'
+  | 'no-valid-geometries'
+  | 'geometry-count-mismatch';
+
+export type BorderMeshNormalizationResult =
+  | {
+      readonly ok: true;
+      readonly mesh: BorderMesh;
+      readonly warnings: ReadonlyArray<GeoJsonWarning>;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: BorderMeshRefusal;
+      readonly warnings: ReadonlyArray<GeoJsonWarning>;
+    };
+
+function readMeshGeometry(
+  candidate: unknown,
+):
+  | { ok: true; geometry: BorderMeshGeometry }
+  | { ok: false; code: 'unsupported-geometry' | 'invalid-geometry' } {
+  if (!isRecord(candidate)) {
+    return { ok: false, code: 'invalid-geometry' };
+  }
+
+  const { type, coordinates } = candidate;
+  if (type === 'LineString') {
+    return isLineStringCoordinates(coordinates)
+      ? { ok: true, geometry: { type, coordinates } }
+      : { ok: false, code: 'invalid-geometry' };
+  }
+
+  if (type === 'MultiLineString') {
+    return isMultiLineStringCoordinates(coordinates)
+      ? { ok: true, geometry: { type, coordinates } }
+      : { ok: false, code: 'invalid-geometry' };
+  }
+
+  return { ok: false, code: 'unsupported-geometry' };
+}
+
+/**
+ * Validate the mesh before it is handed to `geoPath`, on the same contract the
+ * feature loader follows: **a malformed member is skipped with a warning, never
+ * a crash.** `warnings[].featureIndex` is the index in `geometries` here; the
+ * field keeps its name because the warning type is shared.
+ *
+ * `expectedGeometryCount` is the manifest's `interiorBorderMesh.geometryCount`,
+ * cross-checked against the artifact rather than against a constant this module
+ * declares — two files that have to agree, which is the same discipline
+ * `worldDataAsset.test.ts` uses offline. The comparison is made against the
+ * ACCEPTED count, so a skipped member trips it too: the mesh is a hash-recorded
+ * asset, and any deviation from the recorded shape means this is not the
+ * approved artifact.
+ */
+export function normalizeBorderMesh(
+  input: unknown,
+  expectedGeometryCount?: number,
+): BorderMeshNormalizationResult {
+  if (
+    !isRecord(input) ||
+    input.type !== 'GeometryCollection' ||
+    !Array.isArray(input.geometries)
+  ) {
+    return { ok: false, reason: 'invalid-collection', warnings: [] };
+  }
+
+  const geometries: BorderMeshGeometry[] = [];
+  const warnings: GeoJsonWarning[] = [];
+
+  input.geometries.forEach((candidate, geometryIndex): void => {
+    const result = readMeshGeometry(candidate);
+    if (!result.ok) {
+      warnings.push(createWarning(geometryIndex, result.code));
+      return;
+    }
+    geometries.push(result.geometry);
+  });
+
+  if (geometries.length === 0) {
+    return { ok: false, reason: 'no-valid-geometries', warnings };
+  }
+
+  if (
+    expectedGeometryCount !== undefined &&
+    geometries.length !== expectedGeometryCount
+  ) {
+    return { ok: false, reason: 'geometry-count-mismatch', warnings };
+  }
+
+  return {
+    ok: true,
+    mesh: { type: 'GeometryCollection', geometries },
+    warnings,
+  };
 }
 
 export function normalizeGeoJson(input: unknown): GeoJsonNormalizationResult {

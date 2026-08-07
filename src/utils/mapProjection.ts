@@ -1,4 +1,5 @@
 import { geoMercator, geoPath } from 'd3';
+import type { GeometryCollection } from 'geojson';
 
 import { WORLD_SIZE } from '../constants/camera';
 import type { GeoFeature } from '../types/map';
@@ -13,9 +14,15 @@ export function hasFiniteProjectedBounds(bounds: ProjectedBounds): boolean {
   return bounds.every((point) => point.every(Number.isFinite));
 }
 
+/**
+ * `GeometryCollection` joined the signature for `04-09`'s interior-border mesh,
+ * whose root is a collection rather than a feature. The NaN/Infinity screen and
+ * the try/catch are the reason it is widened here instead of a second helper
+ * being written beside it: two copies is how one of them stops screening.
+ */
 export function createSafeMapPath(
   pathGenerator: ReturnType<typeof geoPath>,
-  feature: GeoFeature,
+  feature: GeoFeature | GeometryCollection,
 ): string {
   try {
     const pathData = pathGenerator(feature);

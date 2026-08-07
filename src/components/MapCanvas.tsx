@@ -41,6 +41,7 @@ import {
 } from '../constants/config';
 import {
   DEFAULT_COASTLINE_WEIGHT,
+  DEFAULT_INTERIOR_WEIGHT,
   DEFAULT_SURFACE_COLOR,
   DEFAULT_UNCOLORED_FILL,
   hasStroke,
@@ -51,6 +52,7 @@ import {
   type CameraControllerFactory,
 } from '../hooks/useCameraController';
 import { getEffectiveCountryColor } from '../utils/colors';
+import type { BorderMesh } from '../utils/geojson';
 import { assertUniqueSceneIdentities } from '../utils/scene';
 import { getBoundaryLine, getMapAccessibleLabel } from '../utils/periods';
 import {
@@ -73,6 +75,19 @@ const REDO_START_MARK = 'countriesirl-redo-start';
 const REDO_VISIBLE_MEASURE = 'countriesirl-redo-visible';
 const COUNTRIES_LAYER_SELECTOR = '[data-layer="countries"]';
 const OUTGOING_LAYER_SELECTOR = '[data-layer="outgoing-scenes"]';
+/*
+ * 04-09. The interior-border mesh's own class, and it is deliberately NEITHER
+ * `scene-path` NOR `country-path`.
+ *
+ * `sanitizeExportClone` normalises `path.scene-path,path.country-path` against
+ * the COASTLINE contract (`data-coastline-weight`). A mesh carrying either class
+ * would have its interior weight overwritten by the coastline weight in the
+ * download while the editor kept showing the creator's choice - which is the
+ * editor-versus-PNG disagreement this whole phase exists to close. The mesh
+ * carries its stroke as inline attributes instead, so the exporter has nothing
+ * to do for it and cannot do the wrong thing.
+ */
+const BORDER_MESH_PATH_CLASS = 'border-mesh-path';
 const CROSSFADE_TRANSITION_NAME = 'scene-crossfade';
 /**
  * The SPEC default, and the value `--motion-scene` declares. It is a fallback
@@ -155,13 +170,20 @@ export interface MapCanvasProps {
    */
   coastlineWeight?: StrokeWeight;
   /**
-   * D4-08 - the weight of the shared INTERIOR boundaries. Declared on the props
-   * boundary here and threaded from `App` so the vocabulary, the panel, and the
-   * seam land together; the layer that draws it is `04-09`'s
-   * `world-borders-modern` render. Nothing in this component reads it yet, and
-   * that is deliberate rather than an oversight.
+   * D4-08 - the weight of the shared INTERIOR boundaries, resolved through the
+   * same `STROKE_WEIGHT_UNITS` table the coastlines and the export clone use.
+   * `04-09` closed the stub `04-08` opened here: it is read by the
+   * `[data-layer="borders"]` render below.
    */
   interiorWeight?: StrokeWeight;
+  /**
+   * `04-06`'s derived interior-border mesh - the edges present in exactly two
+   * polygons, so a coastline is absent from it by construction. Optional: a
+   * caller that does not supply one (the export fixture) renders no interior
+   * lines rather than failing, exactly as a load that could not validate the
+   * asset does.
+   */
+  borderMesh?: BorderMesh | null;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -438,6 +460,8 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       uncoloredFill = DEFAULT_UNCOLORED_FILL,
       borderColor = DEFAULT_BORDER_COLOR,
       coastlineWeight = DEFAULT_COASTLINE_WEIGHT,
+      interiorWeight = DEFAULT_INTERIOR_WEIGHT,
+      borderMesh = null,
       selectedIds,
       onSelectCountry,
       onClearSelection,
@@ -451,6 +475,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
     const exportSourceRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const cameraLayerRef = useRef<SVGGElement>(null);
+    const bordersLayerRef = useRef<SVGGElement>(null);
     const activeCountryIdRef = useRef<CountryId | null>(null);
     const mapReadyMeasuredRef = useRef(false);
     const colorsRef = useRef(colors);
@@ -919,6 +944,72 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       wrappedScene,
     ]);
 
+    /*
+     * 04-09 - the interior-border mesh, projected ONCE.
+     *
+     * `geoPath` accepts a `GeometryCollection` directly, so all 327 geometries
+     * become one `d` string per wrapped copy. The projection is
+     * `createWorldProjection()` - the SAME one the polygons use, never a second
+     * one: a second projection is a mesh that drifts off the fills the moment
+     * either is touched (T-04-09-05).
+     */
+    const meshPathData = useMemo((): string | null => {
+      if (borderMesh === null) {
+        return null;
+      }
+      const pathData = createSafeMapPath(
+        geoPath(createWorldProjection()),
+        borderMesh,
+      );
+      return pathData === '' ? null : pathData;
+    }, [borderMesh]);
+
+    /*
+     * The mesh is WRAPPED at the date line on the same `WRAP_OFFSETS` the
+     * polygons use, and reusing the array is the point: a Pacific-framed
+     * composition otherwise shows filled countries with no interior borders on
+     * the wrapped copies. `coding-rules/data.md` records this as one of the two
+     * rendering questions `04-06` deliberately left to this plan.
+     */
+    useLayoutEffect((): void => {
+      const bordersLayer = bordersLayerRef.current;
+      if (bordersLayer === null) {
+        return;
+      }
+
+      const wrappedMesh =
+        meshPathData === null ? [] : WRAP_OFFSETS.map((offsetX) => offsetX);
+
+      select(bordersLayer)
+        .selectAll<SVGPathElement, number>('path')
+        .data(wrappedMesh, (offsetX): string => String(offsetX))
+        .join(
+          (enter) =>
+            enter
+              .append('path')
+              .attr('class', BORDER_MESH_PATH_CLASS)
+              // As an ATTRIBUTE, measured to survive rasterisation. The camera
+              // wraps this layer in `scale(zoom)`, so without the pin a creator
+              // framed at zoom 8 downloads 8x-thick borders - the defect
+              // `coding-rules/export.md` records by name.
+              .attr('vector-effect', 'non-scaling-stroke'),
+          (update) => update,
+          (exit) => exit.remove(),
+        )
+        .attr('d', meshPathData ?? '')
+        .attr('transform', (offsetX): string => `translate(${offsetX} 0)`)
+        // Inline attributes, never a `var()` or a class rule: the export clone
+        // rasterises as an isolated document with no host stylesheet, so this
+        // is the only route these two values have into the PNG.
+        .attr('stroke', hasStroke(interiorWeight) ? borderColor : null)
+        .attr(
+          'stroke-width',
+          hasStroke(interiorWeight)
+            ? String(strokeWidthFor(interiorWeight))
+            : null,
+        );
+    }, [borderColor, interiorWeight, meshPathData]);
+
     const handleBackgroundClick = useCallback(
       (event: ReactMouseEvent<SVGSVGElement>): void => {
         const target = event.target;
@@ -1007,6 +1098,34 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               role="listbox"
               aria-label={getMapAccessibleLabel(periodLabel)}
               aria-multiselectable="true"
+            />
+            {/*
+              04-09 / `04-UI-SPEC.md` section 6.5 - the interior-border mesh.
+
+              INSIDE the camera and AFTER the countries: inside, or the lines
+              detach from the geometry they describe the moment a creator pans;
+              after, or the fills paint over them.
+
+              NON-INTERACTIVE, as an attribute pair rather than a stylesheet
+              rule. `pointer-events` keeps the mesh from stealing the click that
+              belongs to the country underneath it, and `aria-hidden` keeps 327
+              nameless line segments out of the listbox a screen-reader user
+              walks. Both as attributes because a rule in `MapCanvas.css` would
+              reach the editor and NOT the export clone, and this layer is in
+              the clone.
+
+              `fill="none"` and the round joins are INHERITED presentation
+              attributes: set once on the group, carried by `cloneNode`, and
+              they never need a per-path repeat.
+            */}
+            <g
+              ref={bordersLayerRef}
+              data-layer="borders"
+              aria-hidden="true"
+              pointerEvents="none"
+              fill="none"
+              strokeLinejoin="round"
+              strokeLinecap="round"
             />
           </g>
           {legendSlot}

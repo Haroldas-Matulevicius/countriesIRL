@@ -194,6 +194,8 @@ const READY_WORLD: WorldGeoDataState = {
     { id: 'DEU', name: 'Germany' },
   ],
   warnings: [],
+  borderMesh: null,
+  borderMeshWarnings: [],
 };
 
 function createMediaQueryList(isDesktop: boolean): MediaQueryList {

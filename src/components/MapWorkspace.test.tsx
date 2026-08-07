@@ -22,6 +22,10 @@ const READY_GEO_DATA = {
   entityLookup: new Map(),
   countryMetadata: [],
   warnings: [],
+  // 04-09: the mesh is a third payload, and it is non-fatal. A fixture with
+  // none renders the map without interior lines rather than failing.
+  borderMesh: null,
+  borderMeshWarnings: [],
 } as const;
 
 const MODERN_ONLY_PERIODS: ReadonlyArray<PeriodOption> = [

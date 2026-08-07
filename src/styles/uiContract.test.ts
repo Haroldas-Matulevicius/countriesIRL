@@ -1322,7 +1322,7 @@ describe('Phase 3 toast allowlist is unchanged (assertion 23)', (): void => {
  * this phase than before it.
  */
 const EXPORT_CONTENT_PATTERN =
-  /\.map-canvas|\.country-path|\.scene-path|\.map-unit-path|\[data-layer=|\.map-export-source/u;
+  /\.map-canvas|\.country-path|\.scene-path|\.map-unit-path|\.border-mesh-path|\[data-layer=|\.map-export-source/u;
 
 /**
  * Every path class `MapCanvas` can put on a rendered element. All of them reach
@@ -1335,7 +1335,27 @@ const EXPORTED_PATH_CLASSES = [
   'country-path',
   'country-path--decorative',
   'map-unit-path',
+  // 04-09's interior-border mesh. It reaches the clone like the others, so an
+  // export-unsafe rule on it would ship; it is NOT a scene path, which is a
+  // different property and is gated separately below.
+  'border-mesh-path',
 ] as const;
+
+/**
+ * `sanitizeExportClone` normalises `path.scene-path,path.country-path` against
+ * the COASTLINE contract (`data-coastline-weight`). The interior mesh carries
+ * the INTERIOR weight, so a mesh matched by that selector would be re-stroked
+ * to the coastline's width in the download while the editor kept showing the
+ * creator's choice - and at `coastlineWeight: none` the interior borders would
+ * be deleted from the PNG outright, which is the regression `04-09` exists to
+ * close (T-04-09-03).
+ *
+ * Asserted against the exporter's OWN selector string rather than against a
+ * copy of it here: a rename in `export.ts` that widened the match would
+ * otherwise leave this reading a constant that no longer describes the code.
+ */
+const EXPORTER_NORMALISED_PATH_CLASSES = ['scene-path', 'country-path'] as const;
+const BORDER_MESH_PATH_CLASS = 'border-mesh-path';
 
 const EXPORT_UNSAFE_PROPERTIES = [
   'filter',
@@ -1391,6 +1411,55 @@ describe('Phase 3 export isolation contract', (): void => {
           'EXPORT_CONTENT_PATTERN, so an export-unsafe rule on it would ship.',
       ).toBe(true);
     });
+  });
+
+  it('keeps the interior mesh out of the exporter stroke normaliser (04-09)', (): void => {
+    const exportSource = readStyleSheet('../utils/export.ts');
+    const mapCanvasSource = readStyleSheet('../components/MapCanvas.tsx');
+
+    // The exporter's own selector, read from its source rather than restated.
+    const selectorMatch = exportSource.match(
+      /const SCENE_PATH_SELECTOR = '([^']+)'/u,
+    );
+    expect(
+      selectorMatch?.[1],
+      'the exporter no longer declares SCENE_PATH_SELECTOR under that name, ' +
+        'so this gate is matching nothing.',
+    ).toBeDefined();
+    const exporterSelector = selectorMatch?.[1] ?? '';
+
+    EXPORTER_NORMALISED_PATH_CLASSES.forEach((className): void => {
+      expect(
+        exporterSelector.includes(`.${className}`),
+        `the exporter's stroke normaliser no longer claims ".${className}". ` +
+          'Update this list in the same change, or the mesh assertion below ' +
+          'is comparing against a selector that has moved on.',
+      ).toBe(true);
+    });
+
+    expect(
+      exporterSelector.includes(BORDER_MESH_PATH_CLASS),
+      `the exporter's stroke normaliser now matches ".` +
+        `${BORDER_MESH_PATH_CLASS}". It resolves the COASTLINE contract, so ` +
+        'it would overwrite the interior weight in the PNG - and delete the ' +
+        'interior borders outright at coastlineWeight `none`.',
+    ).toBe(false);
+
+    // And the mesh element itself carries neither normalised class. The class
+    // MapCanvas builds for it is a single literal, so the whole assignment is
+    // checkable statically.
+    const meshClassMatch = mapCanvasSource.match(
+      /const BORDER_MESH_PATH_CLASS = '([^']+)'/u,
+    );
+    expect(meshClassMatch?.[1]).toBe(BORDER_MESH_PATH_CLASS);
+    EXPORTER_NORMALISED_PATH_CLASSES.forEach((className): void => {
+      expect(BORDER_MESH_PATH_CLASS.includes(className)).toBe(false);
+    });
+    expect(
+      mapCanvasSource.includes(".attr('class', BORDER_MESH_PATH_CLASS)"),
+      'the mesh class is no longer assigned as a single constant, so it may ' +
+        'have picked up `scene-path` or `country-path` alongside it.',
+    ).toBe(true);
   });
 });
 

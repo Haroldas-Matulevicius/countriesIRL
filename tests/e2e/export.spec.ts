@@ -1619,6 +1619,177 @@ async function expectBlankControlReadsZeroInk(
   ).toBe(0);
 }
 
+/* ------------------------------------------------------------------ *
+ * 04-09 - the interior-border mesh, structurally
+ * ------------------------------------------------------------------ */
+
+/**
+ * `04-06` measured 327 geometries, and `MapCanvas` draws all of them as ONE
+ * `d` per wrapped copy. `WRAP_OFFSETS` is `[-1080, 0, 1080]`, so three.
+ *
+ * The count is compared against the wrap set the POLYGONS actually rendered
+ * rather than against this literal alone: an offset added to or removed from
+ * `WRAP_OFFSETS` moves both sides together, and the literal is what stops the
+ * comparison being satisfied at zero.
+ */
+const MESH_WRAP_COPY_COUNT = 3;
+
+test.describe('interior borders', (): void => {
+  test('draw over the fills, inside the camera, wrapped at the date line', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const layout = await page.evaluate(() => {
+      const camera = document.querySelector('svg.map-canvas [data-layer="camera"]');
+      if (camera === null) {
+        throw new Error('The camera layer is absent.');
+      }
+      const cameraChildren = [...camera.children].map((child) =>
+        child.getAttribute('data-layer'),
+      );
+      const borders = camera.querySelector(':scope > [data-layer="borders"]');
+      const meshPaths = [
+        ...(borders?.querySelectorAll(':scope > path') ?? []),
+      ];
+      const scenePaths = [
+        ...document.querySelectorAll('svg.map-canvas path.scene-path'),
+      ];
+
+      return {
+        cameraChildren,
+        // A layer nested anywhere else would still "exist"; the containment is
+        // the contract, so it is read as a direct child of the camera.
+        bordersIsCameraChild: borders !== null,
+        bordersPointerEvents: borders?.getAttribute('pointer-events') ?? null,
+        bordersAriaHidden: borders?.getAttribute('aria-hidden') ?? null,
+        bordersFill: borders?.getAttribute('fill') ?? null,
+        meshCount: meshPaths.length,
+        meshClasses: [
+          ...new Set(meshPaths.map((path) => path.getAttribute('class'))),
+        ],
+        meshVectorEffects: meshPaths.filter(
+          (path) => path.getAttribute('vector-effect') === 'non-scaling-stroke',
+        ).length,
+        meshEmptyGeometry: meshPaths.filter(
+          (path) => (path.getAttribute('d') ?? '') === '',
+        ).length,
+        meshTransforms: [
+          ...new Set(meshPaths.map((path) => path.getAttribute('transform'))),
+        ].sort(),
+        sceneTransforms: [
+          ...new Set(scenePaths.map((path) => path.getAttribute('transform'))),
+        ].sort(),
+        meshStrokes: [
+          ...new Set(meshPaths.map((path) => path.getAttribute('stroke'))),
+        ],
+        meshStrokeWidths: [
+          ...new Set(meshPaths.map((path) => path.getAttribute('stroke-width'))),
+        ],
+      };
+    });
+
+    // ORDER inside the camera: countries first, then borders, or the fills
+    // paint over the lines.
+    expect(layout.bordersIsCameraChild).toBe(true);
+    expect(layout.cameraChildren).toEqual([
+      'outgoing-scenes',
+      'countries',
+      'borders',
+    ]);
+
+    // NON-INTERACTIVE, as attributes rather than a stylesheet rule.
+    expect(layout.bordersPointerEvents).toBe('none');
+    expect(layout.bordersAriaHidden).toBe('true');
+    expect(layout.bordersFill).toBe('none');
+
+    // WRAPPED at the date line, on the same offsets the polygons use. A mesh
+    // that rendered once would show fills with no interior borders on the
+    // Pacific-framed copies.
+    expect(layout.meshCount).toBe(MESH_WRAP_COPY_COUNT);
+    expect(layout.meshEmptyGeometry).toBe(0);
+    expect(
+      layout.sceneTransforms.length,
+      'the polygons rendered a single wrap offset, so the comparison below ' +
+        'would be satisfied by a mesh that does not wrap either.',
+    ).toBe(MESH_WRAP_COPY_COUNT);
+    expect(
+      layout.meshTransforms,
+      'the mesh does not repeat at the same offsets as the polygons, so a ' +
+        'Pacific-framed composition shows filled countries with no interior ' +
+        'borders on the wrapped copies.',
+    ).toEqual(layout.sceneTransforms);
+
+    // ZOOM-PINNED, as an attribute: the camera wraps this layer in
+    // `scale(zoom)`, so without the pin a creator framed at 8x downloads
+    // 8x-thick borders.
+    expect(layout.meshVectorEffects).toBe(MESH_WRAP_COPY_COUNT);
+
+    // Its own class: neither of the two the exporter's stroke normaliser
+    // claims, or the interior weight would be overwritten by the coastline's.
+    expect(layout.meshClasses).toEqual(['border-mesh-path']);
+
+    // The composition's own choice, inline, from the one weight table:
+    // `interiorWeight` defaults to `thin` (0.75).
+    expect(layout.meshStrokes).toEqual(['#000000']);
+    expect(layout.meshStrokeWidths).toEqual(['0.75']);
+  });
+
+  test('follow the creator choice of interior weight and border colour', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+
+    const readMesh = (): Promise<{
+      strokes: ReadonlyArray<string | null>;
+      widths: ReadonlyArray<string | null>;
+    }> =>
+      page.evaluate(() => {
+        const meshPaths = [
+          ...document.querySelectorAll(
+            'svg.map-canvas [data-layer="borders"] > path',
+          ),
+        ];
+        return {
+          strokes: [
+            ...new Set(meshPaths.map((path) => path.getAttribute('stroke'))),
+          ],
+          widths: [
+            ...new Set(meshPaths.map((path) => path.getAttribute('stroke-width'))),
+          ],
+        };
+      });
+
+    await chooseStrokeWeight(page, 'Interior', 'Bold');
+    await expect
+      .poll(async (): Promise<ReadonlyArray<string | null>> => (await readMesh()).widths)
+      .toEqual(['2']);
+
+    // `none` OMITS the stroke rather than writing a zero width, exactly as the
+    // coastline does — so the gate asserts absence, not a number.
+    await chooseStrokeWeight(page, 'Interior', 'None');
+    await expect
+      .poll(async (): Promise<{
+        strokes: ReadonlyArray<string | null>;
+        widths: ReadonlyArray<string | null>;
+      }> => readMesh())
+      .toEqual({ strokes: [null], widths: [null] });
+
+    await chooseStrokeWeight(page, 'Interior', 'Thin');
+    // The swatch pills carry no `role="radiogroup"` (only the weight groups
+    // do), so the radio is reached by its own accessible name.
+    const silver = page.getByRole('radio', { name: 'Silver', exact: true });
+    await silver.check();
+    await expect(silver).toBeChecked();
+    await expect
+      .poll(async (): Promise<ReadonlyArray<string | null>> => (await readMesh()).strokes)
+      .toEqual(['#9CA3AF']);
+  });
+});
+
 test.describe('border weight', (): void => {
   /**
    * **GATE A — the coastline is quiet, and the same point inks when it is not.**

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeGeoJson, normalizeSceneGeoJson } from './geojson';
+import {
+  normalizeBorderMesh,
+  normalizeGeoJson,
+  normalizeSceneGeoJson,
+} from './geojson';
 
 const polygonCoordinates = [
   [
@@ -512,6 +516,168 @@ describe('normalizeSceneGeoJson', (): void => {
       ok: true,
       features: [{ id: 'modern-FRA' }, { id: 'modern-DEU' }],
       warnings: [{ featureIndex: 1, code: 'duplicate-id' }],
+    });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-09 - the interior-border mesh
+ * ------------------------------------------------------------------ */
+
+const lineStringCoordinates = [
+  [0, 0],
+  [1, 1],
+];
+
+const multiLineStringCoordinates = [lineStringCoordinates, lineStringCoordinates];
+
+function createMesh(geometries: ReadonlyArray<unknown>): unknown {
+  return { type: 'GeometryCollection', geometries };
+}
+
+const lineString = { type: 'LineString', coordinates: lineStringCoordinates };
+const multiLineString = {
+  type: 'MultiLineString',
+  coordinates: multiLineStringCoordinates,
+};
+
+describe('normalizeBorderMesh', (): void => {
+  /*
+   * The measured shape of the shipped asset: 301 LineString + 26
+   * MultiLineString. A validator that admitted only LineStrings would agree
+   * happily with a mesh that had lost all 26 MultiLineStrings, which is the
+   * exact correction `coding-rules/data.md` records against 04-RESEARCH.
+   */
+  it('admits both LineString and MultiLineString members', (): void => {
+    const result = normalizeBorderMesh(
+      createMesh([lineString, multiLineString]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.mesh.type).toBe('GeometryCollection');
+    // A literal, never `inputs.length`: a product or a length read from the
+    // input is green at zero geometries.
+    expect(result.mesh.geometries).toHaveLength(2);
+    expect(
+      result.mesh.geometries.map((geometry): string => geometry.type),
+    ).toStrictEqual(['LineString', 'MultiLineString']);
+    expect(result.warnings).toStrictEqual([]);
+  });
+
+  it('refuses a FeatureCollection root rather than crashing on it', (): void => {
+    const result = normalizeBorderMesh({
+      type: 'FeatureCollection',
+      features: [createFeature('FRA', 'France')],
+    });
+
+    expect(result).toStrictEqual({
+      ok: false,
+      reason: 'invalid-collection',
+      warnings: [],
+    });
+  });
+
+  it('refuses a root whose geometries are not an array', (): void => {
+    expect(
+      normalizeBorderMesh({ type: 'GeometryCollection', geometries: null }),
+    ).toStrictEqual({
+      ok: false,
+      reason: 'invalid-collection',
+      warnings: [],
+    });
+    expect(normalizeBorderMesh(null)).toStrictEqual({
+      ok: false,
+      reason: 'invalid-collection',
+      warnings: [],
+    });
+  });
+
+  it('skips a malformed geometry with a warning and keeps its neighbours', (): void => {
+    const result = normalizeBorderMesh(
+      createMesh([
+        lineString,
+        // A single position is not a line: two is the minimum.
+        { type: 'LineString', coordinates: [[0, 0]] },
+        // Off-planet coordinates are what a truncated or re-projected file
+        // looks like, and `isPosition` is what catches them.
+        { type: 'LineString', coordinates: [[0, 0], [500, 0]] },
+        { type: 'Polygon', coordinates: polygonCoordinates },
+        'not a geometry at all',
+        multiLineString,
+      ]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.mesh.geometries).toHaveLength(2);
+    expect(result.warnings).toStrictEqual([
+      { featureIndex: 1, code: 'invalid-geometry' },
+      { featureIndex: 2, code: 'invalid-geometry' },
+      { featureIndex: 3, code: 'unsupported-geometry' },
+      { featureIndex: 4, code: 'invalid-geometry' },
+    ]);
+  });
+
+  it('refuses a mesh with no usable geometry at all', (): void => {
+    expect(normalizeBorderMesh(createMesh([]))).toStrictEqual({
+      ok: false,
+      reason: 'no-valid-geometries',
+      warnings: [],
+    });
+    expect(
+      normalizeBorderMesh(createMesh([{ type: 'Point', coordinates: [0, 0] }])),
+    ).toStrictEqual({
+      ok: false,
+      reason: 'no-valid-geometries',
+      warnings: [{ featureIndex: 0, code: 'unsupported-geometry' }],
+    });
+  });
+
+  /*
+   * The count is checked against the manifest's declared `geometryCount`, and
+   * it counts GEOMETRIES rather than LineStrings. Both directions are asserted:
+   * the declared count accepts the matching mesh and refuses the short one, so
+   * the check cannot be satisfied by a validator that ignores the parameter.
+   */
+  it('holds the mesh to the geometry count the manifest declares', (): void => {
+    expect(normalizeBorderMesh(createMesh([lineString, multiLineString]), 2).ok).toBe(
+      true,
+    );
+
+    expect(
+      normalizeBorderMesh(createMesh([lineString, multiLineString]), 3),
+    ).toStrictEqual({
+      ok: false,
+      reason: 'geometry-count-mismatch',
+      warnings: [],
+    });
+
+    // A dropped MultiLineString moves the count. A LineString-only tally would
+    // read 1 both before and after and never notice.
+    expect(
+      normalizeBorderMesh(createMesh([lineString]), 2),
+    ).toStrictEqual({
+      ok: false,
+      reason: 'geometry-count-mismatch',
+      warnings: [],
+    });
+  });
+
+  it('counts a skipped geometry against the declared count', (): void => {
+    const result = normalizeBorderMesh(
+      createMesh([lineString, { type: 'LineString', coordinates: [[0, 0]] }]),
+      2,
+    );
+
+    expect(result).toStrictEqual({
+      ok: false,
+      reason: 'geometry-count-mismatch',
+      warnings: [{ featureIndex: 1, code: 'invalid-geometry' }],
     });
   });
 });

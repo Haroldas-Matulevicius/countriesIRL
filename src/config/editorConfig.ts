@@ -23,11 +23,14 @@ export const DATA_BASE_PATH = '/data/';
 
 const WORLD_MANIFEST_FILE = 'world-manifest.json';
 const WORLD_DATA_FILE = 'world-modern.geojson';
+/** `04-06`'s derived interior-border mesh, rendered by `04-09`. */
+const WORLD_BORDERS_FILE = 'world-borders-modern.geojson';
 const SNAPSHOT_MANIFEST_FILE = 'snapshots/index.json';
 
 export interface EditorAssetUrls {
   readonly worldManifestUrl: string;
   readonly worldDataUrl: string;
+  readonly worldBordersUrl: string;
   readonly snapshotManifestUrl: string;
 }
 
@@ -48,6 +51,7 @@ export function resolveEditorAssetUrls(
   return {
     worldManifestUrl: `${base}${WORLD_MANIFEST_FILE}`,
     worldDataUrl: `${base}${WORLD_DATA_FILE}`,
+    worldBordersUrl: `${base}${WORLD_BORDERS_FILE}`,
     snapshotManifestUrl: `${base}${SNAPSHOT_MANIFEST_FILE}`,
   };
 }

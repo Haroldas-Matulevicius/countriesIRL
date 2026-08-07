@@ -10,7 +10,11 @@ import {
   type EditorAssetUrls,
 } from '../config/editorConfig';
 import { useEditorConfig } from '../providers/EditorConfigProvider';
-import { normalizeSceneGeoJson } from '../utils/geojson';
+import {
+  normalizeBorderMesh,
+  normalizeSceneGeoJson,
+  type BorderMesh,
+} from '../utils/geojson';
 import { normalizeStableCountryId } from '../utils/countryIds';
 
 /**
@@ -21,6 +25,7 @@ import { normalizeStableCountryId } from '../utils/countryIds';
  */
 export const WORLD_MANIFEST_URL = DEFAULT_EDITOR_ASSET_URLS.worldManifestUrl;
 export const WORLD_DATA_URL = DEFAULT_EDITOR_ASSET_URLS.worldDataUrl;
+export const WORLD_BORDERS_URL = DEFAULT_EDITOR_ASSET_URLS.worldBordersUrl;
 
 const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const EXPECTED_MANIFEST_SCHEMA_VERSION = 1;
@@ -76,6 +81,13 @@ interface ValidWorldManifest {
   readonly unitsById: ReadonlyMap<string, WorldUnitMetadata>;
   readonly coreIds: ReadonlySet<CountryId>;
   readonly countryMetadata: ReadonlyArray<WorldCountryMetadata>;
+  /**
+   * `interiorBorderMesh.geometryCount` (`04-06`). Carried from the manifest
+   * rather than declared here so the mesh artifact and its provenance record
+   * are checked AGAINST EACH OTHER at load time: editing one to agree with a
+   * constant in this file would not be enough.
+   */
+  readonly borderMeshGeometryCount: number;
 }
 
 type ManifestValidationResult =
@@ -83,6 +95,15 @@ type ManifestValidationResult =
   | { readonly ok: false };
 
 type WorldGeoDataErrorSource = 'manifest' | 'world-asset';
+
+/**
+ * The mesh is a THIRD payload with its own source tag, and it is deliberately
+ * NOT a member of `WorldGeoDataErrorSource`: a mesh that fails to arrive or
+ * fails validation leaves the map fully usable minus its interior lines, so it
+ * can never produce the fatal error state. Typing it separately is what keeps
+ * that non-fatality visible in the types rather than only in a comment.
+ */
+type BorderMeshPayloadSource = 'border-mesh';
 
 export type WorldGeoDataState =
   | { readonly status: 'loading' }
@@ -102,6 +123,13 @@ export type WorldGeoDataState =
       readonly entityLookup: ReadonlyMap<CountryId, SceneFeature>;
       readonly countryMetadata: ReadonlyArray<WorldCountryMetadata>;
       readonly warnings: ReadonlyArray<GeoJsonWarning>;
+      /**
+       * `04-06`'s derived interior-border mesh, validated against the count the
+       * manifest declares. `null` when it did not arrive or did not validate:
+       * the map still renders, without the lines BETWEEN countries.
+       */
+      readonly borderMesh: BorderMesh | null;
+      readonly borderMeshWarnings: ReadonlyArray<GeoJsonWarning>;
     }
   | {
       readonly status: 'error';
@@ -115,12 +143,14 @@ interface WorldGeoDataRequest {
   abort(): void;
 }
 
-type PayloadLoadResult =
+type PayloadLoadResult<
+  Source extends WorldGeoDataErrorSource | BorderMeshPayloadSource,
+> =
   | { readonly ok: true; readonly value: unknown }
   | {
       readonly ok: false;
       readonly reason: 'fetch-failed' | 'invalid-data';
-      readonly source: WorldGeoDataErrorSource;
+      readonly source: Source;
     };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -190,6 +220,36 @@ function hasExpectedManifestHeader(manifest: Record<string, unknown>): boolean {
       source.sha256 === expectedSource.sha256
     );
   });
+}
+
+/**
+ * `interiorBorderMesh.geometryCount` from the manifest (`04-06`).
+ *
+ * It is REQUIRED, not optional: `04-09` renders the mesh, so a manifest without
+ * the record is not the approved manifest for this build and the pair should be
+ * refused rather than silently rendered without interior borders.
+ *
+ * The `rootType` is checked here too, because `04-RESEARCH` called the artifact
+ * a collection of `LineString`s and it is not one — the manifest states
+ * `GeometryCollection` and `normalizeBorderMesh` refuses anything else, so the
+ * two ends of the contract are asserted rather than assumed to agree.
+ */
+function readBorderMeshGeometryCount(
+  manifest: Record<string, unknown>,
+): number | null {
+  const record = manifest.interiorBorderMesh;
+  if (
+    !isRecord(record) ||
+    hasReservedObjectKey(record) ||
+    record.rootType !== 'GeometryCollection'
+  ) {
+    return null;
+  }
+
+  const count = record.geometryCount;
+  return typeof count === 'number' && Number.isInteger(count) && count > 0
+    ? count
+    : null;
 }
 
 function readCoreUnit(candidate: unknown): WorldUnitMetadata | null {
@@ -310,6 +370,11 @@ function validateWorldManifest(input: unknown): ManifestValidationResult {
     return { ok: false };
   }
 
+  const borderMeshGeometryCount = readBorderMeshGeometryCount(input);
+  if (borderMeshGeometryCount === null) {
+    return { ok: false };
+  }
+
   const coreRecords = readRecordArray(input, 'coreStates', EXPECTED_CORE_COUNT);
   const nonCoreRecords = readRecordArray(
     input,
@@ -385,6 +450,7 @@ function validateWorldManifest(input: unknown): ManifestValidationResult {
     value: {
       unitsById,
       coreIds,
+      borderMeshGeometryCount,
       countryMetadata: colorableUnits.map((unit) => ({
         id: unit.entityId,
         name: unit.name,
@@ -450,11 +516,13 @@ function joinWorldAsset(input: unknown, manifest: ValidWorldManifest): unknown {
   };
 }
 
-async function fetchPayload(
+async function fetchPayload<
+  Source extends WorldGeoDataErrorSource | BorderMeshPayloadSource,
+>(
   url: string,
   signal: AbortSignal,
-  source: WorldGeoDataErrorSource,
-): Promise<PayloadLoadResult> {
+  source: Source,
+): Promise<PayloadLoadResult<Source>> {
   let response: Response;
   try {
     response = await globalThis.fetch(url, { signal });
@@ -481,9 +549,13 @@ export async function loadWorldGeoData(
   assetUrls: EditorAssetUrls = DEFAULT_EDITOR_ASSET_URLS,
 ): Promise<WorldGeoDataState> {
   globalThis.performance.mark(MAP_LOAD_START_MARK);
-  const [manifestPayload, worldPayload] = await Promise.all([
+  const [manifestPayload, worldPayload, borderMeshPayload] = await Promise.all([
     fetchPayload(assetUrls.worldManifestUrl, signal, 'manifest'),
     fetchPayload(assetUrls.worldDataUrl, signal, 'world-asset'),
+    // Same-origin, same `dataBasePath` prop, no new fetch surface and no
+    // absolute URL. Fetched in parallel because it is independent of the other
+    // two; validated below, once the manifest has yielded its declared count.
+    fetchPayload(assetUrls.worldBordersUrl, signal, 'border-mesh'),
   ]);
 
   if (!manifestPayload.ok) {
@@ -512,6 +584,20 @@ export async function loadWorldGeoData(
   if (!normalizationResult.ok) {
     return { status: 'error', reason: 'invalid-data', source: 'world-asset' };
   }
+
+  /*
+   * NON-FATAL by design, and the map is the reason: a missing or malformed mesh
+   * costs the creator the lines BETWEEN countries, not the map. Refusing the
+   * whole load would turn a decorative degradation into a blank editor. The
+   * malformed members are skipped with warnings rather than throwing, matching
+   * the feature loader's contract exactly.
+   */
+  const borderMeshResult = borderMeshPayload.ok
+    ? normalizeBorderMesh(
+        borderMeshPayload.value,
+        manifestResult.value.borderMeshGeometryCount,
+      )
+    : null;
 
   const coreFeatures = normalizationResult.features.filter(
     (feature) => feature.interactionMode === 'modern-core',
@@ -542,6 +628,11 @@ export async function loadWorldGeoData(
     entityLookup,
     countryMetadata: manifestResult.value.countryMetadata,
     warnings: normalizationResult.warnings,
+    borderMesh:
+      borderMeshResult !== null && borderMeshResult.ok
+        ? borderMeshResult.mesh
+        : null,
+    borderMeshWarnings: borderMeshResult === null ? [] : borderMeshResult.warnings,
   };
 }
 

@@ -325,11 +325,23 @@ still governs everything that reaches `public/data/`.
 
 #### Two rendering questions this derivation deliberately does not answer — both belong to `04-09`
 
-1. **Date-line wrapping.** `MapCanvas` renders ±360° offset repeats of every polygon
-   (`WRAP_OFFSETS`, `createWrappedSceneModel`). **The mesh needs the same wrapping**, or a
-   Pacific-framed composition shows filled countries with no interior borders on the wrapped
-   copies. This is not in `ROADMAP.md`'s `04-05` description; it is written here so it cannot be
-   missed.
+1. **Date-line wrapping — ANSWERED by `04-09`.** `MapCanvas` renders ±360° offset repeats of
+   every polygon (`WRAP_OFFSETS`, `createWrappedSceneModel`). **The mesh needs the same
+   wrapping**, or a Pacific-framed composition shows filled countries with no interior borders on
+   the wrapped copies. This is not in `ROADMAP.md`'s `04-05` description; it was written here so
+   it could not be missed.
+
+   **What shipped:** `g[data-layer="borders"]` binds the **same `WRAP_OFFSETS` array** — reused,
+   not re-authored — so the mesh renders three copies at `translate(-1080 0)` / `translate(0 0)` /
+   `translate(1080 0)`. Because `geoPath` accepts a `GeometryCollection` directly, all 327
+   geometries are **one `d` string per copy**: three paths, not 981. The gate compares the mesh's
+   distinct `transform` set against the **polygons' own** distinct `transform` set rather than
+   against a literal — so an offset added to or removed from `WRAP_OFFSETS` moves both sides
+   together and cannot silently desynchronise them — with a literal `3` beside it so the
+   comparison is not satisfiable at zero. RED-proved by rendering the mesh at a single offset.
+
+   The mesh path carries **`vector-effect="non-scaling-stroke"` as an attribute** for the same
+   reason every scene path does: the camera wraps the layer in `scale(zoom)`.
 2. **The mesh cannot carry hover or selection state (CD-11).** `src/constants/colors.ts` records
    that border **weight**, not colour, carries interaction state — every border is black at every
    state. A mesh segment belongs to **two** countries, so weighting one segment highlights both.

@@ -6,6 +6,7 @@ import borderMeshText from '../../public/data/world-borders-modern.geojson?raw';
 import manifestText from '../../public/data/world-manifest.json?raw';
 import worldText from '../../public/data/world-modern.geojson?raw';
 import {
+  WORLD_BORDERS_URL,
   WORLD_DATA_URL,
   WORLD_MANIFEST_URL,
   loadWorldGeoData,
@@ -112,13 +113,38 @@ function readAssets(): {
   readonly worldText: string;
   readonly manifest: unknown;
   readonly world: unknown;
+  readonly borderMesh: unknown;
 } {
   return {
     manifestText,
     worldText,
     manifest: readJson(manifestText),
     world: readJson(worldText),
+    borderMesh: readJson(borderMeshText),
   };
+}
+
+/**
+ * The three same-origin payloads, routed by URL. 04-09 added the third; the
+ * mock answers each with its REAL committed bytes, so a loader change that
+ * silently stopped validating one is caught here rather than in the browser.
+ */
+function respondByUrl(
+  input: RequestInfo | URL,
+  assets: {
+    readonly manifest: unknown;
+    readonly world: unknown;
+    readonly borderMesh: unknown;
+  },
+): unknown {
+  const url = String(input);
+  if (url === WORLD_MANIFEST_URL) {
+    return assets.manifest;
+  }
+  if (url === WORLD_BORDERS_URL) {
+    return assets.borderMesh;
+  }
+  return assets.world;
 }
 
 afterEach((): void => {
@@ -283,14 +309,11 @@ describe('canonical world assets', (): void => {
   });
 
   it('normalizes all visible units into finite world paths', async (): Promise<void> => {
-    const { manifest, world } = await readAssets();
+    const assets = await readAssets();
     vi.stubGlobal(
       'fetch',
       vi.fn((input: RequestInfo | URL): Promise<Response> => {
-        const url = String(input);
-        return Promise.resolve(
-          createJsonResponse(url === WORLD_MANIFEST_URL ? manifest : world),
-        );
+        return Promise.resolve(createJsonResponse(respondByUrl(input, assets)));
       }),
     );
 
@@ -321,21 +344,102 @@ describe('canonical world assets', (): void => {
     ).toBe(false);
     expect(new Set(result.features.map((feature) => feature.id)).size).toBe(248);
     expect(paths.every((path) => path.length > 0 && !/NaN|Infinity/u.test(path))).toBe(true);
+
+    /*
+     * 04-09: the SHIPPED mesh passes the loader's own validation, counted as
+     * GEOMETRIES rather than `LineString`s. `04-06` measured 301 `LineString`
+     * plus 26 `MultiLineString`, and `coding-rules/data.md` records why the
+     * distinction matters: a LineString-only tally agrees happily with a mesh
+     * that has lost all 26 MultiLineStrings. Both member counts are asserted
+     * against literals so the sum cannot be satisfied by a redistribution.
+     */
+    expect(result.borderMesh).not.toBeNull();
+    expect(result.borderMeshWarnings).toStrictEqual([]);
+    const meshGeometries = result.borderMesh?.geometries ?? [];
+    expect(meshGeometries).toHaveLength(EXPECTED_BORDER_MESH_GEOMETRY_COUNT);
+    expect(
+      meshGeometries.filter((geometry) => geometry.type === 'LineString'),
+    ).toHaveLength(301);
+    expect(
+      meshGeometries.filter((geometry) => geometry.type === 'MultiLineString'),
+    ).toHaveLength(26);
+
+    // And it projects: an unprojectable mesh would render as an empty `d` and
+    // the map would ship with no interior borders at all, which is the exact
+    // Known Stub 04-08 opened and this plan closes.
+    const meshPath =
+      result.borderMesh === null
+        ? ''
+        : createSafeMapPath(pathGenerator, result.borderMesh);
+    expect(meshPath.length).toBeGreaterThan(0);
+    expect(/NaN|Infinity/u.test(meshPath)).toBe(false);
   });
+
+  /*
+   * The mesh is NON-FATAL, in both of its failure directions, and the map is
+   * the reason: losing the lines BETWEEN countries must not cost the creator
+   * the countries. Asserted as `borderMesh: null` on a still-`ready` state -
+   * not as an error - because an error state is a blank editor.
+   */
+  it.each([
+    {
+      label: 'the mesh fetch fails',
+      respond: (): unknown => null,
+      status: 503,
+    },
+    {
+      label: 'the mesh is the wrong root type',
+      respond: (assets: { readonly world: unknown }): unknown => assets.world,
+      status: 200,
+    },
+    {
+      label: 'the mesh lost a geometry the manifest counts',
+      respond: (assets: { readonly borderMesh: unknown }): unknown => {
+        const mesh = assets.borderMesh;
+        if (!isRecord(mesh) || !Array.isArray(mesh.geometries)) {
+          throw new Error('the committed mesh is not a geometry collection.');
+        }
+        return { ...mesh, geometries: mesh.geometries.slice(1) };
+      },
+      status: 200,
+    },
+  ])(
+    'keeps the map usable, without interior borders, when $label',
+    async ({ respond, status }): Promise<void> => {
+      const assets = readAssets();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL): Promise<Response> => {
+          if (String(input) === WORLD_BORDERS_URL) {
+            return Promise.resolve(
+              createJsonResponse(respond(assets) ?? {}, status),
+            );
+          }
+          return Promise.resolve(createJsonResponse(respondByUrl(input, assets)));
+        }),
+      );
+
+      const result = await loadWorldGeoData(new AbortController().signal);
+      expect(result.status).toBe('ready');
+      if (result.status !== 'ready') {
+        return;
+      }
+      expect(result.features).toHaveLength(248);
+      expect(result.borderMesh).toBeNull();
+    },
+  );
 });
 
 describe('world data loader', (): void => {
   it('fetches same-origin manifest and world data once with one abort signal', async (): Promise<void> => {
-    const { manifest, world } = await readAssets();
+    const assets = await readAssets();
     const signals: AbortSignal[] = [];
     const fetchMock = vi.fn(
       (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         if (init?.signal instanceof AbortSignal) {
           signals.push(init.signal);
         }
-        return Promise.resolve(
-          createJsonResponse(String(input) === WORLD_MANIFEST_URL ? manifest : world),
-        );
+        return Promise.resolve(createJsonResponse(respondByUrl(input, assets)));
       },
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -344,14 +448,23 @@ describe('world data loader', (): void => {
     const result = await loadWorldGeoData(controller.signal);
 
     expect(result.status).toBe('ready');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Three since 04-09: the interior-border mesh is the third same-origin
+    // payload. The URL LIST is asserted, not just the count, so the new fetch
+    // is named rather than absorbed into a bigger number.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
       WORLD_MANIFEST_URL,
       WORLD_DATA_URL,
+      WORLD_BORDERS_URL,
     ]);
     expect(WORLD_MANIFEST_URL.startsWith('/data/')).toBe(true);
     expect(WORLD_DATA_URL.startsWith('/data/')).toBe(true);
-    expect(signals).toEqual([controller.signal, controller.signal]);
+    expect(WORLD_BORDERS_URL.startsWith('/data/')).toBe(true);
+    expect(signals).toEqual([
+      controller.signal,
+      controller.signal,
+      controller.signal,
+    ]);
   });
 
   it('aborts both in-flight requests through the hook request cleanup', async (): Promise<void> => {
@@ -373,7 +486,7 @@ describe('world data loader', (): void => {
     );
 
     const request = startWorldGeoDataLoad();
-    expect(signals).toHaveLength(2);
+    expect(signals).toHaveLength(3);
 
     request.abort();
 
@@ -387,17 +500,14 @@ describe('world data loader', (): void => {
   ] as const)(
     'returns a typed fatal state when $source fetch fails',
     async ({ failedUrl, source }): Promise<void> => {
-      const { manifest, world } = await readAssets();
+      const assets = await readAssets();
       vi.stubGlobal(
         'fetch',
         vi.fn((input: RequestInfo | URL): Promise<Response> => {
-          const url = String(input);
-          if (url === failedUrl) {
+          if (String(input) === failedUrl) {
             return Promise.resolve(createJsonResponse({}, 503));
           }
-          return Promise.resolve(
-            createJsonResponse(url === WORLD_MANIFEST_URL ? manifest : world),
-          );
+          return Promise.resolve(createJsonResponse(respondByUrl(input, assets)));
         }),
       );
 
@@ -408,6 +518,43 @@ describe('world data loader', (): void => {
       });
     },
   );
+
+  it('refuses a manifest with no interior-border-mesh record (04-09)', async (): Promise<void> => {
+    const assets = readAssets();
+    const { manifest } = assets;
+    expect(isRecord(manifest)).toBe(true);
+    if (!isRecord(manifest)) {
+      return;
+    }
+    const withoutMeshRecord = Object.fromEntries(
+      Object.entries(manifest).filter(([key]) => key !== 'interiorBorderMesh'),
+    );
+    expect('interiorBorderMesh' in withoutMeshRecord).toBe(false);
+    expect('interiorBorderMesh' in manifest).toBe(true);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL): Promise<Response> =>
+        Promise.resolve(
+          createJsonResponse(
+            respondByUrl(input, { ...assets, manifest: withoutMeshRecord }),
+          ),
+        ),
+      ),
+    );
+
+    /*
+     * The mesh ARTIFACT is non-fatal; the manifest RECORD is not. The record is
+     * what the artifact is counted against, so a manifest without it is a
+     * provenance pair this build does not recognise - and accepting it would
+     * quietly turn the count gate off rather than fail it.
+     */
+    await expect(loadWorldGeoData(new AbortController().signal)).resolves.toEqual({
+      status: 'error',
+      reason: 'invalid-data',
+      source: 'manifest',
+    });
+  });
 
   it.each([
     {
@@ -423,17 +570,14 @@ describe('world data loader', (): void => {
   ] as const)(
     'returns a typed fatal state when $source validation fails',
     async ({ invalidUrl, invalidValue, source }): Promise<void> => {
-      const { manifest, world } = readAssets();
+      const assets = readAssets();
       vi.stubGlobal(
         'fetch',
         vi.fn((input: RequestInfo | URL): Promise<Response> => {
-          const url = String(input);
-          if (url === invalidUrl) {
+          if (String(input) === invalidUrl) {
             return Promise.resolve(createJsonResponse(invalidValue));
           }
-          return Promise.resolve(
-            createJsonResponse(url === WORLD_MANIFEST_URL ? manifest : world),
-          );
+          return Promise.resolve(createJsonResponse(respondByUrl(input, assets)));
         }),
       );
 
@@ -446,7 +590,8 @@ describe('world data loader', (): void => {
   );
 
   it('rejects an over-bounded world collection before geometry traversal', async (): Promise<void> => {
-    const { manifest, world } = readAssets();
+    const assets = readAssets();
+    const { world } = assets;
     expect(isRecord(world) && Array.isArray(world.features)).toBe(true);
     if (!isRecord(world) || !Array.isArray(world.features)) {
       return;
@@ -460,7 +605,9 @@ describe('world data loader', (): void => {
       'fetch',
       vi.fn((input: RequestInfo | URL): Promise<Response> =>
         Promise.resolve(
-          createJsonResponse(String(input) === WORLD_MANIFEST_URL ? manifest : oversizedWorld),
+          createJsonResponse(
+            respondByUrl(input, { ...assets, world: oversizedWorld }),
+          ),
         ),
       ),
     );

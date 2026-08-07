@@ -155,7 +155,16 @@ export function MapWorkspace({
 
         {isSceneReady ? (
           <>
-            {geoData.warnings.length > 0 ? (
+            {/*
+              04-09: a skipped mesh geometry joins the SAME banner rather than
+              earning a second creator-facing string. "Some country shapes could
+              not be loaded. You can continue with the available map." is true of
+              a partially loaded border mesh, and a new string would need its own
+              allowlist entry for a case a hash-verified same-origin asset cannot
+              reach in production.
+            */}
+            {geoData.warnings.length > 0 ||
+            geoData.borderMeshWarnings.length > 0 ? (
               <p className="map-workspace__warning" role="status">
                 Some country shapes could not be loaded. You can continue with
                 the available map.
@@ -173,6 +182,7 @@ export function MapWorkspace({
               borderColor={borderColor}
               coastlineWeight={coastlineWeight}
               interiorWeight={interiorWeight}
+              borderMesh={geoData.borderMesh}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}

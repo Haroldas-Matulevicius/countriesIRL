@@ -150,6 +150,9 @@ describe('the data asset base path has one home', (): void => {
     expect(DEFAULT_EDITOR_ASSET_URLS).toStrictEqual({
       worldManifestUrl: '/data/world-manifest.json',
       worldDataUrl: '/data/world-modern.geojson',
+      // 04-09: the interior-border mesh is fetched from the same base path, so
+      // a host that mounts `MapEditor` elsewhere moves all four together.
+      worldBordersUrl: '/data/world-borders-modern.geojson',
       snapshotManifestUrl: '/data/snapshots/index.json',
     });
 
@@ -161,6 +164,9 @@ describe('the data asset base path has one home', (): void => {
     );
     expect(resolveEditorAssetUrls('/assets/world').worldDataUrl).toBe(
       '/assets/world/world-modern.geojson',
+    );
+    expect(resolveEditorAssetUrls('/assets/world').worldBordersUrl).toBe(
+      '/assets/world/world-borders-modern.geojson',
     );
   });
 
