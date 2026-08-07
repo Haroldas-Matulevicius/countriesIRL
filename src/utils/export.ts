@@ -1,10 +1,18 @@
 import { DEFAULT_BORDER_COLOR } from '../constants/colors';
 import {
+  EXPORT_BORDER_COLOR_ATTRIBUTE,
   EXPORT_FONT_FACE_SUPPRESSION_FLAG,
   EXPORT_FRAME_SIZE,
   EXPORT_SCALE,
   EXPORT_SIZE,
+  EXPORT_STROKE_WEIGHT_ATTRIBUTE,
 } from '../constants/config';
+import {
+  STROKE_WEIGHTS,
+  hasStroke,
+  strokeWidthFor,
+} from '../constants/mapStyle';
+import type { StrokeWeight } from '../types/composition';
 import {
   EXPORT_FONT_FAMILY,
   buildExportFontFaceCss,
@@ -314,6 +322,47 @@ function isSingleCanonicalComposition(
   return true;
 }
 
+interface ResolvedStrokeContract {
+  readonly hasStroke: boolean;
+  readonly color: string;
+  readonly width: string;
+}
+
+/**
+ * The composition's border choice, read OFF THE CLONE rather than passed in.
+ *
+ * `exportMapPng` is pure by contract — it clones an already-frozen composition
+ * and never reaches into live state — so widening its signature to carry
+ * settings would put composition knowledge into a function whose whole value is
+ * not having any. `MapCanvas` instead declares the contract on `svg.map-canvas`
+ * as two data attributes, and the clone carries them because `cloneNode` does.
+ *
+ * The weight NAME travels, not a pre-computed number: `STROKE_WEIGHT_UNITS` is
+ * then the one table the editor and the export clone both resolve through, so
+ * the two cannot disagree about what `medium` means.
+ *
+ * **The fallback is the pre-`04-08` contract** (black, `EXPORT_BORDER_WIDTH`).
+ * A source that declares nothing exports the borders it always did rather than
+ * silently losing them. `tests/e2e/export.spec.ts` exercises the real app, so a
+ * `MapCanvas` that stopped writing the attributes is caught on real pixels
+ * rather than resting on this default.
+ */
+function readStrokeContract(svg: SVGSVGElement): ResolvedStrokeContract {
+  const declaredWeight = svg.getAttribute(EXPORT_STROKE_WEIGHT_ATTRIBUTE);
+  const declaredColor = svg.getAttribute(EXPORT_BORDER_COLOR_ATTRIBUTE);
+  const weight =
+    declaredWeight !== null && STROKE_WEIGHTS.has(declaredWeight as StrokeWeight)
+      ? (declaredWeight as StrokeWeight)
+      : null;
+
+  return {
+    hasStroke: weight === null ? true : hasStroke(weight),
+    color: declaredColor ?? DEFAULT_BORDER_COLOR,
+    width:
+      weight === null ? EXPORT_BORDER_WIDTH : String(strokeWidthFor(weight)),
+  };
+}
+
 function sanitizeExportClone(svg: SVGSVGElement): void {
   svg.querySelectorAll(OUTGOING_SCENE_SELECTOR).forEach((element): void => {
     element.remove();
@@ -353,22 +402,61 @@ function sanitizeExportClone(svg: SVGSVGElement): void {
       });
   });
 
+  const strokeContract = readStrokeContract(svg);
+
   svg.querySelectorAll<SVGPathElement>(SCENE_PATH_SELECTOR).forEach(
     (path: SVGPathElement): void => {
-      path.setAttribute('stroke', DEFAULT_BORDER_COLOR);
-      path.setAttribute('stroke-width', EXPORT_BORDER_WIDTH);
+      /*
+       * REPLACED, NEVER DELETED (04-08 / D4-08). Until this plan the two lines
+       * below were `DEFAULT_BORDER_COLOR` and `EXPORT_BORDER_WIDTH` literals,
+       * which meant the exporter RE-PAINTED a black 0.75 stroke over whatever
+       * the editor had rendered - so a quiet coastline was unreachable in the
+       * PNG no matter what the creator chose.
+       *
+       * Deleting the loop instead of replacing it re-opens two recorded
+       * defects: the wrapped date-line repeats of a SELECTED country would ship
+       * their 2px selection border into the download, and the paths would lose
+       * the `non-scaling-stroke` pin below. The loop's job was never "impose
+       * 0.75" - it is "neutralise interaction state and state the contract
+       * explicitly, because the isolated export document sees no stylesheet".
+       */
+      if (strokeContract.hasStroke) {
+        path.setAttribute('stroke', strokeContract.color);
+        path.setAttribute('stroke-width', strokeContract.width);
+        path.style.stroke = strokeContract.color;
+        path.style.strokeWidth = strokeContract.width;
+      } else {
+        /*
+         * `none` OMITS the stroke rather than writing a zero width. SVG's
+         * initial `stroke` is `none`, so removing both the attribute and the
+         * inline property is what actually produces an unstroked path in the
+         * isolated document - and it lets the export gate assert ABSENCE
+         * instead of a number that could still rasterise a hairline.
+         */
+        path.removeAttribute('stroke');
+        path.removeAttribute('stroke-width');
+        path.style.removeProperty('stroke');
+        path.style.removeProperty('stroke-width');
+      }
       // The camera layer wraps this path in `scale(zoom)`. Without
       // `non-scaling-stroke` the border width is multiplied by that zoom, so a
       // composition framed at 8x exported ~8px-wide boundaries into the 1080
       // PNG while the screen still showed a hairline - the borders looked
       // "super thick" in the download only. Pinning the vector effect makes the
-      // stroke resolve in viewport space: EXPORT_BORDER_WIDTH user units at the
-      // 540px frame is EXPORT_BORDER_WIDTH CSS pixels, which scale 2 rasterizes
-      // to a crisp line at 1080 regardless of how far the creator zoomed in.
+      // stroke resolve in viewport space: the chosen weight in user units at
+      // the 540px frame is that many CSS pixels, which scale 2 rasterizes to a
+      // crisp line at 1080 regardless of how far the creator zoomed in.
+      //
+      // Set unconditionally, including at `none`: the weight is composition
+      // state a creator changes between exports, and a path that lost the pin
+      // while unstroked would come back zoom-scaled the moment they pick a
+      // weight again.
       path.setAttribute('vector-effect', 'non-scaling-stroke');
-      path.style.stroke = DEFAULT_BORDER_COLOR;
-      path.style.strokeWidth = EXPORT_BORDER_WIDTH;
       path.style.vectorEffect = 'non-scaling-stroke';
+      // The interaction-state neutralisation, unchanged and load-bearing. A
+      // wrapped date-line repeat of a selected country carries the selection
+      // treatment; `stroke-dasharray` is the focus ring, and `filter` /
+      // `transition` are editor affordances that must never reach the PNG.
       path.style.strokeDasharray = 'none';
       path.style.transition = 'none';
       path.style.filter = 'none';

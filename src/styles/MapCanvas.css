@@ -180,16 +180,28 @@
 }
 
 /*
- * Borders are black at every state, so the state hierarchy is carried by
- * stroke-width alone: 0.75 resting, 1.5 hover, 2 selected. `non-scaling-stroke`
- * (set on the path in MapCanvas) means these are screen pixels at any camera
- * zoom - a country at 24x does not grow a fat outline.
+ * The state hierarchy is carried by stroke-width: RESTING (the composition's
+ * own choice), 1.5 hover, 2 selected. `non-scaling-stroke` (set on the path in
+ * MapCanvas) means these are screen pixels at any camera zoom - a country at
+ * 24x does not grow a fat outline.
+ *
+ * `04-08`: the resting weight and colour are COMPOSITION STATE, not palette.
+ * They arrive as `--map-border-weight` / `--map-border-resting`, declared
+ * inline on `svg.map-canvas` by `MapCanvas` and declared in NO stylesheet -
+ * which is why the fallbacks below are real values rather than decoration, and
+ * why the export firewall's mode-invariant set is untouched.
+ *
+ * They are fed in as custom properties rather than as per-path inline styles on
+ * purpose: an inline style would out-specify the three state rules below and
+ * silently remove hover, selection, and focus feedback from the editor. The
+ * PNG gets the same numbers by a different route - inline attributes on the
+ * clone - because the isolated export document sees none of this file.
  */
 .country-path {
   cursor: pointer;
-  stroke: var(--map-border-default);
+  stroke: var(--map-border-resting, var(--map-border-default));
   stroke-linejoin: round;
-  stroke-width: 0.75px;
+  stroke-width: var(--map-border-weight, 0.75px);
   transition:
     fill var(--motion-duration-fast) var(--motion-ease-snappy),
     stroke var(--motion-duration-fast) var(--motion-ease-snappy),
@@ -235,14 +247,22 @@
  */
 .map-unit-path {
   cursor: default;
-  stroke-width: 0.5px;
+  stroke-width: var(--map-border-weight, 0.5px);
 }
 
+/*
+ * The offscreen export frame's on-screen preview, and the export-mode source.
+ * It neutralises interaction state for the same reason `sanitizeExportClone`
+ * does, and now reads the composition's resting weight rather than a fixed
+ * 0.75 - a hard-coded value here would make the preview disagree with both the
+ * editor and the PNG. (It contributes NO pixels to the download: the clone is
+ * rasterised as an isolated document that never sees this file.)
+ */
 [aria-hidden="true"] .country-path,
 .map-export-source[data-export-mode="true"] .country-path {
-  stroke: var(--map-border-default);
+  stroke: var(--map-border-resting, var(--map-border-default));
   stroke-dasharray: none;
-  stroke-width: 0.75px;
+  stroke-width: var(--map-border-weight, 0.75px);
   transition: none;
 }
 

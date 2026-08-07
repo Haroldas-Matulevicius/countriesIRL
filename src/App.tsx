@@ -1044,6 +1044,10 @@ export default function App(): JSX.Element {
         features={visibleFeatures}
         colors={colors}
         surfaceColor={compositionState.settings.surfaceColor}
+        uncoloredFill={compositionState.settings.uncoloredFill}
+        borderColor={compositionState.settings.borderColor}
+        coastlineWeight={compositionState.settings.coastlineWeight}
+        interiorWeight={compositionState.settings.interiorWeight}
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
         legendSlot={legendSlot}

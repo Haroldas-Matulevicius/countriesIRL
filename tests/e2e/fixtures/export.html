@@ -283,6 +283,15 @@
           ref: mapRef,
           features: geoData.features,
           colors,
+          /*
+           * 04-08: DECLARED, not defaulted. The app's default coastline weight
+           * is `none`, and an unstroked fixture would turn the clone gate's
+           * "the selected country's wrapped repeats are normalized to the same
+           * border as its primary copy" assertion into a comparison of two
+           * absent strokes - true, and about nothing. `thin` is exactly the
+           * pre-04-08 weight, so that assertion keeps its original subject.
+           */
+          coastlineWeight: 'thin',
           selectedIds,
           onSelectCountry: selectCountry,
           onClearSelection: clearSelection,

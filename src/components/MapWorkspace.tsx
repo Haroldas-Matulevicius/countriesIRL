@@ -5,6 +5,7 @@ import type {
   CameraState,
   MapCanvasHandle,
   SnapshotId,
+  StrokeWeight,
 } from '../types/composition';
 import type {
   ColorMap,
@@ -49,6 +50,10 @@ interface MapWorkspaceProps {
   colors: ColorMap;
   /** D4-03: the composition water colour, forwarded verbatim to `MapCanvas`. */
   surfaceColor?: string;
+  uncoloredFill?: string;
+  borderColor?: string;
+  coastlineWeight?: StrokeWeight;
+  interiorWeight?: StrokeWeight;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
@@ -93,6 +98,10 @@ export function MapWorkspace({
   features,
   colors,
   surfaceColor,
+  uncoloredFill,
+  borderColor,
+  coastlineWeight,
+  interiorWeight,
   selectedIds,
   exportSourceRef,
   legendSlot,
@@ -160,6 +169,10 @@ export function MapWorkspace({
               locateFeatures={geoData.features}
               colors={colors}
               surfaceColor={surfaceColor}
+              uncoloredFill={uncoloredFill}
+              borderColor={borderColor}
+              coastlineWeight={coastlineWeight}
+              interiorWeight={interiorWeight}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}
               onClearSelection={onClearSelection}

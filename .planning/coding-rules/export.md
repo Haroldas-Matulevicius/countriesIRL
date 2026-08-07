@@ -38,8 +38,10 @@ context.drawImage(svgImage, 0, 0, EXPORT_FRAME_SIZE, EXPORT_FRAME_SIZE); // 540
 ```
 
 Because every `path.scene-path` carries `vector-effect: non-scaling-stroke`, stroke widths
-resolve in the 540-unit viewport: `EXPORT_BORDER_WIDTH` (0.75) is 0.75 units at 540, which the
-scale-2 context rasterises to the same crisp 1.5px line at 1080 the retired pipeline produced.
+resolve in the 540-unit viewport: the composition's weight in user units at 540 rasterises through
+the scale-2 context to twice that at 1080. `EXPORT_BORDER_WIDTH` (0.75) — the `thin` step since
+`04-08`, and the FALLBACK when a source declares no contract — gives the same crisp 1.5px line the
+retired pipeline produced.
 Serialising the clone at 1080 intrinsic instead would silently HALVE every border weight —
 that is why the 540-intrinsic / scale-2 shape must not be "simplified" to a 1080 canvas draw.
 
@@ -298,8 +300,66 @@ tears a seam through the exported map.
 **Normalize borders across `path.scene-path`, not `path.country-path`.** Wrapped repeats carry
 `scene-path country-path--decorative`; the `.country-path` selector does **not** match them.
 Normalizing only `country-path` leaves the selection border (2px) baked onto every wrapped
-copy of a selected country while the primary copy renders the default 0.75px — a visible seam
+copy of a selected country while the primary copy renders the resting weight — a visible seam
 in the PNG.
+
+### The border rule is PASS-THROUGH-WITH-NEUTRALISATION (04-08, D4-08). Replace it; never delete it.
+
+**What it used to do, and why that was a defect.** Until `04-08` the loop hard-set
+`stroke: #000000` and `stroke-width: 0.75` on every scene path, as an attribute **and** as an
+inline style. Read literally: **the exporter re-painted a black 0.75 border over whatever the
+editor had rendered.** D4-08's "coastlines at `none`" and the phase goal — *"country outlines all
+but disappear against water"* — were therefore **impossible in the PNG**: the editor would show
+unstroked coasts and the download would ship black ones. That is the quieter-failure class this
+whole file exists to prevent, arriving from inside the safety mechanism.
+
+**What it does now.** `readStrokeContract(clone)` resolves the composition's choice and the loop
+either writes it or removes the stroke entirely:
+
+| Composition weight | Clone |
+|---|---|
+| `none` | `stroke` and `stroke-width` **removed**, as attribute and inline style |
+| anything else | `stroke` = the composition's `borderColor`, `stroke-width` = `STROKE_WEIGHT_UNITS[weight]` |
+
+**`none` OMITS the stroke rather than writing `stroke-width="0"`.** SVG's initial `stroke` is
+`none`, so absence is what actually draws nothing in the isolated document — and it lets the gate
+assert *absence* instead of a number a later rule could resurrect.
+
+**Everything else in the loop survives verbatim, and this is the half that must never be lost:**
+
+- **`vector-effect: non-scaling-stroke`, as attribute AND inline style, set unconditionally** —
+  including at `none`, because the weight is composition state a creator changes between exports.
+  This is the recorded fix for *"borders looked super thick in the download only"*.
+- **`stroke-dasharray`, `transition`, and `filter` neutralised** — this is what stops a wrapped
+  date-line repeat of a *selected* country from shipping its 2px selection border and focus dashes
+  into the PNG. The editor still paints selection at 2px on screen; `04-09`'s `data-editor-only`
+  highlight layer is the structural replacement.
+
+**Deleting the loop instead of replacing it re-opens two defects this project has already paid
+for.** `src/utils/export.test.ts` gates both halves in the same tests, and both were RED-proved by
+mutation: restoring the hard-set reddens the pass-through assertions, and removing only the pin and
+the three neutralisations reddens the survival assertions while the pass-through stays green.
+
+**How the choice reaches a PURE exporter: two `data-*` attributes on the canonical SVG.**
+`MapCanvas` writes `data-coastline-weight` and `data-border-color` on `svg.map-canvas`
+(`EXPORT_STROKE_WEIGHT_ATTRIBUTE` / `EXPORT_BORDER_COLOR_ATTRIBUTE` in `constants/config.ts`, the
+same dependency-free home the font suppression flag uses). `cloneNode` carries them, and
+`sanitizeExportClone` reads them **off the clone**. `exportMapPng`'s signature does not widen and it
+still knows nothing about composition state. The weight **name** travels rather than a number, so
+`STROKE_WEIGHT_UNITS` is the one table the editor and the clone both resolve through and the two
+cannot disagree about what `medium` means.
+
+**The fallback is the pre-`04-08` contract** (black, `EXPORT_BORDER_WIDTH`). A source that declares
+nothing exports the borders it always did rather than silently losing them; the e2e gates run the
+real app, so a `MapCanvas` that stopped writing the attributes is caught on pixels rather than
+resting on this default.
+
+**The editor half is a CUSTOM PROPERTY, not a per-path inline style.** `MapCanvas` sets
+`--map-border-weight` / `--map-border-resting` inline on `svg.map-canvas`, and `MapCanvas.css`'s
+`.country-path` reads them. A per-path inline `style` would out-specify `.hovered` (1.5px),
+`.selected` (2px), and `.focused` (3px) and silently delete every interaction affordance in the
+editor. Neither property is declared in any stylesheet, so Live Invariant 9's mode-invariant token
+set is untouched — they are composition state, not palette.
 
 **Keep `vector-effect="non-scaling-stroke"` on every scene path in the clone.** The camera
 layer wraps the geometry in `scale(zoom)`, and `zoom` runs to 24. A plain `stroke-width: 1`
@@ -587,31 +647,40 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-06 (latest) — § the font-embedding seam rewritten for D4-15 (plan `04-04`):
-two `unicode-range`-scoped `@font-face` rules for the ONE `Inter` family, why the latin face needed
-an explicit range it never had, why the registry stays at one entry, why both ranges are pasted
-verbatim from the live fetch, and why the second face is always inlined rather than conditional on
-composition content. Added the silent-fallback trap (`04-UI-SPEC.md` § 6.8): an unregistered named
-family renders as fallback with no error, so a future font picker derives its options from
-`EXPORT_FONT_FACE_BUILDERS.keys()`. § CF-2 superseded — latin-ext is now covered; Greek, Cyrillic,
-Vietnamese and CJK are not, and A12 remains an unperformed physical check owned by `04-16`. Cost
-framing corrected onto the right artifact: +114,228 characters of injected `<style>` and +121,418
-of serialised data URL, with **exported PNG file size unaffected**.*
+*Last updated: 2026-08-07 (latest) — § Strip semantics gained **the border rule is
+pass-through-with-neutralisation** (D4-08, plan `04-08`). `sanitizeExportClone`'s stroke loop no
+longer hard-sets `#000000` / `0.75` over the creator's choice — the measured reason a quiet
+coastline was unreachable in the PNG. It was **REPLACED, never deleted**: the `non-scaling-stroke`
+pin (now set unconditionally, including at `none`) and the `stroke-dasharray` / `transition` /
+`filter` neutralisations survive verbatim and are gated in the same tests, because they are the fix
+for the recorded "super thick in the download only" defect and for the 2px selection border on
+wrapped date-line repeats. Recorded with it: `none` **omits** the stroke rather than writing a zero
+width; the composition declares its contract through `data-coastline-weight` / `data-border-color`
+on the canonical SVG, so `exportMapPng` stays pure and its signature does not widen; the pre-`04-08`
+values remain the fallback for a source that declares nothing; and the editor half rides on
+`--map-border-weight` / `--map-border-resting` custom properties rather than per-path inline styles,
+which would have out-specified the hover, selection, and focus rules. Live Invariant 9 is untouched
+— neither property is declared in any stylesheet. § Size Contract's 0.75 is annotated as the `thin`
+step rather than a fixed constant.*
 
-*Last updated: 2026-08-06 (earlier, condensed per the two-entry rule) — § Background Color Contract
-amended for D4-03 / CD-6 (plan `04-01`): the three white layers named as the OPACITY floor and
-`rect[data-layer="surface"]` as the COLOUR layer, the "do not simplify one away" warning intact,
-`--map-surface`'s chrome-only job annotated, two RED proofs recorded inline (`var(--map-surface)`
-and a missing `fill` both export rgb(0, 0, 0) while the editor looks correct), the canonical clone
-shape gained the surface rect with the sibling-layer rule the rest of Phase 4 inherits, and
-persistence called out as NOT wired until `04-14`'s V3 record. Earlier, for D-34 (plan `03-11`):
-html2canvas removed and the whole serialise → SVG-as-image → drawImage → toBlob path owned in
-`export.ts`; the canonical clone shape gains a leading injected `<style>`; the generalised
-font-embedding seam (D-34a) with its test-only suppression flag; the sandbox boundary as the
-structural reason for both font embedding and export theme-independence, replacing the expired
-`03-09` placement-and-hard-set analysis; the 540-intrinsic / scale-2 geometry as the border-weight
-contract; `EXPORT_BORDER_WIDTH` 0.75 with the `non-scaling-stroke` contract; and the 02-25/02-27
-journey rules (region-disjoint counting, discrimination controls, bytes follow history, no-refresh
-copy, legend inside the canonical SVG).*
+*Last updated: 2026-08-06 (condensed per the two-entry rule) — the font-embedding seam rewritten for
+D4-15 (plan `04-04`): two `unicode-range`-scoped `@font-face` rules for the ONE `Inter` family, why
+the latin face needed an explicit range it never had, why the registry stays at one entry, why both
+ranges are pasted verbatim from the live fetch, why the second face is always inlined, the
+silent-fallback trap (an unregistered named family renders as fallback with no error, so a future
+font picker derives its options from `EXPORT_FONT_FACE_BUILDERS.keys()`), CF-2 superseded with A12
+still an unperformed physical check owned by `04-16`, and the cost framing corrected onto the right
+artifact (+114,228 characters of injected `<style>`, exported PNG size unaffected). Earlier the same
+day, for D4-03 / CD-6 (plan `04-01`): the three white layers as the OPACITY floor and
+`rect[data-layer="surface"]` as the COLOUR layer, `--map-surface`'s chrome-only job, two RED proofs
+recorded inline (`var(--map-surface)` and a missing `fill` both export rgb(0, 0, 0) while the editor
+looks correct), the canonical clone shape's sibling-layer rule, and persistence NOT wired until
+`04-14`. Earlier, for D-34 (plan `03-11`): html2canvas removed and the whole serialise →
+SVG-as-image → drawImage → toBlob path owned in `export.ts`; the leading injected `<style>`; the
+generalised font-embedding seam (D-34a) with its test-only suppression flag; the sandbox boundary as
+the structural reason for both font embedding and export theme-independence; the 540-intrinsic /
+scale-2 geometry as the border-weight contract; and the 02-25/02-27 journey rules (region-disjoint
+counting, discrimination controls, bytes follow history, no-refresh copy, legend inside the
+canonical SVG).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/export.md`.*

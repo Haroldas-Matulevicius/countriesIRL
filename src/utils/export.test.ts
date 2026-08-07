@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_BORDER_COLOR } from '../constants/colors';
 import {
+  EXPORT_BORDER_COLOR_ATTRIBUTE,
   EXPORT_FRAME_SIZE,
   EXPORT_SCALE,
   EXPORT_SIZE,
+  EXPORT_STROKE_WEIGHT_ATTRIBUTE,
 } from '../constants/config';
+import { strokeWidthFor } from '../constants/mapStyle';
 import {
+  EXPORT_BORDER_WIDTH,
   EXPORT_FONT_FACE_BUILDERS,
   EXPORT_FONT_FACE_SUPPRESSION_FLAG,
   collectCompositionFonts,
@@ -60,6 +64,21 @@ class FakeStyleDeclaration {
 
   public setProperty(name: string, value: string): void {
     Reflect.set(this, name.replaceAll('-', ''), value);
+  }
+
+  /**
+   * `04-08`: the sanitizer REMOVES the inline stroke at `none` rather than
+   * writing a zero. Camel-cased so `stroke-width` clears the same `strokeWidth`
+   * property the production code assigns; an empty string is what
+   * `CSSStyleDeclaration` reads back for an unset property.
+   */
+  public removeProperty(name: string): string {
+    const key = name.replaceAll(/-([a-z])/gu, (_match, letter: string): string =>
+      letter.toUpperCase(),
+    );
+    const previous = String(Reflect.get(this, key) ?? '');
+    Reflect.set(this, key, '');
+    return previous;
   }
 }
 
@@ -1321,4 +1340,167 @@ describe('exportMapPng', (): void => {
 
     expect(serializedClones).toHaveLength(0);
   });
+
+/* ------------------------------------------------------------------ *
+ * 04-08 - the REPLACED stroke normalisation (D4-08)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Until `04-08` this loop hard-set `#000000` / `0.75` on every scene path, so
+ * the exporter re-painted a black border over whatever the editor had rendered
+ * and a quiet coastline was unreachable in the PNG.
+ *
+ * It was REPLACED, not deleted. Every test below asserts BOTH halves: the
+ * composition's own weight reaches the clone, AND the three neutralisations
+ * plus the `non-scaling-stroke` pin that the loop has always existed for
+ * survive. Deleting the loop would pass the first half and fail the second,
+ * which is exactly the regression this block is here to make impossible.
+ */
+function createSourceDeclaring(
+  weight: string | null,
+  borderColor: string | null,
+): ReturnType<typeof createSource> {
+  const fake = createSource();
+  if (weight !== null) {
+    fake.sourceSvg.setAttribute(EXPORT_STROKE_WEIGHT_ATTRIBUTE, weight);
+  }
+  if (borderColor !== null) {
+    fake.sourceSvg.setAttribute(EXPORT_BORDER_COLOR_ATTRIBUTE, borderColor);
+  }
+  return fake;
+}
+
+function clonedScenePaths(): FakeElement[] {
+  return getSerializedClone().querySelectorAll('path');
+}
+
+function expectInteractionStateNeutralised(paths: FakeElement[]): void {
+  expect(
+    paths.length,
+    'a zero-length loop passes every assertion inside it.',
+  ).toBe(3);
+  paths.forEach((path: FakeElement): void => {
+    // The recorded fix for "borders looked super thick in the download only".
+    expect(path.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+    expect(Reflect.get(path.style, 'vectorEffect')).toBe('non-scaling-stroke');
+    // The three neutralisations: focus ring, editor transition, editor filter.
+    expect(Reflect.get(path.style, 'strokeDasharray')).toBe('none');
+    expect(Reflect.get(path.style, 'transition')).toBe('none');
+    expect(Reflect.get(path.style, 'filter')).toBe('none');
+    // No selection class survives, so no wrapped repeat can be re-selected by
+    // a stylesheet the isolated document will never see anyway.
+    expect(path.getAttribute('class')).not.toMatch(/\bselected\b/u);
+  });
+}
+
+describe('sanitizeExportClone honours the composition border contract', (): void => {
+  it('omits the stroke entirely at `none`, on every scene path', async (): Promise<void> => {
+    const { source } = createSourceDeclaring('none', DEFAULT_BORDER_COLOR);
+
+    await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+    const paths = clonedScenePaths();
+    paths.forEach((path: FakeElement): void => {
+      /*
+       * ABSENCE, not a zero. SVG's initial `stroke` is `none`, so a removed
+       * attribute is what actually draws nothing in the isolated document;
+       * `stroke-width="0"` would satisfy a numeric assertion while leaving the
+       * property present for a later rule to resurrect.
+       */
+      expect(
+        path.getAttribute('stroke'),
+        'a stroke attribute survived at coastlineWeight `none`, so the ' +
+          'exporter is still painting a border the creator turned off.',
+      ).toBeNull();
+      expect(path.getAttribute('stroke-width')).toBeNull();
+      expect(Reflect.get(path.style, 'stroke')).toBe('');
+      expect(Reflect.get(path.style, 'strokeWidth')).toBe('');
+    });
+    // ...and the loop still did its actual job.
+    expectInteractionStateNeutralised(paths);
+  });
+
+  it('passes a declared weight through from the one units table', async (): Promise<void> => {
+    const { source } = createSourceDeclaring('medium', DEFAULT_BORDER_COLOR);
+
+    await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+    const paths = clonedScenePaths();
+    const expectedWidth = String(strokeWidthFor('medium'));
+    expect(expectedWidth).not.toBe(EXPORT_BORDER_WIDTH);
+    paths.forEach((path: FakeElement): void => {
+      expect(path.getAttribute('stroke-width')).toBe(expectedWidth);
+      expect(Reflect.get(path.style, 'strokeWidth')).toBe(expectedWidth);
+      expect(path.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
+    });
+    expectInteractionStateNeutralised(paths);
+  });
+
+  it('passes a declared border colour through, overwriting the source sentinel', async (): Promise<void> => {
+    const chosen = '#4B5563';
+    const { source, sourcePath } = createSourceDeclaring('thin', chosen);
+
+    await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+    clonedScenePaths().forEach((path: FakeElement): void => {
+      expect(path.getAttribute('stroke')).toBe(chosen);
+      expect(Reflect.get(path.style, 'stroke')).toBe(chosen);
+    });
+    // Pure: the live composition is never written back to.
+    expect(sourcePath.getAttribute('stroke')).toBe(SOURCE_STROKE_SENTINEL);
+  });
+
+  it('keeps the pre-04-08 contract when a source declares nothing', async (): Promise<void> => {
+    const { source } = createSource();
+
+    await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+    clonedScenePaths().forEach((path: FakeElement): void => {
+      expect(path.getAttribute('stroke')).toBe(DEFAULT_BORDER_COLOR);
+      expect(path.getAttribute('stroke-width')).toBe(EXPORT_BORDER_WIDTH);
+    });
+  });
+
+  it('ignores a weight name outside the vocabulary rather than writing it', async (): Promise<void> => {
+    const { source } = createSourceDeclaring('enormous', DEFAULT_BORDER_COLOR);
+
+    await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+    clonedScenePaths().forEach((path: FakeElement): void => {
+      expect(path.getAttribute('stroke-width')).toBe(EXPORT_BORDER_WIDTH);
+    });
+  });
+
+  /**
+   * The post-sanitize structural tripwire, re-asserted after the loop changed.
+   * It is not a tautology: a sanitize rule that dropped or reordered the camera
+   * or legend layer would turn a successful export into `invalid-composition`,
+   * and the two `none` branches above are exactly the kind of edit that could.
+   */
+  it('leaves the composition preserved in both stroke branches', async (): Promise<void> => {
+    for (const weight of ['none', 'bold']) {
+      serializedClones.length = 0;
+      const { source } = createSourceDeclaring(weight, DEFAULT_BORDER_COLOR);
+
+      await expect(
+        exportMapPng(source),
+        `${weight} produced a refusal, so isPreservedComposition rejected the ` +
+          'sanitized clone.',
+      ).resolves.toMatchObject({ ok: true });
+
+      const clone = getSerializedClone();
+      expect(
+        clone.children.map((child: FakeElement): string | null =>
+          child.getAttribute('data-layer'),
+        ),
+      ).toEqual([null, 'surface', 'camera', 'legend']);
+      expect(
+        clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
+      ).toBe(CAMERA_TRANSFORM);
+      expect(
+        clone.querySelector('[data-layer="legend"]')?.getAttribute('transform'),
+      ).toBe(LEGEND_TRANSFORM);
+    }
+  });
+});
 });

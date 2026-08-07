@@ -7,13 +7,18 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from 'react';
 import { geoPath, select, type Selection } from 'd3';
 
 import type {
   CameraState,
   MapCanvasHandle,
   SnapshotId,
+  StrokeWeight,
 } from '../types/composition';
 import type {
   ColorMap,
@@ -24,12 +29,23 @@ import type {
 } from '../types/map';
 import {
   DEFAULT_BORDER_COLOR,
+  DEFAULT_COLOR,
   NEUTRAL_UNIT_COLOR,
   SELECTED_BORDER_COLOR,
 } from '../constants/colors';
 import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
-import { MAP_VIEWBOX_SIZE } from '../constants/config';
-import { DEFAULT_SURFACE_COLOR } from '../constants/mapStyle';
+import {
+  EXPORT_BORDER_COLOR_ATTRIBUTE,
+  EXPORT_STROKE_WEIGHT_ATTRIBUTE,
+  MAP_VIEWBOX_SIZE,
+} from '../constants/config';
+import {
+  DEFAULT_COASTLINE_WEIGHT,
+  DEFAULT_SURFACE_COLOR,
+  DEFAULT_UNCOLORED_FILL,
+  hasStroke,
+  strokeWidthFor,
+} from '../constants/mapStyle';
 import {
   useCameraController,
   type CameraControllerFactory,
@@ -73,9 +89,15 @@ const NON_SELECTABLE_PATH_CLASS = 'map-unit-path';
 const SELECTED_CLASS = 'selected';
 const HOVERED_CLASS = 'hovered';
 const FOCUSED_CLASS = 'focused';
-// Presentation attributes; `MapCanvas.css` wins over them on screen. They exist
-// so a serialized path (export clone) carries the same weights the CSS paints.
-const DEFAULT_STROKE_WIDTH = '0.75';
+/*
+ * The selection weight, as a presentation attribute AND as the `.selected` CSS
+ * rule. It is EDITOR-ONLY by intent: `sanitizeExportClone` overwrites it with
+ * the composition's resting weight, which is why a wrapped date-line repeat of
+ * a selected country cannot ship a 2px seam into the PNG.
+ *
+ * The resting weight is no longer a constant here - `04-08` made it composition
+ * state, resolved through `STROKE_WEIGHT_UNITS`.
+ */
 const SELECTED_STROKE_WIDTH = '2';
 const WRAP_OFFSETS = [-MAP_VIEWBOX_SIZE, 0, MAP_VIEWBOX_SIZE] as const;
 
@@ -120,6 +142,26 @@ export interface MapCanvasProps {
    * not migrated still paints an opaque square rather than a transparent one.
    */
   surfaceColor?: string;
+  /**
+   * D4-09 - what a country with no creator colour paints. Reaches the PNG as
+   * the path's inline `fill`, exactly like `surfaceColor` reaches the water.
+   */
+  uncoloredFill?: string;
+  /** D4-08 - the resting stroke colour of every country boundary. */
+  borderColor?: string;
+  /**
+   * D4-08 - the resting weight of the country OUTLINE. `none` (the default)
+   * omits the stroke entirely rather than drawing a zero-width one.
+   */
+  coastlineWeight?: StrokeWeight;
+  /**
+   * D4-08 - the weight of the shared INTERIOR boundaries. Declared on the props
+   * boundary here and threaded from `App` so the vocabulary, the panel, and the
+   * seam land together; the layer that draws it is `04-09`'s
+   * `world-borders-modern` render. Nothing in this component reads it yet, and
+   * that is deliberate rather than an oversight.
+   */
+  interiorWeight?: StrokeWeight;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -287,6 +329,13 @@ export function createWrappedSceneModel(
   });
 }
 
+/**
+ * `uncoloredFill` is D4-09's render-time mapping of the `#FFFFFF` sentinel, and
+ * it is applied HERE - to the paint - and nowhere else. The tooltip and the
+ * `aria-label` keep announcing the STORED value, because that is the colour a
+ * creator's save holds and the one `reconcileLegend` reasons about; announcing
+ * the grey would say "coloured" about a country that is not.
+ */
 export function getSceneFeatureColor(
   feature: SceneFeature,
   colors: ColorMap,
@@ -296,6 +345,17 @@ export function getSceneFeatureColor(
   return feature.colorOwnerId === null
     ? NEUTRAL_UNIT_COLOR
     : getEffectiveCountryColor(colors, feature.colorOwnerId);
+}
+
+export function getSceneFeatureFill(
+  feature: SceneFeature,
+  colors: ColorMap,
+  uncoloredFill: string,
+): string {
+  const stored = getSceneFeatureColor(feature, colors);
+  return feature.colorOwnerId !== null && stored === DEFAULT_COLOR
+    ? uncoloredFill
+    : stored;
 }
 
 export function pointerTooltipData(
@@ -375,6 +435,9 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       locateFeatures = features,
       colors,
       surfaceColor = DEFAULT_SURFACE_COLOR,
+      uncoloredFill = DEFAULT_UNCOLORED_FILL,
+      borderColor = DEFAULT_BORDER_COLOR,
+      coastlineWeight = DEFAULT_COASTLINE_WEIGHT,
       selectedIds,
       onSelectCountry,
       onClearSelection,
@@ -767,17 +830,33 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         .select<SVGGElement>('[data-layer="countries"]')
         .selectAll<SVGPathElement, WrappedScenePath>(SCENE_PATH_SELECTOR)
         .attr('fill', (path): string =>
-          getSceneFeatureColor(path.feature, colors),
+          getSceneFeatureFill(path.feature, colors, uncoloredFill),
         )
-        .attr('stroke', (path): string =>
+        /*
+         * D4-08. The RESTING stroke comes from `STROKE_WEIGHT_UNITS` - the same
+         * table `sanitizeExportClone` resolves through - so the editor and the
+         * download cannot disagree about what `medium` means. Selection keeps
+         * its own heavier weight on screen; the export clone neutralises it,
+         * which is the whole reason the sanitizer's loop exists. `04-09`'s
+         * `data-editor-only` highlight layer is what eventually replaces this.
+         *
+         * `null` REMOVES the attribute at `none`, rather than writing a zero:
+         * SVG's initial `stroke` is `none`, so absence is what actually draws
+         * nothing, and it is what the export gate asserts.
+         */
+        .attr('stroke', (path): string | null =>
           path.feature.isSelectable && selectedIds.has(path.entityId)
             ? SELECTED_BORDER_COLOR
-            : DEFAULT_BORDER_COLOR,
+            : hasStroke(coastlineWeight)
+              ? borderColor
+              : null,
         )
-        .attr('stroke-width', (path): string =>
+        .attr('stroke-width', (path): string | null =>
           path.feature.isSelectable && selectedIds.has(path.entityId)
             ? SELECTED_STROKE_WIDTH
-            : DEFAULT_STROKE_WIDTH,
+            : hasStroke(coastlineWeight)
+              ? String(strokeWidthFor(coastlineWeight))
+              : null,
         )
         .classed(
           SELECTED_CLASS,
@@ -830,7 +909,15 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
           },
         );
       });
-    }, [colors, selectableFeatures, selectedIds, wrappedScene]);
+    }, [
+      borderColor,
+      coastlineWeight,
+      colors,
+      selectableFeatures,
+      selectedIds,
+      uncoloredFill,
+      wrappedScene,
+    ]);
 
     const handleBackgroundClick = useCallback(
       (event: ReactMouseEvent<SVGSVGElement>): void => {
@@ -845,12 +932,41 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
 
     return (
       <div className="map-export-source" ref={exportSourceRef}>
+        {/*
+          D4-08 - the composition's border contract, declared once on the
+          canonical SVG.
+
+          The two `data-*` attributes are what `sanitizeExportClone` reads off
+          the CLONE, which is how `exportMapPng` honours a creator's choice
+          while staying pure: it never needs to know composition state exists.
+
+          The two custom properties are the SCREEN half, and they are inline for
+          a different reason. `MapCanvas.css` still owns the interaction
+          hierarchy (`.hovered` 1.5px, `.selected` 2px, `.focused` 3px), and a
+          per-path inline `style` would out-specify all three and silently
+          delete hover feedback. Feeding the RESTING values in through custom
+          properties leaves the state rules exactly where they were.
+
+          Neither property is a palette token: nothing in `src/styles/` declares
+          them, they are declared here per composition, and they are mode-blind
+          by construction. Live Invariant 9's mode-invariant set is unchanged.
+        */}
         <svg
           ref={svgRef}
           className="map-canvas"
           viewBox={`0 0 ${MAP_VIEWBOX_SIZE} ${MAP_VIEWBOX_SIZE}`}
           preserveAspectRatio="xMidYMid meet"
           onClick={handleBackgroundClick}
+          {...{
+            [EXPORT_STROKE_WEIGHT_ATTRIBUTE]: coastlineWeight,
+            [EXPORT_BORDER_COLOR_ATTRIBUTE]: borderColor,
+          }}
+          style={
+            {
+              '--map-border-weight': `${strokeWidthFor(coastlineWeight)}px`,
+              '--map-border-resting': borderColor,
+            } as CSSProperties
+          }
         >
           {/*
             D4-03 / `04-UI-SPEC.md` section 6.5. The composition's water, and

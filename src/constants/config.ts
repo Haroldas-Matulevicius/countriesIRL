@@ -43,3 +43,17 @@ export const EXPORT_FONT_FACE_SUPPRESSION_FLAG =
   '__COUNTRIESIRL_TEST_ONLY_SUPPRESS_EXPORT_FONT_FACE__';
 
 export const TOOLTIP_SPACING = 8;
+
+/**
+ * How a composition declares its border contract to the pure export path
+ * (D4-08). `MapCanvas` writes both on `svg.map-canvas`; `sanitizeExportClone`
+ * reads them off the CLONE, so `exportMapPng` keeps its "clones an already
+ * frozen composition, knows nothing about state" contract.
+ *
+ * They live in this dependency-free module for the same reason the suppression
+ * flag above does: `MapCanvas` and the Playwright specs need the names, and
+ * neither should pull the inlined font bytes in `src/utils/export.ts` to get
+ * them.
+ */
+export const EXPORT_STROKE_WEIGHT_ATTRIBUTE = 'data-coastline-weight';
+export const EXPORT_BORDER_COLOR_ATTRIBUTE = 'data-border-color';
