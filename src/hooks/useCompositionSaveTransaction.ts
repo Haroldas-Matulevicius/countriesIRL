@@ -11,6 +11,7 @@ import type {
   StorageResult,
   StorageWarning,
 } from '../types/ui';
+import { inferLegendForm, resolveLegendForm } from '../utils/legend';
 import type { SaveMapValue } from '../utils/storage';
 
 export type CompositionSaveFailureReason =
@@ -70,6 +71,31 @@ function assembleSnapshot(
       entries: composition.legend.entries.map((entry) => ({ ...entry })),
       position: { ...composition.legend.position },
       textSize: composition.legend.textSize,
+      /*
+       * `04-13`: the saved legend record grows from three keys to SIX.
+       * `04-14` owns the V3 bump; `persistence.spec.ts` asserts this key set.
+       *
+       * ⚠ **The RESOLVED form is written, not the raw override, and that is a
+       * deliberate correction to this plan's first shape.**
+       *
+       * The obvious thing is to persist `composition.legend.form` verbatim so
+       * a reopened map keeps following its colours. It does not work, because
+       * of a limitation this plan inherits: `04-05`'s save path resolves every
+       * `ColorValue` to a **hex** at serialization, so a reloaded composition
+       * has no ramp assignments left at all. `inferLegendForm` would therefore
+       * return `rows` for **every** reopened map, and a creator who saved a
+       * ramp-painted map with a bar legend would reopen it as rows — a silent,
+       * creator-visible change to a map they may already have posted.
+       * `final-integration.spec.ts` caught exactly that: 1426 red legend
+       * pixels before the reload, 484 after.
+       *
+       * A save is a SNAPSHOT, so it records the form the legend actually had.
+       * `04-14`, which persists the colour union in V3, can revisit this: once
+       * the ramp identity survives a round trip, the inference does too.
+       */
+      form: resolveLegendForm(composition.legend, inferLegendForm(colors)),
+      caption: composition.legend.caption,
+      showNoData: composition.legend.showNoData,
     },
     settings: { ...composition.settings },
   };

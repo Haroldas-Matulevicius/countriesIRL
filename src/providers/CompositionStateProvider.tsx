@@ -39,12 +39,14 @@ import {
   COMPOSITION_TEXT_ALIGNMENTS,
   COMPOSITION_TEXT_SIZES,
   sanitizeCompositionText,
+  sanitizeLegendCaption,
 } from '../utils/compositionText';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
   createDefaultLegendState,
   LEGEND_CORNERS,
+  LEGEND_FORMS,
   LEGEND_TEXT_SIZES,
   reconcileLegend,
 } from '../utils/legend';
@@ -73,10 +75,17 @@ const SNAPSHOT_IDS = new Set<SnapshotId>([
 /**
  * D4-11 reduced the legend's style surface to ONE field. `theme`,
  * `backgroundOpacity`, and `borderStyle` were deleted with the box chrome they
- * described; the action stays a style PATCH rather than collapsing into
+ * described; the action stayed a style PATCH rather than collapsing into
  * `setLegendTextSize`, because `04-13`'s bar form adds fields back here.
+ *
+ * **`04-13` added them.** `form`, `caption`, and `showNoData` join `textSize`,
+ * and the type is now a genuine `Partial`: the editor's four controls each
+ * dispatch the one key they own, so a control added later cannot silently reset
+ * its three siblings to the default by omitting them.
  */
-export type LegendStyleState = Pick<LegendState, 'textSize'>;
+export type LegendStyleState = Partial<
+  Pick<LegendState, 'textSize' | 'form' | 'caption' | 'showNoData'>
+>;
 
 /**
  * Every creator-editable `Map style` field, as a partial. ONE action for the
@@ -224,18 +233,58 @@ function canonicalizeLegendPosition(
   };
 }
 
+/**
+ * Canonicalises ONLY the keys the patch carries. `'key' in style` rather than
+ * `style.key !== undefined`, because `form: null` is a MEANINGFUL value — "no
+ * override, follow the colouring technique" — and an `undefined` check would
+ * treat clearing the override as not asking for anything.
+ */
 function canonicalizeLegendStyle(style: LegendStyleState): LegendStyleState {
-  return {
-    textSize: LEGEND_TEXT_SIZES.has(style.textSize)
-      ? style.textSize
-      : DEFAULT_LEGEND.textSize,
-  };
+  const next: {
+    textSize?: LegendState['textSize'];
+    form?: LegendState['form'];
+    caption?: string;
+    showNoData?: boolean;
+  } = {};
+
+  if ('textSize' in style) {
+    next.textSize =
+      style.textSize !== undefined && LEGEND_TEXT_SIZES.has(style.textSize)
+        ? style.textSize
+        : DEFAULT_LEGEND.textSize;
+  }
+  if ('form' in style) {
+    // T-04-13-01 at the reducer boundary as well as the storage one: an
+    // unrecognised form falls back to `null` (infer), never to a string the
+    // renderer has no branch for.
+    next.form =
+      style.form !== undefined &&
+      style.form !== null &&
+      LEGEND_FORMS.has(style.form)
+        ? style.form
+        : null;
+  }
+  if ('caption' in style) {
+    // Sanitised HERE, at the state boundary, exactly as `04-11` does for the
+    // title, the subtitle, and the attribution — not on the way to the SVG
+    // attribute, so nothing downstream has to remember.
+    next.caption = sanitizeLegendCaption(style.caption ?? '');
+  }
+  if ('showNoData' in style) {
+    next.showNoData = style.showNoData === true;
+  }
+
+  return next;
 }
 
 function canonicalizeLegend(legend: LegendState): LegendState {
   return {
     entries: canonicalizeLegendEntries(legend.entries),
     position: canonicalizeLegendPosition(legend.position),
+    textSize: legend.textSize,
+    form: legend.form,
+    caption: legend.caption,
+    showNoData: legend.showNoData,
     ...canonicalizeLegendStyle(legend),
   };
 }
@@ -436,7 +485,10 @@ function areLegendsEqual(left: LegendState, right: LegendState): boolean {
   return (
     areLegendEntriesEqual(left.entries, right.entries) &&
     areLegendPositionsEqual(left.position, right.position) &&
-    left.textSize === right.textSize
+    left.textSize === right.textSize &&
+    left.form === right.form &&
+    left.caption === right.caption &&
+    left.showNoData === right.showNoData
   );
 }
 

@@ -15,7 +15,7 @@ import {
   LEGEND_SAFE_INSET,
   resolveLegendRender,
 } from '../../src/utils/legend';
-import type { LegendState } from '../../src/types/composition';
+import type { LegendForm, LegendState } from '../../src/types/composition';
 import {
   BAND_DEFAULT_HEIGHT,
   BAND_KEYBOARD_STEP,
@@ -35,6 +35,7 @@ import {
 import {
   RAMP_RED_HEX,
   applyRampRed,
+  legendDisclosure,
   openRailTool,
   waitForApp,
 } from './support/appHarness';
@@ -137,10 +138,15 @@ declare global {
       readonly bodyFrameCount: number;
       readonly anchorCount: number;
       readonly legendState: LegendState;
-    /** D4-13 — the extents that placed the legend, read from the fixture. */
-    readonly legendBandExtents: BandExtents;
+      /** D4-13 — the extents that placed the legend, read from the fixture. */
+      readonly legendBandExtents: BandExtents;
+      /** D4-12 — the form the fixture's colours imply. See the constant above. */
+      readonly legendInferredForm: LegendForm;
       setLegendLabel(label: string): void;
       setLegendTextSize(textSize: LegendState['textSize']): void;
+      setLegendForm(form: LegendForm | null): void;
+      setLegendCaption(caption: string): void;
+      setLegendShowNoData(showNoData: boolean): void;
       selectCountry(countryId: string): void;
       showDateLine(): boolean;
       showOcean(): boolean;
@@ -280,6 +286,17 @@ async function saveDownload(download: Download, name: string): Promise<Buffer> {
 }
 
 const LEGEND_ENTRY_COLOR = '#DC2626';
+/**
+ * D4-12 — the legend form the REAL app resolves to in the two gates below that
+ * paint with `applyRampRed`.
+ *
+ * It is **`bar`**, and it is not a choice this spec makes: `inferLegendForm`
+ * returns `bar` for any composition holding a ramp assignment, and
+ * `applyRampRed` writes one. Stated as a named constant so a reader can see
+ * which form's geometry every derived crop below is measuring — the fixture
+ * gates use `rows`, because the export fixture paints a bare custom hex.
+ */
+const REAL_APP_RAMP_LEGEND_FORM = 'bar' as const;
 /** Any channel below this is ink; above it is white or anti-alias halo. */
 const INK_CHANNEL_THRESHOLD = 240;
 
@@ -524,6 +541,9 @@ async function resolveLegendRegion(page: Page): Promise<LegendRegion> {
     legendState,
     [LEGEND_ENTRY_COLOR],
     legendBandExtents,
+    // D4-12: read from the fixture, never retyped here. Two spellings of the
+    // form is how a derived crop starts measuring the other form's box.
+    await page.evaluate((): LegendForm => window.__exportFixture.legendInferredForm),
   );
   const region = {
     x: render.position.x,
@@ -1302,6 +1322,9 @@ test.describe('PNG export', (): void => {
       legendState,
       [LEGEND_ENTRY_COLOR],
       legendBandExtents,
+      await page.evaluate(
+        (): LegendForm => window.__exportFixture.legendInferredForm,
+      ),
     );
     const region: LegendRegion = {
       x: render.position.x,
@@ -3222,6 +3245,14 @@ const MIN_FONT_CROP_INK_PIXELS = 1_000;
 const MIN_FONT_CROP_DIFF_PIXELS = 1_500;
 const MIN_TEXT_OVER_LEGEND_INK_PIXELS = 800;
 /**
+ * `04-13` — the ceiling on how much NON-title ink the legend's "no data" gap
+ * may carry, derived from the measurement: the title-free frame reads **348**
+ * there, all of it the map's border strokes showing through a nearly
+ * transparent band stop. Doubled to 700 for headroom, and still less than half
+ * of what the legend's own boundary label would put there if the crop drifted.
+ */
+const MAX_MAP_INK_IN_LEGEND_GAP = 700;
+/**
  * `04-12` D4-13. DERIVED FROM A MEASUREMENT taken in this change, installed
  * Chrome **151.0.7922.76**, water `Warm paper`, one red-painted country: the
  * one-column legend crop measured **2,085** pixels below `DARK_INK_THRESHOLD`
@@ -3579,6 +3610,7 @@ test.describe('composition text', (): void => {
         bottomBandVisible: false,
         bottomBandHeight: BAND_DEFAULT_HEIGHT,
       }),
+      REAL_APP_RAMP_LEGEND_FORM,
     );
     await expect(legendLayer).toHaveAttribute(
       'transform',
@@ -3608,6 +3640,7 @@ test.describe('composition text', (): void => {
         bottomBandVisible: false,
         bottomBandHeight: BAND_DEFAULT_HEIGHT,
       }),
+      REAL_APP_RAMP_LEGEND_FORM,
     );
     await expect(legendLayer).toHaveAttribute(
       'transform',
@@ -3771,6 +3804,17 @@ test.describe('composition text', (): void => {
     await france.press('Enter');
     await openRailTool(page, 'Colors');
     await applyRampRed(page);
+
+    /*
+     * `04-13`: the "no data" row is switched ON, and it is load-bearing rather
+     * than incidental. See the crop derivation below — the restyled legend has
+     * no interior margin left, and `LEGEND_NO_DATA_GAP` is the one rectangle
+     * inside the legend's own bounds that the legend provably does not paint.
+     */
+    await openRailTool(page, 'Legend');
+    await legendDisclosure(page).click();
+    await page.getByLabel('Show no data row').check();
+    await expect(page.getByLabel('Show no data row')).toBeChecked();
     await openRailTool(page, 'Map style');
 
     // FORCE the overlap: the top band at its cap reaches well past the legend.
@@ -3792,10 +3836,10 @@ test.describe('composition text', (): void => {
       bottomBandVisible: false,
       bottomBandHeight: BAND_DEFAULT_HEIGHT,
     });
-    const presetLegend = reconcileLegend(
-      [RAMP_RED_HEX],
-      createDefaultLegendState(),
-    );
+    const presetLegend = {
+      ...reconcileLegend([RAMP_RED_HEX], createDefaultLegendState()),
+      showNoData: true,
+    };
 
     /*
      * D4-13 re-baseline, deliberate and itemised — the reason this test needed
@@ -3810,6 +3854,7 @@ test.describe('composition text', (): void => {
       presetLegend,
       [RAMP_RED_HEX],
       bandedExtents,
+      REAL_APP_RAMP_LEGEND_FORM,
     );
     expect(presetRender.position.y).toBe(LEGEND_SAFE_INSET + BAND_MAX_HEIGHT);
     expect(
@@ -3848,6 +3893,7 @@ test.describe('composition text', (): void => {
       legendState,
       [RAMP_RED_HEX],
       bandedExtents,
+      REAL_APP_RAMP_LEGEND_FORM,
     );
     await expect(legendLayer).toHaveAttribute(
       'transform',
@@ -3905,17 +3951,46 @@ test.describe('composition text', (): void => {
      * zero. See the retirement note in this test's doc comment for why it is no
      * longer an ORDERING claim.
      */
-    const legendLabel = legendLayer.locator('text').first();
-    const labelTop = await legendLabel.evaluate(
-      (node: Element): number =>
-        Number(node.getAttribute('y')) - Number(node.getAttribute('font-size')),
-    );
+    /*
+     * ⚠ **RE-DERIVED by `04-13`, and the old derivation is recorded because it
+     * measured -14.4 rather than silently shrinking.**
+     *
+     * It used to be *"inside the legend's bounds, above the legend's own
+     * label"*, and that space existed only because of
+     * `LEGEND_INTERNAL_PADDING` — 24 units of inner padding belonging to a
+     * container D4-11 deleted. `04-13` removed the padding when it restyled
+     * rows to the bar's restraint, and the bar never had any: in BOTH forms
+     * the marks now start at y = 0 and fill their own bounds. The old
+     * expression evaluated to a height of **-14.4**, and
+     * `expectRegionInsideFrame` caught it rather than letting a negative crop
+     * sample nothing and report a tidy zero.
+     *
+     * The replacement is the ONE rectangle inside the legend's bounds that the
+     * legend provably does not paint: **`LEGEND_NO_DATA_GAP`**, the 16-unit
+     * detachment between the bar's foot and the "no data" row. It is legend-free
+     * by construction — that is what "detached" means — and the title-free
+     * control below is what proves it, at a hard zero.
+     */
+    const noDataLayout = render.layout.noData;
+    if (noDataLayout === null) {
+      throw new Error(
+        'the "no data" row is off, so the crop this test depends on does not ' +
+          'exist. The toggle above did not reach the composition.',
+      );
+    }
+    if (render.layout.form !== 'bar') {
+      throw new Error(
+        `a ramp-painted map resolved to the ${render.layout.form} form, so ` +
+          'the bar geometry this crop is derived from is not what rendered.',
+      );
+    }
+    const marksBottom =
+      (render.layout.outline?.y ?? 0) + (render.layout.outline?.height ?? 0);
     const overlapCrop: LegendRegion = {
-      x: render.position.x + TEXT_REGION_MARGIN,
-      y: render.position.y + TEXT_REGION_MARGIN,
-      width: render.bounds.width - 2 * TEXT_REGION_MARGIN,
-      height:
-        render.position.y + labelTop - (render.position.y + TEXT_REGION_MARGIN),
+      x: render.position.x,
+      y: render.position.y + marksBottom,
+      width: render.bounds.width,
+      height: noDataLayout.swatchY - marksBottom,
     };
     // Bounded to the 1080 frame absolutely: this crop is derived from its own
     // subject's layout, and `04-12` moves that layout (04-11 phantom pixels).
@@ -3999,12 +4074,40 @@ test.describe('composition text', (): void => {
       overlapCrop,
       DARK_INK_THRESHOLD,
     );
+    /*
+     * ⚠ **The control is a DELTA now, not a hard zero, and the reason is a
+     * measurement rather than a convenience.**
+     *
+     * The old crop sat at y = 40..52, high enough that the capped band's most
+     * opaque stops washed the map's border strokes out below
+     * `DARK_INK_THRESHOLD`, so a zero was reachable. The re-derived crop is
+     * `LEGEND_NO_DATA_GAP` at y = 64..84, where the same band is nearly
+     * transparent and the borders underneath read as dark ink: the title-free
+     * frame measures **348** pixels there, and none of them is the legend.
+     *
+     * A `toBe(0)` would therefore be a gate that cannot pass rather than one
+     * that cannot fail — so the claim is stated as what it actually is: the
+     * title adds at least `MIN_TEXT_OVER_LEGEND_INK_PIXELS` ink to a crop that
+     * already carries some map. The instrument is still checked at zero:
+     * `expectBlankControlReadsZeroInk` ran this exact region through this exact
+     * counter on a blank frame above.
+     *
+     * The upper bound is what replaces the drift check the zero used to do. The
+     * legend's own boundary label is ~229 x 32 of glyphs; if the crop ever
+     * drifted onto it, the control would leave 348 far behind.
+     */
     expect(
       overControl.inside,
       `the title-free frame carries ${overControl.inside} ink pixels in the ` +
-        'same crop, so the count above was not measuring the title. Most ' +
-        "likely the crop has drifted onto the legend's own label.",
-    ).toBe(0);
+        'crop against a measured map-ink level of 348. The crop has drifted ' +
+        "onto the legend's own marks.",
+    ).toBeLessThan(MAX_MAP_INK_IN_LEGEND_GAP);
+    expect(
+      overText.inside - overControl.inside,
+      `the title added ${overText.inside - overControl.inside} ink pixels to ` +
+        `the crop against a floor of ${MIN_TEXT_OVER_LEGEND_INK_PIXELS}. The ` +
+        'type and the legend do not share a rectangle at all.',
+    ).toBeGreaterThan(MIN_TEXT_OVER_LEGEND_INK_PIXELS);
 
     /*
      * 3. THE ORDERING ITSELF. This is what the retired pixel assertion above

@@ -290,29 +290,31 @@ test.describe('legend browser interactions', (): void => {
   }): Promise<void> => {
     await page.goto(LEGEND_FIXTURE_URL);
 
-    // 8 colors: one column (width 336), so the far-right legal x is 712.
+    // 8 colors: one column. RE-BASELINED by `04-13`: the rows form lost
+    // `LEGEND_INTERNAL_PADDING` (24 a side) in the restyle-to-the-bar, so the
+    // width is 288, not 336, and the far-right legal x is 760, not 712.
     await page.getByRole('button', { name: 'Use 8 colors' }).click();
     await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(8);
     await dragLegendToRightEdge(page);
 
     const oneColumn = await readLegendFrame(page);
-    expect(oneColumn.width).toBe(336);
-    expect(oneColumn.x).toBe(712);
+    expect(oneColumn.width).toBe(288);
+    expect(oneColumn.x).toBe(760);
     expectInsideExportFrame(oneColumn);
     await expect(page.locator('[data-position="true"]')).toContainText('Custom');
 
-    // The 9th color reflows to two columns (width 648): the stored x of 712
-    // would put 280px of the legend outside the 1080 viewBox, and the export
-    // used to succeed anyway.
+    // The 9th color reflows to two columns (width 600): the stored x of 760
+    // would put 232 units of the legend outside the 1080 viewBox, and the
+    // export used to succeed anyway.
     await page.getByRole('button', { name: 'Use 9 colors' }).click();
     await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(9);
 
     const twoColumns = await readLegendFrame(page);
-    expect(twoColumns.width).toBe(648);
-    expect(twoColumns.x).toBe(400);
+    expect(twoColumns.width).toBe(600);
+    expect(twoColumns.x).toBe(448);
     expectInsideExportFrame(twoColumns);
 
-    // 16 -> 17 is the worse step: three columns (width 960) leave only x <= 88.
+    // 16 -> 17 is the worse step: three columns (width 912) leave only x <= 136.
     await page.getByRole('button', { name: 'Use 16 colors' }).click();
     await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(16);
     await dragLegendToRightEdge(page);
@@ -322,8 +324,8 @@ test.describe('legend browser interactions', (): void => {
     await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(17);
 
     const threeColumns = await readLegendFrame(page);
-    expect(threeColumns.width).toBe(960);
-    expect(threeColumns.x).toBe(88);
+    expect(threeColumns.width).toBe(912);
+    expect(threeColumns.x).toBe(136);
     expectInsideExportFrame(threeColumns);
 
     /*
@@ -372,7 +374,7 @@ test.describe('legend browser interactions', (): void => {
     await page.getByRole('button', { name: 'Use 17 colors' }).click();
     await expect(page.locator('g[data-layer="legend"] text')).toHaveCount(17);
     const threeColumns = await readLegendFrame(page);
-    expect(threeColumns.width).toBe(960);
+    expect(threeColumns.width).toBe(912);
     expect(threeColumns.x + threeColumns.width).toBe(CANVAS_SIZE - SAFE_INSET);
     expect(threeColumns.y + threeColumns.height).toBe(CANVAS_SIZE - SAFE_INSET);
     expectInsideExportFrame(threeColumns);
@@ -427,7 +429,16 @@ async function measureRunningLegend(page: Page): Promise<MeasuredLegend> {
   // may or may not draw.
   const frame = layer.getByRole('button', { name: 'Move legend' });
   const swatch = layer.locator(`rect[fill="${RAMP_RED_HEX}"]`);
-  const label = layer.locator('text').first();
+  /*
+   * ⚠ RETARGETED by `04-13`, and this is the `04-12` defect class repeating.
+   * This read `layer.locator('text').first()`. Once the ramp-painted map
+   * resolves to the BAR form, the first `<text>` in the layer is the CAPTION
+   * whenever one is set — 24 units, not the 32 this measurement is about — and
+   * the assertion would have silently started reporting the caption's size as
+   * the label's. It now names the boundary label explicitly, which is the one
+   * element whose type this block is measuring.
+   */
+  const label = layer.locator('[data-legend-boundary="true"]').first();
   const band = page.locator(
     'svg.map-canvas [data-layer="bands"] rect[data-band="top"]',
   );
@@ -487,6 +498,10 @@ test.describe('G-1 investigation — the legend, measured from the running edito
       reconcileLegend([RAMP_RED_HEX], createDefaultLegendState()),
       [RAMP_RED_HEX],
       resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS),
+      // `applyRampRed` writes a RAMP assignment, so the real app infers `bar`.
+      // Passing `rows` here would make every measurement below a measurement
+      // of a rectangle the legend is not in.
+      'bar',
     );
     expect(
       { x: measured.x, y: measured.y },
@@ -526,11 +541,26 @@ test.describe('G-1 investigation — the legend, measured from the running edito
 
     /*
      * 4. Footprint at a representative entry count (ONE coloured country, the
-     *    commonest first-run state): one column.
+     *    commonest first-run state).
+     *
+     *    **RE-BASELINED BY A FORM CHANGE, NOT BY A NUMBER CHANGE** — this is
+     *    the honest description. Task 2's measurement, `336 x 96` (8.89 % of
+     *    frame height), was of the ROWS form, which was the only form that
+     *    existed. `applyRampRed` writes a ramp assignment, so the map now
+     *    resolves to the **BAR** form, and the thing being measured is a
+     *    different object: `297 x 32`, **2.96 %** of frame height.
+     *
+     *    That is the row-2 item in `04-12`'s "every property that could read
+     *    as off" table — *"total footprint versus the reference's ~8 % of frame
+     *    height"* — and it moved from 8.89 % to 2.96 % at one entry. **It is
+     *    NOT a claim that `G-1` is answered.** Whether the legend now reads
+     *    right is a human judgement; `04-VALIDATION.md` lists cartographic
+     *    resemblance as manual-only, and OQ-3 is OPEN.
      */
-    expect(measured.width).toBe(336);
-    expect(measured.height).toBe(96);
-    expect(measured.height / MAP_VIEWBOX_SIZE).toBeCloseTo(0.0889, 4);
+    expect(render.form).toBe('bar');
+    expect(measured.width).toBe(297);
+    expect(measured.height).toBe(32);
+    expect(measured.height / MAP_VIEWBOX_SIZE).toBeCloseTo(0.0296, 4);
 
     /*
      * 5. Overlap with the top band's extent at Phase 4 defaults.
@@ -551,10 +581,31 @@ test.describe('G-1 investigation — the legend, measured from the running edito
 
     /*
      * 6. Type and swatch, read from the live DOM rather than from the source.
+     *
+     *    RE-BASELINED with the form: the mark is a BAR SEGMENT (48 x 32), not
+     *    a 24 x 24 row swatch, and it carries **no stroke** — a per-segment
+     *    hairline would draw a line between adjacent swatches and destroy the
+     *    contiguity that defines the bar. Rows 3 and 6 of `04-12`'s table
+     *    (*"`LEGEND_COLUMN_WIDTH: 288` row layout versus the reference's
+     *    contiguous bar"* and *"swatch size and shape ... the reference uses
+     *    flat bar segments with no stroke"*) are addressed by this change.
+     *    The boundary label's type is unchanged at 32, weight 600 — row 5 of
+     *    that table is **still open**.
      */
     expect(measured.labelFontSize).toBe(32);
-    expect(measured.swatchWidth).toBe(24);
-    expect(measured.swatchHeight).toBe(24);
+    expect(measured.swatchWidth).toBe(48);
+    expect(measured.swatchHeight).toBe(32);
+    await expect(
+      page.locator('svg.map-canvas [data-legend-bar-segment="true"]'),
+    ).not.toHaveAttribute('stroke', /.*/u);
+    // ONE hairline, around the WHOLE bar.
+    await expect(
+      page.locator('svg.map-canvas [data-legend-bar-outline="true"]'),
+    ).toHaveCount(1);
+    // N + 1 tick leaders for N segments: one entry, two ticks.
+    await expect(
+      page.locator('svg.map-canvas [data-legend-bar-tick="true"]'),
+    ).toHaveCount(2);
 
     /*
      * 7. Everything stays inside the exported square. A derived crop that

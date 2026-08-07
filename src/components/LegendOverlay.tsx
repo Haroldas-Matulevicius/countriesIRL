@@ -6,6 +6,7 @@ import type {
 } from 'react';
 
 import type {
+  LegendForm,
   LegendPosition,
   LegendState,
   LegendTextSize,
@@ -14,33 +15,36 @@ import { COMPOSITION_FONT_FAMILY } from '../styles/interFontFace';
 import { COMPOSITION_INK_COLOR } from '../utils/contrast';
 import type { BandExtents } from '../utils/bands';
 import {
+  LEGEND_CAPTION_FONT_WEIGHT,
   LEGEND_CHARACTERS_PER_LINE,
+  LEGEND_SWATCH_LABEL_GAP,
+  LEGEND_SWATCH_SIZE,
+  LEGEND_TEXT_BASELINE_OFFSET,
+  LEGEND_TEXT_FONT_SIZE,
+  LEGEND_TEXT_LINE_HEIGHT,
   clampLegendPosition,
   nudgeLegendPosition,
   resolveLegendBounds,
   resolveLegendRender,
 } from '../utils/legend';
-import type { LegendBounds, LegendLayoutItem } from '../utils/legend';
+import type {
+  LegendBounds,
+  LegendCaptionLayout,
+  LegendLayout,
+  LegendLayoutItem,
+  LegendNoDataLayout,
+} from '../utils/legend';
 
 const LEGEND_CANVAS_SIZE = 1080;
 const LEGEND_CORNER_RADIUS = 16;
-const LEGEND_SWATCH_SIZE = 24;
-const LEGEND_SWATCH_LABEL_GAP = 16;
-const LEGEND_TEXT_BASELINE_OFFSET: Readonly<Record<LegendTextSize, number>> = {
-  small: 7,
-  medium: 9,
-  large: 11,
-};
-const LEGEND_TEXT_LINE_HEIGHT: Readonly<Record<LegendTextSize, number>> = {
-  small: 28,
-  medium: 36,
-  large: 44,
-};
-const LEGEND_TEXT_SIZE: Readonly<Record<LegendTextSize, number>> = {
-  small: 24,
-  medium: 32,
-  large: 40,
-};
+/**
+ * The swatch and bar hairline. `--swatch-border` mirrors it in the chrome; the
+ * literal is here because the export clone is rasterised as an isolated
+ * document, so a CSS variable never reaches the PNG. It is the one colour
+ * literal `uiContract.test.ts`'s closed exemption list allows in this file.
+ */
+const LEGEND_HAIRLINE_COLOR = '#9CA3AF';
+const LEGEND_HAIRLINE_WIDTH = '2';
 /**
  * The legend names the SAME family the export path embeds, so the editor and
  * the exported PNG resolve the same typeface — the chrome via `theme.css`'s
@@ -56,6 +60,24 @@ const LEGEND_FONT_FAMILY = COMPOSITION_FONT_FAMILY;
 interface LegendOverlayProps {
   legend: LegendState;
   effectiveColors: ReadonlyArray<string>;
+  /**
+   * D4-12 — the form the COLOURS imply, from `inferLegendForm`. The creator's
+   * explicit `legend.form` override wins over it inside
+   * `resolveLegendRender`; this is only the default.
+   *
+   * REQUIRED, never defaulted, for the same reason `bandExtents` is: a silent
+   * `'rows'` is indistinguishable from a call site that forgot, and it would
+   * render a ramp-painted map with the wrong legend and the wrong bounds.
+   */
+  inferredForm: LegendForm;
+  /**
+   * D4-08's uncoloured fill, bound to the "no data" swatch. **ONE value, two
+   * consumers** — the map's uncoloured countries and this swatch — and
+   * `legend.spec.ts`'s Gate A asserts on real PNG pixels that they are equal.
+   * It arrives as a prop rather than being read here, so there is exactly one
+   * place the two could ever diverge.
+   */
+  uncoloredFill: string;
   /**
    * D4-13 — how far each band reaches into the square, from
    * `resolveBandExtents`. REQUIRED, never defaulted: a silent
@@ -110,8 +132,9 @@ function splitLabel(label: string, textSize: LegendTextSize): ReadonlyArray<stri
 export function getLegendOverlayBounds(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
+  inferredForm: LegendForm,
 ): LegendBounds {
-  return resolveLegendBounds(legend, effectiveColors);
+  return resolveLegendBounds(legend, effectiveColors, inferredForm);
 }
 
 /**
@@ -145,7 +168,7 @@ function renderLegendText(
 ): JSX.Element {
   const lines = splitLabel(item.entry.label, textSize);
   const lineHeight = LEGEND_TEXT_LINE_HEIGHT[textSize];
-  const fontSize = LEGEND_TEXT_SIZE[textSize];
+  const fontSize = LEGEND_TEXT_FONT_SIZE[textSize];
   const textX = item.x + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_LABEL_GAP;
   const textCenterY = item.y + item.height / 2;
   const firstBaseline =
@@ -172,10 +195,178 @@ function renderLegendText(
   );
 }
 
+/**
+ * The caption line — one bold line above the marks, in BOTH forms.
+ *
+ * `04-UI-SPEC.md § 6.7`: 24 user units, weight 600, the single composition ink
+ * as an inline `fill` attribute. An empty caption produces no element at all,
+ * not an empty one (the `04-11` discipline).
+ */
+function renderLegendCaption(
+  caption: LegendCaptionLayout | null,
+): JSX.Element | null {
+  return caption === null ? null : (
+    <text
+      x={caption.x}
+      y={caption.baseline}
+      fill={LEGEND_INK_COLOR}
+      fontSize={caption.fontSize}
+      fontFamily={LEGEND_FONT_FAMILY}
+      fontWeight={LEGEND_CAPTION_FONT_WEIGHT}
+      data-legend-caption="true"
+      aria-hidden="true"
+    >
+      {caption.text}
+    </text>
+  );
+}
+
+/**
+ * The "no data" row, in BOTH forms.
+ *
+ * ⚠ **The swatch's `fill` is `settings.uncoloredFill` and nothing else.** There
+ * is deliberately no fallback literal here: a `?? '#E5E7EB'` would let the two
+ * values diverge while the gate that exists to catch the divergence stayed
+ * green, which is precisely the shape `04-UI-SPEC.md § 6.7` names.
+ */
+function renderLegendNoData(
+  noData: LegendNoDataLayout | null,
+  textSize: LegendTextSize,
+  uncoloredFill: string,
+): JSX.Element | null {
+  return noData === null ? null : (
+    <g data-legend-no-data="true" aria-hidden="true">
+      <rect
+        x={noData.swatchX}
+        y={noData.swatchY}
+        width={noData.swatchSize}
+        height={noData.swatchSize}
+        fill={uncoloredFill}
+        stroke={LEGEND_HAIRLINE_COLOR}
+        strokeWidth={LEGEND_HAIRLINE_WIDTH}
+      />
+      <text
+        x={noData.labelX}
+        y={noData.labelBaseline}
+        fill={LEGEND_INK_COLOR}
+        fontSize={LEGEND_TEXT_FONT_SIZE[textSize]}
+        fontFamily={LEGEND_FONT_FAMILY}
+        fontWeight="600"
+      >
+        {noData.label}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * The BAR form's marks.
+ *
+ * Contiguous segments with **no gap**, ONE hairline around the whole bar (never
+ * one per segment), a tick leader at every boundary, and the entry labels
+ * printed as **break boundaries** beside those ticks. No literal range text
+ * (`6.0–10.0`) is ever produced — the range is read BETWEEN two boundaries
+ * (CD-8).
+ *
+ * The segments carry **no stroke**: a per-segment hairline would draw a line
+ * between adjacent swatches and destroy the contiguity that defines the form.
+ */
+function renderBarMarks(
+  layout: Extract<LegendLayout, { form: 'bar' }>,
+): JSX.Element {
+  const fontSize = LEGEND_TEXT_FONT_SIZE[layout.effectiveTextSize];
+
+  return (
+    <g data-legend-bar="true" aria-hidden="true">
+      {layout.segments.map((segment): JSX.Element => (
+        <rect
+          key={segment.entry.color}
+          x={segment.x}
+          y={segment.y}
+          width={segment.width}
+          height={segment.height}
+          fill={segment.entry.color}
+          data-legend-bar-segment="true"
+        />
+      ))}
+      {layout.outline === null ? null : (
+        <rect
+          x={layout.outline.x}
+          y={layout.outline.y}
+          width={layout.outline.width}
+          height={layout.outline.height}
+          fill="none"
+          stroke={LEGEND_HAIRLINE_COLOR}
+          strokeWidth={LEGEND_HAIRLINE_WIDTH}
+          data-legend-bar-outline="true"
+        />
+      )}
+      {layout.ticks.map((tick): JSX.Element => (
+        <line
+          key={`tick-${String(tick.y)}`}
+          x1={tick.x1}
+          y1={tick.y}
+          x2={tick.x2}
+          y2={tick.y}
+          stroke={LEGEND_HAIRLINE_COLOR}
+          strokeWidth={LEGEND_HAIRLINE_WIDTH}
+          data-legend-bar-tick="true"
+        />
+      ))}
+      {layout.boundaries.map((boundary): JSX.Element => (
+        <text
+          key={boundary.entry.color}
+          x={boundary.x}
+          y={boundary.baseline}
+          fill={LEGEND_INK_COLOR}
+          fontSize={fontSize}
+          fontFamily={LEGEND_FONT_FAMILY}
+          fontWeight="600"
+          data-legend-boundary="true"
+        >
+          {boundary.entry.label}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+/**
+ * The ROWS form's marks, restyled by `04-13` to the bar's restraint: the swatch
+ * is FLAT (no `rx`), matching a bar segment, and the vestigial container
+ * padding is gone from the layout. Still one hairline per swatch — that is what
+ * distinguishes the form from the bar, and `legend.spec.ts`'s Gate B asserts
+ * the opposite gap behaviour of the two in the same run.
+ */
+function renderRowMarks(
+  layout: Extract<LegendLayout, { form: 'rows' }>,
+): JSX.Element {
+  return (
+    <>
+      {layout.items.map((item): JSX.Element => (
+        <g key={item.entry.color} aria-hidden="true">
+          <rect
+            x={item.x}
+            y={item.y + (item.height - LEGEND_SWATCH_SIZE) / 2}
+            width={LEGEND_SWATCH_SIZE}
+            height={LEGEND_SWATCH_SIZE}
+            fill={item.entry.color}
+            stroke={LEGEND_HAIRLINE_COLOR}
+            strokeWidth={LEGEND_HAIRLINE_WIDTH}
+          />
+          {renderLegendText(item, layout.effectiveTextSize, LEGEND_INK_COLOR)}
+        </g>
+      ))}
+    </>
+  );
+}
+
 export function LegendOverlay({
   legend,
   effectiveColors,
   bandExtents,
+  inferredForm,
+  uncoloredFill,
   onPositionChange,
   onStatusMessage,
 }: LegendOverlayProps): JSX.Element {
@@ -187,6 +378,7 @@ export function LegendOverlay({
     legend,
     effectiveColors,
     bandExtents,
+    inferredForm,
   );
   const dragStateRef = useRef<DragState | null>(null);
 
@@ -285,25 +477,25 @@ export function LegendOverlay({
       {activeEntries.length === 0 ? null : (
         <>
           {/*
-            D4-11: NO background rect. The legend is bare marks and type
-            directly on the map surface — the reference has no container at
-            all. The only rect left in the exported clone is a swatch.
+            D4-11: NO background rect, in EITHER form. The legend is bare marks
+            and type directly on the map surface — the reference has no
+            container at all.
+
+            The empty case above is the lift-block truth "the legend layer
+            renders nothing into the exported PNG when there are no active
+            colours": with no entries there is no caption and no "no data" row
+            either, because a caption floating over an empty map is a label for
+            nothing.
           */}
-          {layout.items.map((item): JSX.Element => (
-            <g key={item.entry.color} aria-hidden="true">
-              <rect
-                x={item.x}
-                y={item.y + (item.height - LEGEND_SWATCH_SIZE) / 2}
-                width={LEGEND_SWATCH_SIZE}
-                height={LEGEND_SWATCH_SIZE}
-                rx="4"
-                fill={item.entry.color}
-                stroke="#9CA3AF"
-                strokeWidth="2"
-              />
-              {renderLegendText(item, layout.effectiveTextSize, LEGEND_INK_COLOR)}
-            </g>
-          ))}
+          {renderLegendCaption(layout.caption)}
+          {layout.form === 'bar'
+            ? renderBarMarks(layout)
+            : renderRowMarks(layout)}
+          {renderLegendNoData(
+            layout.noData,
+            layout.effectiveTextSize,
+            uncoloredFill,
+          )}
           <rect
             x="0"
             y="0"

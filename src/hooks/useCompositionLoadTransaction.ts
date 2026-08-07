@@ -121,6 +121,9 @@ function cloneSnapshot(snapshot: CompositionSnapshot): CompositionSnapshot {
       entries: snapshot.legend.entries.map((entry) => ({ ...entry })),
       position: { ...snapshot.legend.position },
       textSize: snapshot.legend.textSize,
+      form: snapshot.legend.form,
+      caption: snapshot.legend.caption,
+      showNoData: snapshot.legend.showNoData,
     },
     settings: { ...snapshot.settings },
   };

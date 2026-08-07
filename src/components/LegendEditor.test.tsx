@@ -1,11 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_UNCOLORED_FILL } from '../constants/mapStyle';
 import type { LegendState } from '../types/composition';
 import type { LegendBounds } from '../utils/legend';
-import { getLegendBlockingMessage } from '../utils/legend';
+import { LEGEND_FORMS, getLegendBlockingMessage } from '../utils/legend';
 import { LegendDisclosure, getLegendDisclosureSummary } from './LegendDisclosure';
 import {
+  LEGEND_FORM_OPTIONS,
   LEGEND_LABEL_MAX_LENGTH,
   LegendEditor,
   resolveLegendLabelCommit,
@@ -25,6 +27,9 @@ const TEST_LEGEND: LegendState = {
   ],
   position: { x: 688, y: 32, preset: 'top-right' },
   textSize: 'medium',
+  form: null,
+  caption: '',
+  showNoData: false,
 };
 
 /** Bands off: these cases are about controls and SVG primitives, not placement. */
@@ -75,6 +80,7 @@ describe('LegendEditor static semantics', (): void => {
         effectiveColors={['#DC2626', '#2563EB']}
         bounds={TEST_BOUNDS}
         bandExtents={NO_BANDS}
+        inferredForm="rows"
         commands={createCommands()}
         onStatusMessage={vi.fn()}
       />,
@@ -114,6 +120,47 @@ describe('LegendEditor static semantics', (): void => {
     // leaves it unchecked.
     expect(markup).toContain('>Custom<');
     expect(markup).toContain('legend-editor__position-grid');
+
+    /*
+     * D4-12 (`04-13`): the `Form` group, byte-exact per `04-UI-SPEC.md § 9`
+     * (`Bar` / `Rows`), plus the `Legend content` group the caption and the
+     * "no data" toggle live in. The option labels are asserted as rendered
+     * TEXT, not as the enum values beside them, so a relabelling reddens this.
+     */
+    expect(markup).toContain('aria-label="Legend form"');
+    expect(markup).toContain('name="legend-form"');
+    expect(markup).toContain('value="bar"');
+    expect(markup).toContain('value="rows"');
+    expect(markup).toContain('>Bar<');
+    expect(markup).toContain('>Rows<');
+    expect(LEGEND_FORM_OPTIONS.map((option): string => option.label)).toEqual([
+      'Bar',
+      'Rows',
+    ]);
+    expect(new Set(LEGEND_FORM_OPTIONS.map((option) => option.value))).toEqual(
+      new Set(LEGEND_FORMS),
+    );
+    expect(markup).toContain('aria-label="Legend content"');
+    expect(markup).toContain('legend-editor__caption');
+    expect(markup).toContain('>Legend caption<');
+    expect(markup).toContain('type="checkbox"');
+    expect(markup).toContain('>Show no data row<');
+    /*
+     * The INFERRED default shows as checked even with no stored override, so
+     * the group never renders with nothing selected. `TEST_LEGEND.form` is
+     * `null`, and `inferredForm` is `rows`, so exactly one form radio is
+     * checked and it is `rows`.
+     */
+    const formRadios = [
+      ...markup.matchAll(/<input[^>]*name="legend-form"[^>]*>/gu),
+    ].map((match): string => match[0]);
+    expect(formRadios).toHaveLength(2);
+    expect(
+      formRadios.filter((radio): boolean => radio.includes('checked')),
+    ).toHaveLength(1);
+    expect(
+      formRadios.find((radio): boolean => radio.includes('checked')),
+    ).toContain('value="rows"');
   });
 
   it('renders exact empty state with disabled style and position controls', (): void => {
@@ -123,6 +170,7 @@ describe('LegendEditor static semantics', (): void => {
         effectiveColors={[]}
         bounds={{ width: 0, height: 0 }}
         bandExtents={NO_BANDS}
+        inferredForm="rows"
         commands={createCommands()}
         onStatusMessage={vi.fn()}
       />,
@@ -138,16 +186,19 @@ describe('LegendEditor static semantics', (): void => {
 
 describe('LegendOverlay export-safe SVG', (): void => {
   it('renders one group-only root with deterministic SVG primitives and editor-only movement', (): void => {
-    const bounds = getLegendOverlayBounds(TEST_LEGEND, [
-      '#DC2626',
-      '#2563EB',
-    ]);
+    const bounds = getLegendOverlayBounds(
+      TEST_LEGEND,
+      ['#DC2626', '#2563EB'],
+      'rows',
+    );
     const markup = renderToStaticMarkup(
       <svg viewBox="0 0 1080 1080">
         <LegendOverlay
           legend={TEST_LEGEND}
           effectiveColors={['#DC2626', '#2563EB']}
           bandExtents={NO_BANDS}
+          inferredForm="rows"
+          uncoloredFill={DEFAULT_UNCOLORED_FILL}
           onPositionChange={vi.fn()}
           onStatusMessage={vi.fn()}
         />
@@ -158,8 +209,17 @@ describe('LegendOverlay export-safe SVG', (): void => {
     // Re-baselined 152 -> 184 by 03-11 (D-25/OQ-5): the 14-char labels wrap
     // to two 'medium' lines under the Inter-derived 7-chars-per-line table,
     // so both entries grow from the 48px single-line row to the 64px two-line
-    // row (24 + 64 + 8 + 64 + 24 = 184).
-    expect(bounds).toEqual({ width: 336, height: 184 });
+    // row.
+    //
+    // RE-BASELINED AGAIN by `04-13`, deliberately: 336 x 184 -> **288 x 152**.
+    // Two changes, in opposite directions. The rows form lost
+    // `LEGEND_INTERNAL_PADDING` (24 a side) when it was restyled to the bar's
+    // restraint, dropping the width 48 and the height 48. Then the two-line
+    // row height became DERIVED from the line height rather than a flat 64 —
+    // `max(64, 2 x 36) = 72` at `medium` — because the padding was the only
+    // thing containing the ascender once it was gone (see `getRowHeight`).
+    // 72 + 8 + 72 = 152.
+    expect(bounds).toEqual({ width: 288, height: 152 });
     expect(overlayMarkup.startsWith('<g data-layer="legend"')).toBe(true);
     expect(overlayMarkup).not.toContain('<svg');
     expect(overlayMarkup).not.toContain('<div');
@@ -168,8 +228,8 @@ describe('LegendOverlay export-safe SVG', (): void => {
     expect(overlayMarkup).not.toContain('style=');
     // The stored x (688) was authored against wider bounds; the preset is
     // authoritative, so the overlay renders the corner for the live bounds.
-    expect(overlayMarkup).toContain('transform="translate(712 32)"');
-    expect(712 + bounds.width).toBe(1048);
+    expect(overlayMarkup).toContain('transform="translate(760 32)"');
+    expect(760 + bounds.width).toBe(1048);
     /*
      * D4-11: NO box chrome in the serialised overlay. The three literals the
      * old panel wrote — the `#FFFFFF` background, its `fill-opacity`, and the

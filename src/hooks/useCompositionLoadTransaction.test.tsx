@@ -62,6 +62,9 @@ function createSnapshot(
       ],
       position: { x: 720, y: 64, preset: 'top-right' },
       textSize: 'large',
+      form: null,
+      caption: '',
+      showNoData: false,
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };

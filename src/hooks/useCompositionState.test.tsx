@@ -24,6 +24,9 @@ const DEFAULT_LEGEND: LegendState = {
   entries: [],
   position: { x: 32, y: 32, preset: 'top-left' },
   textSize: 'medium',
+  form: null,
+  caption: '',
+  showNoData: false,
 };
 
 function reduce(
@@ -101,6 +104,9 @@ describe('compositionStateReducer', () => {
       entries: [{ color: '#AABBCC', label: 'Allies', order: 0 }],
       position: { x: 32, y: 64, preset: null },
       textSize: 'large',
+      form: null,
+      caption: '',
+      showNoData: false,
     });
     expect(state.savedBaseline).toEqual(
       createInitialCompositionState().savedBaseline,
@@ -186,6 +192,9 @@ describe('compositionStateReducer', () => {
         ],
         position: { x: 700, y: 100, preset: 'top-right' },
         textSize: 'small',
+        form: 'bar',
+        caption: 'Alliance blocs',
+        showNoData: true,
       },
       settings: DEFAULT_COMPOSITION_SETTINGS,
     };

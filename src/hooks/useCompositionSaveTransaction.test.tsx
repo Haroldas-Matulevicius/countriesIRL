@@ -27,6 +27,9 @@ function createComposition(camera: CameraState): Composition {
       ],
       position: { x: 120, y: 860, preset: null },
       textSize: 'large',
+      form: null,
+      caption: '',
+      showNoData: false,
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };
@@ -156,13 +159,24 @@ describe('createCompositionSaveTransaction', (): void => {
       'baseline:-179',
       'status:one-outcome',
     ]);
+    /*
+     * `04-13`: the saved legend is the composition's legend with ONE
+     * substitution — `form` is written RESOLVED, not as the raw `null`
+     * override. `04-05`'s save path resolves colours to hex, so a reloaded
+     * composition has no ramp assignments left to infer from; persisting
+     * `null` would reopen every saved ramp map as rows. Asserted explicitly
+     * here rather than spread past, so the substitution cannot be widened
+     * silently into "the save path rewrites the legend".
+     */
     expect(persistedSnapshot).toEqual({
       colors,
       camera: liveCamera,
       snapshotId: '1815',
-      legend: composition.legend,
+      legend: { ...composition.legend, form: 'rows' },
       settings: composition.settings,
     });
+    expect(composition.legend.form).toBeNull();
+    expect(persistedSnapshot?.legend.form).toBe('rows');
     expect(persistedSnapshot).not.toBe(composition);
     expect(persistedSnapshot?.colors).not.toBe(colors);
     expect(persistedSnapshot?.legend).not.toBe(composition.legend);

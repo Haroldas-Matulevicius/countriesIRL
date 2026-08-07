@@ -441,8 +441,14 @@ test('real app saves and loads the complete composition after responsive rebindi
        * `LegendState`, so the SAVE path no longer writes them into the V2
        * record. Asserting the saved KEY SET rather than a dropped value is
        * what makes the boundary change visible: a field creeping back into
-       * the persisted record reddens this, and `04-14`'s V3 work inherits
-       * exactly these three keys.
+       * the persisted record reddens this.
+       *
+       * **RE-BASELINED AGAIN by `04-13`, deliberately: three keys -> SIX.**
+       * `form`, `caption`, and `showNoData` join the persisted legend, and
+       * `04-14`'s V3 work inherits exactly these six. The three DELETED chrome
+       * keys are still absent, which is the half this assertion has always
+       * protected, and the assertion form is unchanged — it is the same key-set
+       * comparison, not a loosened one.
        */
       legendKeys: Object.keys(record.composition.legend).sort().join(','),
       backgroundColor: record.composition.settings.backgroundColor,
@@ -454,7 +460,7 @@ test('real app saves and loads the complete composition after responsive rebindi
     zoom: 1.5,
     snapshotId: 'modern',
     legendLabel: 'Visited France',
-    legendKeys: 'entries,position,textSize',
+    legendKeys: 'caption,entries,form,position,showNoData,textSize',
     backgroundColor: '#FFFFFF',
   });
   expect(savedEvidence.color).toMatch(/^#[0-9A-F]{6}$/);

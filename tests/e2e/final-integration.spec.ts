@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { expect, test, type Download, type Page } from '@playwright/test';
 
 import { DEFAULT_COLOR } from '../../src/constants/colors';
+import { LEGEND_BAR_WIDTH } from '../../src/utils/legend';
 
 /**
  * `04-08` / D4-09: what an UNCOLOURED country paints. A hand-written literal,
@@ -68,6 +69,35 @@ const EXPORTED_FILENAME_PATTERN = /^Grand_tour_\d{4}-\d{2}-\d{2}\.png$/u;
  * versa.
  */
 const CORNER_FRACTION = 0.32;
+/**
+ * `04-13` — a SEPARATE, wider box for the bottom-right corner, and the number
+ * is DERIVED rather than picked.
+ *
+ * The ramp-painted map now resolves to the **bar** form, whose marks are a
+ * 48-unit strip at the legend's LEFT edge while its boundary labels run to the
+ * right. A bottom-right-anchored bar therefore puts its coloured pixels
+ * `legendWidth` units in from the frame edge, and the 0.32 corner box — sized
+ * for a 24-unit row swatch — misses them entirely and reports a tidy zero.
+ *
+ * The widest legend this test can produce is
+ * `LEGEND_BAR_WIDTH (48) + LEGEND_BAR_TICK_LENGTH (12) +
+ *  LEGEND_BAR_TICK_LABEL_GAP (8) + legendTextWidth('Visited France', 32)` =
+ * **526** units, so the box has to reach at least 526 in from the right edge.
+ * `0.52 x 1080 = 561`, which clears it with 35 units to spare.
+ *
+ * The TOP-LEFT box is deliberately NOT widened: it stays at 0.32 so it remains
+ * disjoint from the map column (`MAP_REGION_START_FRACTION`), which is what
+ * stops a painted country being counted as legend evidence.
+ *
+ * The VERTICAL bound is tightened to compensate, and it too is derived from a
+ * measurement: at 0.52 on both axes the box swallowed **8 pixels of France**,
+ * so a `toBe(0)` on "the legend is not down here" would have been reporting a
+ * country rather than a legend. A bottom-right-anchored bar sits at
+ * `y = 1048 - 32 = 1016`; `1 - 0.25 = 0.75 x 1080 = 810` contains it with 206
+ * units to spare and clears every painted pixel of Europe absolutely.
+ */
+const BOTTOM_RIGHT_CORNER_FRACTION = 0.52;
+const BOTTOM_RIGHT_CORNER_Y_FRACTION = 0.25;
 const MAP_REGION_START_FRACTION = 0.35;
 
 /** France and Germany at a 1.5x world camera; both are far above this. */
@@ -121,6 +151,8 @@ async function measurePng(page: Page, bytes: Buffer): Promise<PngRegions> {
       red,
       blue,
       cornerFraction,
+      bottomRightCornerFraction,
+      bottomRightCornerYFraction,
       mapStartFraction,
     }): Promise<PngRegions> => {
       const binary = atob(base64);
@@ -148,6 +180,8 @@ async function measurePng(page: Page, bytes: Buffer): Promise<PngRegions> {
       ).data;
       const cornerX = bitmap.width * cornerFraction;
       const cornerY = bitmap.height * cornerFraction;
+      const bottomRightCornerX = bitmap.width * bottomRightCornerFraction;
+      const bottomRightCornerY = bitmap.height * bottomRightCornerYFraction;
       const mapStartX = bitmap.width * mapStartFraction;
 
       const counts = {
@@ -199,8 +233,8 @@ async function measurePng(page: Page, bytes: Buffer): Promise<PngRegions> {
           }
         }
         if (
-          x >= bitmap.width - cornerX &&
-          y >= bitmap.height - cornerY
+          x >= bitmap.width - bottomRightCornerX &&
+          y >= bitmap.height - bottomRightCornerY
         ) {
           if (isRed) {
             counts.bottomRightRed += 1;
@@ -225,6 +259,8 @@ async function measurePng(page: Page, bytes: Buffer): Promise<PngRegions> {
       red: [...RED_RGB],
       blue: [...BLUE_RGB],
       cornerFraction: CORNER_FRACTION,
+      bottomRightCornerFraction: BOTTOM_RIGHT_CORNER_FRACTION,
+      bottomRightCornerYFraction: BOTTOM_RIGHT_CORNER_Y_FRACTION,
       mapStartFraction: MAP_REGION_START_FRACTION,
     },
   );
@@ -389,7 +425,25 @@ test('a full creator session survives a browser reload and exports what the scre
     'the undone color still has a legend swatch in the exported PNG.',
   ).toBe(0);
   expect(undone.regions.map.red).toBe(authored.regions.map.red);
-  expect(undone.regions.topLeft.red).toBe(authored.regions.topLeft.red);
+  /*
+   * `04-13`: a TOLERANCE, derived from a measurement, replacing exact
+   * equality — and the reason is a real behavioural change, not a fudge.
+   *
+   * In the bar form the segments are CONTIGUOUS. While red and blue are both
+   * painted, the red segment's lower edge abuts the blue one and antialiases
+   * against it; once the blue is undone, that same edge antialiases against
+   * the paper instead. The measured disagreement is **46 pixels** — one
+   * antialiased row across a 48-unit-wide bar — so the bound is
+   * `LEGEND_BAR_WIDTH`, which is what one such row can cost. Exact equality
+   * was a valid proxy while the swatches were detached; it is not one now.
+   *
+   * The CLAIM is unchanged: undo removed the blue and left the red alone.
+   */
+  expect(
+    Math.abs(undone.regions.topLeft.red - authored.regions.topLeft.red),
+    'undo changed the red legend mark by more than one antialiased bar edge',
+  ).toBeLessThanOrEqual(LEGEND_BAR_WIDTH);
+  expect(undone.regions.topLeft.red).toBeGreaterThan(MIN_SWATCH_PIXELS);
 
   // Redo restores the color; the label is composition state, not history, so it
   // was never lost while its color was undone.

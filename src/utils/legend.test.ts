@@ -4,15 +4,32 @@ import type {
   LegendEntryState,
   LegendState,
 } from '../types/composition';
-import type { SceneFeature } from '../types/map';
+import type { ColorMap, SceneFeature } from '../types/map';
 import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import { BAND_DEFAULT_HEIGHT, BAND_MAX_HEIGHT, resolveBandExtents } from './bands';
 import {
+  LEGEND_BAR_SEGMENT_GAP,
+  LEGEND_BAR_TICK_LABEL_GAP,
+  LEGEND_BAR_TICK_LENGTH,
+  LEGEND_BAR_WIDTH,
+  LEGEND_CAPTION_BLOCK_HEIGHT,
+  LEGEND_CAPTION_FONT_SIZE,
   LEGEND_CHARACTERS_PER_LINE,
+  LEGEND_ENTRY_GAP,
+  LEGEND_FORMS,
+  LEGEND_OVERFLOW_MESSAGE,
   LEGEND_SAFE_INSET,
+  LEGEND_TEXT_FONT_SIZE,
+  LEGEND_WIDEST_CHARACTER_ADVANCE_EM,
+  createBarLegendLayout,
   createDefaultLegendState,
   createLegendLayout,
   getActiveLegendEntries,
+  getLegendBlockingMessage,
+  inferLegendForm,
+  legendTextWidth,
+  resolveLegendBounds,
+  resolveLegendForm,
   getLegendCornerPosition,
   moveLegendEntry,
   nudgeLegendPosition,
@@ -27,7 +44,8 @@ import {
   getEffectiveSceneColors,
 } from './scene';
 import { createLegacyCompatibleSnapshot } from '../hooks/useLocalStorage';
-import { customColor } from './colors';
+import { customColor, rampColor } from './colors';
+import { WIDEST_CHARACTER_ADVANCE_EM } from './compositionText';
 import { createInitialCompositionState } from '../providers/CompositionStateProvider';
 
 const TEST_RING: number[][] = [
@@ -46,6 +64,13 @@ const TEST_LEGEND_BOUNDS = Object.freeze({ width: 320, height: 240 });
  * keeps a production call site from silently opting out of the inset.
  */
 const NO_BANDS = Object.freeze({ top: 0, bottom: 0 });
+/**
+ * No caption and no "no data" row — the shipped default, and the state every
+ * pre-`04-13` geometry assertion below was measured in. Passed explicitly for
+ * the same reason `NO_BANDS` is: a defaulted `{caption: '', showNoData: false}`
+ * would let a call site opt out of reserving space it actually needs.
+ */
+const BARE = Object.freeze({ caption: '', showNoData: false });
 
 function createHistoricalFeature(
   sourceFeatureId: string,
@@ -96,11 +121,26 @@ describe('legend defaults', (): void => {
     // D4-11: the whole legend state is three fields. `theme`,
     // `backgroundOpacity`, and `borderStyle` are GONE, and asserting the key
     // set is what stops one quietly coming back through a spread.
+    /*
+     * D4-11 cut it to three fields; **`04-13` (D4-12) brought three back** —
+     * `form`, `caption`, and `showNoData`. None of them is box chrome: they are
+     * what the legend SAYS and which marks it draws. Asserting the whole key
+     * set is still what stops a deleted chrome field quietly returning through
+     * a spread, and it now also pins the shape `04-14`'s V3 record inherits.
+     */
     expect(Object.keys(fresh).sort()).toEqual([
+      'caption',
       'entries',
+      'form',
       'position',
+      'showNoData',
       'textSize',
     ]);
+    // The shipped default FOLLOWS the colouring technique — a concrete form
+    // here would freeze it at first save.
+    expect(fresh.form).toBeNull();
+    expect(fresh.caption).toBe('');
+    expect(fresh.showNoData).toBe(false);
     // The coordinates agree with the preset they claim, so the disclosure
     // summary can never describe a position the render contradicts.
     expect(getLegendCornerPosition('top-left', { width: 0, height: 0 }, NO_BANDS)).toEqual(
@@ -119,7 +159,7 @@ describe('legend defaults', (): void => {
 
   it('keeps the default valid for the export gate at boot and after the first color', (): void => {
     const fresh = createDefaultLegendState();
-    const empty = resolveLegendRender(fresh, [], NO_BANDS);
+    const empty = resolveLegendRender(fresh, [], NO_BANDS, 'rows');
     expect(empty.position).toEqual(fresh.position);
     expect(validateActiveLegend(fresh, [], empty.bounds, NO_BANDS)).toEqual({
       ok: true,
@@ -127,7 +167,7 @@ describe('legend defaults', (): void => {
     });
 
     const colored = reconcileLegend(['#DC2626'], fresh);
-    const rendered = resolveLegendRender(colored, ['#DC2626'], NO_BANDS);
+    const rendered = resolveLegendRender(colored, ['#DC2626'], NO_BANDS, 'rows');
     expect(rendered.position).toEqual(fresh.position);
     expect(
       validateActiveLegend(colored, ['#DC2626'], rendered.bounds, NO_BANDS),
@@ -233,8 +273,12 @@ describe('legend ordering and layout', (): void => {
     [17, 3],
     [30, 3],
   ])('uses %i entries in %i deterministic columns', (count, columns): void => {
-    const layout = createLegendLayout(createEntries(count), 'medium');
+    const layout = createLegendLayout(createEntries(count), 'medium', BARE);
 
+    expect(layout.form).toBe('rows');
+    if (layout.form !== 'rows') {
+      throw new Error('the rows layout function returned a bar layout');
+    }
     expect(layout.columns).toBe(columns);
     expect(layout.items).toHaveLength(count);
     expect(layout.width).toBeLessThanOrEqual(1016);
@@ -343,7 +387,7 @@ describe('the band-aware legend inset (D4-13)', (): void => {
     expect(fresh.position).toEqual({ x: 32, y: 32, preset: 'top-left' });
 
     const colored = reconcileLegend(['#DC2626'], fresh);
-    const rendered = resolveLegendRender(colored, ['#DC2626'], extents);
+    const rendered = resolveLegendRender(colored, ['#DC2626'], extents, 'rows');
 
     expect(rendered.position).toEqual({ x: 32, y: 152, preset: 'top-left' });
     expect(rendered.position.y).toBe(LEGEND_SAFE_INSET + extents.top);
@@ -383,8 +427,14 @@ describe('the band-aware legend inset (D4-13)', (): void => {
   });
 
   it('still clamps a legend whose layout would leave the square', (): void => {
-    // Three columns of two-line rows: 960 x 760, the tallest legend the
-    // product can produce. Both bands at their cap on top of it.
+    // Three columns of two-line rows — the tallest legend the product can
+    // produce. Both bands at their cap on top of it.
+    //
+    // RE-BASELINED by `04-13`, deliberately: 960 -> **912**. The rows form lost
+    // `LEGEND_INTERNAL_PADDING` (24 a side) when it was restyled to the bar's
+    // restraint, so a three-column legend is 48 units narrower. The CLAIM this
+    // case makes — that the clamp holds for the widest legend that exists — is
+    // unchanged; only the width of that legend moved.
     const entries = createEntries(30).map((entry) => ({
       ...entry,
       label: 'A very long two line label',
@@ -399,9 +449,9 @@ describe('the band-aware legend inset (D4-13)', (): void => {
       bottomBandVisible: true,
       bottomBandHeight: BAND_MAX_HEIGHT,
     });
-    const rendered = resolveLegendRender(legend, effectiveColors, extents);
+    const rendered = resolveLegendRender(legend, effectiveColors, extents, 'rows');
 
-    expect(rendered.bounds.width).toBe(960);
+    expect(rendered.bounds.width).toBe(912);
     expect(rendered.position.x).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
     expect(rendered.position.y).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
     expect(rendered.position.x + rendered.bounds.width).toBeLessThanOrEqual(
@@ -519,10 +569,13 @@ describe('resolveLegendPosition', (): void => {
       legend,
       createEntries(9).map((entry) => entry.color),
       NO_BANDS,
+      'rows',
     );
 
-    expect(resolved.bounds).toEqual({ width: 648, height: resolved.layout.height });
-    expect(resolved.position).toEqual({ x: 400, y: 32, preset: null });
+    // 648 -> 600: the rows restyle removed the 24-a-side container padding.
+    expect(resolved.bounds).toEqual({ width: 600, height: resolved.layout.height });
+    // 400 -> 448: the narrower legend has 48 more units of legal x.
+    expect(resolved.position).toEqual({ x: 448, y: 32, preset: null });
     expect(resolved.activeEntries).toHaveLength(9);
   });
 });
@@ -642,6 +695,7 @@ describe('validateLegend', (): void => {
     const layout = createLegendLayout(
       getActiveLegendEntries(uniqueColors, manyEntries),
       manyEntries.textSize,
+      BARE,
     );
     expect(layout.effectiveTextSize).toBe('small');
 
@@ -685,10 +739,11 @@ describe('validateActiveLegend export gate', (): void => {
     const strandedRight = withEntries(entries, {
       position: { x: 712, y: 32, preset: null },
     });
-    const bounds = resolveLegendRender(strandedRight, effectiveColors, NO_BANDS)
+    const bounds = resolveLegendRender(strandedRight, effectiveColors, NO_BANDS, 'rows')
       .bounds;
 
-    expect(bounds.width).toBe(648);
+    // 648 -> 600, per the rows restyle (`04-13`).
+    expect(bounds.width).toBe(600);
     expect(
       validateActiveLegend(strandedRight, effectiveColors, bounds, NO_BANDS),
     ).toEqual(
@@ -722,6 +777,11 @@ describe('validateActiveLegend export gate', (): void => {
       entries: [entry],
       position: { x: 32, y: 32, preset: 'top-left' },
       textSize: 'medium',
+      // `04-13`'s three additions, asserted here too so a chrome field cannot
+      // sneak back in disguised as one of them.
+      form: null,
+      caption: '',
+      showNoData: false,
     });
     expect(
       validateActiveLegend(bare, ['#DC2626'], TEST_LEGEND_BOUNDS, NO_BANDS),
@@ -740,5 +800,379 @@ describe('validateActiveLegend export gate', (): void => {
       ok: false,
       issues: [{ code: 'invalid-text-size', path: 'textSize' }],
     });
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * D4-12 — two legend forms, one position resolver
+ * ------------------------------------------------------------------ */
+
+/**
+ * `04-13`. The bar is a SECOND layout function with its OWN bounds, and the
+ * whole reason it exists is that `createLegendLayout`'s width is
+ * `columns * LEGEND_COLUMN_WIDTH + (columns - 1) * LEGEND_COLUMN_GAP` — a
+ * column-list formula that does not describe a 48-unit strip.
+ *
+ * Every geometry number below is asserted TWICE where it can be: once as a
+ * literal, and once reproduced from the constants it is built out of. A test
+ * written only against the constant it imports cannot fail on its own subject
+ * (`04-01` shipped exactly that shape and it had to be caught in review).
+ */
+describe('legend forms (D4-12)', (): void => {
+  const rampColors: ColorMap = {
+    FRA: rampColor('reds', 0.5),
+    DEU: customColor('#2563EB'),
+  };
+  const customOnlyColors: ColorMap = {
+    FRA: customColor('#DC2626'),
+    DEU: customColor('#2563EB'),
+  };
+
+  it('names exactly two forms, and the vocabulary has one home', (): void => {
+    expect([...LEGEND_FORMS].sort()).toEqual(['bar', 'rows']);
+    expect(LEGEND_FORMS.size).toBe(2);
+  });
+
+  it('infers Bar when ANY assignment is a ramp, Rows when all are custom hex', (): void => {
+    expect(inferLegendForm(rampColors)).toBe('bar');
+    expect(inferLegendForm(customOnlyColors)).toBe('rows');
+    expect(inferLegendForm({ FRA: rampColor('blues', 0) })).toBe('bar');
+  });
+
+  it('infers Rows for an empty colour map and produces no marks', (): void => {
+    expect(inferLegendForm({})).toBe('rows');
+
+    const rendered = resolveLegendRender(
+      createDefaultLegendState(),
+      [],
+      NO_BANDS,
+      inferLegendForm({}),
+    );
+    expect(rendered.form).toBe('rows');
+    expect(rendered.bounds).toEqual({ width: 0, height: 0 });
+    expect(rendered.activeEntries).toEqual([]);
+    if (rendered.layout.form !== 'rows') {
+      throw new Error('an empty colour map resolved to the bar form');
+    }
+    expect(rendered.layout.items).toEqual([]);
+    expect(rendered.layout.caption).toBeNull();
+    expect(rendered.layout.noData).toBeNull();
+  });
+
+  it('lets an explicit creator override beat inferLegendForm, in both directions', (): void => {
+    const base = withEntries(createEntries(2));
+
+    expect(resolveLegendForm({ ...base, form: null }, 'bar')).toBe('bar');
+    expect(resolveLegendForm({ ...base, form: null }, 'rows')).toBe('rows');
+    expect(resolveLegendForm({ ...base, form: 'rows' }, 'bar')).toBe('rows');
+    expect(resolveLegendForm({ ...base, form: 'bar' }, 'rows')).toBe('bar');
+    // T-04-13-01: an unrecognised STORED value never wins — a legend with
+    // neither form's marks is a blank rectangle in the exported PNG.
+    expect(
+      resolveLegendForm({ ...base, form: 'stack' as never }, 'bar'),
+    ).toBe('bar');
+  });
+
+  it('stacks bar swatches contiguously — ZERO gap, where rows use LEGEND_ENTRY_GAP', (): void => {
+    const layout = createBarLegendLayout(createEntries(4), 'medium', BARE);
+    if (layout.form !== 'bar') {
+      throw new Error('createBarLegendLayout returned a rows layout');
+    }
+
+    expect(LEGEND_BAR_SEGMENT_GAP).toBe(0);
+    expect(LEGEND_ENTRY_GAP).toBe(8);
+    expect(LEGEND_BAR_SEGMENT_GAP).not.toBe(LEGEND_ENTRY_GAP);
+
+    // MEASURED from the layout, not restated from the constant: every adjacent
+    // pair touches exactly, so there is no room for a background pixel between
+    // them. This is Gate B's unit-level twin.
+    const gaps = layout.segments.slice(1).map((segment, index): number => {
+      const previous = layout.segments[index];
+      return segment.y - (previous.y + previous.height);
+    });
+    expect(gaps).toEqual([0, 0, 0]);
+    expect(new Set(gaps)).toEqual(new Set([LEGEND_BAR_SEGMENT_GAP]));
+
+    // The rows form, same entries, MUST disagree — one property, two forms,
+    // opposite expectations, so neither can pass by accident.
+    const rows = createLegendLayout(createEntries(4), 'medium', BARE);
+    if (rows.form !== 'rows') {
+      throw new Error('createLegendLayout returned a bar layout');
+    }
+    const rowGaps = rows.items.slice(1).map((item, index): number => {
+      const previous = rows.items[index];
+      return item.y - (previous.y + previous.height);
+    });
+    expect(rowGaps).toEqual([
+      LEGEND_ENTRY_GAP,
+      LEGEND_ENTRY_GAP,
+      LEGEND_ENTRY_GAP,
+    ]);
+  });
+
+  it('gives the bar a height of entry count x segment height, plus the caption line', (): void => {
+    const bare = createBarLegendLayout(createEntries(5), 'medium', BARE);
+    if (bare.form !== 'bar') {
+      throw new Error('createBarLegendLayout returned a rows layout');
+    }
+    expect(bare.segmentHeight).toBe(32);
+    expect(bare.height).toBe(160);
+    expect(bare.height).toBe(5 * bare.segmentHeight);
+    // An EMPTY caption reserves nothing — 40 units of dead space above the
+    // marks would push the legend back down, which is `G-1`'s complaint.
+    expect(bare.caption).toBeNull();
+
+    const captioned = createBarLegendLayout(createEntries(5), 'medium', {
+      caption: 'EU = 6.0%',
+      showNoData: false,
+    });
+    if (captioned.form !== 'bar') {
+      throw new Error('createBarLegendLayout returned a rows layout');
+    }
+    expect(captioned.height).toBe(200);
+    expect(captioned.height).toBe(
+      5 * captioned.segmentHeight + LEGEND_CAPTION_BLOCK_HEIGHT,
+    );
+    expect(captioned.caption).toMatchObject({
+      text: 'EU = 6.0%',
+      fontSize: LEGEND_CAPTION_FONT_SIZE,
+      x: 0,
+    });
+    // Every segment moved down by exactly the caption block, and nothing else.
+    bare.segments.forEach((segment, index): void => {
+      expect(captioned.segments[index].y - segment.y).toBe(
+        LEGEND_CAPTION_BLOCK_HEIGHT,
+      );
+    });
+  });
+
+  it('widths the bar from the strip, the ticks, and the widest boundary label — NOT the column formula', (): void => {
+    const entries = createEntries(3);
+    const layout = createBarLegendLayout(entries, 'medium', BARE);
+    const fontSize = LEGEND_TEXT_FONT_SIZE.medium;
+    const widestLabel = Math.max(
+      ...entries.map((entry): number => legendTextWidth(entry.label, fontSize)),
+    );
+
+    expect(layout.width).toBe(
+      LEGEND_BAR_WIDTH +
+        LEGEND_BAR_TICK_LENGTH +
+        LEGEND_BAR_TICK_LABEL_GAP +
+        widestLabel,
+    );
+    // The literal, so a change to the arithmetic cannot hide behind the
+    // derivation above.
+    expect(layout.width).toBe(297);
+
+    // ⚠ The load-bearing claim: it is NOT `createLegendLayout`'s width. The
+    // rows form at the same entry count reports 288, and reusing that formula
+    // would over-report the strip by 240 units and clamp the legend to the
+    // wrong place at a right-anchored preset.
+    const rows = createLegendLayout(entries, 'medium', BARE);
+    expect(rows.width).toBe(288);
+    expect(layout.width).not.toBe(rows.width);
+  });
+
+  it('draws N+1 tick leaders and N boundary labels, and prints no literal range text', (): void => {
+    const layout = createBarLegendLayout(createEntries(6), 'medium', BARE);
+    if (layout.form !== 'bar') {
+      throw new Error('createBarLegendLayout returned a rows layout');
+    }
+
+    expect(layout.ticks).toHaveLength(7);
+    expect(layout.boundaries).toHaveLength(6);
+    expect(layout.ticks.every((tick): boolean => tick.x1 === LEGEND_BAR_WIDTH)).toBe(
+      true,
+    );
+    expect(
+      layout.ticks.every(
+        (tick): boolean => tick.x2 - tick.x1 === LEGEND_BAR_TICK_LENGTH,
+      ),
+    ).toBe(true);
+    // The last tick closes the bar at its foot; the first opens it at the top.
+    expect(layout.ticks[0].y).toBe(layout.outline?.y);
+    expect(layout.ticks[6].y).toBe(
+      (layout.outline?.y ?? 0) + (layout.outline?.height ?? 0),
+    );
+
+    // CD-8: BOUNDARIES, never ranges. Every rendered string is an entry label
+    // verbatim — nothing joins two of them with a dash.
+    const rangePattern = /[0-9]\s*[-–]\s*[0-9]/u;
+    layout.boundaries.forEach((boundary): void => {
+      expect(boundary.entry.label).not.toMatch(rangePattern);
+    });
+
+    // Every boundary label hangs BELOW its tick, so the first one cannot poke
+    // above the legend's own bounds — a bound that does not contain its ink is
+    // the failure Live Invariant 3 exists to prevent.
+    layout.boundaries.forEach((boundary, index): void => {
+      expect(boundary.baseline).toBeGreaterThan(layout.ticks[index].y);
+      expect(boundary.baseline).toBeLessThanOrEqual(layout.ticks[index + 1].y);
+    });
+  });
+
+  it('binds the "no data" row into BOTH forms bounds, detached from the marks', (): void => {
+    const withNoData = { caption: '', showNoData: true };
+
+    const bar = createBarLegendLayout(createEntries(3), 'medium', withNoData);
+    const bareBar = createBarLegendLayout(createEntries(3), 'medium', BARE);
+    expect(bar.noData).not.toBeNull();
+    expect(bareBar.noData).toBeNull();
+    expect(bar.height).toBeGreaterThan(bareBar.height);
+    // Detached: the row starts BELOW the bar's foot, so the bar itself stays
+    // contiguous. Welding it on would make "no data" read as a ramp step.
+    if (bar.form !== 'bar') {
+      throw new Error('createBarLegendLayout returned a rows layout');
+    }
+    expect(bar.noData?.swatchY).toBeGreaterThan(
+      (bar.outline?.y ?? 0) + (bar.outline?.height ?? 0),
+    );
+
+    const rows = createLegendLayout(createEntries(3), 'medium', withNoData);
+    const bareRows = createLegendLayout(createEntries(3), 'medium', BARE);
+    expect(rows.noData).not.toBeNull();
+    expect(bareRows.noData).toBeNull();
+    expect(rows.height).toBeGreaterThan(bareRows.height);
+  });
+
+  it('clamps BOTH forms inside the 1080 square through resolveLegendPosition', (): void => {
+    const entries = createEntries(3);
+    const effectiveColors = entries.map((entry): string => entry.color);
+    // Parked far outside the square on both axes, as a CUSTOM position so the
+    // preset branch cannot rescue it.
+    const stranded = withEntries(entries, {
+      position: { x: 4000, y: 4000, preset: null },
+    });
+
+    (['bar', 'rows'] as const).forEach((form): void => {
+      const rendered = resolveLegendRender(
+        { ...stranded, form },
+        effectiveColors,
+        NO_BANDS,
+        form,
+      );
+
+      expect(rendered.form).toBe(form);
+      expect(rendered.position.x).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
+      expect(rendered.position.y).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
+      expect(
+        rendered.position.x + rendered.bounds.width,
+        `the ${form} legend runs off the right of the exported square`,
+      ).toBeLessThanOrEqual(1080 - LEGEND_SAFE_INSET);
+      expect(
+        rendered.position.y + rendered.bounds.height,
+        `the ${form} legend runs off the bottom of the exported square`,
+      ).toBeLessThanOrEqual(1080 - LEGEND_SAFE_INSET);
+    });
+  });
+
+  it('clamps BOTH forms at a right-anchored preset, where the two widths differ most', (): void => {
+    const entries = createEntries(3);
+    const effectiveColors = entries.map((entry): string => entry.color);
+    const topRight = withEntries(entries, {
+      position: { x: 0, y: 0, preset: 'top-right' },
+    });
+
+    const bar = resolveLegendRender(
+      { ...topRight, form: 'bar' },
+      effectiveColors,
+      NO_BANDS,
+      'bar',
+    );
+    const rows = resolveLegendRender(
+      { ...topRight, form: 'rows' },
+      effectiveColors,
+      NO_BANDS,
+      'rows',
+    );
+
+    // Each form's RIGHT EDGE lands exactly on the safe inset. That is only true
+    // if each form's OWN width reached the resolver: a bar clamped with the
+    // rows width would sit 240 units inside the frame edge.
+    expect(bar.position.x + bar.bounds.width).toBe(1080 - LEGEND_SAFE_INSET);
+    expect(rows.position.x + rows.bounds.width).toBe(1080 - LEGEND_SAFE_INSET);
+    expect(bar.position.x).not.toBe(rows.position.x);
+    expect(bar.position.x).toBe(751);
+    expect(rows.position.x).toBe(760);
+  });
+
+  it('routes resolveLegendBounds through the same dispatch as resolveLegendRender', (): void => {
+    const entries = createEntries(4);
+    const effectiveColors = entries.map((entry): string => entry.color);
+    const legend = withEntries(entries);
+
+    (['bar', 'rows'] as const).forEach((form): void => {
+      expect(resolveLegendBounds(legend, effectiveColors, form)).toEqual(
+        resolveLegendRender(legend, effectiveColors, NO_BANDS, form).bounds,
+      );
+    });
+  });
+
+  it('keeps LEGEND_MAX_ACTIVE_ENTRIES gating export in BOTH forms, unchanged', (): void => {
+    const entries = createEntries(31);
+    const effectiveColors = entries.map((entry): string => entry.color);
+    const legend = withEntries(entries);
+
+    (['bar', 'rows'] as const).forEach((form): void => {
+      const bounds = resolveLegendBounds(legend, effectiveColors, form);
+      const validation = validateActiveLegend(
+        { ...legend, form },
+        effectiveColors,
+        bounds,
+        NO_BANDS,
+      );
+
+      expect(validation.ok).toBe(false);
+      if (validation.ok) {
+        throw new Error('31 colours passed the overflow gate');
+      }
+      expect(validation.issues).toContainEqual({
+        code: 'too-many-active-colors',
+      });
+      expect(getLegendBlockingMessage(validation.issues)).toBe(
+        LEGEND_OVERFLOW_MESSAGE,
+      );
+    });
+  });
+
+  it('keeps every form/text-size combination inside the exported square', (): void => {
+    (['bar', 'rows'] as const).forEach((form): void => {
+      ([1, 8, 9, 17, 30] as const).forEach((count): void => {
+        (['small', 'medium', 'large'] as const).forEach((textSize): void => {
+          const entries = createEntries(count);
+          const layout =
+            form === 'bar'
+              ? createBarLegendLayout(entries, textSize, {
+                  caption: 'Unemployment rate, June',
+                  showNoData: true,
+                })
+              : createLegendLayout(entries, textSize, {
+                  caption: 'Unemployment rate, June',
+                  showNoData: true,
+                });
+
+          expect(
+            layout.width,
+            `${form}/${String(count)}/${textSize} is wider than the safe area`,
+          ).toBeLessThanOrEqual(1080 - LEGEND_SAFE_INSET * 2);
+          expect(
+            layout.height,
+            `${form}/${String(count)}/${textSize} is taller than the safe area`,
+          ).toBeLessThanOrEqual(1080 - LEGEND_SAFE_INSET * 2);
+        });
+      });
+    });
+  });
+
+  it('measures text with the SAME worst-case advance compositionText.ts uses', (): void => {
+    // Declared twice on purpose (the `BAND_FALLBACK_STOP_COLOR` precedent):
+    // `compositionText.ts` imports `LEGEND_SAFE_INSET` from `legend.ts`, so the
+    // reverse edge would be circular. This assertion is what keeps the
+    // duplication a CHECKED claim rather than a stale comment.
+    expect(LEGEND_WIDEST_CHARACTER_ADVANCE_EM).toBe(WIDEST_CHARACTER_ADVANCE_EM);
+    expect(legendTextWidth('WWWW', 32)).toBe(
+      Math.ceil(4 * 32 * WIDEST_CHARACTER_ADVANCE_EM),
+    );
+    expect(legendTextWidth('', 32)).toBe(0);
   });
 });

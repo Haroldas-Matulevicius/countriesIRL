@@ -17,6 +17,7 @@ import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { ColorMap } from '../types/map';
 import { repairCameraState } from './camera';
 import { customColor, rampColor } from './colors';
+import { MAX_LEGEND_CAPTION_LENGTH } from './compositionText';
 import { createDefaultLegendState, reconcileLegend } from './legend';
 import {
   MAX_STORAGE_JSON_DEPTH,
@@ -85,6 +86,9 @@ function createCompositionSnapshot(
       ],
       position: { x: 720, y: 64, preset: 'top-right' },
       textSize: 'large',
+      form: null,
+      caption: '',
+      showNoData: false,
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
   };
@@ -868,10 +872,22 @@ describe('createStorageAdapter', () => {
       ok: true,
       value: { legend: { textSize: 'large' } },
     });
-    // Nothing about the loaded legend carries the deleted fields forward.
+    /*
+     * Nothing about the loaded legend carries the DELETED fields forward, and
+     * `04-13`'s three ADDED ones are present at their defaults. Both halves
+     * matter: the first is D4-11's one-way removal, the second is that an
+     * absent `form` resolves rather than being dropped.
+     */
     expect(
       Object.keys((result.value as { value: { legend: object } }).value.legend).sort(),
-    ).toEqual(['entries', 'position', 'textSize']);
+    ).toEqual([
+      'caption',
+      'entries',
+      'form',
+      'position',
+      'showNoData',
+      'textSize',
+    ]);
     expect(storage.setCalls).toBe(0);
   });
 
@@ -908,6 +924,158 @@ describe('createStorageAdapter', () => {
       value: { legend: { textSize: 'medium' } },
       warnings: [{ code: 'composition-repaired' }],
     });
+    expect(storage.setCalls).toBe(0);
+  });
+
+  /* ---------------------------------------------------------------- *
+   * T-04-13-01 — the new legend fields at the untrusted-record boundary
+   * ---------------------------------------------------------------- */
+
+  /**
+   * `04-13` added `form`, `caption`, and `showNoData` to `LegendState`, and
+   * they arrive here from stored JSON. The SAME distinction the deleted-field
+   * cases above draw applies, in the opposite direction:
+   *
+   * - **ABSENT is not corruption.** Every record written before this plan
+   *   lacks all three. Reporting that would fire `composition-repaired` on
+   *   every one of them forever.
+   * - **PRESENT-BUT-INVALID is corruption.** `form: 'stack'` is a value no
+   *   branch renders; unchecked it reaches the exported PNG as a blank
+   *   rectangle where the legend should be.
+   *
+   * Both directions are asserted, because relaxing one must not relax the
+   * other, and both were RED-proved.
+   */
+  it('loads a V2 record with NO form, caption, or showNoData as clean, resolving to the defaults', () => {
+    const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot();
+    const legendWithoutNewFields: Record<string, unknown> = {
+      ...snapshot.legend,
+    };
+    // Deleted rather than destructured-and-ignored: the point is a record that
+    // does not CARRY the keys, and three unused bindings say that less clearly.
+    delete legendWithoutNewFields.form;
+    delete legendWithoutNewFields.caption;
+    delete legendWithoutNewFields.showNoData;
+    expect(Object.keys(legendWithoutNewFields).sort()).toEqual([
+      'entries',
+      'position',
+      'textSize',
+    ]);
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Pre-04-13',
+          timestamp: 100,
+          composition: { ...snapshot, legend: legendWithoutNewFields },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Pre-04-13');
+    expectSuccess(result);
+    expect(result.value).toMatchObject({
+      ok: true,
+      // ⚠ EMPTY. A single `composition-repaired` here is the creator-facing
+      // corruption toast on every map saved before this plan.
+      warnings: [],
+      value: {
+        legend: {
+          // `null` = follow the colouring technique, which is exactly what an
+          // absent override should mean.
+          form: null,
+          caption: '',
+          showNoData: false,
+        },
+      },
+    });
+    expect(storage.setCalls).toBe(0);
+  });
+
+  it('keeps a VALID stored form, caption, and showNoData verbatim and reports nothing', () => {
+    const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot();
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Overridden',
+          timestamp: 100,
+          composition: {
+            ...snapshot,
+            legend: {
+              ...snapshot.legend,
+              form: 'bar',
+              caption: 'EU = 6.0%',
+              showNoData: true,
+            },
+          },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Overridden');
+    expectSuccess(result);
+    expect(result.value).toMatchObject({
+      ok: true,
+      warnings: [],
+      value: {
+        legend: { form: 'bar', caption: 'EU = 6.0%', showNoData: true },
+      },
+    });
+  });
+
+  it('reports an INVALID form, an invalid showNoData, and a damaged caption as repairs', () => {
+    const storage = new FakeStorage();
+    const snapshot = createCompositionSnapshot();
+    const damagedCaption = `Ledger ${'x'.repeat(60)}`;
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify([
+        {
+          schemaVersion: 2,
+          name: 'Damaged forms',
+          timestamp: 100,
+          composition: {
+            ...snapshot,
+            legend: {
+              ...snapshot.legend,
+              form: 'stack',
+              caption: damagedCaption,
+              showNoData: 'yes',
+            },
+          },
+        },
+      ]),
+    );
+
+    const result = createStorageAdapter(storage).load('Damaged forms');
+    expectSuccess(result);
+    expect(result.value).toMatchObject({
+      ok: true,
+      warnings: [{ code: 'composition-repaired' }],
+      value: {
+        legend: {
+          // Falls back to the INFERRED default, never to a rendered string
+          // nobody has a branch for.
+          form: null,
+          showNoData: false,
+        },
+      },
+    });
+
+    const loadedCaption = (
+      result.value as { value: { legend: { caption: string } } }
+    ).value.legend.caption;
+    // Control character stripped, length bounded — and it is NOT the raw
+    // stored value, which is the half a `toMatchObject` on the code alone
+    // would not catch.
+    expect(loadedCaption).not.toBe(damagedCaption);
+    expect(loadedCaption).not.toContain(' ');
+    expect([...loadedCaption]).toHaveLength(MAX_LEGEND_CAPTION_LENGTH);
     expect(storage.setCalls).toBe(0);
   });
 

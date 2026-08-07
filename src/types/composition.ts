@@ -154,6 +154,25 @@ export interface LegendEntryState {
 }
 
 export type LegendTextSize = 'small' | 'medium' | 'large';
+
+/**
+ * D4-12 — the two legend forms, and the whole reason `04-13` exists.
+ *
+ * **`bar`** is the owner's Eurostat reference: one contiguous vertical stack of
+ * the ramp's shades with NO gaps between them, a single hairline around the
+ * WHOLE bar, short tick leaders to the right, and the labels read as **break
+ * boundaries** between ticks rather than printed as literal range text.
+ *
+ * **`rows`** is swatch-plus-label, `LEGEND_ENTRY_GAP` between rows, a hairline
+ * per swatch. It is NOT the Phase 3 legend left alone — `04-13` restyled it to
+ * the bar's restraint (flat swatches, no vestigial container padding), because
+ * the owner asked for both forms to be *"just as subtle"*.
+ *
+ * The vocabulary's one home is `LEGEND_FORMS` in `utils/legend.ts`, in the
+ * style `LEGEND_TEXT_SIZES` and `RAMP_IDS` already use.
+ */
+export type LegendForm = 'bar' | 'rows';
+
 export type LegendCorner =
   | 'top-left'
   | 'top-right'
@@ -185,11 +204,41 @@ export interface LegendPosition {
  * Constraint 8).
  *
  * `textSize`, `position`, entry labels, and entry ordering all survive.
+ *
+ * **`04-13` added three fields back** — `form`, `caption`, and `showNoData`.
+ * None of them is chrome: they are what the legend *says*, not a box around it.
  */
 export interface LegendState {
   readonly entries: ReadonlyArray<LegendEntryState>;
   readonly position: LegendPosition;
   readonly textSize: LegendTextSize;
+  /**
+   * D4-12 — the creator's EXPLICIT override, or `null` for "follow the
+   * colouring technique".
+   *
+   * `null` is not a missing value: it is the shipped default, and it resolves
+   * through `inferLegendForm` at render time (`resolveLegendForm`). Storing the
+   * inferred value instead would freeze the form the first time a map is saved,
+   * so a creator who later repaints a categorical map with a ramp would keep a
+   * rows legend and have no way to know why.
+   */
+  readonly form: LegendForm | null;
+  /**
+   * D4-12 — the one bold line above the marks (`04-UI-SPEC.md § 6.7`), the
+   * reference's `EU = 6.0%, euro area = 6.3%`.
+   *
+   * Empty renders NO `<text>` element at all and reserves NO vertical space —
+   * the same discipline `04-11` applied to the title, the subtitle, and the
+   * attribution. Sanitised at the state boundary, never on the way to the
+   * attribute.
+   */
+  readonly caption: string;
+  /**
+   * `ROADMAP.md § Phase 4 04-08`'s **optional** "no data" row. Its swatch is
+   * bound to `settings.uncoloredFill` — ONE value, two consumers, and the
+   * divergence is what `legend.spec.ts`'s Gate A exists to catch.
+   */
+  readonly showNoData: boolean;
 }
 
 /**

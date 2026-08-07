@@ -70,6 +70,7 @@ import { getCompositionTextBlockingMessage } from './utils/compositionText';
 import {
   getActiveLegendEntries,
   getLegendBlockingMessage,
+  inferLegendForm,
   validateActiveLegend,
 } from './utils/legend';
 import {
@@ -324,9 +325,31 @@ export default function App(): JSX.Element {
     () => getActiveLegendEntries(effectiveColors, compositionState.legend),
     [compositionState.legend, effectiveColors],
   );
+  /*
+   * D4-12 — the ONE inference of the legend form from the colouring technique,
+   * derived here and handed to the overlay, the editor, the bounds, and the
+   * export gate, exactly as `legendBandExtents` is. A second
+   * `values.some(v => v.kind === 'ramp')` written beside any of them is how the
+   * rendered legend and the exported one start disagreeing about which form
+   * they are.
+   *
+   * It reads the raw `ColorMap` through `04-05`'s discriminant rather than the
+   * resolved hexes: once a ramp shade is resolved to `#2171B5` it is
+   * indistinguishable from a creator typing that hex by hand, and the whole
+   * point of the inference is to tell those two apart.
+   */
+  const inferredLegendForm = useMemo(
+    () => inferLegendForm(colors),
+    [colors],
+  );
   const legendBounds = useMemo(
-    () => getLegendOverlayBounds(compositionState.legend, effectiveColors),
-    [compositionState.legend, effectiveColors],
+    () =>
+      getLegendOverlayBounds(
+        compositionState.legend,
+        effectiveColors,
+        inferredLegendForm,
+      ),
+    [compositionState.legend, effectiveColors, inferredLegendForm],
   );
   /*
    * D4-13 — the ONE band-extent derivation on the legend's side, handed to the
@@ -1047,6 +1070,8 @@ export default function App(): JSX.Element {
       legend={compositionState.legend}
       effectiveColors={effectiveColors}
       bandExtents={legendBandExtents}
+      inferredForm={inferredLegendForm}
+      uncoloredFill={compositionState.settings.uncoloredFill}
       onPositionChange={setLegendPosition}
       onStatusMessage={showStatus}
     />
@@ -1235,6 +1260,7 @@ export default function App(): JSX.Element {
           effectiveColors={effectiveColors}
           bounds={legendBounds}
           bandExtents={legendBandExtents}
+          inferredForm={inferredLegendForm}
           commands={legendCommands}
           onStatusMessage={showStatus}
         />

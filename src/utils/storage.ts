@@ -20,6 +20,7 @@ import type {
   LegacySavedComposition,
   LegendCorner,
   LegendEntryState,
+  LegendForm,
   LegendState,
   LegendTextSize,
   SavedCompositionRecord,
@@ -44,10 +45,12 @@ import {
   resolveColorMapHexes,
   resolveColorValue,
 } from './colors';
+import { sanitizeLegendCaption } from './compositionText';
 import { isSafeStableCountryId } from './countryIds';
 import {
   createDefaultLegendState,
   LEGEND_CORNERS,
+  LEGEND_FORMS,
   LEGEND_TEXT_SIZES,
   reconcileLegend,
 } from './legend';
@@ -539,6 +542,45 @@ function normalizeLegend(
     typeof textSize === 'string' &&
     LEGEND_TEXT_SIZES.has(textSize as LegendTextSize);
 
+  /*
+   * `04-13` — T-04-13-01. Three fields ARRIVE here from untrusted stored JSON,
+   * and each draws the same distinction the deleted-field rule above draws:
+   *
+   * **ABSENT is not corruption.** A V2 record predates all three, so
+   * `form === undefined` is a schema difference and resolves to the shipped
+   * default (`null` → infer from the colouring technique). Reporting it would
+   * raise `composition-repaired` — a creator-facing corruption toast — on every
+   * reopened map that was saved before this plan.
+   *
+   * **PRESENT-BUT-INVALID is corruption.** `form: 'stack'` is a value this
+   * version cannot render; left unchecked it produces a legend with neither
+   * form's marks, which reaches the PNG as a blank rectangle. Both directions
+   * are asserted in `storage.test.ts`.
+   */
+  const hasForm = 'form' in value && value.form !== undefined;
+  const isFormValid =
+    !hasForm ||
+    value.form === null ||
+    (typeof value.form === 'string' &&
+      LEGEND_FORMS.has(value.form as LegendForm));
+  const form: LegendForm | null =
+    hasForm && isFormValid ? (value.form as LegendForm | null) : fallback.form;
+
+  const hasCaption = 'caption' in value && value.caption !== undefined;
+  const isCaptionValid = !hasCaption || typeof value.caption === 'string';
+  const rawCaption = hasCaption && isCaptionValid ? (value.caption as string) : '';
+  const caption = sanitizeLegendCaption(rawCaption);
+  // A caption that had to be sanitised WAS damaged — a control character or an
+  // over-long value in a stored record is not a schema difference.
+  const isCaptionRepaired = !isCaptionValid || caption !== rawCaption;
+
+  const hasShowNoData = 'showNoData' in value && value.showNoData !== undefined;
+  const isShowNoDataValid = !hasShowNoData || typeof value.showNoData === 'boolean';
+  const showNoData =
+    hasShowNoData && isShowNoDataValid
+      ? (value.showNoData as boolean)
+      : fallback.showNoData;
+
   return {
     legend: {
       entries: entriesResult.entries,
@@ -546,9 +588,17 @@ function normalizeLegend(
       textSize: isTextSizeValid
         ? (textSize as LegendTextSize)
         : fallback.textSize,
+      form,
+      caption,
+      showNoData,
     },
     isRepaired:
-      entriesResult.isRepaired || isPositionRepaired || !isTextSizeValid,
+      entriesResult.isRepaired ||
+      isPositionRepaired ||
+      !isTextSizeValid ||
+      !isFormValid ||
+      isCaptionRepaired ||
+      !isShowNoDataValid,
   };
 }
 

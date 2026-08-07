@@ -2,7 +2,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
-import type { LegendEntryState, LegendState } from '../types/composition';
+import type {
+  LegendEntryState,
+  LegendForm,
+  LegendState,
+} from '../types/composition';
 import type { BandExtents } from '../utils/bands';
 import { BAND_DEFAULT_HEIGHT, resolveBandExtents } from '../utils/bands';
 import { LegendOverlay, getLegendOverlayBounds } from './LegendOverlay';
@@ -40,6 +44,9 @@ function createLegend(
     entries: createEntries(count),
     position,
     textSize: 'medium',
+    form: null,
+    caption: '',
+    showNoData: false,
   };
 }
 
@@ -47,6 +54,7 @@ function renderOverlay(
   legend: LegendState,
   colors: ReadonlyArray<string>,
   bandExtents: BandExtents = NO_BANDS,
+  inferredForm: LegendForm = 'rows',
 ): string {
   return renderToStaticMarkup(
     <svg viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}>
@@ -54,6 +62,8 @@ function renderOverlay(
         legend={legend}
         effectiveColors={colors}
         bandExtents={bandExtents}
+        inferredForm={inferredForm}
+        uncoloredFill={DEFAULT_COMPOSITION_SETTINGS.uncoloredFill}
         onPositionChange={vi.fn()}
         onStatusMessage={vi.fn()}
       />
@@ -81,7 +91,8 @@ describe('LegendOverlay export framing', (): void => {
     const eightColors = createColors(8);
     const draggedRight = createLegend(8, { x: 712, y: 32, preset: null });
 
-    expect(getLegendOverlayBounds(draggedRight, eightColors).width).toBe(336);
+    // 336 -> 288: the `04-13` rows restyle removed the container padding.
+    expect(getLegendOverlayBounds(draggedRight, eightColors, 'rows').width).toBe(288);
     expect(readTranslate(renderOverlay(draggedRight, eightColors))).toEqual({
       x: 712,
       y: 32,
@@ -89,22 +100,22 @@ describe('LegendOverlay export framing', (): void => {
 
     const nineColors = createColors(9);
     const reflowed = createLegend(9, { x: 712, y: 32, preset: null });
-    const bounds = getLegendOverlayBounds(reflowed, nineColors);
+    const bounds = getLegendOverlayBounds(reflowed, nineColors, 'rows');
     const translate = readTranslate(renderOverlay(reflowed, nineColors));
 
-    expect(bounds.width).toBe(648);
-    expect(translate.x).toBe(400);
+    expect(bounds.width).toBe(600);
+    expect(translate.x).toBe(448);
     expect(translate.x + bounds.width).toBe(CANVAS_SIZE - SAFE_INSET);
   });
 
   it('keeps a right-edge legend inside the frame across the 16 to 17 step', (): void => {
     const seventeenColors = createColors(17);
     const reflowed = createLegend(17, { x: 400, y: 32, preset: null });
-    const bounds = getLegendOverlayBounds(reflowed, seventeenColors);
+    const bounds = getLegendOverlayBounds(reflowed, seventeenColors, 'rows');
     const translate = readTranslate(renderOverlay(reflowed, seventeenColors));
 
-    expect(bounds.width).toBe(960);
-    expect(translate.x).toBe(88);
+    expect(bounds.width).toBe(912);
+    expect(translate.x).toBe(136);
     expect(translate.x + bounds.width).toBe(CANVAS_SIZE - SAFE_INSET);
     expect(translate.y).toBeGreaterThanOrEqual(SAFE_INSET);
   });
@@ -114,14 +125,14 @@ describe('LegendOverlay export framing', (): void => {
 
     const eightColors = createColors(8);
     const eight = createLegend(8, stale);
-    const eightBounds = getLegendOverlayBounds(eight, eightColors);
+    const eightBounds = getLegendOverlayBounds(eight, eightColors, 'rows');
     const eightTranslate = readTranslate(renderOverlay(eight, eightColors));
     expect(eightTranslate.x + eightBounds.width).toBe(CANVAS_SIZE - SAFE_INSET);
     expect(eightTranslate.y + eightBounds.height).toBe(CANVAS_SIZE - SAFE_INSET);
 
     const seventeenColors = createColors(17);
     const seventeen = createLegend(17, stale);
-    const seventeenBounds = getLegendOverlayBounds(seventeen, seventeenColors);
+    const seventeenBounds = getLegendOverlayBounds(seventeen, seventeenColors, 'rows');
     const seventeenTranslate = readTranslate(
       renderOverlay(seventeen, seventeenColors),
     );
@@ -131,7 +142,7 @@ describe('LegendOverlay export framing', (): void => {
     expect(seventeenTranslate.y + seventeenBounds.height).toBe(
       CANVAS_SIZE - SAFE_INSET,
     );
-    expect(seventeenTranslate.x).toBe(88);
+    expect(seventeenTranslate.x).toBe(136);
   });
 });
 

@@ -601,8 +601,24 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * `.legend-editor fieldset fieldset` and `.legend-editor__pill` — which the
  * surviving `Text size` group still needs. Reuse is what makes a deletion
  * cheap as well as an addition.
+ *
+ * **RAISED 335 -> 337 by `04-13` (D4-12), and the reason is stated here rather
+ * than only in the commit.** MEASURED both ways by running this assertion with
+ * the ceiling at 0: **335 before, 337 after.** The delta is exactly two rules
+ * in `src/styles/controls/legendEditor.css`:
+ *
+ * | rule | what it styles |
+ * |---|---|
+ * | `.legend-editor__caption` | the caption field's stacked label-over-input |
+ * | `.legend-editor__pill input[type="checkbox"]` | the "no data" toggle, joining the existing grouped click-bearing-input rule |
+ *
+ * **The two NEW fieldsets — `Legend form` and `Legend content` — cost ZERO**,
+ * because they reuse `.legend-editor fieldset fieldset`,
+ * `.legend-editor fieldset legend`, and `.legend-editor__pill`. So does the
+ * caption's `<input>`, which takes `theme.css`'s global `input` recipe. Two
+ * groups and three controls for two selectors is the budget working.
  */
-const SELECTOR_INVENTORY_CEILING = 335;
+const SELECTOR_INVENTORY_CEILING = 337;
 
 /**
  * Every selector a rule declares, one per comma-separated part.

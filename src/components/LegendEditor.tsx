@@ -14,17 +14,20 @@ import { DEFAULT_COLOR } from '../constants/colors';
 import type {
   LegendCorner,
   LegendEntryState,
+  LegendForm,
   LegendState,
   LegendTextSize,
 } from '../types/composition';
 import type { CompositionStateContextValue } from '../providers/CompositionStateProvider';
 import type { BandExtents } from '../utils/bands';
+import { MAX_LEGEND_CAPTION_LENGTH } from '../utils/compositionText';
 import {
   LEGEND_LABEL_FIT_MESSAGE,
   getActiveLegendEntries,
   getLegendBlockingMessage,
   getLegendCornerPosition,
   nudgeLegendPosition,
+  resolveLegendForm,
   resolveLegendPosition,
   validateActiveLegend,
 } from '../utils/legend';
@@ -46,6 +49,34 @@ const TEXT_SIZE_OPTIONS: ReadonlyArray<{
   { value: 'medium', label: 'Medium' },
   { value: 'large', label: 'Large' },
 ];
+/**
+ * `04-UI-SPEC.md § 9`, byte-exact: *"Legend form options | `Bar` · `Rows`"*.
+ *
+ * Exported so a gate can ENUMERATE the vocabulary rather than restate it — the
+ * same reason `LEGEND_CORNER_OPTIONS` is exported, and `legend.spec.ts` asserts
+ * this list and `LEGEND_FORMS` agree in both directions.
+ */
+export const LEGEND_FORM_OPTIONS: ReadonlyArray<{
+  value: LegendForm;
+  label: string;
+}> = [
+  { value: 'bar', label: 'Bar' },
+  { value: 'rows', label: 'Rows' },
+];
+/**
+ * ⚠ **Authored here, not lifted from `04-UI-SPEC.md § 9`.** § 9 has a row for
+ * the two form OPTION labels and none for the group headings, the caption
+ * field, or the "no data" toggle — the spec specified the control's options
+ * without specifying the control. Recorded as an unspecified string in
+ * `04-13-SUMMARY.md` rather than presented as contract.
+ *
+ * None of them is a creator-facing MESSAGE, so none enters `ToastRegion`'s
+ * allowlist and assertion 23's pinned counts do not move.
+ */
+export const LEGEND_CONTENT_GROUP_LABEL = 'Legend content';
+export const LEGEND_FORM_GROUP_LABEL = 'Legend form';
+export const LEGEND_CAPTION_LABEL = 'Legend caption';
+export const LEGEND_NO_DATA_TOGGLE_LABEL = 'Show no data row';
 /**
  * Exported so a gate can ENUMERATE the position presets instead of restating
  * them. `03-08`'s non-intersection assertion walks every legend preset, and a
@@ -86,6 +117,12 @@ interface LegendEditorProps {
   bounds: LegendBounds;
   /** D4-13 — see `LegendOverlay`. The picker and the overlay must agree. */
   bandExtents: BandExtents;
+  /**
+   * D4-12 — the form the colours imply. The `Form` pills show the RESOLVED
+   * form, so a creator who has set no override still sees which one is in
+   * effect rather than an empty group.
+   */
+  inferredForm: LegendForm;
   commands: LegendEditorCommands;
   onStatusMessage: (message: string) => void;
 }
@@ -132,9 +169,11 @@ export function LegendEditor({
   effectiveColors,
   bounds,
   bandExtents,
+  inferredForm,
   commands,
   onStatusMessage,
 }: LegendEditorProps): JSX.Element {
+  const resolvedForm = resolveLegendForm(legend, inferredForm);
   const activeEntries = useMemo(
     (): ReadonlyArray<LegendEntryState> =>
       getActiveLegendEntries(effectiveColors, legend),
@@ -508,9 +547,65 @@ export function LegendEditor({
         legend has no box chrome to style. `Legend text size` survives, and the
         `Legend position` picker below is byte-identical, announcements
         included.
+
+        D4-12 (`04-13`): `Legend content` and `Legend form` join it. Neither is
+        chrome — one is what the legend SAYS and the other is which marks it
+        draws. ⚠ The plan asked for ONE new group; two shipped, because the
+        caption and the "no data" row are rendered into the exported PNG and a
+        rendered element a creator cannot author is a stub. Recorded as a
+        deviation in `04-13-SUMMARY.md`.
       */}
       <fieldset disabled={isEmpty}>
         <legend>Legend style and position</legend>
+
+        <fieldset aria-label={LEGEND_CONTENT_GROUP_LABEL}>
+          <legend>{LEGEND_CONTENT_GROUP_LABEL}</legend>
+          <label className="legend-editor__caption">
+            <span>{LEGEND_CAPTION_LABEL}</span>
+            <input
+              type="text"
+              value={legend.caption}
+              maxLength={MAX_LEGEND_CAPTION_LENGTH}
+              onChange={(event: ChangeEvent<HTMLInputElement>): void => {
+                commands.setLegendStyle({ caption: event.target.value });
+              }}
+            />
+          </label>
+          {/*
+            A checkbox in a pill: `.legend-editor__pill:has(input:checked)`
+            already paints a checked control Powder, so the toggle reuses the
+            radio pill's whole recipe rather than authoring a second one.
+          */}
+          <label className="legend-editor__pill">
+            <input
+              type="checkbox"
+              checked={legend.showNoData}
+              onChange={(event: ChangeEvent<HTMLInputElement>): void => {
+                commands.setLegendStyle({ showNoData: event.target.checked });
+              }}
+            />
+            {LEGEND_NO_DATA_TOGGLE_LABEL}
+          </label>
+        </fieldset>
+
+        <fieldset aria-label={LEGEND_FORM_GROUP_LABEL}>
+          <legend>{LEGEND_FORM_GROUP_LABEL}</legend>
+          {LEGEND_FORM_OPTIONS.map((option): JSX.Element => (
+            <label key={option.value} className="legend-editor__pill">
+              <input
+                type="radio"
+                name="legend-form"
+                value={option.value}
+                checked={resolvedForm === option.value}
+                onChange={(): void =>
+                  commands.setLegendStyle({ form: option.value })
+                }
+              />
+              {option.label}
+            </label>
+          ))}
+        </fieldset>
+
         <fieldset aria-label="Legend text size">
           <legend>Legend text size</legend>
           {TEXT_SIZE_OPTIONS.map((option): JSX.Element => (

@@ -286,6 +286,39 @@ export function sanitizeCompositionText(raw: string): string {
 }
 
 /**
+ * `04-13`'s legend caption bound (`04-UI-SPEC.md § 6.7`).
+ *
+ * 32, matching `LEGEND_LABEL_MAX_LENGTH` — the caption sits in the same legend
+ * and is measured by the same worst-case advance, so a second, looser bound
+ * would let a caption widen the legend past a label that is already refused.
+ */
+export const MAX_LEGEND_CAPTION_LENGTH = 32;
+
+/**
+ * The caption is creator-typed text on its way to an SVG text node, so it gets
+ * the SAME treatment the title, the subtitle, and the attribution get: control
+ * characters stripped, length bounded, at the state boundary.
+ *
+ * It **truncates rather than refuses**, which is the opposite of the composition
+ * text fields, and the reason is deliberate: a refusal needs a creator-facing
+ * message, every such message passes through `ToastRegion`'s allowlist, and
+ * `uiContract.test.ts` assertion 23 pins those counts as hard numbers.
+ * `04-13` moves none of them. The `maxLength` on the input means the bound is
+ * reached by the control before it is reached by the sanitiser.
+ *
+ * It lives HERE rather than in `utils/legend.ts` because `compositionText.ts`
+ * already imports `LEGEND_SAFE_INSET` from that module, and the reverse edge
+ * would be a circular dependency. One control-character pattern, two callers.
+ */
+export function sanitizeLegendCaption(raw: string): string {
+  const stripped = raw.replaceAll(CONTROL_CHARACTER_PATTERN, '');
+  const codePoints = [...stripped];
+  return codePoints.length <= MAX_LEGEND_CAPTION_LENGTH
+    ? stripped
+    : codePoints.slice(0, MAX_LEGEND_CAPTION_LENGTH).join('');
+}
+
+/**
  * Whether a field renders at all. **An empty field renders NO `<text>` element,
  * not an empty one** — an empty `<text>` still carries a `font-family`, so
  * `collectCompositionFonts` would report a family for a composition with no

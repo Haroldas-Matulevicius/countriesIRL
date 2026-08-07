@@ -293,6 +293,7 @@
  * `.check()` - and a real click - aims at the input itself.
  */
 .legend-editor__pill input[type="radio"],
+.legend-editor__pill input[type="checkbox"],
 .legend-editor__position-cell input[type="radio"] {
   position: absolute;
   inset: 0;
@@ -374,6 +375,18 @@
 }
 
 /*
+ * The caption field, `04-13` (D4-12). A stacked label over its input, the same
+ * shape `.legend-editor__entry label` uses for an entry's label — but that rule
+ * is scoped to an entry row and this control does not live in one. The input
+ * itself takes `theme.css`'s global `input` recipe, so it costs no rule of its
+ * own; a grid item stretches to its column, so it needs no width either.
+ */
+.legend-editor__caption {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+/*
  * D4-11 deleted three rules here with the controls they styled: the opacity
  * slider's Porcelain label card (`.legend-editor > fieldset > label`), its
  * weight-500 heading (`… > span`), and the slider itself
@@ -382,6 +395,15 @@
  * `.legend-editor fieldset fieldset` and `.legend-editor__pill`, which the
  * surviving `Text size` group still needs.
  *
- * Selector inventory: 338 -> 335. The ceiling in `uiContract.test.ts` is
- * lowered to match in the same commit.
+ * Selector inventory: 338 -> 335 (`04-12`), then **335 -> 337 (`04-13`)**.
+ * MEASURED both ways by running the assertion with the ceiling at 0. The two
+ * added selectors are `.legend-editor__caption` above and
+ * `.legend-editor__pill input[type="checkbox"]`, which joins the existing
+ * grouped click-bearing-input rule so the "no data" toggle reuses the radio
+ * pill's whole recipe.
+ *
+ * The `Legend form` group and the `Legend content` group cost **ZERO**: both
+ * reuse `.legend-editor fieldset fieldset`, `.legend-editor fieldset legend`,
+ * and `.legend-editor__pill`. Reuse is what makes an addition cheap as well as
+ * a deletion.
  */

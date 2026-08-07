@@ -2,10 +2,12 @@ import { DEFAULT_COLOR } from '../constants/colors';
 import type {
   LegendCorner,
   LegendEntryState,
+  LegendForm,
   LegendPosition,
   LegendState,
   LegendTextSize,
 } from '../types/composition';
+import type { ColorMap } from '../types/map';
 import type { BandExtents } from './bands';
 import { normalizeColor } from './colors';
 
@@ -19,16 +21,131 @@ const LEGEND_CANVAS_SIZE = 1080;
  * than declaring a second literal.
  */
 export const LEGEND_SAFE_INSET = 32;
-const LEGEND_INTERNAL_PADDING = 24;
 const LEGEND_COLUMN_GAP = 24;
 const LEGEND_COLUMN_WIDTH = 288;
-const LEGEND_ENTRY_GAP = 8;
+export const LEGEND_ENTRY_GAP = 8;
 const LEGEND_ENTRY_HEIGHT = 48;
 const LEGEND_TWO_LINE_HEIGHT = 64;
 const LEGEND_LABEL_MAX_LENGTH = 32;
 const LEGEND_MAX_ACTIVE_ENTRIES = 30;
 const LEGEND_SMALL_NUDGE = 8;
 const LEGEND_LARGE_NUDGE = 32;
+
+/*
+ * ------------------------------------------------------------------
+ * Shared mark geometry (04-13)
+ * ------------------------------------------------------------------
+ *
+ * These moved OUT of `LegendOverlay.tsx` and into the layout module, because
+ * `04-13` gave the legend a second form whose BOUNDS depend on them. A swatch
+ * size that lives in the renderer and a width formula that lives here is how
+ * the two stop agreeing, and a legend whose bounds under-report its ink is a
+ * legend that leaves the exported square (Live Invariant 3).
+ */
+
+/** Both forms' non-bar swatch: the rows entry mark and the "no data" mark. */
+export const LEGEND_SWATCH_SIZE = 24;
+export const LEGEND_SWATCH_LABEL_GAP = 16;
+
+export const LEGEND_TEXT_FONT_SIZE: Readonly<Record<LegendTextSize, number>> = {
+  small: 24,
+  medium: 32,
+  large: 40,
+};
+export const LEGEND_TEXT_LINE_HEIGHT: Readonly<
+  Record<LegendTextSize, number>
+> = {
+  small: 28,
+  medium: 36,
+  large: 44,
+};
+export const LEGEND_TEXT_BASELINE_OFFSET: Readonly<
+  Record<LegendTextSize, number>
+> = {
+  small: 7,
+  medium: 9,
+  large: 11,
+};
+
+/**
+ * The SAME worst-case advance `compositionText.ts` derives its character bounds
+ * from — Inter's widest common glyph (`W`) at weight 600, measured in installed
+ * Chrome 151 from the vendored `inter-latin-variable.woff2`.
+ *
+ * It is DECLARED here rather than imported, because `compositionText.ts`
+ * imports `LEGEND_SAFE_INSET` from this module and the reverse edge would be a
+ * circular dependency — the same trade `bands.ts` makes for
+ * `BAND_FALLBACK_STOP_COLOR`. `legend.test.ts` imports both and asserts they
+ * are equal, so the duplication is a CHECKED claim rather than a comment that
+ * goes stale.
+ */
+export const LEGEND_WIDEST_CHARACTER_ADVANCE_EM = 1.0202;
+
+/**
+ * A worst-case rendered width, in user units, for a single line of text.
+ *
+ * ⚠ Vitest runs on `node`: there is no DOM and no `measureText`, so a width is
+ * a CHARACTER COUNT times a recorded advance rather than a measurement. It
+ * over-estimates on purpose — a legend whose bounds under-report its ink is one
+ * that clips out of the exported PNG, which this project has shipped once.
+ */
+export function legendTextWidth(text: string, fontSize: number): number {
+  return Math.ceil(
+    [...text].length * fontSize * LEGEND_WIDEST_CHARACTER_ADVANCE_EM,
+  );
+}
+
+/*
+ * ------------------------------------------------------------------
+ * Bar-form geometry (D4-12)
+ * ------------------------------------------------------------------
+ */
+
+/** The stacked bar's width. Narrow on purpose: the reference's is a strip. */
+export const LEGEND_BAR_WIDTH = 48;
+/** The FLOOR on a segment's height; the real height also clears the label. */
+export const LEGEND_BAR_SEGMENT_MIN_HEIGHT = 32;
+/**
+ * **Zero, and it is the bar's defining property** — the swatches are
+ * contiguous. It is a NAMED constant rather than an omitted term so that the
+ * contract is greppable and `legend.test.ts` can assert it against
+ * `LEGEND_ENTRY_GAP` (8), which is what the rows form uses. Two forms, one
+ * property, opposite values.
+ */
+export const LEGEND_BAR_SEGMENT_GAP = 0;
+/** The short tick leader that runs right from each segment boundary. */
+export const LEGEND_BAR_TICK_LENGTH = 12;
+export const LEGEND_BAR_TICK_LABEL_GAP = 8;
+/**
+ * Where a boundary label's baseline sits below its tick, as a fraction of the
+ * font size. The label hangs BELOW its tick rather than straddling it, so the
+ * first boundary's type cannot poke above the legend's own bounds — a bound
+ * that does not contain its ink is the failure Live Invariant 3 exists for.
+ */
+const LEGEND_BAR_LABEL_BASELINE_RATIO = 0.8;
+
+/*
+ * ------------------------------------------------------------------
+ * Caption and "no data" — shared by BOTH forms (D4-12, roadmap 04-08)
+ * ------------------------------------------------------------------
+ */
+
+/** `04-UI-SPEC.md § 6.7`: 24 user units, weight 600, the one composition ink. */
+export const LEGEND_CAPTION_FONT_SIZE = 24;
+const LEGEND_CAPTION_GAP = 16;
+/**
+ * Reserved ONLY when there is a caption. An empty caption reserves nothing and
+ * renders no element — the `04-11` discipline, and here it also matters for
+ * `G-1`: 40 units of dead space above the marks would push the whole legend
+ * down again, which is the complaint this phase is trying to answer.
+ */
+export const LEGEND_CAPTION_BLOCK_HEIGHT =
+  LEGEND_CAPTION_FONT_SIZE + LEGEND_CAPTION_GAP;
+export const LEGEND_CAPTION_FONT_WEIGHT = '600';
+
+/** Detached from the marks by design: the bar itself must stay contiguous. */
+const LEGEND_NO_DATA_GAP = 16;
+export const LEGEND_NO_DATA_LABEL = 'No data';
 
 /**
  * The single legend default. `top-left` is the only preset whose coordinates
@@ -57,6 +174,16 @@ export const LEGEND_CORNERS: ReadonlySet<LegendCorner> = new Set([
   'top-right',
   'bottom-left',
   'bottom-right',
+]);
+/**
+ * D4-12 — the ONE home for the legend-form vocabulary, in the style
+ * `LEGEND_TEXT_SIZES` and `RAMP_IDS` use. Storage validation, the reducer, and
+ * the editor all import this set; the stored `form` is untrusted input and is
+ * checked against it rather than against a retyped string union.
+ */
+export const LEGEND_FORMS: ReadonlySet<LegendForm> = new Set<LegendForm>([
+  'bar',
+  'rows',
 ]);
 
 /**
@@ -101,12 +228,99 @@ export interface LegendLayoutItem {
   readonly height: number;
 }
 
-export interface LegendLayout {
-  readonly columns: number;
+/** The caption's anchor, or `null` when there is no caption to draw. */
+export interface LegendCaptionLayout {
+  readonly x: number;
+  readonly baseline: number;
+  readonly text: string;
+  readonly fontSize: number;
+}
+
+/**
+ * The optional "no data" row. Its `fill` is deliberately NOT here: the layout
+ * knows the row's geometry, and `settings.uncoloredFill` reaches the swatch as
+ * a render-time prop. One value, two consumers — putting a copy in the layout
+ * would make three.
+ */
+export interface LegendNoDataLayout {
+  readonly swatchX: number;
+  readonly swatchY: number;
+  readonly swatchSize: number;
+  readonly labelX: number;
+  readonly labelBaseline: number;
+  readonly label: string;
+}
+
+export interface LegendBarSegment {
+  readonly entry: LegendEntryState;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface LegendBarTick {
+  readonly x1: number;
+  readonly x2: number;
+  readonly y: number;
+}
+
+export interface LegendBarBoundary {
+  readonly entry: LegendEntryState;
+  readonly x: number;
+  readonly baseline: number;
+}
+
+export interface LegendBarOutline {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+interface LegendLayoutBase {
   readonly effectiveTextSize: LegendTextSize;
   readonly width: number;
   readonly height: number;
-  readonly items: ReadonlyArray<LegendLayoutItem>;
+  readonly caption: LegendCaptionLayout | null;
+  readonly noData: LegendNoDataLayout | null;
+}
+
+/**
+ * A DISCRIMINATED UNION on `form`, not one interface with two half-empty
+ * arrays (`general.md` § TypeScript Discipline). A renderer that reads
+ * `layout.items` on a bar would get `[]` and paint nothing, silently; with the
+ * union it is a compile error.
+ */
+export type LegendLayout =
+  | (LegendLayoutBase & {
+      readonly form: 'rows';
+      readonly columns: number;
+      readonly items: ReadonlyArray<LegendLayoutItem>;
+    })
+  | (LegendLayoutBase & {
+      readonly form: 'bar';
+      readonly outline: LegendBarOutline | null;
+      readonly segmentHeight: number;
+      readonly segments: ReadonlyArray<LegendBarSegment>;
+      readonly ticks: ReadonlyArray<LegendBarTick>;
+      readonly boundaries: ReadonlyArray<LegendBarBoundary>;
+    });
+
+/**
+ * What the legend SAYS, as distinct from what it lists. Both forms consume it,
+ * and both layout functions take it as a REQUIRED argument — a defaulted
+ * `{caption: '', showNoData: false}` is indistinguishable from a call site that
+ * forgot, and the bounds would then under-report the ink (the same reasoning
+ * `04-12` applied to `bandExtents`).
+ */
+export interface LegendContent {
+  readonly caption: string;
+  readonly showNoData: boolean;
+}
+
+export function getLegendContent(legend: LegendState): LegendContent {
+  return { caption: legend.caption, showNoData: legend.showNoData };
 }
 
 export type LegendValidationIssue =
@@ -253,7 +467,49 @@ export function createDefaultLegendState(): LegendState {
     entries: [],
     position: { ...DEFAULT_LEGEND_POSITION },
     textSize: 'medium',
+    // `null`, never a concrete form: the shipped default FOLLOWS the colouring
+    // technique, and writing 'rows' here would freeze it at first save.
+    form: null,
+    caption: '',
+    showNoData: false,
   };
+}
+
+/**
+ * D4-12 — the form the COLOURS imply, before any creator override.
+ *
+ * **Bar when any ramp assignment exists** — that is OPEN QUESTION 5's answer as
+ * a shipped default, and `04-UI-SPEC.md § UI Considerations` is explicit that
+ * it is a **recommendation, not a decision**: a mixed map (some ramp, some
+ * custom hex) is undefined by D4-12. Bar wins because a bar degrades to a
+ * legible ordered stack while rows lose the ordering entirely. **OQ-5 is still
+ * OPEN** — a shipped default is not an answered question, and the creator can
+ * always override it in the Legend panel.
+ *
+ * Read through `04-05`'s DISCRIMINANT (`value.kind`), never a `typeof` test:
+ * Live Invariant 10 exists because six call sites each grew their own branch.
+ */
+export function inferLegendForm(colors: ColorMap): LegendForm {
+  return Object.values(colors).some((value): boolean => value.kind === 'ramp')
+    ? 'bar'
+    : 'rows';
+}
+
+/**
+ * The ONE place a stored override and an inferred default are reconciled.
+ *
+ * An explicit creator override wins. An unrecognised stored value does NOT —
+ * `form` arrives from untrusted JSON, and a legend that renders neither form
+ * because the string was `'stack'` is a blank legend in the exported PNG
+ * (T-04-13-01).
+ */
+export function resolveLegendForm(
+  legend: LegendState,
+  inferredForm: LegendForm,
+): LegendForm {
+  return legend.form !== null && LEGEND_FORMS.has(legend.form)
+    ? legend.form
+    : inferredForm;
 }
 
 export function reconcileLegend(
@@ -332,9 +588,122 @@ export function moveLegendEntry(
   };
 }
 
+/**
+ * The caption block that sits above the marks in BOTH forms.
+ *
+ * Returns `null` — and reserves ZERO height — for an empty caption.
+ */
+function createCaptionLayout(caption: string): LegendCaptionLayout | null {
+  return caption.trim().length === 0
+    ? null
+    : {
+        x: 0,
+        baseline: LEGEND_CAPTION_FONT_SIZE * LEGEND_BAR_LABEL_BASELINE_RATIO,
+        text: caption,
+        fontSize: LEGEND_CAPTION_FONT_SIZE,
+      };
+}
+
+function getCaptionBlockHeight(caption: LegendCaptionLayout | null): number {
+  return caption === null ? 0 : LEGEND_CAPTION_BLOCK_HEIGHT;
+}
+
+/**
+ * The optional "no data" row, laid out below the marks in BOTH forms.
+ *
+ * It is DETACHED by `LEGEND_NO_DATA_GAP` rather than contiguous, and that is
+ * load-bearing for the bar: "no data" is not a step of the ramp, and welding it
+ * onto the bottom of the bar would both misread the data and break the bar's
+ * defining zero-gap property.
+ */
+function createNoDataLayout(
+  show: boolean,
+  top: number,
+  textSize: LegendTextSize,
+): LegendNoDataLayout | null {
+  if (!show) {
+    return null;
+  }
+
+  const fontSize = LEGEND_TEXT_FONT_SIZE[textSize];
+  const rowHeight = Math.max(LEGEND_SWATCH_SIZE, fontSize);
+  const rowTop = top + LEGEND_NO_DATA_GAP;
+
+  return {
+    swatchX: 0,
+    swatchY: rowTop + (rowHeight - LEGEND_SWATCH_SIZE) / 2,
+    swatchSize: LEGEND_SWATCH_SIZE,
+    labelX: LEGEND_SWATCH_SIZE + LEGEND_SWATCH_LABEL_GAP,
+    labelBaseline:
+      rowTop + rowHeight / 2 + LEGEND_TEXT_BASELINE_OFFSET[textSize],
+    label: LEGEND_NO_DATA_LABEL,
+  };
+}
+
+function getNoDataBlockHeight(
+  show: boolean,
+  textSize: LegendTextSize,
+): number {
+  return show
+    ? LEGEND_NO_DATA_GAP +
+        Math.max(LEGEND_SWATCH_SIZE, LEGEND_TEXT_FONT_SIZE[textSize])
+    : 0;
+}
+
+function getNoDataBlockWidth(
+  show: boolean,
+  textSize: LegendTextSize,
+): number {
+  return show
+    ? LEGEND_SWATCH_SIZE +
+        LEGEND_SWATCH_LABEL_GAP +
+        legendTextWidth(LEGEND_NO_DATA_LABEL, LEGEND_TEXT_FONT_SIZE[textSize])
+    : 0;
+}
+
+function getCaptionWidth(caption: LegendCaptionLayout | null): number {
+  return caption === null ? 0 : legendTextWidth(caption.text, caption.fontSize);
+}
+
+/**
+ * A rows entry's height — and it is DERIVED from the text size since `04-13`,
+ * where it used to be the flat `LEGEND_ENTRY_HEIGHT` / `LEGEND_TWO_LINE_HEIGHT`
+ * pair.
+ *
+ * ⚠ **The flat pair only contained its text because of the container padding
+ * this plan deleted.** At `large`, two lines need `2 x 44 = 88` units and the
+ * constant offered 64; the 24-unit inner padding absorbed the difference, so
+ * the first line's ascender stayed inside the legend's BOX even though it was
+ * outside its own ROW. Remove the padding and the ascender leaves the bounds —
+ * `export.spec.ts`'s max-length-label gate measured **656 ink pixels outside
+ * the resolved legend region**, which is the clipped-PNG defect this project
+ * has already shipped once.
+ *
+ * The constants stay as FLOORS, so nothing shrinks; the line-height term is
+ * what makes the row contain its own text at every size.
+ */
+function getRowHeight(lineCount: number, textSize: LegendTextSize): number {
+  const lineHeight = LEGEND_TEXT_LINE_HEIGHT[textSize];
+  return lineCount > 1
+    ? Math.max(LEGEND_TWO_LINE_HEIGHT, 2 * lineHeight)
+    : Math.max(LEGEND_ENTRY_HEIGHT, lineHeight);
+}
+
+/**
+ * The ROWS form.
+ *
+ * **Restyled by `04-13`, not left as it was** (the owner: *"the row based legend
+ * needs to be made just as subtle"*). The 24-unit `LEGEND_INTERNAL_PADDING` is
+ * GONE from both the width formula and the top/bottom edges: it was the inner
+ * padding of a container that D4-11 deleted, and padding with nothing to pad is
+ * exactly the "big ass box" footprint the reference does not have. Rows now
+ * start at `(0, 0)` like the bar, so a one-column legend measures **288 × 48**
+ * where it used to measure 336 × 96.
+ */
 export function createLegendLayout(
   entries: ReadonlyArray<LegendEntryState>,
   requestedTextSize: LegendTextSize,
+  content: LegendContent,
 ): LegendLayout {
   const sortedEntries = entries.slice().sort(compareLegendEntries);
   const columns = getLegendColumnCount(sortedEntries.length);
@@ -345,32 +714,32 @@ export function createLegendLayout(
 
   if (columns === 0) {
     return {
+      form: 'rows',
       columns,
       effectiveTextSize,
       width: 0,
       height: 0,
       items: [],
+      caption: null,
+      noData: null,
     };
   }
 
+  const caption = createCaptionLayout(content.caption);
+  const captionBlock = getCaptionBlockHeight(caption);
   const rowsPerColumn = Math.ceil(sortedEntries.length / columns);
-  const columnHeights = Array.from(
-    { length: columns },
-    () => LEGEND_INTERNAL_PADDING,
-  );
+  const columnHeights = Array.from({ length: columns }, () => captionBlock);
   const columnRows = Array.from({ length: columns }, () => 0);
   const items = sortedEntries.map((entry, index): LegendLayoutItem => {
     const column = Math.floor(index / rowsPerColumn);
     const row = columnRows[column];
     const lineCount = getLabelLineCount(entry.label, effectiveTextSize);
-    const height = lineCount > 1 ? LEGEND_TWO_LINE_HEIGHT : LEGEND_ENTRY_HEIGHT;
+    const height = getRowHeight(lineCount, effectiveTextSize);
     const item = {
       entry,
       column,
       row,
-      x:
-        LEGEND_INTERNAL_PADDING +
-        column * (LEGEND_COLUMN_WIDTH + LEGEND_COLUMN_GAP),
+      x: column * (LEGEND_COLUMN_WIDTH + LEGEND_COLUMN_GAP),
       y: columnHeights[column],
       height,
     };
@@ -379,18 +748,184 @@ export function createLegendLayout(
     columnHeights[column] += height + LEGEND_ENTRY_GAP;
     return item;
   });
-  const contentHeight = Math.max(...columnHeights) - LEGEND_ENTRY_GAP;
+  const contentBottom = Math.max(...columnHeights) - LEGEND_ENTRY_GAP;
 
   return {
+    form: 'rows',
     columns,
     effectiveTextSize,
-    width:
-      LEGEND_INTERNAL_PADDING * 2 +
-      columns * LEGEND_COLUMN_WIDTH +
-      (columns - 1) * LEGEND_COLUMN_GAP,
-    height: contentHeight + LEGEND_INTERNAL_PADDING,
+    width: Math.max(
+      columns * LEGEND_COLUMN_WIDTH + (columns - 1) * LEGEND_COLUMN_GAP,
+      getCaptionWidth(caption),
+      getNoDataBlockWidth(content.showNoData, effectiveTextSize),
+    ),
+    height:
+      contentBottom + getNoDataBlockHeight(content.showNoData, effectiveTextSize),
     items,
+    caption,
+    noData: createNoDataLayout(
+      content.showNoData,
+      contentBottom,
+      effectiveTextSize,
+    ),
   };
+}
+
+/**
+ * The BAR form — a SECOND layout function with its own bounds (D4-12).
+ *
+ * ⚠ **`createLegendLayout`'s width is
+ * `columns * LEGEND_COLUMN_WIDTH + (columns - 1) * LEGEND_COLUMN_GAP`. That
+ * formula describes a COLUMN LIST, not a bar.** Reusing it would report a
+ * 288-unit-wide legend for a 48-unit strip and mis-bound the new form —
+ * `resolveLegendPosition` clamps against these bounds, so a wrong width is a
+ * legend clamped to the wrong place, and at a right-anchored preset it lands
+ * 240 units inside the frame edge (`04-UI-SPEC.md § 6.7`).
+ *
+ * Geometry, per the owner's reference:
+ * - contiguous segments, `LEGEND_BAR_SEGMENT_GAP` = **0** between them;
+ * - ONE hairline around the WHOLE bar, never one per segment;
+ * - a short tick leader at every segment boundary — `N + 1` of them;
+ * - the entry labels are **break BOUNDARIES** at those ticks, so the range for
+ *   a segment is read BETWEEN two of them. No literal range text is ever
+ *   rendered (CD-8).
+ *
+ * **`N + 1` ticks, `N` labels.** The closing tick at the bar's foot is drawn
+ * unlabelled, because a boundary reading of `N` classes needs `N + 1` values
+ * and the legend model holds `N` labels. Phase 5's classing engine (`05-07`) is
+ * what supplies the missing one; until then the gap is visible rather than
+ * faked.
+ */
+export function createBarLegendLayout(
+  entries: ReadonlyArray<LegendEntryState>,
+  requestedTextSize: LegendTextSize,
+  content: LegendContent,
+): LegendLayout {
+  const sortedEntries = entries.slice().sort(compareLegendEntries);
+  const effectiveTextSize = getEffectiveTextSize(
+    sortedEntries.length,
+    requestedTextSize,
+  );
+
+  if (sortedEntries.length === 0) {
+    return {
+      form: 'bar',
+      effectiveTextSize,
+      width: 0,
+      height: 0,
+      outline: null,
+      segmentHeight: 0,
+      segments: [],
+      ticks: [],
+      boundaries: [],
+      caption: null,
+      noData: null,
+    };
+  }
+
+  const fontSize = LEGEND_TEXT_FONT_SIZE[effectiveTextSize];
+  const caption = createCaptionLayout(content.caption);
+  const marksTop = getCaptionBlockHeight(caption);
+  /*
+   * DERIVED twice over, never a literal 32.
+   *
+   * The FLOOR: a segment must clear the boundary label that hangs off its own
+   * tick, or `Large` type overlaps the next boundary.
+   *
+   * The CEILING, and this one is a defect the plan's own fit gate caught: at
+   * the 30-entry cap with a caption and a "no data" row, `30 x 32 + 40 + 40` is
+   * **1040** against a safe area of 1016. Unlike the rows form, the bar has no
+   * second column to reflow into, so the only bounded answer is a shorter
+   * segment. Without this the legend reports bounds larger than the safe area,
+   * `isBoundsValid` starts rejecting them, and the clamp has nowhere legal to
+   * put the legend.
+   */
+  const availableMarksHeight =
+    LEGEND_CANVAS_SIZE -
+    LEGEND_SAFE_INSET * 2 -
+    marksTop -
+    getNoDataBlockHeight(content.showNoData, effectiveTextSize);
+  const segmentHeight = Math.min(
+    Math.max(LEGEND_BAR_SEGMENT_MIN_HEIGHT, fontSize),
+    Math.floor(availableMarksHeight / sortedEntries.length),
+  );
+  const labelX =
+    LEGEND_BAR_WIDTH + LEGEND_BAR_TICK_LENGTH + LEGEND_BAR_TICK_LABEL_GAP;
+
+  const segments = sortedEntries.map((entry, index): LegendBarSegment => ({
+    entry,
+    x: 0,
+    y: marksTop + index * (segmentHeight + LEGEND_BAR_SEGMENT_GAP),
+    width: LEGEND_BAR_WIDTH,
+    height: segmentHeight,
+  }));
+  const ticks = Array.from(
+    { length: sortedEntries.length + 1 },
+    (_, index): LegendBarTick => ({
+      x1: LEGEND_BAR_WIDTH,
+      x2: LEGEND_BAR_WIDTH + LEGEND_BAR_TICK_LENGTH,
+      y: marksTop + index * segmentHeight,
+    }),
+  );
+  const boundaries = sortedEntries.map((entry, index): LegendBarBoundary => ({
+    entry,
+    x: labelX,
+    baseline:
+      marksTop +
+      index * segmentHeight +
+      fontSize * LEGEND_BAR_LABEL_BASELINE_RATIO,
+  }));
+  const marksHeight = sortedEntries.length * segmentHeight;
+  const marksBottom = marksTop + marksHeight;
+  const widestBoundaryLabel = sortedEntries.reduce(
+    (widest, entry): number =>
+      Math.max(widest, legendTextWidth(entry.label, fontSize)),
+    0,
+  );
+
+  return {
+    form: 'bar',
+    effectiveTextSize,
+    width: Math.max(
+      labelX + widestBoundaryLabel,
+      getCaptionWidth(caption),
+      getNoDataBlockWidth(content.showNoData, effectiveTextSize),
+    ),
+    height:
+      marksBottom + getNoDataBlockHeight(content.showNoData, effectiveTextSize),
+    outline: {
+      x: 0,
+      y: marksTop,
+      width: LEGEND_BAR_WIDTH,
+      height: marksHeight,
+    },
+    segmentHeight,
+    segments,
+    ticks,
+    boundaries,
+    caption,
+    noData: createNoDataLayout(
+      content.showNoData,
+      marksBottom,
+      effectiveTextSize,
+    ),
+  };
+}
+
+/**
+ * The ONE dispatch from a form to its layout function. Both branches return a
+ * `LegendLayout`, and both sets of bounds therefore reach
+ * `resolveLegendPosition` through exactly the same path (T-04-13-02).
+ */
+export function createLegendLayoutForForm(
+  form: LegendForm,
+  entries: ReadonlyArray<LegendEntryState>,
+  requestedTextSize: LegendTextSize,
+  content: LegendContent,
+): LegendLayout {
+  return form === 'bar'
+    ? createBarLegendLayout(entries, requestedTextSize, content)
+    : createLegendLayout(entries, requestedTextSize, content);
 }
 
 /**
@@ -477,6 +1012,7 @@ export function resolveLegendPosition(
 
 export interface ResolvedLegendRender {
   readonly activeEntries: ReadonlyArray<LegendEntryState>;
+  readonly form: LegendForm;
   readonly layout: LegendLayout;
   readonly bounds: LegendBounds;
   readonly position: LegendPosition;
@@ -491,15 +1027,29 @@ export function resolveLegendRender(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
   bandExtents: BandExtents,
+  inferredForm: LegendForm,
 ): ResolvedLegendRender {
   const activeEntries = getActiveLegendEntries(effectiveColors, legend);
-  const layout = createLegendLayout(activeEntries, legend.textSize);
+  const form = resolveLegendForm(legend, inferredForm);
+  const layout = createLegendLayoutForForm(
+    form,
+    activeEntries,
+    legend.textSize,
+    getLegendContent(legend),
+  );
   const bounds: LegendBounds = { width: layout.width, height: layout.height };
 
   return {
     activeEntries,
+    form,
     layout,
     bounds,
+    /*
+     * ⚠ BOTH forms' bounds come through here (T-04-13-02, Live Invariant 3).
+     * Returning the bar's geometry without this call is the exact bypass
+     * `04-UI-SPEC.md § 6.7` warns about: an out-of-frame legend becomes
+     * representable again, and the exporter clips it out of the PNG.
+     */
     position: resolveLegendPosition(legend.position, bounds, bandExtents),
   };
 }
@@ -517,10 +1067,13 @@ export function resolveLegendRender(
 export function resolveLegendBounds(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
+  inferredForm: LegendForm,
 ): LegendBounds {
-  const layout = createLegendLayout(
+  const layout = createLegendLayoutForForm(
+    resolveLegendForm(legend, inferredForm),
     getActiveLegendEntries(effectiveColors, legend),
     legend.textSize,
+    getLegendContent(legend),
   );
 
   return { width: layout.width, height: layout.height };

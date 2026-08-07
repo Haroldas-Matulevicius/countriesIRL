@@ -73,8 +73,10 @@
       import { useCompositionState } from '/src/hooks/useCompositionState.ts';
       import {
         getActiveLegendEntries,
+        inferLegendForm,
         validateActiveLegend,
       } from '/src/utils/legend.ts';
+      import { DEFAULT_UNCOLORED_FILL } from '/src/constants/mapStyle.ts';
 
       const h = React.createElement;
       /*
@@ -151,7 +153,29 @@
           });
         }, [effectiveColors, setLegendEntry, state.legend.entries]);
 
-        const bounds = getLegendOverlayBounds(state.legend, effectiveColors);
+        /*
+         * D4-12: a REAL `ColorMap` built from the fixture's colours, so the
+         * form is INFERRED here exactly as `App` infers it rather than
+         * hard-coded. Every colour is a custom hex, so the inferred form is
+         * `rows` — and the `Form` pills can still override it to `bar`, which
+         * is what lets `legend.spec.ts` drive both forms from one harness.
+         */
+        const colorMap = useMemo(
+          () =>
+            Object.fromEntries(
+              effectiveColors.map((hex, index) => [
+                `C${index}`,
+                { kind: 'custom', hex },
+              ]),
+            ),
+          [effectiveColors],
+        );
+        const inferredForm = inferLegendForm(colorMap);
+        const bounds = getLegendOverlayBounds(
+          state.legend,
+          effectiveColors,
+          inferredForm,
+        );
         const activeEntries = getActiveLegendEntries(effectiveColors, state.legend);
         // Mirrors App: the export gate is derived from live legend state, not
         // reported up from the editor (which unmounts when the panel closes).
@@ -265,6 +289,7 @@
                 effectiveColors,
                 bounds,
                 bandExtents: NO_BANDS,
+                inferredForm,
                 commands,
                 onStatusMessage: setStatusMessage,
               }),
@@ -279,6 +304,11 @@
               'output',
               { 'data-style': 'true' },
               state.legend.textSize,
+            ),
+            h(
+              'output',
+              { 'data-form': 'true' },
+              `${state.legend.form ?? 'inferred'},${inferredForm}`,
             ),
             h('output', { 'data-camera-events': 'true' }, String(cameraEvents)),
             h(
@@ -321,6 +351,8 @@
               legend: state.legend,
               effectiveColors,
               bandExtents: NO_BANDS,
+              inferredForm,
+              uncoloredFill: DEFAULT_UNCOLORED_FILL,
               onPositionChange: setLegendPosition,
               onStatusMessage: setStatusMessage,
             }),
