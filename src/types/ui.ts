@@ -67,7 +67,7 @@ export type EditorThemeMode = 'light' | 'dark';
 export interface SavedMapSummary {
   readonly name: string;
   readonly timestamp: number;
-  readonly sourceVersion: 1 | 2;
+  readonly sourceVersion: 1 | 2 | 3;
   readonly snapshotId: SnapshotId | null;
   readonly legendEntryCount: number;
   readonly isWholeWorldView: boolean;

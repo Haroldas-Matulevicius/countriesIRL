@@ -608,7 +608,163 @@ needs a creator-facing message, every such message passes through `ToastRegion`'
 
 ---
 
-*Last updated: 2026-08-07 (Phase 4, plan `04-13`) — §A removed field is not a damaged one gained §The three fields `04-13` added back (D4-12): `form`, `caption`, and `showNoData` arrive from untrusted stored JSON, and the D4-11 rule applies with the sign flipped — ABSENT is a schema difference and silent (every pre-`04-13` record lacks all three), PRESENT-BUT-INVALID is corruption and reported, tabulated per field in three columns and RED-proved in both directions. The saved legend record is now SIX keys and `persistence.spec.ts` asserts that set. **`form` is persisted RESOLVED, not as the raw override**, because `04-05`'s hex-at-serialization leaves a reloaded composition with no ramp assignments to infer from — measured at 1426 red legend pixels before a reload and 484 after — with `04-14` named as the plan that can revert it once V3 persists the colour union. The caption's new bound TRUNCATES rather than refuses, because a refusal would need a `ToastRegion` allowlist entry and assertion 23's counts do not move.*
-*Last updated: 2026-08-07 (`04-12`) + 2026-08-06 and earlier, merged per the two-entry rule — §A removed field is not a damaged one added (D4-11): the mirror of `04-05`'s rule — a field this version no longer MODELS is not corruption, tabulated per stored legend field, with the reason stated as the creator-facing consequence (`isRepaired` raises a corruption toast, so counting a dropped field would alarm on every reopened map for a migration that succeeded) and both directions required to be asserted so relaxing one cannot relax the other. Records the SAVE-side change `04-14` inherits — the V2 legend record is now `{entries, position, textSize}` and `persistence.spec.ts` asserts the key SET — confirms no bound moved and the 30-colour export gate is unchanged, and names Live Invariant 8 as retired in `general.md` rather than deleted.* Earlier: §The colour value at the storage boundary (D4-02) added: the V2 WIRE format stays one canonical hex per country while the in-memory model becomes the `ColorValue` union, with `storage.ts` the only file that knows both and its `typeof raw === 'string'` explicitly the wire format rather than the retired hex-only assumption; the rule that "a shape this version does not persist" is NOT corruption and only "a value that is invalid" is, tabulated per stored value, with validation delegated to `isColorValue` rather than copied; saving recorded as a DELIBERATE INTERIM that is lossy in the ramp identity and never invalid, with `04-14`'s V3 branch named as what makes it lossless and `schemaVersion` still dispatching on 2; every bound and their order confirmed unmoved, with the note that V3 genuinely does need the node budget rechecked because a union object per country is more nodes per entry; and the reserved-key guard called out as MORE load-bearing because the union nests an object under each key. Earlier: §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20) Earlier the same day: §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
+## The V3 record, and one rendering path (Phase 4, D4-17, plan `04-14`)
+
+**`save()` writes `schemaVersion: 3`. There is no legacy mode.** The owner gate was answered
+`v3-one-path` under a **blanket, in-advance, sight-unseen proceed-authorization** — per Immutable
+Safety Constraint 8 that authorized *proceeding*; it is **not** a content review and **not**
+hash-bound.
+
+### A V3 writer breaks V2 readers by design — recorded, not discovered
+
+Once a record is written at version 3, an older build reading the same browser origin reports
+`unsupported-version` **for that record**. It is a refusal, not a crash, and the other records in
+the array still load. Browser-local; no deployment exists, so it can only affect a machine running
+an older build against the same profile. This is accepted, not mitigated.
+
+**And the creator-visible half, which is the real cost.** A map saved before Phase 4 reopens with
+**no legend box** (D4-11), **grey uncoloured countries** instead of white (D4-09), **a top band
+on**, **coastlines at `none`** with interior borders at `thin`, and the legend **lower**, below the
+title block (D4-13). **Re-exporting it produces a PNG that differs from one the creator may already
+have posted.** Colours, selections, legend labels and ordering, legend position, text size, camera,
+and the composition name all survive; only the legend's box styling — already deleted from the
+model — is gone. `storage.test.ts` asserts each of those five defaults on a hand-built V2 record, so
+the acknowledgement is machine-checkable rather than prose.
+
+### The dispatch is three-way, and the V2 branch is KEPT
+
+| Stored `schemaVersion` | Branch |
+|---|---|
+| absent | V1 legacy → `createLegacyOutcome`, `sourceVersion: 1`, `legacy-migrated` |
+| `2` | `normalizeComposition(…, 2)` → **upgraded in memory** to the V3 snapshot, `sourceVersion: 2` |
+| `3` | `normalizeComposition(…, 3)`, `sourceVersion: 3` |
+| anything else | `unsupported-version` |
+
+`isSavedCompositionV2` is **kept** and `isSavedCompositionV3` added beside it. One rendering path
+means every branch produces the same in-memory snapshot — it does **not** mean deleting the reader
+that lets a creator's existing maps open.
+
+**A record is upgraded only by an explicit save of its OWN.** A V2 record re-written because a
+*neighbour* was saved is serialized back in the **V2 wire shape** — hex colours and the lone
+`backgroundColor` settings field — exactly as a V1 record has always stayed V1. The in-memory
+snapshot now carries a full V3 settings object because the *reader* fills defaults, and spreading
+that into a `schemaVersion: 2` record would make the bytes claim a version whose shape they do not
+have.
+
+### What V3 persists
+
+`composition.colors` persists the **`ColorValue` union losslessly**: a ramp assignment as
+`{kind:'ramp',rampId,t}`, a custom one as a **bare canonical hex**. The hex is not an inconsistency
+— it is V2's own wire shape, `normalizeColorMap` already reads it, and it costs one json node
+instead of four. **This replaces `04-05`'s interim resolve-to-hex**, which that plan recorded as
+deliberate, temporary, and lossy in the ramp identity. A reopened map can be re-skinned again.
+
+`composition.settings` persists `surfaceColor`, `uncoloredFill`, `borderColor`, `interiorWeight`,
+`coastlineWeight`, the four band fields, and the five text fields — and **deliberately omits
+`backgroundColor`**. It was V2's record that the composition is opaque, nothing renders from it, and
+`surfaceColor` is the value that actually paints. `04-14` was named as the plan that would decide
+its fate; it decided to drop it.
+
+`composition.legend` is unchanged from `04-13`'s six keys. **`form` is still persisted RESOLVED.**
+V3 now makes the ramp identity survive a round trip, so `inferLegendForm` *could* work on a reloaded
+map and the resolved write *could* go back to being an override — the revisit `04-13` invited. It
+was deliberately **not** taken here: reverting it is a creator-visible behaviour change with its own
+gates, and it is not this plan's subject. It stays open.
+
+### Defaults, not repairs — and the line between them
+
+| Stored field | Outcome |
+|---|---|
+| **absent** (any new V3 field) | the default, **no repair** |
+| present and valid | kept |
+| present and invalid | the default, or the clamped/sanitised value, **and reported** |
+| `settings.backgroundColor`, any value or none | **read and discarded, silent** |
+| `legend.theme` / `backgroundOpacity` / `borderStyle` | **read and discarded, silent** (`04-12`) |
+
+The reason is the creator's screen, not tidiness: `isRepaired` raises `composition-repaired`, which
+reaches the creator as a **corruption toast**. Reporting a field V3 simply does not model would fire
+it on **every reopened saved map**, permanently, for a migration that succeeded. **V2's validator
+required `settings.backgroundColor === '#FFFFFF'` and flagged the whole record repaired otherwise;
+that requirement is now a migration, not a rejection.**
+
+The distinction is **"field removed or added by V3"** versus **"value invalid"**, and only the
+second is corruption. Both directions are asserted, one case per new settings field, because
+relaxing one must not relax the other.
+
+### The extended bounds, in the order the existing ones established
+
+**The order is the mitigation, not decoration** (T-04-14-01), and no existing value or step moved:
+
+1. `MAX_STORAGE_SERIALIZED_LENGTH` (1,000,000) on the **raw string, before any parse**;
+2. `hasSafeJsonBudget` (`MAX_STORAGE_JSON_DEPTH` 32, `MAX_STORAGE_JSON_NODES` 50,000) on the parsed
+   value, **immediately after**;
+3. the per-field bounds, during validation.
+
+Both sites that touch the serialized form apply step 1: `parseSavedMaps` on the way in, and
+`writeRecords` on the way out (refused as `quota-exceeded`). `storage.test.ts` proves the ordering
+by feeding an oversized string and asserting the injected parser was **never called**.
+
+The new per-field bounds: band heights through **`clampBandHeight`** (`[0, BAND_MAX_HEIGHT]`, the
+one clamp, not re-derived), text through **`sanitizeCompositionText`**, colours through
+`normalizeColor`, and the enums through `STROKE_WEIGHTS` / `COMPOSITION_TEXT_SIZES` /
+`COMPOSITION_TEXT_ALIGNMENTS`.
+
+> ⚠ **Text is bounded at `MAX_COMPOSITION_TEXT_LENGTH` (100), NOT at `characterBoundFor`'s per-role
+> line bounds**, and that is a decision rather than an omission. The product **refuses rather than
+> truncates** past a role bound: a creator can hold an over-bound title in state, watch the counter
+> turn destructive, and be told to shorten it, while `getCompositionTextBlockingMessage` blocks the
+> export. Truncating at the storage boundary would silently clip those words, convert a legible
+> refusal into invisible damage, and mean a title no longer round-trips. **A storage bound must
+> equal the state boundary's bound.**
+
+There is **no** new "count of text boxes" bound: the schema has exactly three named text fields and
+no collection, so a count is structurally unrepresentable. There is **no** separate ramp-assignment
+cap either — `MAX_STORED_COLOR_ENTRIES` (512) already bounds every colour entry, and a second cap
+would be decorative for the reason below.
+
+### The node budget the union actually costs — measured, and not raised
+
+`04-05` flagged this as *"a real budget question, not a formality"*, because a ramp assignment is an
+**object** per country instead of a string. Measured with the same walk `hasSafeJsonBudget`
+performs:
+
+| Store | V2 nodes | V3 nodes |
+|---|---|---|
+| ONE worst-case record (512 colours + 512 legend entries) | 2,584 | **4,134** |
+| TEN worst-case records (a full `MAX_SAVED_MAPS` store) | 25,831 | **41,331** |
+| TEN realistic records (207 colourable units, 30 legend entries) | — | 9,851 |
+
+**It fits, and `MAX_STORAGE_JSON_NODES` was not raised.** The honest half is the margin: a hostile
+full store went from **48% headroom under V2 to 17% under V3**, so the union spent roughly two
+thirds of what was spare. A real creator cannot approach it — there are 207 colourable units, so
+9,851 is the practical ceiling — and reaching 41,331 needs hand-edited `localStorage`. The
+assertions pin the margin **behaviourally** through the real adapter rather than re-implementing the
+walker and agreeing with it: **twelve worst-case records still parse (49,597) and thirteen do not
+(53,730)**.
+
+> ⚠ **A per-field cap cannot rescue the node budget, and none was added to pretend otherwise.**
+> `hasSafeJsonBudget` runs over the **whole parsed array** before any record is validated, so step 3
+> only ever trims a record that has already parsed. If a future field pushes the worst case over
+> 50,000, the failure is the entire store rejected at once — not a trimmed record.
+
+### The reserved-key guard got more load-bearing again
+
+`createEmptyColorMap()`'s `Object.create(null)` and `isSafeStableCountryId` stay on every path that
+builds state from a stored record. V3 is the first version that actually **writes** the nested
+object, so a reserved key now smuggles a structure through a real wire shape rather than a
+hypothetical one. `storage.test.ts` covers `__proto__` and `constructor` carrying **ramp payloads**.
+
+### Carried forward unchanged: the deferred-snapshot-id validator (T-04-14-04)
+
+`storage.ts` builds `SNAPSHOT_IDS` from the **full five-entry catalog**, so a hand-edited record can
+still name a deferred snapshot and be admitted by the validator; Phase 3 filtered only the
+presentation layer (`getPeriodShortLabel`). **This is pre-existing Phase 2 behaviour, recorded in
+`STATE.md`, not introduced by `04-14`, and deliberately not fixed here** — changing what stored
+records are admitted is a data-layer decision, not a schema bump. Restated so it stays visible.
+
+---
+
+*Last updated: 2026-08-07 (Phase 4, plan `04-14`) — §The V3 record, and one rendering path added (D4-17/D4-18). `save()` writes `schemaVersion: 3`; the dispatch is three-way with the V2 branch KEPT and `isSavedCompositionV3` beside `isSavedCompositionV2`; a record is upgraded only by an explicit save of its OWN, so a re-written V2 neighbour keeps the V2 wire shape. **`04-05`'s interim resolve-to-hex is replaced** — a ramp assignment persists as `{kind,rampId,t}` and a custom one as a bare hex, so the ramp identity survives a round trip. `settings` persists every Phase 4 field and **drops `backgroundColor`**, whose fate this plan was named to decide; its V2 `=== '#FFFFFF'` requirement became a **migration, not a rejection**, because reporting it would fire a corruption toast on every reopened map. Defaults-not-repairs tabulated with both directions asserted per field. Bounds EXTENDED without moving a value or a step, with the deviation stated: text is bounded at `MAX_COMPOSITION_TEXT_LENGTH` (100), **not** `characterBoundFor`, because the product refuses rather than truncates and a storage bound must equal the state boundary's bound. The node budget is **measured, not assumed** — 4,134 nodes for one worst-case V3 record and 41,331 for a full store against 50,000, headroom down from 48% to 17%, pinned behaviourally at twelve-parse / thirteen-refuse — and NOT raised, with the note that a per-field cap cannot rescue it because the budget runs over the whole array first. `form` stays persisted RESOLVED: `04-13`'s revisit is now possible but deliberately not taken. T-04-14-04's deferred-snapshot-id validator carried forward unfixed.*
+*Last updated: 2026-08-07 (`04-13`) + 2026-08-07 (`04-12`) and earlier, merged per the two-entry rule — §A removed field is not a damaged one gained §The three fields `04-13` added back (D4-12): `form`, `caption`, and `showNoData` arrive from untrusted stored JSON, and the D4-11 rule applies with the sign flipped — ABSENT is a schema difference and silent (every pre-`04-13` record lacks all three), PRESENT-BUT-INVALID is corruption and reported, tabulated per field in three columns and RED-proved in both directions. The saved legend record is now SIX keys and `persistence.spec.ts` asserts that set. **`form` is persisted RESOLVED, not as the raw override**, because `04-05`'s hex-at-serialization leaves a reloaded composition with no ramp assignments to infer from — measured at 1426 red legend pixels before a reload and 484 after — with `04-14` named as the plan that can revert it once V3 persists the colour union. The caption's new bound TRUNCATES rather than refuses, because a refusal would need a `ToastRegion` allowlist entry and assertion 23's counts do not move. Earlier: 2026-08-07 (`04-12`) + 2026-08-06 and earlier, merged per the two-entry rule — §A removed field is not a damaged one added (D4-11): the mirror of `04-05`'s rule — a field this version no longer MODELS is not corruption, tabulated per stored legend field, with the reason stated as the creator-facing consequence (`isRepaired` raises a corruption toast, so counting a dropped field would alarm on every reopened map for a migration that succeeded) and both directions required to be asserted so relaxing one cannot relax the other. Records the SAVE-side change `04-14` inherits — the V2 legend record is now `{entries, position, textSize}` and `persistence.spec.ts` asserts the key SET — confirms no bound moved and the 30-colour export gate is unchanged, and names Live Invariant 8 as retired in `general.md` rather than deleted.* Earlier: §The colour value at the storage boundary (D4-02) added: the V2 WIRE format stays one canonical hex per country while the in-memory model becomes the `ColorValue` union, with `storage.ts` the only file that knows both and its `typeof raw === 'string'` explicitly the wire format rather than the retired hex-only assumption; the rule that "a shape this version does not persist" is NOT corruption and only "a value that is invalid" is, tabulated per stored value, with validation delegated to `isColorValue` rather than copied; saving recorded as a DELIBERATE INTERIM that is lossy in the ramp identity and never invalid, with `04-14`'s V3 branch named as what makes it lossless and `schemaVersion` still dispatching on 2; every bound and their order confirmed unmoved, with the note that V3 genuinely does need the node budget rechecked because a union object per country is more nodes per entry; and the reserved-key guard called out as MORE load-bearing because the union nests an object under each key. Earlier: §What `03-06` actually landed: the two preference keys with `MAX_PREFERENCE_VALUE_LENGTH` bounding the RAW string before interpretation; `closed` as a real stored value distinct from an absent key; `getThemeMode` returning `EditorThemeMode | null` so the adapter stays a boundary and `initialThemeMode` is not dead code; preference reads kept out of `recordResult` (plan 03-06). §Phase 3 Amendments: the one-production-storage-site gate, the adapter as a factory across `MapEditor`'s props boundary, and the D-18/D-30 key shape — separate small key, bounded V2, absent-tolerant, defaults closed and light (plan 03-05). 2026-07-26: pre-parse bounded V2 limits, fallible localStorage with typed reasons, cloud-sync sketch marked backend-less (plan 02-25). 2026-07-25: Phase 2 amendments — summary projection, V1 no-rewrite, delete/dirty confirmations, live-camera evidence, save-vs-load failure messaging (plan 02-20) Earlier the same day: §What `03-07` actually landed: the Save/Load dialog dissolved into the `saved` tool panel with the modal machinery, opener, and `restoreSaveLoadFocus` retired; the nested-confirmation contract carried across verbatim (sibling, own `tabIndex={-1}`, innermost-first Escape, effect-based focus return keyed by the stable row key); the dirty-load confirmation made inline in the row; `Delete Map` filled from the new mode-invariant `--destructive-fill`; and the approved-id filter on `getPeriodShortLabel` with the storage validator deliberately unchanged (OPEN ITEM 4, plan 03-07).*
 
 *Full edit history: `git log -p -- .planning/coding-rules/storage.md`.*

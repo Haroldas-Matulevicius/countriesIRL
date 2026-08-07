@@ -36,7 +36,7 @@ export type CompositionLoadFailureReason =
 export type CompositionLoadTransactionOutcome =
   | {
       readonly ok: true;
-      readonly sourceVersion: 1 | 2;
+      readonly sourceVersion: 1 | 2 | 3;
       readonly compositionWarnings: ReadonlyArray<CompositionLoadWarning>;
       readonly storageWarnings: ReadonlyArray<StorageWarning>;
     }

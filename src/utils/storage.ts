@@ -9,7 +9,10 @@ import {
   STORAGE_KEY,
   THEME_MODE_KEY,
 } from '../constants/config';
-import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
+import {
+  DEFAULT_COMPOSITION_SETTINGS,
+  STROKE_WEIGHTS,
+} from '../constants/mapStyle';
 import { CLOSED_TOOL_VALUE, isToolId } from '../constants/tools';
 import { SNAPSHOT_CATALOG } from '../constants/snapshots';
 import type {
@@ -17,6 +20,8 @@ import type {
   CompositionLoadOutcome,
   CompositionLoadWarning,
   CompositionSnapshot,
+  CompositionTextAlignment,
+  CompositionTextSize,
   LegacySavedComposition,
   LegendCorner,
   LegendEntryState,
@@ -25,7 +30,10 @@ import type {
   LegendTextSize,
   SavedCompositionRecord,
   SavedCompositionV2,
+  SavedCompositionV3,
   SnapshotId,
+  StrokeWeight,
+  VisibleCompositionSettings,
 } from '../types/composition';
 import type { ColorMap, ColorValue } from '../types/map';
 import type {
@@ -36,6 +44,7 @@ import type {
   StorageWarning,
   ToolId,
 } from '../types/ui';
+import { clampBandHeight } from './bands';
 import { repairCameraState } from './camera';
 import {
   createEmptyColorMap,
@@ -45,7 +54,12 @@ import {
   resolveColorMapHexes,
   resolveColorValue,
 } from './colors';
-import { sanitizeLegendCaption } from './compositionText';
+import {
+  COMPOSITION_TEXT_ALIGNMENTS,
+  COMPOSITION_TEXT_SIZES,
+  sanitizeCompositionText,
+  sanitizeLegendCaption,
+} from './compositionText';
 import { isSafeStableCountryId } from './countryIds';
 import {
   createDefaultLegendState,
@@ -55,6 +69,36 @@ import {
   reconcileLegend,
 } from './legend';
 
+/*
+ * ------------------------------------------------------------------
+ * The bounds, and the ORDER they are checked in
+ * ------------------------------------------------------------------
+ *
+ * **The order is the mitigation, not decoration** (T-04-14-01), and `04-14`
+ * extended the set without moving a single existing value or step:
+ *
+ *   1. `MAX_STORAGE_SERIALIZED_LENGTH` on the RAW string, before any parse;
+ *   2. `hasSafeJsonBudget` (`MAX_STORAGE_JSON_DEPTH` / `MAX_STORAGE_JSON_NODES`)
+ *      on the parsed value, immediately after;
+ *   3. the per-field bounds below, during validation.
+ *
+ * A `try/catch` around `JSON.parse` cannot substitute for step 1: by the time
+ * it catches, the synchronous main-thread cost is already paid.
+ *
+ * Steps 1 and 2 are applied at BOTH sites that touch the serialized form —
+ * `parseSavedMaps` on the way in (raw-length, then parse, then budget) and
+ * `writeRecords` on the way out (`MAX_STORAGE_SERIALIZED_LENGTH` on the string
+ * `JSON.stringify` produced, refused as `quota-exceeded`).
+ *
+ * ⚠ **A per-field bound cannot rescue the node budget, and that asymmetry is
+ * deliberate rather than an oversight.** Step 2 runs over the WHOLE parsed
+ * array before any record is validated, so an over-budget store is rejected
+ * outright; the caps in step 3 only ever trim a record that already parsed.
+ * `04-05` flagged the V3 union as a real budget question because a ramp
+ * assignment is an OBJECT per country rather than a string — `storage.test.ts`
+ * measures a worst-case 512-entry V3 record against `MAX_STORAGE_JSON_NODES`
+ * and pins the measured number, so the headroom is a checked claim.
+ */
 export const MAX_STORAGE_SERIALIZED_LENGTH = 1_000_000;
 export const MAX_STORAGE_JSON_DEPTH = 32;
 export const MAX_STORAGE_JSON_NODES = 50_000;
@@ -338,17 +382,20 @@ function normalizeColorMap(
 }
 
 /**
- * The V2 WIRE shape: one canonical hex per country.
+ * The V1/V2 WIRE shape: one canonical hex per country.
  *
- * Interim, and deliberate. `04-14` owns the `schemaVersion` bump to V3 and the
- * bounds that go with it; until it lands, a save resolves every value to hex so
- * the bytes on disk stay a valid V2 record and no file claims a version whose
- * shape it does not have. The cost is stated rather than discovered: saving a
- * ramp-painted map before `04-14` is LOSSY IN THE RAMP IDENTITY - reopening it
- * yields a custom-hex map that renders identically but can no longer be
- * re-skinned by switching ramps. It is never invalid, only lossy.
+ * ⚠ **This is no longer what a save writes.** `04-05` recorded it as a
+ * deliberate INTERIM that was lossy in the ramp identity — a ramp-painted map
+ * reopened as a custom-hex map that rendered identically but could no longer be
+ * re-skinned by switching ramps — and named `04-14` as the plan that replaces
+ * it. It is replaced: `save()` writes `toStoredColorMapV3` now.
+ *
+ * It stays because a V1 or V2 record that is merely re-written (because some
+ * OTHER map was saved or deleted) must keep the shape its `schemaVersion`
+ * claims. A record is never silently upgraded by reading it — the same rule
+ * that has always kept a V1 record V1 until an explicit save replaces it.
  */
-function toStoredColorMap(colors: ColorMap): Record<string, string> {
+function toStoredHexColorMap(colors: ColorMap): Record<string, string> {
   const storedColors: Record<string, string> = Object.create(null) as Record<
     string,
     string
@@ -368,16 +415,118 @@ function toStoredColorMap(colors: ColorMap): Record<string, string> {
   return storedColors;
 }
 
+/**
+ * The V3 WIRE shape, and the point of the whole schema bump (D4-02 + D4-17).
+ *
+ * A ramp assignment persists as the union variant itself, so the RAMP IDENTITY
+ * survives a round trip and a reopened map can still be re-skinned. A custom
+ * assignment persists as a **bare canonical hex** rather than
+ * `{kind:'custom',hex}` — that is V2's own wire shape, `normalizeColorMap`
+ * already reads it, and it costs ONE json node per country instead of four.
+ * The node budget is why: a union object per country is the real cost `04-05`
+ * flagged, and paying it only for the entries that need it is what keeps a
+ * worst-case record inside `MAX_STORAGE_JSON_NODES`.
+ *
+ * The `DEFAULT_COLOR` sentinel is still dropped rather than written: an
+ * unpainted country has no assignment, and `settings.uncoloredFill` is what
+ * decides how it renders (D4-09).
+ */
+function toStoredColorMapV3(
+  colors: ColorMap,
+): Record<string, string | ColorValue> {
+  const storedColors: Record<string, string | ColorValue> = Object.create(
+    null,
+  ) as Record<string, string | ColorValue>;
+
+  for (const [countryId, value] of Object.entries(colors)) {
+    if (!isSafeStableCountryId(countryId) || !isColorValue(value)) {
+      continue;
+    }
+
+    if (value.kind === 'ramp') {
+      storedColors[countryId] = value;
+      continue;
+    }
+
+    const hex = resolveColorValue(value);
+    if (hex !== DEFAULT_COLOR) {
+      storedColors[countryId] = hex;
+    }
+  }
+
+  return storedColors;
+}
+
+/**
+ * V3 persists every Phase 4 field and deliberately OMITS `backgroundColor`.
+ *
+ * It was V2's record that the composition is opaque; nothing renders from it,
+ * `surfaceColor` is the value that actually paints, and the V3 reader ignores
+ * it wherever it appears. Writing a field no consumer reads would make the
+ * record claim a meaning it does not have.
+ */
+function toStoredSettings(
+  settings: VisibleCompositionSettings,
+): Record<string, unknown> {
+  return {
+    surfaceColor: settings.surfaceColor,
+    uncoloredFill: settings.uncoloredFill,
+    borderColor: settings.borderColor,
+    interiorWeight: settings.interiorWeight,
+    coastlineWeight: settings.coastlineWeight,
+    topBandVisible: settings.topBandVisible,
+    topBandHeight: settings.topBandHeight,
+    bottomBandVisible: settings.bottomBandVisible,
+    bottomBandHeight: settings.bottomBandHeight,
+    title: settings.title,
+    titleSize: settings.titleSize,
+    subtitle: settings.subtitle,
+    subtitleSize: settings.subtitleSize,
+    attribution: settings.attribution,
+    textAlignment: settings.textAlignment,
+  };
+}
+
 function toSerializableRecord(record: SavedCompositionRecord): unknown {
-  return isSavedCompositionV2(record)
-    ? {
-        ...record,
-        composition: {
-          ...record.composition,
-          colors: toStoredColorMap(record.composition.colors),
-        },
-      }
-    : { ...record, colors: toStoredColorMap(record.colors) };
+  if (isSavedCompositionV3(record)) {
+    return {
+      schemaVersion: 3,
+      name: record.name,
+      timestamp: record.timestamp,
+      composition: {
+        colors: toStoredColorMapV3(record.composition.colors),
+        camera: record.composition.camera,
+        snapshotId: record.composition.snapshotId,
+        legend: record.composition.legend,
+        settings: toStoredSettings(record.composition.settings),
+      },
+    };
+  }
+
+  if (isSavedCompositionV2(record)) {
+    /*
+     * A V2 record that survives a write of some OTHER map keeps the V2 wire
+     * shape exactly: hex colours, and the single `backgroundColor` settings
+     * field V2 has always carried. The in-memory snapshot now holds a full V3
+     * settings object because the READER fills defaults, and spreading that
+     * into a `schemaVersion: 2` record would make the bytes claim a version
+     * whose shape they do not have — the trap `04-05` named.
+     */
+    return {
+      schemaVersion: 2,
+      name: record.name,
+      timestamp: record.timestamp,
+      composition: {
+        colors: toStoredHexColorMap(record.composition.colors),
+        camera: record.composition.camera,
+        snapshotId: record.composition.snapshotId,
+        legend: record.composition.legend,
+        settings: { backgroundColor: DEFAULT_COMPOSITION_SETTINGS.backgroundColor },
+      },
+    };
+  }
+
+  return { ...record, colors: toStoredHexColorMap(record.colors) };
 }
 
 function areCamerasEqual(
@@ -602,7 +751,238 @@ function normalizeLegend(
   };
 }
 
-function normalizeComposition(value: unknown): CompositionNormalization {
+interface StoredFieldResult<T> {
+  value: T;
+  isRepaired: boolean;
+}
+
+/**
+ * The three-way rule every V3 settings field follows, in one place so no field
+ * grows its own variant of it (D4-17, and the mirror of `04-12`'s legend rule):
+ *
+ * | Stored | Outcome |
+ * |---|---|
+ * | **absent** | the default, **no repair** — a V2 record predates every one of
+ *   these fields, and reporting their absence would raise
+ *   `composition-repaired` and its creator-facing corruption toast on **every**
+ *   reopened saved map, for a migration that SUCCEEDED |
+ * | present and valid | kept |
+ * | present and invalid | the default (or the clamped/sanitised value), **and
+ *   reported** — a value that had to be changed WAS damaged |
+ *
+ * "Field removed or added by V3" versus "value invalid": only the second is
+ * corruption.
+ */
+function readStoredHex(
+  raw: unknown,
+  fallback: string,
+): StoredFieldResult<string> {
+  if (raw === undefined) {
+    return { value: fallback, isRepaired: false };
+  }
+  if (typeof raw !== 'string') {
+    return { value: fallback, isRepaired: true };
+  }
+
+  const colorResult = normalizeColor(raw);
+  return colorResult.ok
+    ? { value: colorResult.value, isRepaired: colorResult.value !== raw }
+    : { value: fallback, isRepaired: true };
+}
+
+function readStoredMember<T extends string>(
+  raw: unknown,
+  allowed: ReadonlySet<T>,
+  fallback: T,
+): StoredFieldResult<T> {
+  if (raw === undefined) {
+    return { value: fallback, isRepaired: false };
+  }
+
+  return typeof raw === 'string' && allowed.has(raw as T)
+    ? { value: raw as T, isRepaired: false }
+    : { value: fallback, isRepaired: true };
+}
+
+function readStoredBoolean(
+  raw: unknown,
+  fallback: boolean,
+): StoredFieldResult<boolean> {
+  if (raw === undefined) {
+    return { value: fallback, isRepaired: false };
+  }
+
+  return typeof raw === 'boolean'
+    ? { value: raw, isRepaired: false }
+    : { value: fallback, isRepaired: true };
+}
+
+/**
+ * T-04-14-03. A band height reaches `resolveBandExtents`, which decides the
+ * legend's inset and therefore exported pixels, so an out-of-range stored value
+ * is degenerate geometry rather than a cosmetic wrinkle. `clampBandHeight` is
+ * the ONE clamp; this does not re-derive `[0, BAND_MAX_HEIGHT]`.
+ */
+function readStoredBandHeight(
+  raw: unknown,
+  fallback: number,
+): StoredFieldResult<number> {
+  if (raw === undefined) {
+    return { value: fallback, isRepaired: false };
+  }
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+    return { value: fallback, isRepaired: true };
+  }
+
+  const clamped = clampBandHeight(raw);
+  return { value: clamped, isRepaired: clamped !== raw };
+}
+
+/**
+ * T-04-14-03, the text half.
+ *
+ * The bound is `MAX_COMPOSITION_TEXT_LENGTH` through `sanitizeCompositionText`
+ * — the SAME bound and the same sanitiser the composition reducer applies — and
+ * that is a deliberate choice over `characterBoundFor`'s per-role line bounds.
+ * `compositionText.ts` records that the product **refuses rather than
+ * truncates** past a role bound: a creator can hold an over-bound title in
+ * state, watch the counter turn destructive, and be told to shorten it, while
+ * `getCompositionTextBlockingMessage` blocks the export. Truncating here would
+ * silently clip that title on the way through storage, destroy the creator's
+ * words, and convert a legible refusal into invisible damage. A storage bound
+ * that disagrees with the state boundary's bound also means a value no longer
+ * round-trips.
+ */
+function readStoredText(raw: unknown): StoredFieldResult<string> {
+  if (raw === undefined) {
+    return { value: DEFAULT_COMPOSITION_SETTINGS.title, isRepaired: false };
+  }
+  if (typeof raw !== 'string') {
+    return { value: DEFAULT_COMPOSITION_SETTINGS.title, isRepaired: true };
+  }
+
+  const sanitized = sanitizeCompositionText(raw);
+  return { value: sanitized, isRepaired: sanitized !== raw };
+}
+
+/**
+ * D4-17's migration, and the reason it is a migration rather than a rejection.
+ *
+ * V2's validator REQUIRED `settings.backgroundColor === '#FFFFFF'` and flagged
+ * the whole record repaired otherwise. Keeping that would have fired a
+ * corruption toast on reopened maps for a field V3 does not persist at all, so
+ * `backgroundColor` is now read and DISCARDED — exactly as `04-12` made the
+ * three deleted legend chrome fields read and discarded. Its absence, its
+ * presence, and any value it holds are all silent.
+ */
+function normalizeSettings(
+  value: unknown,
+): StoredFieldResult<VisibleCompositionSettings> {
+  const defaults = DEFAULT_COMPOSITION_SETTINGS;
+
+  if (value === undefined) {
+    return { value: defaults, isRepaired: false };
+  }
+  if (!isObjectRecord(value)) {
+    return { value: defaults, isRepaired: true };
+  }
+
+  const surfaceColor = readStoredHex(value.surfaceColor, defaults.surfaceColor);
+  const uncoloredFill = readStoredHex(
+    value.uncoloredFill,
+    defaults.uncoloredFill,
+  );
+  const borderColor = readStoredHex(value.borderColor, defaults.borderColor);
+  const interiorWeight = readStoredMember<StrokeWeight>(
+    value.interiorWeight,
+    STROKE_WEIGHTS,
+    defaults.interiorWeight,
+  );
+  const coastlineWeight = readStoredMember<StrokeWeight>(
+    value.coastlineWeight,
+    STROKE_WEIGHTS,
+    defaults.coastlineWeight,
+  );
+  const topBandVisible = readStoredBoolean(
+    value.topBandVisible,
+    defaults.topBandVisible,
+  );
+  const topBandHeight = readStoredBandHeight(
+    value.topBandHeight,
+    defaults.topBandHeight,
+  );
+  const bottomBandVisible = readStoredBoolean(
+    value.bottomBandVisible,
+    defaults.bottomBandVisible,
+  );
+  const bottomBandHeight = readStoredBandHeight(
+    value.bottomBandHeight,
+    defaults.bottomBandHeight,
+  );
+  const title = readStoredText(value.title);
+  const titleSize = readStoredMember<CompositionTextSize>(
+    value.titleSize,
+    COMPOSITION_TEXT_SIZES,
+    defaults.titleSize,
+  );
+  const subtitle = readStoredText(value.subtitle);
+  const subtitleSize = readStoredMember<CompositionTextSize>(
+    value.subtitleSize,
+    COMPOSITION_TEXT_SIZES,
+    defaults.subtitleSize,
+  );
+  const attribution = readStoredText(value.attribution);
+  const textAlignment = readStoredMember<CompositionTextAlignment>(
+    value.textAlignment,
+    COMPOSITION_TEXT_ALIGNMENTS,
+    defaults.textAlignment,
+  );
+
+  const fields = [
+    surfaceColor,
+    uncoloredFill,
+    borderColor,
+    interiorWeight,
+    coastlineWeight,
+    topBandVisible,
+    topBandHeight,
+    bottomBandVisible,
+    bottomBandHeight,
+    title,
+    titleSize,
+    subtitle,
+    subtitleSize,
+    attribution,
+    textAlignment,
+  ];
+
+  return {
+    value: {
+      backgroundColor: defaults.backgroundColor,
+      surfaceColor: surfaceColor.value,
+      uncoloredFill: uncoloredFill.value,
+      borderColor: borderColor.value,
+      interiorWeight: interiorWeight.value,
+      coastlineWeight: coastlineWeight.value,
+      topBandVisible: topBandVisible.value,
+      topBandHeight: topBandHeight.value,
+      bottomBandVisible: bottomBandVisible.value,
+      bottomBandHeight: bottomBandHeight.value,
+      title: title.value,
+      titleSize: titleSize.value,
+      subtitle: subtitle.value,
+      subtitleSize: subtitleSize.value,
+      attribution: attribution.value,
+      textAlignment: textAlignment.value,
+    },
+    isRepaired: fields.some((field) => field.isRepaired),
+  };
+}
+
+function normalizeComposition(
+  value: unknown,
+  sourceVersion: 2 | 3,
+): CompositionNormalization {
   if (!isObjectRecord(value)) {
     return {
       outcome: { ok: false, reason: 'invalid-record' },
@@ -633,14 +1013,12 @@ function normalizeComposition(value: unknown): CompositionNormalization {
   }
 
   const legendResult = normalizeLegend(value.legend, colorResult.colors);
-  const isSettingsValid =
-    isObjectRecord(value.settings) &&
-    value.settings.backgroundColor === '#FFFFFF';
+  const settingsResult = normalizeSettings(value.settings);
   const isRepaired =
     colorResult.isRepaired ||
     cameraResult.isRepaired ||
     legendResult.isRepaired ||
-    !isSettingsValid;
+    settingsResult.isRepaired;
   const warnings: CompositionLoadWarning[] = isRepaired
     ? [{ code: 'composition-repaired' }]
     : [];
@@ -649,14 +1027,14 @@ function normalizeComposition(value: unknown): CompositionNormalization {
     camera: cameraResult.camera,
     snapshotId: value.snapshotId as SnapshotId,
     legend: legendResult.legend,
-    settings: DEFAULT_COMPOSITION_SETTINGS,
+    settings: settingsResult.value,
   };
 
   return {
     outcome: {
       ok: true,
       value: snapshot,
-      sourceVersion: 2,
+      sourceVersion,
       warnings,
     },
     snapshot,
@@ -749,7 +1127,15 @@ function inspectStoredRecord(
     };
   }
 
-  if (value.schemaVersion !== 2) {
+  /*
+   * D4-17 — a `3` branch BESIDE the `2` branch, never instead of it.
+   *
+   * One rendering path, no legacy mode: a V2 record is read and upgraded **in
+   * memory** to the V3 snapshot shape, which is what every render path
+   * consumes. The V2 branch is what makes that possible, so it is kept; a
+   * creator's saved maps must still open. Only the bytes it WRITES change.
+   */
+  if (value.schemaVersion !== 2 && value.schemaVersion !== 3) {
     return {
       name: identity.name,
       loadOutcome: { ok: false, reason: 'unsupported-version' },
@@ -757,7 +1143,11 @@ function inspectStoredRecord(
     };
   }
 
-  const compositionResult = normalizeComposition(value.composition);
+  const schemaVersion = value.schemaVersion;
+  const compositionResult = normalizeComposition(
+    value.composition,
+    schemaVersion,
+  );
   if (!compositionResult.outcome.ok || compositionResult.snapshot === null) {
     return {
       name: identity.name,
@@ -766,12 +1156,20 @@ function inspectStoredRecord(
     };
   }
 
-  const storedRecord: SavedCompositionV2 = {
-    schemaVersion: 2,
-    name: identity.name,
-    timestamp: identity.timestamp,
-    composition: compositionResult.snapshot,
-  };
+  const storedRecord: SavedCompositionV2 | SavedCompositionV3 =
+    schemaVersion === 3
+      ? {
+          schemaVersion: 3,
+          name: identity.name,
+          timestamp: identity.timestamp,
+          composition: compositionResult.snapshot,
+        }
+      : {
+          schemaVersion: 2,
+          name: identity.name,
+          timestamp: identity.timestamp,
+          composition: compositionResult.snapshot,
+        };
 
   return {
     storedRecord,
@@ -826,7 +1224,7 @@ function summarizeStoredRecord(record: ParsedStoredRecord): SavedMapSummary {
   return {
     name: storedRecord.name,
     timestamp: storedRecord.timestamp,
-    sourceVersion: 2,
+    sourceVersion: loadOutcome.sourceVersion,
     snapshotId: snapshot.snapshotId,
     legendEntryCount: snapshot.legend.entries.length,
     isWholeWorldView: isWholeWorldCamera(snapshot.camera),
@@ -905,10 +1303,26 @@ function isQuotaExceededError(error: unknown): boolean {
   return isObjectRecord(error) && error.name === 'QuotaExceededError';
 }
 
+/**
+ * KEPT, not replaced. A V2 record must stay readable and re-writable in its own
+ * shape — that is the whole point of one-path loading (D4-17).
+ */
 function isSavedCompositionV2(
   record: SavedCompositionRecord,
 ): record is SavedCompositionV2 {
   return 'schemaVersion' in record && record.schemaVersion === 2;
+}
+
+function isSavedCompositionV3(
+  record: SavedCompositionRecord,
+): record is SavedCompositionV3 {
+  return 'schemaVersion' in record && record.schemaVersion === 3;
+}
+
+function hasCompositionSnapshot(
+  record: SavedCompositionRecord,
+): record is SavedCompositionV2 | SavedCompositionV3 {
+  return isSavedCompositionV2(record) || isSavedCompositionV3(record);
 }
 
 function getSelectedWarnings(
@@ -1018,7 +1432,7 @@ export function createStorageAdapter(
     return {
       ok: true,
       value: records.map((record): SavedMap => {
-        return isSavedCompositionV2(record)
+        return hasCompositionSnapshot(record)
           ? {
               name: record.name,
               colors: record.composition.colors,
@@ -1044,13 +1458,13 @@ export function createStorageAdapter(
       return parsedResult;
     }
 
-    const compositionResult = normalizeComposition(snapshot);
+    const compositionResult = normalizeComposition(snapshot, 3);
     if (!compositionResult.outcome.ok || compositionResult.snapshot === null) {
       return { ok: false, reason: 'storage-unavailable' };
     }
 
-    const savedRecord: SavedCompositionV2 = {
-      schemaVersion: 2,
+    const savedRecord: SavedCompositionV3 = {
+      schemaVersion: 3,
       name: nameResult.value,
       timestamp: now(),
       composition: compositionResult.snapshot,

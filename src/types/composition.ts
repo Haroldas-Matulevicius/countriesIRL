@@ -266,8 +266,15 @@ export type CompositionTextAnchor = 'start' | 'middle' | 'end';
 export interface VisibleCompositionSettings {
   /**
    * The V2 persisted field, pinned to white and read by nothing that renders.
-   * It is the schema's record that the composition is opaque; `04-14` decides
-   * its fate when the V3 record lands. Do not repurpose it as the water colour.
+   *
+   * **`04-14` decided its fate: V3 does NOT persist it.** It is a V2 wire
+   * field, it is read by no renderer, and `surfaceColor` is the value that
+   * actually paints the composition. It survives in memory as a pinned literal
+   * so the V2 serializer still has the exact byte it has always written, and
+   * the V3 reader IGNORES it wherever it appears — a field this version no
+   * longer persists is a schema difference, never corruption.
+   *
+   * Do not repurpose it as the water colour.
    */
   readonly backgroundColor: '#FFFFFF';
   /**
@@ -395,9 +402,50 @@ export interface SavedCompositionV2 {
   readonly composition: CompositionSnapshot;
 }
 
+/**
+ * D4-17, plan `04-14` — the record every save writes from now on.
+ *
+ * **The owner gate was answered `v3-one-path`** under a blanket, in-advance,
+ * sight-unseen proceed-authorization. Per Immutable Safety Constraint 8 that
+ * authorized *proceeding*; it is **not** a content review and it is **not**
+ * hash-bound. There is ONE rendering path and no legacy mode.
+ *
+ * **What a creator sees when a pre-Phase-4 map reopens**, acknowledged and
+ * accepted rather than discovered: no legend box (D4-11 deleted the chrome
+ * fields), grey uncoloured countries instead of white (D4-09), a top band on by
+ * default, coastlines at `none` with interior borders at `thin`, and the legend
+ * lower — below the title block (D4-13). **Re-exporting it produces a PNG that
+ * differs from one the creator may already have posted to Instagram.**
+ *
+ * **Nothing unrecoverable is lost.** Colours, country selections, legend labels
+ * and ordering, legend position, text size, camera, and the composition name
+ * all survive. What is gone is the legend's box styling, already deleted from
+ * the model by D4-11.
+ *
+ * **A V3 writer breaks V2 readers by design**, and that is stated rather than
+ * discovered: once `save()` writes `schemaVersion: 3`, an older build reading
+ * the same browser origin reports `unsupported-version` for that record — a
+ * refusal, not a crash, and the other records in the array still load. Browser
+ * -local; no deployment exists.
+ *
+ * The shape is V2's, with two differences that are the whole point:
+ * - `composition.colors` persists the **`ColorValue` union losslessly** — a
+ *   ramp assignment as `{kind, rampId, t}` and a custom one as a bare hex
+ *   string, which is V2's own wire shape and costs no extra nodes.
+ * - `composition.settings` persists every Phase 4 field, minus
+ *   `backgroundColor` (see `VisibleCompositionSettings`).
+ */
+export interface SavedCompositionV3 {
+  readonly schemaVersion: 3;
+  readonly name: string;
+  readonly timestamp: number;
+  readonly composition: CompositionSnapshot;
+}
+
 export type SavedCompositionRecord =
   | LegacySavedComposition
-  | SavedCompositionV2;
+  | SavedCompositionV2
+  | SavedCompositionV3;
 
 export type CompositionLoadWarningCode =
   | 'legacy-migrated'
@@ -412,7 +460,7 @@ export type CompositionLoadOutcome =
   | {
       readonly ok: true;
       readonly value: CompositionSnapshot;
-      readonly sourceVersion: 1 | 2;
+      readonly sourceVersion: 1 | 2 | 3;
       readonly warnings: ReadonlyArray<CompositionLoadWarning>;
     }
   | {

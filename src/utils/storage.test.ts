@@ -10,14 +10,22 @@ import {
   THEME_MODE_KEY,
 } from '../constants/config';
 import type {
+  CompositionLoadOutcome,
   CompositionSnapshot,
   SnapshotId,
+  VisibleCompositionSettings,
 } from '../types/composition';
 import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { ColorMap } from '../types/map';
+import type { SavedMap, StorageResult } from '../types/ui';
+import { BAND_MAX_HEIGHT } from './bands';
 import { repairCameraState } from './camera';
 import { customColor, rampColor } from './colors';
-import { MAX_LEGEND_CAPTION_LENGTH } from './compositionText';
+import {
+  MAX_COMPOSITION_TEXT_LENGTH,
+  MAX_LEGEND_CAPTION_LENGTH,
+  characterBoundFor,
+} from './compositionText';
 import { createDefaultLegendState, reconcileLegend } from './legend';
 import {
   MAX_STORAGE_JSON_DEPTH,
@@ -91,6 +99,33 @@ function createCompositionSnapshot(
       showNoData: false,
     },
     settings: DEFAULT_COMPOSITION_SETTINGS,
+  };
+}
+
+/**
+ * The V3 `settings` WIRE shape — every Phase 4 field, and deliberately NOT
+ * `backgroundColor`, which V3 does not persist. Spelled out here rather than
+ * derived from `DEFAULT_COMPOSITION_SETTINGS` minus a key: a derivation would
+ * follow the serializer if the serializer started dropping a field, and then
+ * the assertion would agree with the bug.
+ */
+function expectedStoredSettings(): Record<string, unknown> {
+  return {
+    surfaceColor: '#FFFFFF',
+    uncoloredFill: '#E5E7EB',
+    borderColor: '#000000',
+    interiorWeight: 'thin',
+    coastlineWeight: 'none',
+    topBandVisible: true,
+    topBandHeight: 120,
+    bottomBandVisible: false,
+    bottomBandHeight: 120,
+    title: '',
+    titleSize: 'medium',
+    subtitle: '',
+    subtitleSize: 'medium',
+    attribution: '',
+    textAlignment: 'left',
   };
 }
 
@@ -621,15 +656,24 @@ describe('createStorageAdapter', () => {
 
     const saveResult = adapter.save('Historical view', snapshot);
     expectSuccess(saveResult);
-    // The V2 WIRE shape is one canonical hex per country - the union is the
-    // in-memory model, not the persisted one, until `04-14` bumps to V3.
+    /*
+     * RE-BASELINED by `04-14`, deliberately and itemised: `schemaVersion` 2 -> 3
+     * and `settings` grows from V2's lone `backgroundColor` to the full Phase 4
+     * field set MINUS `backgroundColor`, which V3 does not persist. A CUSTOM
+     * assignment still writes a bare canonical hex — that is V2's own wire
+     * shape, and paying four json nodes for `{kind:'custom',hex}` would spend
+     * the node budget the ramp variant actually needs.
+     */
     expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
       {
-        schemaVersion: 2,
+        schemaVersion: 3,
         name: 'Historical view',
         timestamp: 500,
         composition: {
-          ...snapshot,
+          camera: snapshot.camera,
+          snapshotId: snapshot.snapshotId,
+          legend: snapshot.legend,
+          settings: expectedStoredSettings(),
           colors: {
             FRA: '#2563EB',
             'hist:polish-lithuanian-commonwealth': '#DC2626',
@@ -643,7 +687,7 @@ describe('createStorageAdapter', () => {
     expect(loadResult.value).toEqual({
       ok: true,
       value: snapshot,
-      sourceVersion: 2,
+      sourceVersion: 3,
       warnings: [],
     });
   });
@@ -731,16 +775,22 @@ describe('createStorageAdapter', () => {
       snapshot,
     );
     expectSuccess(result);
-    // The BYTES stay a valid V2 record: one canonical hex per country, never a
-    // union object. `04-14` owns the V3 bump that persists the ramp identity;
-    // until then a save is lossy in that identity and never invalid.
+    /*
+     * RE-BASELINED by `04-14`: an explicit save now writes a V3 record. The
+     * untouched V1 NEIGHBOUR is the half that has not moved and must not — a
+     * record is never upgraded by being re-written alongside another map's
+     * save, only by an explicit save of its own.
+     */
     expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
       {
-        schemaVersion: 2,
+        schemaVersion: 3,
         name: 'Legacy',
         timestamp: 200,
         composition: {
-          ...snapshot,
+          camera: snapshot.camera,
+          snapshotId: snapshot.snapshotId,
+          legend: snapshot.legend,
+          settings: expectedStoredSettings(),
           colors: { 'hist:napoleonic-entity': '#16A34A' },
         },
       },
@@ -1391,11 +1441,13 @@ describe('the colour value at the storage boundary (D4-02)', () => {
     });
   });
 
-  it('saves a ramp-painted map as V2 hex - lossy in the identity, never invalid', () => {
-    // The deliberate interim. `04-14` owns the V3 records that make this
-    // lossless; until then the bytes stay a valid V2 record so no file claims a
-    // version whose shape it does not have. Reopening yields a custom-hex map
-    // that renders identically and can no longer be re-skinned by ramp switch.
+  it('saves a ramp-painted map as the V3 union - the ramp identity now SURVIVES the disk', () => {
+    /*
+     * `04-05`'s interim, replaced. It recorded the loss as deliberate and named
+     * this plan as the one that ends it, so this test is its inverse and keeps
+     * the same subject: the SAME two ramp assignments, asserted to come back as
+     * ramp assignments rather than as the hexes they resolve to.
+     */
     const storage = new FakeStorage();
     const adapter = createStorageAdapter(storage, () => 100);
     const saveResult = adapter.save(
@@ -1408,29 +1460,517 @@ describe('the colour value at the storage boundary (D4-02)', () => {
     expectSuccess(saveResult);
 
     expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toMatchObject([
-      { composition: { colors: { FRA: '#2171B5', DEU: '#A50F15' } } },
+      {
+        schemaVersion: 3,
+        composition: {
+          colors: {
+            FRA: { kind: 'ramp', rampId: 'blues', t: 0.75 },
+            DEU: { kind: 'ramp', rampId: 'reds', t: 1 },
+          },
+        },
+      },
     ]);
 
     const reloaded = adapter.load('Ramp painted');
     expectSuccess(reloaded);
     expect(reloaded.value).toMatchObject({
       ok: true,
-      value: { colors: { FRA: customColor('#2171B5'), DEU: customColor('#A50F15') } },
+      sourceVersion: 3,
+      value: { colors: { FRA: rampColor('blues', 0.75), DEU: rampColor('reds', 1) } },
     });
-    // Stated, not discovered: the ramp identity did NOT survive the disk.
+    // The direction that makes the line above a claim rather than a shape
+    // check: the resolved hexes are what the OLD interim produced.
     expect(reloaded.value).not.toMatchObject({
-      value: { colors: { FRA: rampColor('blues', 0.75) } },
+      value: { colors: { FRA: customColor('#2171B5') } },
     });
   });
 
-  it('leaves the pre-parse bounds untouched by the wider value shape', () => {
-    // `04-14` extends these for V3. This plan changes none of them, and the
-    // ORDER - raw-length check before `JSON.parse`, `hasSafeJsonBudget`
-    // immediately after - is already gated by 'rejects oversized serialized
-    // input before invoking the injected parser' above. This asserts the values
-    // so a silent widening for the union would be caught here.
+  it('leaves the pre-parse bounds untouched by the V3 record', () => {
+    /*
+     * `04-05` said `04-14` would extend these. It extended the SET with
+     * per-field bounds and did not move one of these three values or their
+     * order — the raw-length check before `JSON.parse`, `hasSafeJsonBudget`
+     * immediately after, gated by 'rejects oversized serialized input before
+     * invoking the injected parser' above.
+     */
     expect(MAX_STORAGE_SERIALIZED_LENGTH).toBe(1_000_000);
     expect(MAX_STORAGE_JSON_DEPTH).toBe(32);
     expect(MAX_STORAGE_JSON_NODES).toBe(50_000);
+  });
+});
+
+/*
+ * ------------------------------------------------------------------
+ * D4-17 / D4-18 - the V3 record and the one-path V2 migration (plan `04-14`)
+ * ------------------------------------------------------------------
+ *
+ * WARNING: **Every record below is HAND-CONSTRUCTED**, never one this module's
+ * own `save()` produced. A migration suite that saves and then loads through
+ * the same code path agrees with itself: it cannot see a field that is written
+ * but never read, and it cannot see a V2 record at all, because nothing in this
+ * build writes one any more. The stored bytes are the subject, so the stored
+ * bytes are the fixture.
+ */
+
+/** A V2 record exactly as a creator's browser holds it TODAY, pre-Phase-4. */
+function createPreP4V2Record(
+  legendOverrides: Record<string, unknown> = {},
+  settingsOverrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schemaVersion: 2,
+    name: 'Pre-Phase-4 map',
+    timestamp: 1_700_000_000_000,
+    composition: {
+      colors: { FRA: '#2563EB' },
+      camera: { zoom: 3, centerLongitude: 12.5, centerLatitude: 48.25 },
+      snapshotId: 'modern',
+      legend: {
+        entries: [{ color: '#2563EB', label: 'Visited', order: 0 }],
+        position: { x: 720, y: 64, preset: 'top-right' },
+        textSize: 'medium',
+        // The three fields D4-11 deleted. A real saved map still carries them.
+        theme: 'light',
+        backgroundOpacity: 85,
+        borderStyle: 'hairline',
+        ...legendOverrides,
+      },
+      settings: { backgroundColor: '#FFFFFF', ...settingsOverrides },
+    },
+  };
+}
+
+function loadStoredRecords(
+  records: ReadonlyArray<Record<string, unknown>>,
+  name: string,
+): StorageResult<CompositionLoadOutcome> {
+  const storage = new FakeStorage();
+  storage.values.set(STORAGE_KEY, JSON.stringify(records));
+  return createStorageAdapter(storage).load(name);
+}
+
+function expectLoaded(
+  records: ReadonlyArray<Record<string, unknown>>,
+  name: string,
+): CompositionLoadOutcome & { ok: true } {
+  const result = loadStoredRecords(records, name);
+  expectSuccess(result);
+  if (!result.value.ok) {
+    throw new Error(`The stored record failed to load: ${result.value.reason}`);
+  }
+
+  return result.value;
+}
+
+describe('the V3 record and the one-path V2 migration (D4-17, plan 04-14)', () => {
+  it('loads a pre-Phase-4 V2 record cleanly, at sourceVersion 2, with NO repair', () => {
+    const result = loadStoredRecords([createPreP4V2Record()], 'Pre-Phase-4 map');
+    expectSuccess(result);
+
+    expect(result.value).toMatchObject({
+      ok: true,
+      sourceVersion: 2,
+      warnings: [],
+    });
+  });
+
+  it('migrates a V2 record onto the ONE rendering path - Phase 4 defaults, not repairs', () => {
+    /*
+     * The creator-visible consequence of D4-17, made machine-checkable rather
+     * than left in prose. This is what the owner accepted: a map saved before
+     * Phase 4 reopens with grey uncoloured countries instead of white, a top
+     * band on, coastlines at `none` with interior borders at `thin`, and no
+     * legend box. Re-exporting it therefore differs from a PNG already posted.
+     */
+    const outcome = expectLoaded([createPreP4V2Record()], 'Pre-Phase-4 map');
+
+    expect(outcome.value.settings).toEqual(DEFAULT_COMPOSITION_SETTINGS);
+    expect(outcome.value.settings.uncoloredFill).toBe('#E5E7EB');
+    expect(outcome.value.settings.topBandVisible).toBe(true);
+    expect(outcome.value.settings.coastlineWeight).toBe('none');
+    expect(outcome.value.settings.interiorWeight).toBe('thin');
+    // What SURVIVES, which is the other half of the acknowledgement.
+    expect(outcome.value.colors).toEqual({ FRA: customColor('#2563EB') });
+    expect(outcome.value.legend.entries).toEqual([
+      { color: '#2563EB', label: 'Visited', order: 0 },
+    ]);
+    expect(outcome.value.legend.position).toEqual({
+      x: 720,
+      y: 64,
+      preset: 'top-right',
+    });
+    expect(outcome.value.legend.textSize).toBe('medium');
+    expect(outcome.value.camera).toEqual({
+      zoom: 3,
+      centerLongitude: 12.5,
+      centerLatitude: 48.25,
+    });
+    // Defaults, not repairs: `isRepaired` stays false, so no corruption toast.
+    expect(outcome.warnings).toEqual([]);
+  });
+
+  it("does not repair a V2 record's settings.backgroundColor, whatever it holds", () => {
+    /*
+     * V2's validator REQUIRED the literal `'#FFFFFF'` and flagged the whole
+     * record repaired otherwise. V3 does not persist the field at all, so it is
+     * read and DISCARDED - four inputs, one silent outcome. If this ever
+     * reported again, every reopened V2 map would raise a corruption toast.
+     */
+    for (const settingsOverrides of [
+      {},
+      { backgroundColor: '#123456' },
+      { backgroundColor: 42 },
+    ]) {
+      const result = loadStoredRecords(
+        [createPreP4V2Record({}, settingsOverrides)],
+        'Pre-Phase-4 map',
+      );
+      expectSuccess(result);
+      expect(result.value).toMatchObject({ ok: true, warnings: [] });
+    }
+
+    // And the same for a record whose `settings` key is missing outright.
+    const withoutSettings = createPreP4V2Record();
+    delete (withoutSettings.composition as Record<string, unknown>).settings;
+    const bare = loadStoredRecords([withoutSettings], 'Pre-Phase-4 map');
+    expectSuccess(bare);
+    expect(bare.value).toMatchObject({ ok: true, warnings: [] });
+  });
+
+  it('reads and discards the deleted legend chrome fields without a warning', () => {
+    // `04-12`'s rule, re-asserted through the widened reader so extending the
+    // validator did not quietly re-admit them as corruption.
+    const outcome = expectLoaded(
+      [
+        createPreP4V2Record({
+          theme: 'dark',
+          backgroundOpacity: 0.9,
+          borderStyle: 'strong',
+        }),
+      ],
+      'Pre-Phase-4 map',
+    );
+
+    expect(outcome.warnings).toEqual([]);
+    expect(Object.keys(outcome.value.legend).sort()).toEqual([
+      'caption',
+      'entries',
+      'form',
+      'position',
+      'showNoData',
+      'textSize',
+    ]);
+  });
+
+  it('reports a MALFORMED value in a new V3 field as corrupt - the opposite direction', () => {
+    /*
+     * Relaxing "absent is not corruption" must not relax "invalid is". One case
+     * per new settings field, each asserted to raise `composition-repaired` AND
+     * to fall back to its default, so a field that merely stopped being read
+     * would still redden this.
+     */
+    const damagedFields: ReadonlyArray<
+      readonly [keyof VisibleCompositionSettings, unknown]
+    > = [
+      ['surfaceColor', 'not-a-color'],
+      ['uncoloredFill', 42],
+      ['borderColor', null],
+      ['interiorWeight', 'gossamer'],
+      ['coastlineWeight', 3],
+      ['topBandVisible', 'yes'],
+      ['topBandHeight', 5_000],
+      ['bottomBandVisible', 0],
+      ['bottomBandHeight', Number.NaN],
+      ['title', 17],
+      ['titleSize', 'gigantic'],
+      ['subtitle', []],
+      ['subtitleSize', ''],
+      ['attribution', {}],
+      ['textAlignment', 'justify'],
+    ];
+
+    for (const [field, damagedValue] of damagedFields) {
+      const outcome = expectLoaded(
+        [createPreP4V2Record({}, { [field]: damagedValue })],
+        'Pre-Phase-4 map',
+      );
+
+      expect(
+        outcome.warnings,
+        `${field} should be reported as repaired`,
+      ).toEqual([{ code: 'composition-repaired' }]);
+      // `topBandHeight: 5000` clamps rather than defaulting, so the assertion
+      // is "not the damaged value", which holds for every row.
+      expect(outcome.value.settings[field]).not.toBe(damagedValue);
+    }
+  });
+
+  it('clamps an out-of-range band height through clampBandHeight and reports it', () => {
+    // T-04-14-03: a band height drives `resolveBandExtents` and therefore the
+    // legend inset, so a degenerate stored value moves exported pixels.
+    const outcome = expectLoaded(
+      [createPreP4V2Record({}, { topBandHeight: 900, bottomBandHeight: -20 })],
+      'Pre-Phase-4 map',
+    );
+
+    expect(outcome.value.settings.topBandHeight).toBe(BAND_MAX_HEIGHT);
+    expect(outcome.value.settings.bottomBandHeight).toBe(0);
+    expect(outcome.warnings).toEqual([{ code: 'composition-repaired' }]);
+  });
+
+  it('bounds stored text at the SAME length the composition reducer bounds it at', () => {
+    /*
+     * `MAX_COMPOSITION_TEXT_LENGTH`, not `characterBoundFor`. The product
+     * REFUSES rather than truncates past a role bound, so an over-role-bound
+     * title is a legitimate saved state that blocks export - truncating it here
+     * would silently destroy the creator's words and turn a legible refusal
+     * into invisible damage. It would also mean a title no longer round-trips.
+     */
+    const overRoleBound = 'A'.repeat(40);
+    expect(overRoleBound.length).toBeGreaterThan(characterBoundFor('title'));
+
+    const clean = expectLoaded(
+      [createPreP4V2Record({}, { title: overRoleBound })],
+      'Pre-Phase-4 map',
+    );
+    expect(clean.value.settings.title).toBe(overRoleBound);
+    expect(clean.warnings).toEqual([]);
+
+    // Past the STORAGE bound it is damaged, and it is bounded rather than
+    // dropped: the creator keeps the first 100 characters they typed.
+    const damaged = expectLoaded(
+      [
+        createPreP4V2Record(
+          {},
+          { subtitle: 'B'.repeat(MAX_COMPOSITION_TEXT_LENGTH + 10) },
+        ),
+      ],
+      'Pre-Phase-4 map',
+    );
+    expect(damaged.value.settings.subtitle).toHaveLength(
+      MAX_COMPOSITION_TEXT_LENGTH,
+    );
+    expect(damaged.warnings).toEqual([{ code: 'composition-repaired' }]);
+  });
+
+  it('keeps the V2 guard: a re-written V2 record stays V2 in its own wire shape', () => {
+    /*
+     * `isSavedCompositionV2` is KEPT rather than replaced. A record is upgraded
+     * only by an explicit save of its OWN - being re-written because a
+     * neighbour was saved must not make the bytes claim a version whose shape
+     * they do not have.
+     */
+    const storage = new FakeStorage();
+    storage.values.set(STORAGE_KEY, JSON.stringify([createPreP4V2Record()]));
+    const adapter = createStorageAdapter(storage, () => 999);
+    expectSuccess(adapter.save('Brand new', createCompositionSnapshot()));
+
+    const written = JSON.parse(
+      storage.getItem(STORAGE_KEY) ?? 'null',
+    ) as ReadonlyArray<Record<string, unknown>>;
+    expect(written[0]).toMatchObject({ schemaVersion: 3, name: 'Brand new' });
+    expect(written[1]).toMatchObject({
+      schemaVersion: 2,
+      name: 'Pre-Phase-4 map',
+    });
+    const neighbour = written[1].composition as Record<string, unknown>;
+    expect(neighbour.settings).toEqual({ backgroundColor: '#FFFFFF' });
+    expect(neighbour.colors).toEqual({ FRA: '#2563EB' });
+  });
+
+  it('reports unsupported-version for a version neither branch knows', () => {
+    // The V3 writer breaks V2 readers by design; the mirror is that a V4 record
+    // is REFUSED here rather than guessed at. A refusal, never a crash.
+    const record = {
+      ...createPreP4V2Record(),
+      schemaVersion: 4,
+      name: 'Future',
+    };
+    const result = loadStoredRecords([record], 'Future');
+    expectSuccess(result);
+    expect(result.value).toEqual({ ok: false, reason: 'unsupported-version' });
+  });
+
+  it('keeps the reserved-key guard on the V3 nested union values', () => {
+    /*
+     * T-04-14-02. The union nests an OBJECT under each country key, so a
+     * reserved key smuggles in a structure rather than a string. `__proto__`
+     * carrying a ramp payload is the shape that did not exist before D4-02, and
+     * it is written through `JSON.parse` because an object literal cannot hold
+     * an own `__proto__` key.
+     */
+    const record = createPreP4V2Record();
+    (record.composition as Record<string, unknown>).colors = JSON.parse(
+      '{"__proto__":{"kind":"ramp","rampId":"blues","t":1},' +
+        '"constructor":{"kind":"ramp","rampId":"reds","t":1},' +
+        '"FRA":{"kind":"ramp","rampId":"greens","t":0.5}}',
+    ) as unknown;
+
+    const outcome = expectLoaded([record], 'Pre-Phase-4 map');
+
+    expect(Object.keys(outcome.value.colors)).toEqual(['FRA']);
+    expect(Object.getPrototypeOf(outcome.value.colors)).toBeNull();
+    expect(({} as Record<string, unknown>).kind).toBeUndefined();
+    expect(outcome.warnings).toEqual([{ code: 'composition-repaired' }]);
+  });
+});
+
+/*
+ * ------------------------------------------------------------------
+ * The node budget the V3 union actually costs (T-04-05-03, T-04-14-01)
+ * ------------------------------------------------------------------
+ *
+ * `04-05` flagged this as "a real budget question, not a formality", because a
+ * ramp assignment is an OBJECT per country instead of a string. Measured with
+ * the same walk `hasSafeJsonBudget` performs (every popped value is one node):
+ *
+ * | Store | V2 nodes | V3 nodes |
+ * |---|---|---|
+ * | ONE worst-case record (512 colours + 512 legend entries) | 2,584 | **4,134** |
+ * | TEN worst-case records (a full `MAX_SAVED_MAPS` store)   | 25,831 | **41,331** |
+ * | TEN realistic records (207 colourable units, 30 entries) | - | 9,851 |
+ *
+ * **It fits. `MAX_STORAGE_JSON_NODES` was NOT raised.** But the honest half is
+ * the margin: a hostile full store went from 48% headroom under V2 to **17%**
+ * under V3, so the union spent roughly two thirds of what was spare. A real
+ * creator cannot approach it - there are 207 colourable units, so 9,851 nodes
+ * is the practical ceiling - and reaching 41,331 requires hand-edited
+ * `localStorage`.
+ *
+ * The assertions below pin that margin BEHAVIOURALLY, through the real
+ * adapter, rather than re-implementing the walker and agreeing with it: twelve
+ * worst-case records still parse and thirteen do not. A future field that
+ * inflates the per-record cost moves that boundary and reddens this.
+ *
+ * A per-field cap could not have protected this and none was added to pretend
+ * otherwise: `hasSafeJsonBudget` runs over the WHOLE parsed array before any
+ * record is validated, so the caps in step 3 only ever trim a record that has
+ * already parsed.
+ */
+function createWorstCaseV3Record(index: number): Record<string, unknown> {
+  const colors: Record<string, unknown> = {};
+  for (let entry = 0; entry < 512; entry += 1) {
+    colors[`C${String(entry).padStart(4, '0')}`] = {
+      kind: 'ramp',
+      rampId: 'blues',
+      t: (entry % 100) / 100,
+    };
+  }
+
+  const entries = [];
+  for (let entry = 0; entry < 512; entry += 1) {
+    entries.push({
+      color: `#${(0x200000 + entry).toString(16).slice(-6).toUpperCase()}`,
+      label: 'Label',
+      order: entry,
+    });
+  }
+
+  return {
+    schemaVersion: 3,
+    name: `Worst case ${index}`,
+    timestamp: 1_700_000_000_000 + index,
+    composition: {
+      colors,
+      camera: { zoom: 3, centerLongitude: 12.5, centerLatitude: 48.25 },
+      snapshotId: 'modern',
+      legend: {
+        entries,
+        position: { x: 720, y: 64, preset: 'top-right' },
+        textSize: 'medium',
+        form: 'bar',
+        caption: 'EU = 6.0%',
+        showNoData: true,
+      },
+      settings: expectedStoredSettings(),
+    },
+  };
+}
+
+function listWorstCaseStore(
+  recordCount: number,
+): StorageResult<ReadonlyArray<SavedMap>> {
+  const storage = new FakeStorage();
+  storage.values.set(
+    STORAGE_KEY,
+    JSON.stringify(
+      Array.from({ length: recordCount }, (_, index) =>
+        createWorstCaseV3Record(index),
+      ),
+    ),
+  );
+
+  return createStorageAdapter(storage).list();
+}
+
+describe('the node budget the V3 union costs (T-04-05-03)', () => {
+  it('admits a FULL ten-record store of worst-case V3 records', () => {
+    const result = listWorstCaseStore(10);
+    expectSuccess(result);
+
+    expect(result.value).toHaveLength(10);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('still admits twelve, and REFUSES thirteen - the measured 17% headroom', () => {
+    /*
+     * The discrimination control. Without the second half, the first assertion
+     * only says "10 records parse", which a budget with any headroom at all
+     * satisfies; together they locate the boundary, which is what "measured"
+     * means. 12 records is 49,597 nodes and 13 is 53,730.
+     */
+    const twelve = listWorstCaseStore(12);
+    expectSuccess(twelve);
+    // Over `MAX_SAVED_MAPS`, so trimmed to ten and reported - but PARSED.
+    expect(twelve.value).toHaveLength(10);
+
+    const thirteen = listWorstCaseStore(13);
+    expectSuccess(thirteen);
+    // Over the node budget, so the whole store is refused before any record is
+    // validated. Nothing a per-field cap could have rescued.
+    expect(thirteen.value).toEqual([]);
+    expect(thirteen.warnings).toEqual([{ code: 'corrupt-data' }]);
+  });
+
+  it('leaves a REALISTIC store far inside the budget', () => {
+    // 207 colourable units is the whole catalog (Live Invariant 5), and export
+    // blocks past 30 legend colours, so this is the real ceiling: 9,851 nodes.
+    const storage = new FakeStorage();
+    const colors: Record<string, unknown> = {};
+    for (let entry = 0; entry < 207; entry += 1) {
+      colors[`C${String(entry).padStart(4, '0')}`] = {
+        kind: 'ramp',
+        rampId: 'blues',
+        t: (entry % 100) / 100,
+      };
+    }
+    storage.values.set(
+      STORAGE_KEY,
+      JSON.stringify(
+        Array.from({ length: 10 }, (_, index) => ({
+          ...createWorstCaseV3Record(index),
+          composition: {
+            ...(createWorstCaseV3Record(index).composition as Record<
+              string,
+              unknown
+            >),
+            colors,
+            legend: {
+              entries: [],
+              position: { x: 720, y: 64, preset: 'top-right' },
+              textSize: 'medium',
+              form: 'bar',
+              caption: '',
+              showNoData: false,
+            },
+          },
+        })),
+      ),
+    );
+
+    const result = createStorageAdapter(storage).list();
+    expectSuccess(result);
+    expect(result.value).toHaveLength(10);
+    expect(Object.keys(result.value[0].colors)).toHaveLength(207);
   });
 });
