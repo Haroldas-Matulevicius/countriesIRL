@@ -496,9 +496,40 @@ test.describe('PNG export', (): void => {
     const sample = await samplePngCorners(page, bytes);
     expect(sample.width).toBe(EXPORT_SIZE);
     expect(sample.height).toBe(EXPORT_SIZE);
+    /*
+     * OPACITY is the claim this corner sample has always carried - the three
+     * white export layers, proven on real bytes rather than on a `toBlob`
+     * success. It is asserted on every corner, unchanged.
+     *
+     * The COLOUR half moved with `04-09`, and the assertion got SHARPER rather
+     * than looser. MEASURED, not assumed: in the Pacific framing the two TOP
+     * corners sit over uncoloured land (northern Russia / Alaska) and the two
+     * BOTTOM corners over the Southern Ocean. Both read `#FFFFFF` before this
+     * plan, because an uncoloured country and the water were the same white -
+     * so this sample could not tell land from sea at all. Since D4-10 every
+     * Modern unit is colourable and since D4-09 an uncoloured one paints
+     * `#E5E7EB`, so the four corners now discriminate: two prove the uncoloured
+     * fill reached the rasterised pixels and two prove the water did.
+     */
     sample.corners.forEach((corner): void => {
-      expect(corner).toEqual([255, 255, 255, 255]);
+      expect(corner[3], 'the PNG is not opaque at a corner.').toBe(255);
     });
+    const [topLeft, topRight, bottomLeft, bottomRight] = sample.corners;
+    const uncoloredCorner = [...hexToRgb(DEFAULT_UNCOLORED_FILL_HEX), 255];
+    const waterCorner = [...hexToRgb(DEFAULT_SURFACE_COLOR), 255];
+    expect(uncoloredCorner).not.toEqual(waterCorner);
+    expect(topLeft, 'the top-left corner is over uncoloured land').toEqual(
+      uncoloredCorner,
+    );
+    expect(topRight, 'the top-right corner is over uncoloured land').toEqual(
+      uncoloredCorner,
+    );
+    expect(bottomLeft, 'the bottom-left corner is open water').toEqual(
+      waterCorner,
+    );
+    expect(bottomRight, 'the bottom-right corner is open water').toEqual(
+      waterCorner,
+    );
 
     // Every resource the transaction created is gone once it resolves.
     expect(await page.evaluate((): number => window.__exportFixture.bodyFrameCount)).toBe(0);
@@ -1182,11 +1213,34 @@ const DARK_INK_THRESHOLD = 100;
  * a future lighter stroke weight do not make it flap, and two orders of
  * magnitude above the zero a blank or flood-filled frame produces.
  *
- * `04-05` moves the default coastline weight to `none`, which will legitimately
- * reduce this. RE-MEASURE and restate the number then; do not delete the floor.
+ * **`04-08` moved the default coastline weight to `none`** (U-3), which is what
+ * `04-01` anticipated when it wrote "RE-MEASURE and restate the number then; do
+ * not delete the floor" — it named `04-05` as the plan, and it was `04-08`.
+ * The floor was NOT deleted and it was NOT weakened: the water gate now chooses
+ * `Thin` before exporting, which is exactly the pre-`04-08` weight, so the
+ * measurement below is still describing the same picture. Re-measured in
+ * installed Chrome 151.0.7922.76 after the change: **45,190** pixels below
+ * `DARK_INK_THRESHOLD`, against 45,188 before it. The floor stays at 20,000.
  */
-const MEASURED_BOUNDARY_INK_PIXELS = 45_188;
+const MEASURED_BOUNDARY_INK_PIXELS = 45_190;
 const MIN_BOUNDARY_INK_PIXELS = 20_000;
+/**
+ * The floor for a 12x12 coastline band (`04-08`). MEASURED in this same change,
+ * in installed Chrome 151.0.7922.76, at the default world camera:
+ *
+ * | weight | user units | ink pixels in the band |
+ * |---|---|---|
+ * | `hairline` | 0.5 | **42** |
+ * | `thin` | 0.75 | **68** |
+ * | `bold` | 2 | **185** |
+ * | `none` | 0 | **0** |
+ *
+ * The floor is 8 — well under the lightest real step, so ordinary rendering
+ * variation does not make it flap, and eight times the zero a blank or
+ * flood-filled frame produces. Restate these numbers if the sample point or the
+ * band radius ever moves; do not delete the floor.
+ */
+const MIN_COASTLINE_BAND_INK_PIXELS = 8;
 const WHOLE_FRAME_REGION: LegendRegion = {
   x: 0,
   y: 0,
@@ -1319,6 +1373,27 @@ async function chooseWaterPreset(page: Page, name: string): Promise<void> {
   await expect(pill).toBeChecked();
 }
 
+/**
+ * The same shape as `chooseWaterPreset`, scoped to one `Borders` sub-group, and
+ * deliberately asserting only that the CONTROL took the choice. The pixels are
+ * every gate's own subject; a markup assertion here would redden instead of
+ * them.
+ */
+async function chooseStrokeWeight(
+  page: Page,
+  group: 'Interior' | 'Coastlines',
+  name: string,
+): Promise<void> {
+  const pill = page
+    .getByRole('radiogroup', { name: group })
+    .getByRole('radio', { name, exact: true });
+  await pill.check();
+  await expect(pill).toBeChecked();
+}
+
+/** `04-08`, and it must stay a hand-written literal — see `hexToRgb`. */
+const DEFAULT_UNCOLORED_FILL_HEX = '#E5E7EB';
+
 test.describe('water preset', (): void => {
   /**
    * **The Phase 4 tracer.** One creator-visible path through every layer the
@@ -1360,6 +1435,15 @@ test.describe('water preset', (): void => {
     }
 
     await openRailTool(page, 'Map style');
+    /*
+     * `04-08`: DECLARED, not defaulted. This gate's subject is the WATER, and
+     * its content floor needs country boundaries in frame to be a floor at all.
+     * The app now ships `none` coastlines, so an unstroked export would carry
+     * no dark ink and the floor would have to be deleted to keep this green -
+     * which is the wrong repair. `Thin` is exactly the pre-04-08 weight, so the
+     * measured 45,190 below is the same picture 04-01 measured at 45,188.
+     */
+    await chooseStrokeWeight(page, 'Coastlines', 'Thin');
     await chooseWaterPreset(page, chosen.name);
 
     const firstBytes = await exportRealApp(page, 'water-first');
@@ -1460,5 +1544,297 @@ test.describe('water preset', (): void => {
     // the content floor above runs first.
     const floodSample = await samplePngPoints(page, floodFilled, [pacific]);
     expect(floodSample.pixels[0]?.slice(0, 3)).toEqual([...chosenRgb]);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-08 - border weight and the uncolored fill, on downloaded PNG bytes
+ * ------------------------------------------------------------------ */
+
+/**
+ * A point that is certainly ON a coastline at the default world camera, derived
+ * through `createWorldProjection()` rather than hard-coded. The western edge of
+ * mainland Portugal (Cabo da Roca, 38.78 N) is the sharpest land/sea boundary
+ * in the frame that is not also an interior border, so ink measured around it
+ * is coastline ink.
+ *
+ * `COASTLINE_BAND_RADIUS` is in PNG pixels. The viewBox is 1080 over an
+ * EXPORT_SIZE of 1080, so a viewBox coordinate IS a PNG pixel; a radius of 6
+ * comfortably contains a `bold` (2 user unit -> 4px) stroke plus its
+ * anti-aliasing while excluding the neighbouring Spanish border.
+ */
+const CABO_DA_ROCA_LON_LAT: readonly [number, number] = [-9.5, 38.78];
+const COASTLINE_BAND_RADIUS = 6;
+/** An interior point of a large country, well clear of any boundary. */
+const CENTRAL_BRAZIL_LON_LAT: readonly [number, number] = [-52, -10];
+const CENTRAL_BRAZIL_COUNTRY_ID = 'BRA';
+
+function bandAround(
+  point: readonly [number, number],
+  radius: number,
+): LegendRegion {
+  return {
+    x: point[0] - radius,
+    y: point[1] - radius,
+    width: radius * 2,
+    height: radius * 2,
+  };
+}
+
+async function projectToExportPixel(
+  page: Page,
+  lonLat: readonly [number, number],
+): Promise<readonly [number, number]> {
+  const [pixel] = await toExportPixels(page, [project(lonLat)]);
+  if (pixel === undefined) {
+    throw new Error(`(${lonLat[0]}, ${lonLat[1]}) did not map into the frame.`);
+  }
+  return pixel;
+}
+
+/**
+ * The counter's own control, run through the SAME function and threshold as
+ * every measurement beside it. A flat frame in the water colour must read ZERO
+ * ink, or a "no dark ink here" assertion is satisfied by a counter that cannot
+ * see anything at all.
+ */
+async function expectBlankControlReadsZeroInk(
+  page: Page,
+  region: LegendRegion,
+): Promise<void> {
+  const blank = await makeFloodFilledPng(page, DEFAULT_SURFACE_COLOR);
+  expect(readPngDimensions(blank)).toEqual({
+    width: EXPORT_SIZE,
+    height: EXPORT_SIZE,
+  });
+  const blankInk = await countInkAroundRegion(
+    page,
+    blank,
+    region,
+    DARK_INK_THRESHOLD,
+  );
+  expect(
+    blankInk.inside + blankInk.outside,
+    'the blank control reads ink, so the counter below is measuring noise.',
+  ).toBe(0);
+}
+
+test.describe('border weight', (): void => {
+  /**
+   * **GATE A — the coastline is quiet, and the same point inks when it is not.**
+   *
+   * The measured defect this covers: until `04-08`, `sanitizeExportClone`
+   * hard-set `stroke: #000000; stroke-width: 0.75` on every country path in the
+   * clone, so the editor could show an unstroked coast while the download
+   * shipped a black one. RED-proved by restoring exactly that hard-set — see
+   * `04-08-SUMMARY.md`.
+   *
+   * Both directions in one run, because "no dark pixel here" alone is satisfied
+   * by a blank export.
+   */
+  test('a coastline at none carries no dark ink, and at bold it does', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const coastline = await projectToExportPixel(page, CABO_DA_ROCA_LON_LAT);
+    const band = bandAround(coastline, COASTLINE_BAND_RADIUS);
+
+    await openRailTool(page, 'Map style');
+
+    // 1. THE DISCRIMINATION CONTROL FIRST, because it is also the content
+    //    floor: `bold` must put real ink in this band, or "quiet at none" is a
+    //    claim about a band that never had ink in it.
+    await chooseStrokeWeight(page, 'Coastlines', 'Bold');
+    const boldBytes = await exportRealApp(page, 'coastline-bold');
+    expect(readPngDimensions(boldBytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+    const boldInk = await countInkAroundRegion(
+      page,
+      boldBytes,
+      band,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      boldInk.inside,
+      `the bold coastline band at (${coastline[0]}, ${coastline[1]}) measured ` +
+        `${boldInk.inside} ink pixels. The sample point is not on a coastline, ` +
+        'so the `none` assertion below would pass on empty water.',
+    ).toBeGreaterThan(MIN_COASTLINE_BAND_INK_PIXELS);
+
+    // 2. THE PROPERTY. Same point, same band, same counter, weight `none`.
+    await chooseStrokeWeight(page, 'Coastlines', 'None');
+    const quietBytes = await exportRealApp(page, 'coastline-none');
+    expect(readPngDimensions(quietBytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+    const quietInk = await countInkAroundRegion(
+      page,
+      quietBytes,
+      band,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      quietInk.inside,
+      `the coastline band still carries ${quietInk.inside} dark pixels at ` +
+        'weight `none`. Either the editor kept a stroke or the export clone ' +
+        're-painted one - which is exactly the defect 04-08 replaced.',
+    ).toBe(0);
+
+    // 3. THE COUNTER'S OWN CONTROL.
+    await expectBlankControlReadsZeroInk(page, band);
+  });
+
+  /**
+   * **GATE B — three distinct steps are three distinct widths.**
+   *
+   * A single-step check passes on a renderer that ignores the value entirely.
+   * The thresholds are the counts measured in this same change, recorded in
+   * `04-08-SUMMARY.md`, never guesses.
+   */
+  test('ink at a coastline increases strictly with the named weight', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const coastline = await projectToExportPixel(page, CABO_DA_ROCA_LON_LAT);
+    const band = bandAround(coastline, COASTLINE_BAND_RADIUS);
+
+    await openRailTool(page, 'Map style');
+
+    const steps = ['Hairline', 'Thin', 'Bold'] as const;
+    const counts: number[] = [];
+    for (const step of steps) {
+      await chooseStrokeWeight(page, 'Coastlines', step);
+      const bytes = await exportRealApp(page, `coastline-${step.toLowerCase()}`);
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+      const ink = await countInkAroundRegion(
+        page,
+        bytes,
+        band,
+        DARK_INK_THRESHOLD,
+      );
+      counts.push(ink.inside);
+    }
+
+    // A literal, not `steps.length`: a loop that ran zero times would satisfy
+    // every assertion below.
+    expect(counts).toHaveLength(3);
+    expect(
+      counts[0],
+      `the lightest step measured ${counts[0]} ink pixels, below the floor. ` +
+        'Every comparison below would then be between two empty bands.',
+    ).toBeGreaterThan(MIN_COASTLINE_BAND_INK_PIXELS);
+
+    counts.forEach((count, index): void => {
+      if (index === 0) {
+        return;
+      }
+      const previous = counts[index - 1];
+      expect(
+        count,
+        `${steps[index]} measured ${count} ink pixels and ${steps[index - 1]} ` +
+          `measured ${previous}. The steps must be strictly heavier, or two ` +
+          'pills paint a picture a creator cannot tell apart.',
+      ).toBeGreaterThan(previous ?? Number.NaN);
+    });
+
+    await expectBlankControlReadsZeroInk(page, band);
+  });
+});
+
+test.describe('uncolored fill', (): void => {
+  /**
+   * **GATE C — an uncoloured country is grey in the PNG, and its stored value
+   * is still the `#FFFFFF` sentinel.**
+   *
+   * With white water and an unstroked coast a white country would vanish, which
+   * is the whole reason D4-09 exists — so "the interior sample is not the water
+   * colour" is the load-bearing half, not decoration.
+   */
+  test('an uncolored country exports the creator fill, not the water', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const interior = await projectToExportPixel(page, CENTRAL_BRAZIL_LON_LAT);
+
+    // 1. CONTENT FLOOR FIRST, on a frame that provably carries geography.
+    //    Coastlines default to `none`, so the floor is taken at `Thin` — the
+    //    pre-04-08 weight — and then the fill is measured at the default.
+    await openRailTool(page, 'Map style');
+    await chooseStrokeWeight(page, 'Coastlines', 'Thin');
+    const inkedBytes = await exportRealApp(page, 'uncolored-floor');
+    const floorInk = await countInkAroundRegion(
+      page,
+      inkedBytes,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      floorInk.inside,
+      `the exported frame measured ${floorInk.inside} ink pixels against a ` +
+        `floor of ${MIN_BOUNDARY_INK_PIXELS}. It carries no geography, so ` +
+        'every colour assertion below would be about a blank square.',
+    ).toBeGreaterThan(MIN_BOUNDARY_INK_PIXELS);
+
+    // 2. THE PROPERTY, at the shipped defaults.
+    await chooseStrokeWeight(page, 'Coastlines', 'None');
+    const bytes = await exportRealApp(page, 'uncolored-default');
+    expect(readPngDimensions(bytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+
+    const sample = await samplePngPoints(page, bytes, [interior]);
+    const [pixel] = sample.pixels;
+    if (pixel === undefined) {
+      throw new Error('The sampler returned no pixel.');
+    }
+    expect(
+      pixel.slice(0, 3),
+      `central Brazil is rgb(${pixel.slice(0, 3).join(', ')}), not the ` +
+        `uncolored fill ${DEFAULT_UNCOLORED_FILL_HEX}.`,
+    ).toEqual([...hexToRgb(DEFAULT_UNCOLORED_FILL_HEX)]);
+    expect(pixel[3]).toBe(255);
+    expect(
+      pixel.slice(0, 3),
+      'the uncoloured country is the water colour, so it is invisible against ' +
+        'the ocean. That is the exact defect D4-09 exists to prevent.',
+    ).not.toEqual([...hexToRgb(DEFAULT_SURFACE_COLOR)]);
+
+    // 3. THE STORED VALUE NEVER MOVED. The render maps the sentinel; the map
+    //    itself is read-only. A refactor that "simplified" the sentinel away
+    //    would put every uncoloured country into the legend.
+    const stored = await page.evaluate(
+      (countryId: string): string | null => {
+        const path = document.querySelector(
+          `path.country-path[data-country-id="${countryId}"]`,
+        );
+        return path === null ? null : path.getAttribute('aria-label');
+      },
+      CENTRAL_BRAZIL_COUNTRY_ID,
+    );
+    expect(
+      stored,
+      'the announced colour followed the render. #FFFFFF is what storage ' +
+        'holds and what reconcileLegend excludes; only the paint is mapped.',
+    ).toContain('current color #FFFFFF');
+    // ...and no grey legend row appeared. `reconcileLegend` excludes exactly
+    // `#FFFFFF`, so a render-time fill leaking into its feed would auto-add one
+    // entry per uncoloured country to every composition on earth.
+    await expect(page.locator('[data-layer="legend"] text')).toHaveCount(0);
+
+    // 4. THE COUNTER'S OWN CONTROL, through the same machinery.
+    await expectBlankControlReadsZeroInk(page, WHOLE_FRAME_REGION);
   });
 });

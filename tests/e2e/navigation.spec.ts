@@ -492,6 +492,12 @@ test.describe('the floating cluster stays in the letterbox gutter', (): void => 
  * it was pinned at twelve - a silent reclassification stays visible.
  */
 const NON_COLORABLE_UNIT_COUNT = 0;
+/**
+ * Every visible Modern unit, counted once (the primary copy of each wrapped
+ * triple). A literal, because it is the discrimination control for the count
+ * above and a `.length` read would move with whatever it is policing.
+ */
+const VISIBLE_MODERN_PRIMARY_UNIT_COUNT = 248;
 /** The unit the defect was reported against, and the one D4-10 unblocks. */
 const SELF_COLORABLE_UNIT_ID = 'KOS';
 /**
@@ -590,7 +596,24 @@ test.describe('every unit is colourable (D4-10)', (): void => {
      * is the browser-side proof that both colour resolvers agree: a resolver
      * that still returned the neutral fill for one of the twelve would push
      * this count off zero.
+     *
+     * **`04-08` had to REPAIR this probe rather than re-baseline it, and the
+     * distinction matters.** D4-09 made `NEUTRAL_UNIT_COLOR` the DEFAULT
+     * uncoloured fill, so at the shipped defaults every unpainted country
+     * legitimately paints `#E5E7EB` and this count reads 248 - the probe stops
+     * discriminating instead of catching anything. Re-baselining it to 248
+     * would have kept it green and killed it. Moving the uncoloured fill to a
+     * value the neutral bucket does NOT use restores exactly the original
+     * discrimination: with the fill somewhere else, the only path that can
+     * still paint `#E5E7EB` is a null-owner one.
      */
+    await openRailTool(page, 'Map style');
+    const distinctFill = page.getByRole('radio', {
+      name: 'Mid grey',
+      exact: true,
+    });
+    await distinctFill.check();
+    await expect(distinctFill).toBeChecked();
     await expect(
       page.locator(
         `path.scene-path[data-primary-unit="true"][fill="${NEUTRAL_UNIT_COLOR}"]`,
@@ -599,6 +622,15 @@ test.describe('every unit is colourable (D4-10)', (): void => {
         'has a null colour owner. Reclassifying a unit is a DATA decision ' +
         'and needs the approval chain in coding-rules/data.md.',
     ).toHaveCount(NON_COLORABLE_UNIT_COUNT);
+    /*
+     * ...and the control that proves the probe above is looking at anything at
+     * all: with the fill moved, every primary unit paints the NEW value.
+     */
+    await expect(
+      page.locator('path.scene-path[data-primary-unit="true"][fill="#D1D5DB"]'),
+      'no unit took the chosen uncoloured fill, so the assertion above is ' +
+        'counting an empty set rather than an empty null-owner bucket.',
+    ).toHaveCount(VISIBLE_MODERN_PRIMARY_UNIT_COUNT);
 
     /*
      * A. The cursor is the honest signal. It read `default` over Kosovo while

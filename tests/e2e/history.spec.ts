@@ -4,6 +4,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { applyRampRed, openRailTool } from './support/appHarness';
 
+/**
+ * `04-08` / D4-09: what an UNCOLOURED country paints. A hand-written literal,
+ * never imported: importing the constant the app renders from would make this
+ * assertion and its subject move together.
+ */
+const DEFAULT_UNCOLORED_FILL = '#E5E7EB';
+
 const HISTORY_FIXTURE_URL = '/tests/e2e/fixtures/history.html';
 const LOGICAL_CORE_COUNT = 207;
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
@@ -373,9 +380,18 @@ test.describe('approved period switching', (): void => {
     await expect(
       page.locator('path.country-path[data-country-id="FRA"]'),
     ).toHaveAttribute('aria-selected', 'false');
+    /*
+     * `04-08` / D4-09: the PAINT is the uncoloured fill and the STORED value is
+     * still the `#FFFFFF` sentinel. Both are asserted, which is stronger than
+     * the single `fill === '#FFFFFF'` this replaced: that one could not tell
+     * "no colour" from "painted white", and these two can.
+     */
     await expect(
       page.locator('path.country-path[data-country-id="FRA"]'),
-    ).toHaveAttribute('fill', '#FFFFFF');
+    ).toHaveAttribute('fill', DEFAULT_UNCOLORED_FILL);
+    await expect(
+      page.locator('path.country-path[data-country-id="FRA"]'),
+    ).toHaveAttribute('aria-label', /current color #FFFFFF$/u);
   });
 
   test('keeps the previous scene and the previous option when a period fails', async ({

@@ -4,6 +4,13 @@ import { resolve } from 'node:path';
 import { expect, test, type Download, type Page } from '@playwright/test';
 
 import { DEFAULT_COLOR } from '../../src/constants/colors';
+
+/**
+ * `04-08` / D4-09: what an UNCOLOURED country paints. A hand-written literal,
+ * never imported: importing the constant the app renders from would make this
+ * assertion and its subject move together.
+ */
+const DEFAULT_UNCOLORED_FILL = '#E5E7EB';
 import {
   applyRampShade,
   type RampFamilyLabel,
@@ -360,7 +367,16 @@ test('a full creator session survives a browser reload and exports what the scre
    * spec and posts the wrong map.
    */
   await undo.click();
-  await expect(germany).toHaveAttribute('fill', DEFAULT_COLOR);
+  /*
+   * `04-08` / D4-09: the undone country PAINTS the uncoloured fill while its
+   * STORED value returns to the `#FFFFFF` sentinel (`DEFAULT_COLOR`). Both are
+   * asserted; the paint alone could not tell "undone" from "painted white".
+   */
+  await expect(germany).toHaveAttribute('fill', DEFAULT_UNCOLORED_FILL);
+  await expect(germany).toHaveAttribute(
+    'aria-label',
+    new RegExp(`current color ${DEFAULT_COLOR}$`, 'u'),
+  );
   await expect(legendTexts).toHaveText(['Visited France']);
 
   const undone = await exportAndMeasure(page, 'undone');
@@ -391,8 +407,8 @@ test('a full creator session survives a browser reload and exports what the scre
   }
 
   // The composition lives only in memory, so a reload really is a blank page.
-  await expect(france).toHaveAttribute('fill', DEFAULT_COLOR);
-  await expect(germany).toHaveAttribute('fill', DEFAULT_COLOR);
+  await expect(france).toHaveAttribute('fill', DEFAULT_UNCOLORED_FILL);
+  await expect(germany).toHaveAttribute('fill', DEFAULT_UNCOLORED_FILL);
   await expect(legendTexts).toHaveCount(0);
 
   /*

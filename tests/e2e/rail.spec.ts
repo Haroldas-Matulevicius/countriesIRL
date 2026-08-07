@@ -10,6 +10,13 @@ import {
 } from './support/appHarness';
 
 /**
+ * `04-08` / D4-09: what an UNCOLOURED country paints. A hand-written literal,
+ * never imported: importing the constant the app renders from would make this
+ * assertion and its subject move together.
+ */
+const DEFAULT_UNCOLORED_FILL = '#E5E7EB';
+
+/**
  * The rail, in a real browser (D-12 / D-13 / D-16 / D-17 / D-18 / D-30).
  *
  * Fixtures are imported from `support/appHarness.ts` and no camera or rail
@@ -222,7 +229,17 @@ test.describe('the tool rail', (): void => {
     );
 
     await page.getByRole('button', { name: 'Undo Color Change' }).click();
-    await expect(france).toHaveAttribute('fill', '#FFFFFF');
+    /*
+     * `04-08` / D4-09: the undone country PAINTS the uncoloured fill while its
+     * STORED value returns to the `#FFFFFF` sentinel. Asserting both is
+     * stronger than the single white check this replaced - that one could not
+     * distinguish "undone" from "painted white".
+     */
+    await expect(france).toHaveAttribute('fill', DEFAULT_UNCOLORED_FILL);
+    await expect(france).toHaveAttribute(
+      'aria-label',
+      /current color #FFFFFF$/u,
+    );
     await page.getByRole('button', { name: 'Redo Color Change' }).click();
     await expect(france).toHaveAttribute('fill', '#DE2D26');
   });
