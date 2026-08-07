@@ -39,6 +39,40 @@ import {
   openRailTool,
   waitForApp,
 } from './support/appHarness';
+/*
+ * `04-13` moved the PNG decode helpers into `support/pngProbe.ts` and this file
+ * imports them rather than declaring them. `04-12` recorded the rule inside one
+ * spec — two decode paths is how two sampled-pixel assertions quietly start
+ * measuring differently decoded images — and it does not stop at the file
+ * boundary. `legend.spec.ts` now needs the same counters, so there is exactly
+ * one implementation and both specs share it.
+ */
+import {
+  DARK_INK_THRESHOLD,
+  INK_CHANNEL_THRESHOLD,
+  countInkAroundRegion,
+  expectBlankControlReadsZeroInk as expectBlankControlReadsZeroInkAt,
+  expectRegionInsideFrame,
+  hexToRgb,
+  makeFloodFilledPng,
+  readPngDimensions,
+  samplePngPoints,
+} from './support/pngProbe';
+import type { PngRegion } from './support/pngProbe';
+
+/** The shared crop shape, under the name this spec has always used for it. */
+type LegendRegion = PngRegion;
+
+/**
+ * `02-27`'s zero control, bound to this app's surface colour once rather than
+ * threaded through every call site.
+ */
+async function expectBlankControlReadsZeroInk(
+  page: Page,
+  region: LegendRegion,
+): Promise<void> {
+  await expectBlankControlReadsZeroInkAt(page, region, DEFAULT_SURFACE_COLOR);
+}
 
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
 const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
@@ -188,83 +222,10 @@ async function readClone(page: Page): Promise<CloneSummary> {
   return summary;
 }
 
-function readPngDimensions(bytes: Buffer): { width: number; height: number } {
-  const signature = bytes.subarray(0, 8).toString('hex');
-  expect(signature).toBe('89504e470d0a1a0a');
-  expect(bytes.subarray(12, 16).toString('ascii')).toBe('IHDR');
-  return {
-    width: bytes.readUInt32BE(16),
-    height: bytes.readUInt32BE(20),
-  };
-}
-
 interface CornerSample {
   readonly width: number;
   readonly height: number;
   readonly corners: ReadonlyArray<ReadonlyArray<number>>;
-}
-
-interface PointSample {
-  readonly width: number;
-  readonly height: number;
-  readonly pixels: ReadonlyArray<ReadonlyArray<number>>;
-}
-
-/**
- * The ONE arbitrary-point sampler. `04-01` generalised it out of
- * `samplePngCorners`, which now calls it: two PNG decode paths in one spec is
- * how a "sampled pixel" assertion quietly starts measuring a differently
- * decoded image from the one beside it.
- *
- * `null` for the point list means the four corners.
- */
-async function samplePngPoints(
-  page: Page,
-  bytes: Buffer,
-  points: ReadonlyArray<readonly [number, number]> | null,
-): Promise<PointSample> {
-  return page.evaluate(
-    async ({
-      base64,
-      requested,
-    }: {
-      base64: string;
-      requested: ReadonlyArray<readonly [number, number]> | null;
-    }): Promise<PointSample> => {
-      const binary = atob(base64);
-      const buffer = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        buffer[index] = binary.charCodeAt(index);
-      }
-      const bitmap = await createImageBitmap(
-        new Blob([buffer], { type: 'image/png' }),
-      );
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext('2d');
-      if (context === null) {
-        throw new Error('2D context is unavailable for PNG inspection.');
-      }
-      context.drawImage(bitmap, 0, 0);
-      const points =
-        requested ??
-        ([
-          [0, 0],
-          [bitmap.width - 1, 0],
-          [0, bitmap.height - 1],
-          [bitmap.width - 1, bitmap.height - 1],
-        ] as ReadonlyArray<readonly [number, number]>);
-      return {
-        width: bitmap.width,
-        height: bitmap.height,
-        pixels: points.map(([x, y]): ReadonlyArray<number> => [
-          ...context.getImageData(x, y, 1, 1).data,
-        ]),
-      };
-    },
-    { base64: bytes.toString('base64'), requested: points },
-  );
 }
 
 async function samplePngCorners(
@@ -297,95 +258,6 @@ const LEGEND_ENTRY_COLOR = '#DC2626';
  * gates use `rows`, because the export fixture paints a bare custom hex.
  */
 const REAL_APP_RAMP_LEGEND_FORM = 'bar' as const;
-/** Any channel below this is ink; above it is white or anti-alias halo. */
-const INK_CHANNEL_THRESHOLD = 240;
-
-interface RegionInkCounts {
-  readonly inside: number;
-  readonly outside: number;
-}
-
-interface LegendRegion {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-/**
- * Count ink pixels inside vs outside a region (with a small margin for the
- * centered border stroke and anti-aliasing). Used by the overflow backstop:
- * with only ocean in frame, ALL ink belongs to the legend, so `outside`
- * measures exactly the overflow that would clip a real composition.
- */
-async function countInkAroundRegion(
-  page: Page,
-  bytes: Buffer,
-  region: LegendRegion,
-  /**
-   * `04-01` made this a parameter. The legend backstop wants "anything not
-   * white" (240); the water gate wants "map ink" (`DARK_INK_THRESHOLD`),
-   * because a light water tint such as #F5EFE6 has two channels below 240 and
-   * would otherwise count the entire ocean as content. One counter, two
-   * thresholds - a second counting function is how a blank control ends up
-   * validating a different counter from the one it is meant to police.
-   */
-  inkThreshold: number = INK_CHANNEL_THRESHOLD,
-): Promise<RegionInkCounts> {
-  return page.evaluate(
-    async ({ base64, box, threshold }): Promise<RegionInkCounts> => {
-      const binary = atob(base64);
-      const buffer = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        buffer[index] = binary.charCodeAt(index);
-      }
-      const bitmap = await createImageBitmap(
-        new Blob([buffer], { type: 'image/png' }),
-      );
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const context = canvas.getContext('2d');
-      if (context === null) {
-        throw new Error('2D context is unavailable for PNG inspection.');
-      }
-      context.drawImage(bitmap, 0, 0);
-      const pixels = context.getImageData(0, 0, bitmap.width, bitmap.height).data;
-
-      const margin = 4;
-      const counts = { inside: 0, outside: 0 };
-      for (let offset = 0; offset < pixels.length; offset += 4) {
-        const isInk =
-          pixels[offset] < threshold ||
-          pixels[offset + 1] < threshold ||
-          pixels[offset + 2] < threshold;
-        if (!isInk) {
-          continue;
-        }
-        const pixelIndex = offset / 4;
-        const x = pixelIndex % bitmap.width;
-        const y = (pixelIndex - x) / bitmap.width;
-        const inRegion =
-          x >= box.x - margin &&
-          x <= box.x + box.width + margin &&
-          y >= box.y - margin &&
-          y <= box.y + box.height + margin;
-        if (inRegion) {
-          counts.inside += 1;
-        } else {
-          counts.outside += 1;
-        }
-      }
-      return counts;
-    },
-    {
-      base64: bytes.toString('base64'),
-      box: region,
-      threshold: inkThreshold,
-    },
-  );
-}
-
 interface LegendCropMeasurement {
   readonly inkA: number;
   readonly inkB: number;
@@ -555,31 +427,6 @@ async function resolveLegendRegion(page: Page): Promise<LegendRegion> {
   return region;
 }
 
-/**
- * Every derived crop is bounded to the 1080 frame ABSOLUTELY.
- *
- * `04-11` measured what happens without this: a crop derived from its
- * subject's own layout moved with the subject, `drawImage` read off-bitmap,
- * and the transparent black it returned was counted as solid ink — 28,050
- * phantom pixels passing a content floor. `04-12` moves legend geometry, so
- * every legend crop goes through here first.
- */
-function expectRegionInsideFrame(region: LegendRegion): void {
-  expect(region.width, 'a derived crop has no width').toBeGreaterThan(0);
-  expect(region.height, 'a derived crop has no height').toBeGreaterThan(0);
-  expect(region.x, 'a derived crop starts left of the frame').toBeGreaterThanOrEqual(0);
-  expect(region.y, 'a derived crop starts above the frame').toBeGreaterThanOrEqual(0);
-  expect(
-    region.x + region.width,
-    'a derived crop runs off the right of the 1080 frame — off-bitmap ' +
-      'samples read as transparent black and count as ink (04-11)',
-  ).toBeLessThanOrEqual(EXPORT_SIZE);
-  expect(
-    region.y + region.height,
-    'a derived crop runs off the bottom of the 1080 frame — off-bitmap ' +
-      'samples read as transparent black and count as ink (04-11)',
-  ).toBeLessThanOrEqual(EXPORT_SIZE);
-}
 
 test.describe('PNG export', (): void => {
   test('a Pacific composition downloads an exact opaque 1080 square PNG', async ({
@@ -1400,7 +1247,7 @@ test.describe('PNG export', (): void => {
  * (245, 239, 230) - and which would therefore count a flood-filled blank as
  * a full frame of content.
  */
-const DARK_INK_THRESHOLD = 100;
+
 /**
  * DERIVED FROM A MEASUREMENT taken in this same change, not guessed. The
  * default world composition exported **45,188** pixels below
@@ -1496,13 +1343,6 @@ const WHOLE_FRAME_REGION: LegendRegion = {
 const PACIFIC_LON_LAT: readonly [number, number] = [-140, 0];
 const SAHARA_LON_LAT: readonly [number, number] = [20, 26];
 
-function hexToRgb(hex: string): readonly [number, number, number] {
-  return [
-    Number.parseInt(hex.slice(1, 3), 16),
-    Number.parseInt(hex.slice(3, 5), 16),
-    Number.parseInt(hex.slice(5, 7), 16),
-  ];
-}
 
 function project(
   lonLat: readonly [number, number],
@@ -1556,35 +1396,6 @@ async function toExportPixels(
  * canvas machinery the real export uses. It is the control the content floor
  * has to survive: a counter that reads content into a flood fill fails here.
  */
-async function makeFloodFilledPng(page: Page, hex: string): Promise<Buffer> {
-  const base64 = await page.evaluate(
-    async ({ color, size }: { color: string; size: number }) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const context = canvas.getContext('2d');
-      if (context === null) {
-        throw new Error('2D context is unavailable.');
-      }
-      context.fillStyle = color;
-      context.fillRect(0, 0, size, size);
-      const blob = await new Promise<Blob | null>((settle): void => {
-        canvas.toBlob(settle, 'image/png');
-      });
-      if (blob === null) {
-        throw new Error('The control PNG did not encode.');
-      }
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      let binary = '';
-      bytes.forEach((byte): void => {
-        binary += String.fromCharCode(byte);
-      });
-      return btoa(binary);
-    },
-    { color: hex, size: EXPORT_SIZE },
-  );
-  return Buffer.from(base64, 'base64');
-}
 
 async function exportRealApp(page: Page, label: string): Promise<Buffer> {
   const downloadPromise = page.waitForEvent('download');
@@ -1855,32 +1666,6 @@ async function projectToExportPixel(
   return pixel;
 }
 
-/**
- * The counter's own control, run through the SAME function and threshold as
- * every measurement beside it. A flat frame in the water colour must read ZERO
- * ink, or a "no dark ink here" assertion is satisfied by a counter that cannot
- * see anything at all.
- */
-async function expectBlankControlReadsZeroInk(
-  page: Page,
-  region: LegendRegion,
-): Promise<void> {
-  const blank = await makeFloodFilledPng(page, DEFAULT_SURFACE_COLOR);
-  expect(readPngDimensions(blank)).toEqual({
-    width: EXPORT_SIZE,
-    height: EXPORT_SIZE,
-  });
-  const blankInk = await countInkAroundRegion(
-    page,
-    blank,
-    region,
-    DARK_INK_THRESHOLD,
-  );
-  expect(
-    blankInk.inside + blankInk.outside,
-    'the blank control reads ink, so the counter below is measuring noise.',
-  ).toBe(0);
-}
 
 /* ------------------------------------------------------------------ *
  * 04-09 - the interior-border mesh, structurally

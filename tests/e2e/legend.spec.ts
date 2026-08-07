@@ -4,17 +4,56 @@ import { MAP_VIEWBOX_SIZE } from '../../src/constants/config';
 import { DEFAULT_COMPOSITION_SETTINGS } from '../../src/constants/mapStyle';
 import { BAND_DEFAULT_HEIGHT, resolveBandExtents } from '../../src/utils/bands';
 import {
+  LEGEND_BAR_WIDTH,
   LEGEND_SAFE_INSET,
+  LEGEND_SWATCH_SIZE,
   createDefaultLegendState,
   reconcileLegend,
   resolveLegendRender,
 } from '../../src/utils/legend';
 import {
   RAMP_RED_HEX,
+  RAMP_RED_STEP,
   applyRampRed,
+  applyRampShade,
+  legendDisclosure,
   openRailTool,
   waitForApp,
 } from './support/appHarness';
+/*
+ * `04-13`: the SHARED decode path. `04-12` put its per-property PNG gate in
+ * `export.spec.ts` because every counter was private there; `04-13` moved them
+ * into `support/pngProbe.ts` instead, so this spec and `export.spec.ts` run
+ * every pixel claim through one `createImageBitmap`.
+ */
+import {
+  DARK_INK_THRESHOLD,
+  countInkAroundRegion,
+  expectBlankControlReadsZeroInk,
+  expectRegionInsideFrame,
+  exportRealAppPng,
+  hexToRgb,
+  readPngDimensions,
+  samplePngPoints,
+} from './support/pngProbe';
+import type { PngRegion } from './support/pngProbe';
+
+/**
+ * DERIVED floors, not round numbers.
+ *
+ * A one-entry bar at the default text size is a 48 x 32 segment plus a ~7
+ * character boundary label at 32 units — well over 1,500 painted pixels. The
+ * floor is set at 400, comfortably under a quarter of that, so it catches
+ * "the legend did not render" without being sensitive to anti-aliasing or to a
+ * later change in the label.
+ */
+const MIN_LEGEND_INK_PIXELS = 400;
+/**
+ * A sampled column runs the full height of a two-mark stack: 64 units for the
+ * bar, 104 for rows. Half of the SMALLER is the floor, so a column that
+ * sampled paper the whole way down cannot pass as "no gap".
+ */
+const MIN_SAMPLED_COLUMN_INK = 32;
 
 const LEGEND_FIXTURE_URL = '/tests/e2e/fixtures/legend.html';
 const RED = '#DC2626';
@@ -238,10 +277,32 @@ test.describe('legend browser interactions', (): void => {
       { width: '24', fillOpacity: null, stroke: '#9CA3AF' },
       { width: '24', fillOpacity: null, stroke: '#9CA3AF' },
     ]);
-    await expect(legendGroup.locator('text').first()).toHaveAttribute(
-      'fill',
-      '#111827',
-    );
+    /*
+     * ⚠ The ORDINAL is gone (`04-13`). This read `locator('text').first()`,
+     * which was unambiguous while a legend `<text>` could only be an entry
+     * label. The bar form adds a CAPTION as the first text in the layer, and
+     * `04-12` shipped three helpers that silently retargeted onto the wrong
+     * element for exactly this reason. Asserting EVERY text carries the one
+     * composition ink is both stronger and ordinal-free.
+     */
+    const inks = await legendGroup
+      .locator('text')
+      .evaluateAll((nodes: Element[]): ReadonlyArray<string | null> =>
+        nodes.map((node): string | null => node.getAttribute('fill')),
+      );
+    expect(inks.length, 'the legend rendered no type at all').toBe(3);
+    expect(new Set(inks)).toEqual(new Set(['#111827']));
+
+    /*
+     * `04-13`: the rows swatch is FLAT, matching a bar segment. The reference
+     * uses flat marks and this is the restyle the owner asked for — row 6 of
+     * `04-12`'s open-property table.
+     */
+    expect(
+      await painted.evaluateAll((nodes: Element[]): ReadonlyArray<string | null> =>
+        nodes.map((node): string | null => node.getAttribute('rx')),
+      ),
+    ).toEqual([null, null, null]);
     await expect(page.locator('[data-editor-only]')).toHaveCount(1);
 
     await page.getByRole('button', { name: 'Export PNG' }).click();
@@ -617,6 +678,668 @@ test.describe('G-1 investigation — the legend, measured from the running edito
     );
     expect(measured.y + measured.height).toBeLessThanOrEqual(
       MAP_VIEWBOX_SIZE - LEGEND_SAFE_INSET,
+    );
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 04-13 — the legend on REAL PNG pixels (D4-12, roadmap 04-08)
+ * ------------------------------------------------------------------ *
+ *
+ * Three gates, all on bytes the browser actually downloaded, and **no image
+ * baseline anywhere**. A re-baselined diff can never be RED-provable on its own
+ * subject, because *"the baseline changed because my plan changed it"* is
+ * unfalsifiable; the acceptance criteria assert that no new `.png` appears
+ * under any snapshot or baseline directory (T-04-13-04).
+ *
+ * Every legend region below is DERIVED from `resolveLegendRender` — the same
+ * pure function the renderer calls — cross-checked against the live DOM, and
+ * bounded to the 1080 frame by `expectRegionInsideFrame` before anything is
+ * sampled. `04-11` measured what the last step is worth: 28,050 phantom pixels
+ * from an off-bitmap crop that `drawImage` filled with transparent black and an
+ * ink counter read as solid ink.
+ *
+ * The decode path is `support/pngProbe.ts`, shared with `export.spec.ts`. There
+ * is exactly one `createImageBitmap` behind every pixel claim in the suite.
+ */
+
+const LEGEND_LAYER = 'svg.map-canvas [data-layer="legend"]';
+
+interface DerivedLegend {
+  readonly render: ReturnType<typeof resolveLegendRender>;
+  readonly region: PngRegion;
+}
+
+/**
+ * Derive the legend's geometry from live composition state and CROSS-CHECK it
+ * against the rendered DOM before returning it.
+ *
+ * The cross-check is what makes a derived crop safe: a derivation that drifted
+ * would sample a box the legend is not in and report a tidy zero, which every
+ * "there is no ink here" assertion would pass.
+ */
+async function deriveLegendGeometry(
+  page: Page,
+  legend: Parameters<typeof resolveLegendRender>[0],
+  effectiveColors: ReadonlyArray<string>,
+  inferredForm: 'bar' | 'rows',
+): Promise<DerivedLegend> {
+  const render = resolveLegendRender(
+    legend,
+    effectiveColors,
+    resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS),
+    inferredForm,
+  );
+  const layer = page.locator(LEGEND_LAYER);
+  await expect(layer).toHaveAttribute(
+    'transform',
+    `translate(${String(render.position.x)} ${String(render.position.y)})`,
+  );
+  await expect(layer.locator('[data-editor-only="true"]')).toHaveAttribute(
+    'width',
+    String(render.bounds.width),
+  );
+  await expect(layer.locator('[data-editor-only="true"]')).toHaveAttribute(
+    'height',
+    String(render.bounds.height),
+  );
+
+  const region: PngRegion = {
+    x: render.position.x,
+    y: render.position.y,
+    width: render.bounds.width,
+    height: render.bounds.height,
+  };
+  expectRegionInsideFrame(region);
+  return { render, region };
+}
+
+async function paintFranceFromTheRedRamp(page: Page): Promise<void> {
+  /*
+   * Scoped to `svg.map-canvas`. Gate C paints AFTER an export, and the export
+   * path mounts a detached clone frame in the body whose paths carry the same
+   * attributes — an unscoped locator resolves to two elements there and to one
+   * everywhere else, which is a strict-mode violation that only appears in the
+   * one ordering.
+   */
+  const france = page.locator(
+    'svg.map-canvas path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+  );
+  await france.focus();
+  await france.press('Enter');
+  await openRailTool(page, 'Colors');
+  await applyRampRed(page);
+}
+
+async function openLegendPanel(page: Page): Promise<void> {
+  await openRailTool(page, 'Legend');
+  await legendDisclosure(page).click();
+}
+
+/**
+ * An interior point of an UNCOLOURED country, chosen structurally rather than
+ * by eye: `getBBox` on a logical path the composition never painted, sampled at
+ * a point the browser itself confirms is inside the shape. Guessing a latitude
+ * is how a "sample the uncoloured fill" probe ends up sampling water.
+ */
+async function findUncoloredCountryPoint(
+  page: Page,
+  countryId: string,
+): Promise<readonly [number, number]> {
+  const point = await page
+    .locator(
+      `svg.map-canvas path.country-path[data-country-id="${countryId}"][data-path-kind="logical"]`,
+    )
+    .first()
+    .evaluate((node: Element): { x: number; y: number } | null => {
+      const path = node as SVGPathElement;
+      const svg = path.ownerSVGElement;
+      if (svg === null) {
+        return null;
+      }
+      const box = path.getBBox();
+      const canvasPoint = svg.createSVGPoint();
+      const toCanvas = path.getCTM();
+      if (toCanvas === null) {
+        return null;
+      }
+      /*
+       * Walk a grid inside the bounding box and take the first point the path
+       * itself reports as filled. A bbox centre lands outside a concave country
+       * often enough that this has to be checked rather than assumed.
+       */
+      for (let row = 1; row < 8; row += 1) {
+        for (let column = 1; column < 8; column += 1) {
+          canvasPoint.x = box.x + (box.width * column) / 8;
+          canvasPoint.y = box.y + (box.height * row) / 8;
+          if (path.isPointInFill(canvasPoint)) {
+            const projected = canvasPoint.matrixTransform(toCanvas);
+            return { x: projected.x, y: projected.y };
+          }
+        }
+      }
+      return null;
+    });
+
+  if (point === null) {
+    throw new Error(
+      `No interior point of ${countryId} could be located, so the uncoloured ` +
+        'fill sample below would be sampling whatever happens to be there.',
+    );
+  }
+  return [Math.round(point.x), Math.round(point.y)];
+}
+
+test.describe('04-13 legend gates on real PNG pixels', (): void => {
+  /* ---------------------------------------------------------------- *
+   * Gate A — the "no data" swatch IS the uncoloured fill
+   * ---------------------------------------------------------------- */
+
+  /**
+   * T-04-13-03. **One value, two consumers** — `settings.uncoloredFill` paints
+   * every uncoloured country AND the "no data" swatch — and the whole point of
+   * the row is that a reader can match them by eye. The gate asserts both
+   * halves on the same downloaded frame:
+   *
+   * 1. the swatch pixel equals `settings.uncoloredFill`;
+   * 2. an interior pixel of an uncoloured COUNTRY equals the same value;
+   * 3. therefore the two equal each other, which is the binding itself.
+   *
+   * Claim 3 alone would be satisfied by two identical wrong colours — the
+   * "cross-context equality that three blank canvases satisfy" shape this
+   * repository has shipped once — so claims 1 and 2 are named separately
+   * against the imported constant.
+   *
+   * **RED-proved by DIVERGING them**, which is the divergence
+   * `04-UI-SPEC.md § 6.7` names as the gate's subject.
+   */
+  test('Gate A: the "no data" swatch equals settings.uncoloredFill on real pixels', async ({
+    page,
+  }): Promise<void> => {
+    test.slow();
+    await waitForApp(page);
+    await paintFranceFromTheRedRamp(page);
+
+    await openLegendPanel(page);
+    await page.getByLabel('Show no data row').check();
+    await expect(page.getByLabel('Show no data row')).toBeChecked();
+
+    const legend = {
+      ...reconcileLegend([RAMP_RED_HEX], createDefaultLegendState()),
+      showNoData: true,
+    };
+    const { render, region } = await deriveLegendGeometry(
+      page,
+      legend,
+      [RAMP_RED_HEX],
+      'bar',
+    );
+
+    const noData = render.layout.noData;
+    if (noData === null) {
+      throw new Error(
+        'the "no data" row is off, so this gate has no subject. The toggle ' +
+          'did not reach the composition.',
+      );
+    }
+
+    // The swatch's centre, DERIVED — never a guessed coordinate — and inside
+    // the frame by construction because the whole region already is.
+    const swatchCentre: readonly [number, number] = [
+      Math.round(render.position.x + noData.swatchX + noData.swatchSize / 2),
+      Math.round(render.position.y + noData.swatchY + noData.swatchSize / 2),
+    ];
+    // Brazil: large, uncoloured, and nowhere near the top-left legend.
+    const countryPoint = await findUncoloredCountryPoint(page, 'BRA');
+
+    const bytes = await exportRealAppPng(page, 'legend-no-data-binding');
+
+    // 0. THE SIZE CONTRACT, from the IHDR, before anything is sampled.
+    expect(readPngDimensions(bytes)).toEqual({
+      width: MAP_VIEWBOX_SIZE,
+      height: MAP_VIEWBOX_SIZE,
+    });
+
+    // 1. CONTENT FLOOR FIRST. A legend that rendered nothing at all would
+    //    satisfy every equality below by sampling paper twice.
+    await expectBlankControlReadsZeroInk(
+      page,
+      region,
+      DEFAULT_COMPOSITION_SETTINGS.surfaceColor,
+    );
+    const legendInk = await countInkAroundRegion(
+      page,
+      bytes,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      legendInk.inside,
+      `the legend inked ${legendInk.inside} pixels against a floor of ` +
+        `${MIN_LEGEND_INK_PIXELS}. It did not reach the PNG, so the colour ` +
+        'equalities below are not about a legend.',
+    ).toBeGreaterThan(MIN_LEGEND_INK_PIXELS);
+
+    const sample = await samplePngPoints(page, bytes, [
+      swatchCentre,
+      countryPoint,
+    ]);
+    const swatchPixel = (sample.pixels[0] ?? []).slice(0, 3);
+    const countryPixel = (sample.pixels[1] ?? []).slice(0, 3);
+    const expected = [...hexToRgb(DEFAULT_COMPOSITION_SETTINGS.uncoloredFill)];
+
+    // 2. THE SWATCH IS THE UNCOLOURED FILL.
+    expect(
+      swatchPixel,
+      `the "no data" swatch at (${swatchCentre[0]}, ${swatchCentre[1]}) does ` +
+        `not read ${DEFAULT_COMPOSITION_SETTINGS.uncoloredFill}.`,
+    ).toEqual(expected);
+
+    // 3. AND SO IS AN UNCOLOURED COUNTRY.
+    expect(
+      countryPixel,
+      `an interior point of Brazil at (${countryPoint[0]}, ` +
+        `${countryPoint[1]}) does not read the uncoloured fill, so the ` +
+        'equality below would be comparing the swatch against water.',
+    ).toEqual(expected);
+
+    // 4. THE BINDING ITSELF — and it is the third claim, not the only one.
+    expect(
+      swatchPixel,
+      'the "no data" swatch and the map\'s uncoloured countries have drifted ' +
+        'apart. They are one value with two consumers.',
+    ).toEqual(countryPixel);
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Gate B — the bar has no gaps and the rows do
+   * ---------------------------------------------------------------- */
+
+  /**
+   * **Two forms, one property, opposite expectations, in the same run.**
+   * Neither direction can pass by accident: a legend that vanished would fail
+   * the rows half, and a legend that painted one solid block would fail
+   * nothing on the bar half but everything on the rows half.
+   *
+   * A column is sampled straight down the swatch stack at the marks' horizontal
+   * centre. For the **bar** no paper-coloured pixel may appear between two
+   * adjacent swatches — that is what "contiguous" means. For **rows** at least
+   * one must, because `LEGEND_ENTRY_GAP` is 8.
+   */
+  test('Gate B: the bar stack has no gaps and the rows stack does', async ({
+    page,
+  }): Promise<void> => {
+    test.slow();
+    await waitForApp(page);
+
+    // TWO colours, so there is an adjacency to have a gap in at all.
+    const france = page.locator(
+      'svg.map-canvas path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+    );
+    await france.focus();
+    await france.press('Enter');
+    await openRailTool(page, 'Colors');
+    await applyRampShade(page, 'Reds', RAMP_RED_STEP);
+    const germany = page.locator(
+      'svg.map-canvas path.country-path[data-country-id="DEU"][data-path-kind="logical"]',
+    );
+    await germany.focus();
+    await germany.press('Enter');
+    await applyRampShade(page, 'Blues', RAMP_RED_STEP);
+
+    const activeColors = await page
+      .locator(`${LEGEND_LAYER} rect:not([data-editor-only])`)
+      .evaluateAll((nodes: Element[]): ReadonlyArray<string> =>
+        nodes
+          .map((node): string | null => node.getAttribute('fill'))
+          .filter((fill): fill is string => fill !== null && fill !== 'none'),
+      );
+    expect(
+      activeColors,
+      'the legend does not carry two marks, so there is no adjacency to ' +
+        'measure a gap in.',
+    ).toHaveLength(2);
+
+    const legendState = reconcileLegend(
+      activeColors,
+      createDefaultLegendState(),
+    );
+
+    const measureColumn = async (
+      inferredForm: 'bar' | 'rows',
+      label: string,
+    ): Promise<{
+      readonly paperRuns: number;
+      readonly inkPixels: number;
+    }> => {
+      const { render, region } = await deriveLegendGeometry(
+        page,
+        { ...legendState, form: inferredForm },
+        activeColors,
+        inferredForm,
+      );
+      const bytes = await exportRealAppPng(page, label);
+      expect(readPngDimensions(bytes)).toEqual({
+        width: MAP_VIEWBOX_SIZE,
+        height: MAP_VIEWBOX_SIZE,
+      });
+      await expectBlankControlReadsZeroInk(
+        page,
+        region,
+        DEFAULT_COMPOSITION_SETTINGS.surfaceColor,
+      );
+
+      /*
+       * The sampled column and its vertical span are DERIVED from the layout,
+       * per form — the bar's marks are a 48-unit strip, the rows' are 24-unit
+       * swatches, and a shared literal x would sample the label column in one
+       * of the two.
+       */
+      const marks =
+        render.layout.form === 'bar'
+          ? {
+              x: LEGEND_BAR_WIDTH / 2,
+              top: render.layout.segments[0].y,
+              bottom:
+                render.layout.segments[1].y + render.layout.segments[1].height,
+            }
+          : {
+              x: LEGEND_SWATCH_SIZE / 2,
+              top: render.layout.items[0].y,
+              bottom:
+                render.layout.items[1].y + render.layout.items[1].height,
+            };
+      const points: Array<readonly [number, number]> = [];
+      for (
+        let y = Math.ceil(render.position.y + marks.top);
+        y < Math.floor(render.position.y + marks.bottom);
+        y += 1
+      ) {
+        points.push([Math.round(render.position.x + marks.x), y]);
+      }
+      expect(points.length, 'the sampled column is empty').toBeGreaterThan(16);
+      // Bounded to the frame absolutely, like every other derived crop here.
+      points.forEach(([x, y]): void => {
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x).toBeLessThan(MAP_VIEWBOX_SIZE);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y).toBeLessThan(MAP_VIEWBOX_SIZE);
+      });
+
+      const sampled = await samplePngPoints(page, bytes, points);
+      const paper = [
+        ...hexToRgb(DEFAULT_COMPOSITION_SETTINGS.surfaceColor),
+      ];
+      let paperRuns = 0;
+      let inkPixels = 0;
+      let wasPaper = false;
+      sampled.pixels.forEach((pixel): void => {
+        const isPaper =
+          pixel[0] === paper[0] && pixel[1] === paper[1] && pixel[2] === paper[2];
+        if (isPaper && !wasPaper) {
+          paperRuns += 1;
+        }
+        if (!isPaper) {
+          inkPixels += 1;
+        }
+        wasPaper = isPaper;
+      });
+      return { paperRuns, inkPixels };
+    };
+
+    await openLegendPanel(page);
+    await page.getByRole('radio', { name: 'Bar', exact: true }).check();
+    await expect(
+      page.getByRole('radio', { name: 'Bar', exact: true }),
+    ).toBeChecked();
+    const bar = await measureColumn('bar', 'legend-form-bar');
+
+    await page.getByRole('radio', { name: 'Rows', exact: true }).check();
+    await expect(
+      page.getByRole('radio', { name: 'Rows', exact: true }),
+    ).toBeChecked();
+    const rows = await measureColumn('rows', 'legend-form-rows');
+
+    // CONTENT FLOOR on both, so "no paper between the swatches" cannot be
+    // satisfied by a column that sampled a solid block of nothing.
+    expect(
+      bar.inkPixels,
+      'the bar column carries almost no painted pixels, so its zero gap count ' +
+        'is not about a bar.',
+    ).toBeGreaterThan(MIN_SAMPLED_COLUMN_INK);
+    expect(
+      rows.inkPixels,
+      'the rows column carries almost no painted pixels.',
+    ).toBeGreaterThan(MIN_SAMPLED_COLUMN_INK);
+
+    // THE PROPERTY, in both directions.
+    expect(
+      bar.paperRuns,
+      `the bar column shows ${bar.paperRuns} run(s) of paper between its ` +
+        'swatches. A contiguous stack has none — that is the form.',
+    ).toBe(0);
+    expect(
+      rows.paperRuns,
+      'the rows column shows no paper between its swatches, so the two forms ' +
+        'are rendering identically and the bar half proves nothing.',
+    ).toBeGreaterThan(0);
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Gate C — an empty legend renders nothing
+   * ---------------------------------------------------------------- */
+
+  /**
+   * The lift-block truth: *"the legend layer renders nothing into the exported
+   * PNG when there are no active colours."*
+   *
+   * The region is the one the legend WOULD occupy with a colour — derived from
+   * `resolveLegendRender` on a one-entry legend — so the crop is a real legend
+   * box rather than an arbitrary rectangle, and the claim is "nothing is there"
+   * rather than "nothing is somewhere".
+   *
+   * The counter is proved able to see by the SAME crop on the SAME frame with a
+   * colour applied: content floor first, then zero.
+   *
+   * ⚠ **A limitation this gate's own RED probe exposed, recorded rather than
+   * hidden.** The pixel claim counts at `DARK_INK_THRESHOLD` (100), so it is
+   * blind to a LIGHT empty container: the first probe rendered a `#9CA3AF`
+   * hairline box and the pixel claim stayed green at zero — (156, 163, 175) is
+   * not dark ink. Raising the threshold to 240 is not available, because the
+   * uncoloured land under this crop is `#E5E7EB` and would then count as
+   * thousands of ink pixels in every frame. So the pixel claim covers DARK
+   * legend ink — a caption, a label, a boundary number, a dark rule — and the
+   * structural `toHaveCount(0)` at step 5 is what covers a light one. Both
+   * ship; neither is presented as covering the other. The probe that DOES
+   * redden step 4 renders the container in `COMPOSITION_INK_COLOR` and
+   * measures **1,316** pixels against a floor of zero.
+   */
+  test('Gate C: with no active colours the legend region carries zero ink', async ({
+    page,
+  }): Promise<void> => {
+    test.slow();
+    await waitForApp(page);
+
+    const populated = resolveLegendRender(
+      reconcileLegend([RAMP_RED_HEX], createDefaultLegendState()),
+      [RAMP_RED_HEX],
+      resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS),
+      'bar',
+    );
+    const region: PngRegion = {
+      x: populated.position.x,
+      y: populated.position.y,
+      width: populated.bounds.width,
+      height: populated.bounds.height,
+    };
+    expectRegionInsideFrame(region);
+
+    /*
+     * 1. THE LAYER EXISTS, and its child count is READ here while the legend
+     *    is genuinely empty. The count is asserted at the END — see step 5 —
+     *    but it has to be MEASURED now: step 3 paints a country to establish
+     *    the content floor, so by step 5 the layer is legitimately populated.
+     *    Asserting a live locator there would have been reading the wrong
+     *    state, and the full suite caught exactly that.
+     */
+    await expect(page.locator(LEGEND_LAYER)).toHaveCount(1);
+    const emptyLayerChildCount = await page
+      .locator(`${LEGEND_LAYER} > *`)
+      .count();
+    const emptyBytes = await exportRealAppPng(page, 'legend-empty');
+    expect(readPngDimensions(emptyBytes)).toEqual({
+      width: MAP_VIEWBOX_SIZE,
+      height: MAP_VIEWBOX_SIZE,
+    });
+    /*
+     * Real synchronisation, not a sleep: the export mounts a detached clone
+     * frame under `body` and removes it when the download settles. Painting
+     * before it goes leaves TWO `svg.map-canvas` in the document and every
+     * country locator below resolves to two elements. This is the only gate
+     * here that paints AFTER an export, which is why it is the only one that
+     * needs the wait — and asserting the cleanup is worth having anyway.
+     */
+    await expect(page.locator('body > div[aria-hidden="true"]')).toHaveCount(0);
+
+    // 2. THE COUNTER'S OWN CONTROL, at the same region and threshold.
+    await expectBlankControlReadsZeroInk(
+      page,
+      region,
+      DEFAULT_COMPOSITION_SETTINGS.surfaceColor,
+    );
+
+    const emptyInk = await countInkAroundRegion(
+      page,
+      emptyBytes,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+
+    // 3. THE CONTENT FLOOR, on the SAME crop with a colour applied. Without
+    //    it, a counter that cannot see anything satisfies the zero below.
+    await paintFranceFromTheRedRamp(page);
+    const paintedBytes = await exportRealAppPng(page, 'legend-empty-control');
+    const paintedInk = await countInkAroundRegion(
+      page,
+      paintedBytes,
+      region,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      paintedInk.inside,
+      `with a colour applied the same crop reads ${paintedInk.inside} ink ` +
+        `pixels against a floor of ${MIN_LEGEND_INK_PIXELS}. The counter ` +
+        'cannot see the legend at all, so the zero above proves nothing.',
+    ).toBeGreaterThan(MIN_LEGEND_INK_PIXELS);
+
+    // 4. THE CLAIM, on real pixels.
+    expect(
+      emptyInk.inside,
+      `the empty legend inked ${emptyInk.inside} pixels into its own region. ` +
+        'With no active colours the layer must render nothing at all.',
+    ).toBe(0);
+
+    /*
+     * 5. The STRUCTURAL half, and it runs LAST on purpose.
+     *
+     *    It was written first, and the RED probe for this gate — rendering an
+     *    empty legend's container anyway — reddened it instead of the pixel
+     *    claim above. That is the *"a probe reddens a DIFFERENT gate"* shape
+     *    this repository has already shipped: with the DOM check first, the
+     *    pixel gate never ran, so nothing proved the pixel gate could fail at
+     *    all. Reordered, the same mutation reddens step 4 on its own subject
+     *    and this assertion corroborates rather than pre-empts.
+     */
+    expect(
+      emptyLayerChildCount,
+      'the empty legend layer carried children, so it rendered marks with no ' +
+        'active colours even if they were too light for the counter above.',
+    ).toBe(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * T-04-13-04 — baselines are forbidden, and the absence is ASSERTED
+ * ------------------------------------------------------------------ */
+
+/**
+ * **A re-baselined image can never be RED-provable on its own subject**,
+ * because *"the baseline changed because my plan changed it"* is unfalsifiable.
+ * Every pixel claim in this repository is a PROPERTY — a colour equality, a gap
+ * count, an ink floor — measured on bytes the browser downloaded.
+ *
+ * `04-13`'s plan asks for the absence to be asserted rather than merely
+ * observed, so this scans the suite for the two ways a baseline gets in: a
+ * committed image under `tests/`, and a call to Playwright's own snapshot
+ * matchers. A deleted `expect` proves nothing and reads as coverage; this one
+ * goes red the moment either appears.
+ */
+test.describe('no image baseline exists anywhere in the e2e suite', (): void => {
+  test('neither a committed image nor a snapshot matcher is present', async (): Promise<void> => {
+    const { readdir, readFile } = await import('node:fs/promises');
+    const { join, extname } = await import('node:path');
+
+    const IMAGE_EXTENSIONS = new Set([
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.webp',
+      '.gif',
+      '.bmp',
+    ]);
+    const SNAPSHOT_MATCHERS = [
+      'toHaveScreenshot',
+      'toMatchSnapshot',
+      'toMatchAriaSnapshot',
+    ];
+
+    const images: string[] = [];
+    const matcherHits: string[] = [];
+
+    const walk = async (directory: string): Promise<void> => {
+      const entries = await readdir(directory, { withFileTypes: true });
+      for (const entry of entries) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) {
+          await walk(path);
+          continue;
+        }
+        if (IMAGE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+          images.push(path);
+          continue;
+        }
+        if (!/\.(?:ts|tsx|html)$/u.test(entry.name)) {
+          continue;
+        }
+        const source = await readFile(path, 'utf8');
+        SNAPSHOT_MATCHERS.forEach((matcher): void => {
+          if (source.includes(`.${matcher}(`)) {
+            matcherHits.push(`${path}: ${matcher}`);
+          }
+        });
+      }
+    };
+
+    // `tests/e2e` only. `.artifacts/` holds the downloads a run produces and is
+    // gitignored — those are EVIDENCE, not baselines, and deleting them changes
+    // no assertion.
+    await walk('tests/e2e');
+
+    expect(
+      images,
+      'an image file appeared under tests/e2e. A baseline cannot be ' +
+        'RED-proved on its own subject — assert a property instead.',
+    ).toEqual([]);
+    expect(
+      matcherHits,
+      "Playwright's snapshot matchers are baselines by another name.",
+    ).toEqual([]);
+
+    // The scan must have looked at something, or the two empty arrays above
+    // are the emptiness of a walk that found no files at all.
+    const scanned = await readdir('tests/e2e');
+    expect(scanned.length, 'the baseline scan walked nothing').toBeGreaterThan(
+      5,
     );
   });
 });
