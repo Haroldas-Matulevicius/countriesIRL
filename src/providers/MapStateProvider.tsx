@@ -8,6 +8,7 @@ import type { PropsWithChildren } from 'react';
 
 import type {
   ColorMap,
+  ColorValue,
   CountryId,
   MapAction,
   MapState,
@@ -19,6 +20,7 @@ import {
   areColorMapsEqual,
   canonicalizeColorMap,
   createEmptyColorMap,
+  customColor,
   hasEffectiveColorChange,
   normalizeColor,
 } from '../utils/colors';
@@ -54,23 +56,33 @@ function markInteraction(markName: string): void {
   performance.mark(markName);
 }
 
+/**
+ * The ONE place a creator-typed hex string becomes a stored `ColorValue`. The
+ * provider's public `setColor` / `setColors` still speak hex because that is
+ * what a colour field and a preset button produce; the custom variant is a
+ * special case of the union, so this is a constructor at the write boundary,
+ * not a second storage model. A ramp assignment enters through the reducer
+ * action directly, carrying its identity rather than a frozen hex.
+ */
 export function prepareColorInteraction(
   colors: ColorMap,
   countryIds: ReadonlyArray<CountryId>,
   color: string,
-): string | null {
+): ColorValue | null {
   performance.clearMarks(COLOR_START_MARK);
   const colorResult = normalizeColor(color);
 
-  if (
-    !colorResult.ok ||
-    !hasEffectiveColorChange(colors, countryIds, colorResult.value)
-  ) {
+  if (!colorResult.ok) {
+    return null;
+  }
+
+  const colorValue = customColor(colorResult.value);
+  if (!hasEffectiveColorChange(colors, countryIds, colorValue)) {
     return null;
   }
 
   performance.mark(COLOR_START_MARK);
-  return colorResult.value;
+  return colorValue;
 }
 
 function areSelectionsEqual(
@@ -90,10 +102,7 @@ function areSelectionsEqual(
   return true;
 }
 
-function commitColors(
-  state: MapState,
-  nextColors: Readonly<Record<string, string>>,
-): MapState {
+function commitColors(state: MapState, nextColors: ColorMap): MapState {
   if (areColorMapsEqual(state.colors, nextColors)) {
     return state;
   }

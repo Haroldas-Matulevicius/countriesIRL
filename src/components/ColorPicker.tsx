@@ -10,6 +10,7 @@ import { CheckIcon } from './icons/CheckIcon';
 import type { CountryId } from '../types/map';
 import { useMapState } from '../hooks/useMapState';
 import {
+  customColor,
   getEffectiveCountryColor,
   hasEffectiveColorChange,
   normalizeColor,
@@ -74,7 +75,7 @@ export function ColorPicker({
     hasEffectiveColorChange(
       colors,
       selectedCountryIds,
-      customColorResult.value,
+      customColor(customColorResult.value),
     );
 
   const handlePresetClick = useCallback(

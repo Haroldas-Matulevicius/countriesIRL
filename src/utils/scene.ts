@@ -150,6 +150,14 @@ export function getEffectiveFeatureColor(
   return getEffectiveCountryColor(colors, feature.colorOwnerId);
 }
 
+/**
+ * RESOLVED HEXES, never union variants. `reconcileLegend` - this function's one
+ * consumer besides the canvas - keys and DEDUPES its entries by hex, so handing
+ * it `{rampId, t}` would silently change dedupe behaviour: two ramp positions
+ * that snap to one step are one legend row, exactly as two equal hexes always
+ * were. Resolution happens here, through `resolveColorValue`
+ * (`getEffectiveCountryColor` is a call, not a second reader).
+ */
 export function getEffectiveSceneColors(
   scene: EffectiveScene,
   colors: ColorMap,

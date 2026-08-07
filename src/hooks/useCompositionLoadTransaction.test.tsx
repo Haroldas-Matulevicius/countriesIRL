@@ -7,6 +7,7 @@ import type {
   MapCanvasHandle,
 } from '../types/composition';
 import type { CountryId } from '../types/map';
+import { customColor } from '../utils/colors';
 import type { StorageResult } from '../types/ui';
 import {
   createCompositionLoadTransaction,
@@ -44,8 +45,8 @@ function createSnapshot(
 ): CompositionSnapshot {
   return {
     colors: {
-      FRA: '#2563EB',
-      'hist:polish-lithuanian-commonwealth': '#DC2626',
+      FRA: customColor('#2563EB'),
+      'hist:polish-lithuanian-commonwealth': customColor('#DC2626'),
     },
     camera: {
       zoom: 4,

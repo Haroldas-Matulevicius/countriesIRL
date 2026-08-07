@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import worldManifest from '../../public/data/world-manifest.json';
 import type { MapState } from '../types/map';
+import { customColor } from '../utils/colors';
 import {
   MapStateContext,
   type MapStateContextValue,
@@ -42,7 +43,7 @@ function renderCountryList(
   query = '',
 ): string {
   const state: MapState = {
-    colors: { FRA: '#DC2626' },
+    colors: { FRA: customColor('#DC2626') },
     history: [{}],
     historyIndex: 0,
     selectedIds: new Set(['FRA']),

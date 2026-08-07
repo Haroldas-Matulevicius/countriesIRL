@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { COLOR_PRESETS } from '../constants/colors';
+import { customColor } from '../utils/colors';
 import type { ColorMap, CountryId, MapState } from '../types/map';
 import {
   MapStateContext,
@@ -133,7 +134,7 @@ describe('ColorPicker', () => {
 
   it('natively disables the active preset for colored and effective-white selections', () => {
     const redMarkup = renderColorPickerWithState(
-      createSelectedState({ FR: '#DC2626' }),
+      createSelectedState({ FR: customColor('#DC2626') }),
     );
     const whiteMarkup = renderColorPickerWithState(createSelectedState({}));
     const redButton = redMarkup.match(

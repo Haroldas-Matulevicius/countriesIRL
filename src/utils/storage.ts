@@ -28,7 +28,7 @@ import type {
   SavedCompositionV2,
   SnapshotId,
 } from '../types/composition';
-import type { ColorMap } from '../types/map';
+import type { ColorMap, ColorValue } from '../types/map';
 import type {
   EditorThemeMode,
   SavedMap,
@@ -38,7 +38,14 @@ import type {
   ToolId,
 } from '../types/ui';
 import { repairCameraState } from './camera';
-import { createEmptyColorMap, normalizeColor } from './colors';
+import {
+  createEmptyColorMap,
+  customColor,
+  isColorValue,
+  normalizeColor,
+  resolveColorMapHexes,
+  resolveColorValue,
+} from './colors';
 import { isSafeStableCountryId } from './countryIds';
 import {
   createDefaultLegendState,
@@ -237,6 +244,49 @@ function hasSafeJsonBudget(value: unknown): boolean {
   return true;
 }
 
+/**
+ * One stored hex -> one custom variant. Keeps V2's exact repair semantics: a
+ * non-canonical spelling is a repair, and an effective white is dropped without
+ * one only when it was written as the canonical `#FFFFFF`.
+ */
+function normalizeStoredCustomHex(rawHex: string): {
+  value: ColorValue | null;
+  isRepaired: boolean;
+} {
+  const colorResult = normalizeColor(rawHex);
+  if (!colorResult.ok) {
+    return { value: null, isRepaired: true };
+  }
+
+  const isSpellingRepaired = colorResult.value !== rawHex;
+  if (colorResult.value === DEFAULT_COLOR) {
+    return {
+      value: null,
+      isRepaired: isSpellingRepaired || rawHex !== DEFAULT_COLOR,
+    };
+  }
+
+  return {
+    value: customColor(colorResult.value),
+    isRepaired: isSpellingRepaired,
+  };
+}
+
+/**
+ * D4-02 at the storage boundary.
+ *
+ * A bare hex STRING is V2's own wire shape, so it is read, not repaired away -
+ * this is what `04-14` replaces with lossless V3 records. A union object is a
+ * shape this version does not WRITE, and the distinction that matters is
+ * exactly that: "a shape this version does not persist" is not corruption, only
+ * "a value that is invalid" is. So a well-formed ramp variant is accepted
+ * without raising a repair, while an unknown `rampId`, a `t` outside `[0, 1]`,
+ * or a non-finite `t` is genuinely corrupt and reported (T-04-05-01).
+ *
+ * Bounds are untouched by D4-02: `MAX_STORED_COLOR_ENTRIES` still slices the
+ * same way, and the pre-parse raw-length check plus `hasSafeJsonBudget` still
+ * run in that order, ahead of everything here. `04-14` extends them for V3.
+ */
 function normalizeColorMap(
   value: unknown,
   validCountryIds?: ReadonlySet<string>,
@@ -253,7 +303,7 @@ function normalizeColorMap(
     0,
     MAX_STORED_COLOR_ENTRIES,
   )) {
-    if (!isSafeStableCountryId(countryId) || typeof rawColor !== 'string') {
+    if (!isSafeStableCountryId(countryId)) {
       isRepaired = true;
       continue;
     }
@@ -263,24 +313,76 @@ function normalizeColorMap(
       continue;
     }
 
-    const colorResult = normalizeColor(rawColor);
-    if (!colorResult.ok) {
+    if (typeof rawColor === 'string') {
+      const stored = normalizeStoredCustomHex(rawColor);
+      isRepaired = isRepaired || stored.isRepaired;
+      if (stored.value !== null) {
+        colors[countryId] = stored.value;
+      }
+      continue;
+    }
+
+    if (!isColorValue(rawColor)) {
       isRepaired = true;
       continue;
     }
 
-    if (colorResult.value !== rawColor) {
-      isRepaired = true;
+    if (rawColor.kind === 'ramp') {
+      colors[countryId] = rawColor;
+      continue;
     }
 
-    if (colorResult.value !== DEFAULT_COLOR) {
-      colors[countryId] = colorResult.value;
-    } else if (rawColor !== DEFAULT_COLOR) {
-      isRepaired = true;
+    const stored = normalizeStoredCustomHex(rawColor.hex);
+    isRepaired = isRepaired || stored.isRepaired;
+    if (stored.value !== null) {
+      colors[countryId] = stored.value;
     }
   }
 
   return { colors, isRepaired };
+}
+
+/**
+ * The V2 WIRE shape: one canonical hex per country.
+ *
+ * Interim, and deliberate. `04-14` owns the `schemaVersion` bump to V3 and the
+ * bounds that go with it; until it lands, a save resolves every value to hex so
+ * the bytes on disk stay a valid V2 record and no file claims a version whose
+ * shape it does not have. The cost is stated rather than discovered: saving a
+ * ramp-painted map before `04-14` is LOSSY IN THE RAMP IDENTITY - reopening it
+ * yields a custom-hex map that renders identically but can no longer be
+ * re-skinned by switching ramps. It is never invalid, only lossy.
+ */
+function toStoredColorMap(colors: ColorMap): Record<string, string> {
+  const storedColors: Record<string, string> = Object.create(null) as Record<
+    string,
+    string
+  >;
+
+  for (const [countryId, value] of Object.entries(colors)) {
+    if (!isSafeStableCountryId(countryId) || !isColorValue(value)) {
+      continue;
+    }
+
+    const hex = resolveColorValue(value);
+    if (hex !== DEFAULT_COLOR) {
+      storedColors[countryId] = hex;
+    }
+  }
+
+  return storedColors;
+}
+
+function toSerializableRecord(record: SavedCompositionRecord): unknown {
+  return isSavedCompositionV2(record)
+    ? {
+        ...record,
+        composition: {
+          ...record.composition,
+          colors: toStoredColorMap(record.composition.colors),
+        },
+      }
+    : { ...record, colors: toStoredColorMap(record.colors) };
 }
 
 function areCamerasEqual(
@@ -417,7 +519,7 @@ function normalizeLegend(
   colors: ColorMap,
 ): { legend: LegendState; isRepaired: boolean } {
   const fallback = reconcileLegend(
-    Object.values(colors),
+    resolveColorMapHexes(colors),
     createDefaultLegendState(),
   );
   if (!isObjectRecord(value)) {
@@ -571,7 +673,7 @@ function createLegacyOutcome(
       camera: INITIAL_WORLD_CAMERA,
       snapshotId: 'modern',
       legend: reconcileLegend(
-        Object.values(colors),
+        resolveColorMapHexes(colors),
         createDefaultLegendState(),
       ),
       settings: DEFAULT_COMPOSITION_SETTINGS,
@@ -898,7 +1000,7 @@ export function createStorageAdapter(
     let serialized: string;
 
     try {
-      serialized = JSON.stringify(records);
+      serialized = JSON.stringify(records.map(toSerializableRecord));
     } catch {
       return { ok: false, reason: 'storage-unavailable' };
     }

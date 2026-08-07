@@ -7,6 +7,8 @@ import { WORLD_MANIFEST_URL, loadWorldGeoData } from '../hooks/useGeoData';
 import { NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { EffectiveScene, SnapshotId } from '../types/composition';
 import type { ColorMap, CountryId, SceneFeature } from '../types/map';
+import { customColor, rampColor } from './colors';
+import { reconcileLegend, createDefaultLegendState } from './legend';
 import {
   composeEffectiveScene,
   getEffectiveFeatureColor,
@@ -131,9 +133,9 @@ describe('composeEffectiveScene', (): void => {
       modernFeatures,
     });
     const colors: ColorMap = {
-      FRA: '#dc2626',
-      GLP: '#2563EB',
-      ESH: '#16A34A',
+      FRA: customColor('#dc2626'),
+      GLP: customColor('#2563EB'),
+      ESH: customColor('#16A34A'),
     };
 
     expect([...scene.selectableEntityIds]).toEqual(['FRA']);
@@ -310,9 +312,9 @@ describe('composeEffectiveScene', (): void => {
     ];
     const scene = composeHistoricalScene('1700', [], historicalFeatures, new Set());
     const sourceAndNameColors: ColorMap = {
-      FRA: '#DC2626',
-      'historical-hre-1700': '#16A34A',
-      'Holy Roman Empire': '#2563EB',
+      FRA: customColor('#DC2626'),
+      'historical-hre-1700': customColor('#16A34A'),
+      'Holy Roman Empire': customColor('#2563EB'),
     };
 
     expect(getEffectiveSceneColors(scene, sourceAndNameColors)).toEqual([
@@ -330,7 +332,9 @@ describe('composeEffectiveScene', (): void => {
       boundaryMode: 'historical',
     });
     const scene = composeHistoricalScene('1700', [], [unsafeFeature], new Set());
-    const colors = JSON.parse('{"__proto__":"#DC2626"}') as ColorMap;
+    const colors = JSON.parse(
+      '{"__proto__":{"kind":"custom","hex":"#DC2626"}}',
+    ) as ColorMap;
 
     expect(scene.features).toHaveLength(1);
     expect(scene.selectableEntityIds.size).toBe(0);
@@ -457,7 +461,7 @@ describe('the twelve self-colorable units (D4-10)', (): void => {
     const scene = await loadModernScene();
     const applied = '#DC2626';
     const colors: ColorMap = Object.fromEntries(
-      SELF_COLORABLE_IDS.map((id) => [id, applied]),
+      SELF_COLORABLE_IDS.map((id) => [id, customColor(applied)]),
     );
 
     for (const id of SELF_COLORABLE_IDS) {
@@ -487,5 +491,45 @@ describe('the twelve self-colorable units (D4-10)', (): void => {
     expect(
       reconcileSelectionForScene(new Set(SELF_COLORABLE_IDS), scene),
     ).toEqual(new Set(SELF_COLORABLE_IDS));
+  });
+});
+
+describe('the legend keeps receiving RESOLVED hexes (D4-02)', (): void => {
+  it('resolves ramp assignments to hex before the legend ever sees them', (): void => {
+    const scene = composeEffectiveScene({
+      snapshotId: 'modern',
+      modernFeatures: [
+        createSelectableFeature({
+          sourceFeatureId: 'modern-FRA',
+          entityId: 'FRA',
+          name: 'France',
+          boundaryMode: 'modern',
+        }),
+        createSelectableFeature({
+          sourceFeatureId: 'modern-DEU',
+          entityId: 'DEU',
+          name: 'Germany',
+          boundaryMode: 'modern',
+        }),
+      ],
+    });
+    // Two DIFFERENT assignments that snap to the same step. The map keeps them
+    // apart; the legend must not, because it dedupes by hex.
+    const colors: ColorMap = {
+      FRA: rampColor('blues', 0.5),
+      DEU: rampColor('blues', 0.51),
+    };
+    const effectiveColors = getEffectiveSceneColors(scene, colors);
+
+    expect(effectiveColors).toEqual(['#6BAED6', '#6BAED6']);
+    for (const effectiveColor of effectiveColors) {
+      expect(typeof effectiveColor).toBe('string');
+      expect(effectiveColor).toMatch(/^#[0-9A-F]{6}$/);
+    }
+
+    const legend = reconcileLegend(effectiveColors, createDefaultLegendState());
+
+    expect(legend.entries).toHaveLength(1);
+    expect(legend.entries[0].color).toBe('#6BAED6');
   });
 });

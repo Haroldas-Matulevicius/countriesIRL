@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { INITIAL_WORLD_CAMERA } from '../constants/camera';
 import { STORAGE_KEY } from '../constants/config';
 import type { SavedMapSummary } from '../types/ui';
+import { customColor } from '../utils/colors';
 import { createStorageAdapter, isWholeWorldCamera } from '../utils/storage';
 import type { CompositionSaveFailureReason } from '../hooks/useCompositionSaveTransaction';
 import {
@@ -85,7 +86,7 @@ describe('SaveLoad load feedback', () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { FRA: '#123456' },
+      value: { FRA: customColor('#123456') },
       warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
     });
     if (!result.ok) {
@@ -134,7 +135,7 @@ describe('SaveLoad load feedback', () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { FRA: '#123456' },
+      value: { FRA: customColor('#123456') },
       warnings: [],
     });
     if (!result.ok) {

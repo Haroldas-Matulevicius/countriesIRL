@@ -2,12 +2,13 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import type { MapAction, MapState } from '../types/map';
+import type { ColorMap, MapAction, MapState } from '../types/map';
 import {
   createInitialMapState,
   mapStateReducer,
   prepareColorInteraction,
 } from '../providers/MapStateProvider';
+import { customColor } from '../utils/colors';
 import { useMapState } from './useMapState';
 
 function reduceActions(
@@ -22,24 +23,24 @@ describe('mapStateReducer color history', (): void => {
     const initialState = createInitialMapState();
     const singleState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: '#DC2626' },
+      payload: { countryId: 'FR', color: customColor('#DC2626') },
     });
     const countryIds = ['DE', 'PL'];
     const bulkAction: MapAction = {
       type: 'SET_COLORS',
-      payload: { countryIds, color: '#2563EB' },
+      payload: { countryIds, color: customColor('#2563EB') },
     };
     const bulkState = mapStateReducer(singleState, bulkAction);
 
     countryIds[0] = 'IT';
 
     expect(initialState.colors).toEqual({});
-    expect(singleState.colors).toEqual({ FR: '#DC2626' });
+    expect(singleState.colors).toEqual({ FR: customColor('#DC2626') });
     expect(singleState.history).toHaveLength(2);
     expect(bulkState.colors).toEqual({
-      FR: '#DC2626',
-      DE: '#2563EB',
-      PL: '#2563EB',
+      FR: customColor('#DC2626'),
+      DE: customColor('#2563EB'),
+      PL: customColor('#2563EB'),
     });
     expect(bulkState.history).toHaveLength(3);
     expect(bulkState.historyIndex).toBe(2);
@@ -50,13 +51,13 @@ describe('mapStateReducer color history', (): void => {
     const initialState = createInitialMapState();
     const coloredState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: '#DC2626' },
+      payload: { countryId: 'FR', color: customColor('#DC2626') },
     });
 
     expect(
       mapStateReducer(coloredState, {
         type: 'SET_COLOR',
-        payload: { countryId: 'FR', color: '#DC2626' },
+        payload: { countryId: 'FR', color: customColor('#DC2626') },
       }),
     ).toBe(coloredState);
     expect(mapStateReducer(initialState, { type: 'UNDO' })).toBe(initialState);
@@ -67,25 +68,28 @@ describe('mapStateReducer color history', (): void => {
     const initialState = createInitialMapState();
     const coloredState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: '  #dc2626  ' },
+      payload: { countryId: 'FR', color: customColor('  #dc2626  ') },
     });
     const rgbState = mapStateReducer(coloredState, {
       type: 'SET_COLORS',
-      payload: { countryIds: ['DE'], color: ' rgb(1, 2, 3) ' },
+      payload: { countryIds: ['DE'], color: customColor(' rgb(1, 2, 3) ') },
     });
 
-    expect(coloredState.colors).toEqual({ FR: '#DC2626' });
-    expect(rgbState.colors).toEqual({ FR: '#DC2626', DE: '#010203' });
+    expect(coloredState.colors).toEqual({ FR: customColor('#DC2626') });
+    expect(rgbState.colors).toEqual({
+      FR: customColor('#DC2626'),
+      DE: customColor('#010203'),
+    });
     expect(
       mapStateReducer(coloredState, {
         type: 'SET_COLOR',
-        payload: { countryId: 'FR', color: 'rgb(220, 38, 38)' },
+        payload: { countryId: 'FR', color: customColor('rgb(220, 38, 38)') },
       }),
     ).toBe(coloredState);
     expect(
       mapStateReducer(coloredState, {
         type: 'SET_COLOR',
-        payload: { countryId: 'FR', color: 'not-a-color' },
+        payload: { countryId: 'FR', color: customColor('not-a-color') },
       }),
     ).toBe(coloredState);
   });
@@ -94,33 +98,33 @@ describe('mapStateReducer color history', (): void => {
     const initialState = createInitialMapState();
     const noOpWhiteState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: ' #fff ' },
+      payload: { countryId: 'FR', color: customColor(' #fff ') },
     });
     const noOpRgbWhiteState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: 'rgb(255, 255, 255)' },
+      payload: { countryId: 'FR', color: customColor('rgb(255, 255, 255)') },
     });
     const coloredState = mapStateReducer(initialState, {
       type: 'SET_COLORS',
-      payload: { countryIds: ['FR', 'DE'], color: '#DC2626' },
+      payload: { countryIds: ['FR', 'DE'], color: customColor('#DC2626') },
     });
     const partiallyClearedState = mapStateReducer(coloredState, {
       type: 'SET_COLORS',
-      payload: { countryIds: ['FR', 'IT'], color: '#FFFFFF' },
+      payload: { countryIds: ['FR', 'IT'], color: customColor('#FFFFFF') },
     });
 
     expect(noOpWhiteState).toBe(initialState);
     expect(noOpRgbWhiteState).toBe(initialState);
-    expect(partiallyClearedState.colors).toEqual({ DE: '#DC2626' });
+    expect(partiallyClearedState.colors).toEqual({ DE: customColor('#DC2626') });
     expect(partiallyClearedState.history).toHaveLength(3);
     expect(mapStateReducer(partiallyClearedState, { type: 'UNDO' }).colors).toEqual({
-      FR: '#DC2626',
-      DE: '#DC2626',
+      FR: customColor('#DC2626'),
+      DE: customColor('#DC2626'),
     });
     expect(
       mapStateReducer(partiallyClearedState, {
         type: 'SET_COLORS',
-        payload: { countryIds: ['FR', 'IT'], color: '#FFFFFF' },
+        payload: { countryIds: ['FR', 'IT'], color: customColor('#FFFFFF') },
       }),
     ).toBe(partiallyClearedState);
   });
@@ -130,35 +134,40 @@ describe('mapStateReducer color history', (): void => {
       type: 'LOAD_STATE',
       payload: {
         colors: {
-          FR: '#fff',
-          DE: 'rgb(255, 255, 255)',
-          IT: ' #16a34a ',
-          ES: '#abc',
-          PL: 'not-a-color',
+          FR: customColor('#fff'),
+          DE: customColor('rgb(255, 255, 255)'),
+          IT: customColor(' #16a34a '),
+          ES: customColor('#abc'),
+          PL: customColor('not-a-color'),
         },
       },
     });
 
-    expect(loadedState.colors).toEqual({ IT: '#16A34A', ES: '#AABBCC' });
-    expect(loadedState.history).toEqual([{ IT: '#16A34A', ES: '#AABBCC' }]);
+    expect(loadedState.colors).toEqual({
+      IT: customColor('#16A34A'),
+      ES: customColor('#AABBCC'),
+    });
+    expect(loadedState.history).toEqual([
+      { IT: customColor('#16A34A'), ES: customColor('#AABBCC') },
+    ]);
   });
 
   it.each(['__proto__', 'constructor', 'prototype'])(
     'rejects reserved color-map ID %s in reducer writes and loaded state',
     (reservedId): void => {
       const reservedColors = JSON.parse(
-        `{"${reservedId}":"#2563EB","FR":"#DC2626"}`,
-      ) as Record<string, string>;
+        `{"${reservedId}":{"kind":"custom","hex":"#2563EB"},"FR":{"kind":"custom","hex":"#DC2626"}}`,
+      ) as ColorMap;
       const loadedState = mapStateReducer(createInitialMapState(), {
         type: 'LOAD_STATE',
         payload: { colors: reservedColors },
       });
       const editedState = mapStateReducer(loadedState, {
         type: 'SET_COLOR',
-        payload: { countryId: reservedId, color: '#16A34A' },
+        payload: { countryId: reservedId, color: customColor('#16A34A') },
       });
 
-      expect(loadedState.colors).toEqual({ FR: '#DC2626' });
+      expect(loadedState.colors).toEqual({ FR: customColor('#DC2626') });
       expect(Object.getPrototypeOf(loadedState.colors)).toBeNull();
       expect(editedState).toBe(loadedState);
     },
@@ -171,14 +180,16 @@ describe('mapStateReducer color history', (): void => {
     expect(prepareColorInteraction({}, ['FR'], '#fff')).toBeNull();
     expect(prepareColorInteraction({}, ['FR'], 'rgb(255, 255, 255)')).toBeNull();
     expect(
-      prepareColorInteraction({ FR: '#DC2626' }, ['FR'], '  #dc2626  '),
+      prepareColorInteraction({ FR: customColor('#DC2626') }, ['FR'], '  #dc2626  '),
     ).toBeNull();
     expect(prepareColorInteraction({}, ['FR'], 'not-a-color')).toBeNull();
     expect(
       performance.getEntriesByName('countriesirl-color-start', 'mark'),
     ).toHaveLength(0);
 
-    expect(prepareColorInteraction({}, ['FR'], ' rgb(1, 2, 3) ')).toBe('#010203');
+    expect(prepareColorInteraction({}, ['FR'], ' rgb(1, 2, 3) ')).toEqual(
+      customColor('#010203'),
+    );
     expect(
       performance.getEntriesByName('countriesirl-color-start', 'mark'),
     ).toHaveLength(1);
@@ -190,20 +201,23 @@ describe('mapStateReducer color history', (): void => {
     const editedState = reduceActions([
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'FR', color: '#DC2626' },
+        payload: { countryId: 'FR', color: customColor('#DC2626') },
       },
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'DE', color: '#16A34A' },
+        payload: { countryId: 'DE', color: customColor('#16A34A') },
       },
     ]);
 
     const undoneState = mapStateReducer(editedState, { type: 'UNDO' });
     const redoneState = mapStateReducer(undoneState, { type: 'REDO' });
 
-    expect(undoneState.colors).toEqual({ FR: '#DC2626' });
+    expect(undoneState.colors).toEqual({ FR: customColor('#DC2626') });
     expect(undoneState.historyIndex).toBe(1);
-    expect(redoneState.colors).toEqual({ FR: '#DC2626', DE: '#16A34A' });
+    expect(redoneState.colors).toEqual({
+      FR: customColor('#DC2626'),
+      DE: customColor('#16A34A'),
+    });
     expect(redoneState.historyIndex).toBe(2);
   });
 
@@ -211,20 +225,23 @@ describe('mapStateReducer color history', (): void => {
     const editedState = reduceActions([
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'FR', color: '#DC2626' },
+        payload: { countryId: 'FR', color: customColor('#DC2626') },
       },
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'DE', color: '#16A34A' },
+        payload: { countryId: 'DE', color: customColor('#16A34A') },
       },
     ]);
     const undoneState = mapStateReducer(editedState, { type: 'UNDO' });
     const branchedState = mapStateReducer(undoneState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'IT', color: '#FACC15' },
+      payload: { countryId: 'IT', color: customColor('#FACC15') },
     });
 
-    expect(branchedState.colors).toEqual({ FR: '#DC2626', IT: '#FACC15' });
+    expect(branchedState.colors).toEqual({
+      FR: customColor('#DC2626'),
+      IT: customColor('#FACC15'),
+    });
     expect(branchedState.history).toHaveLength(3);
     expect(branchedState.historyIndex).toBe(2);
     expect(mapStateReducer(branchedState, { type: 'REDO' })).toBe(
@@ -237,7 +254,9 @@ describe('mapStateReducer color history', (): void => {
       type: 'SET_COLOR',
       payload: {
         countryId: 'FR',
-        color: `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
+        color: customColor(
+          `#${(index + 1).toString(16).padStart(6, '0').toUpperCase()}`,
+        ),
       },
     }));
     const editedState = reduceActions(actions);
@@ -248,9 +267,9 @@ describe('mapStateReducer color history', (): void => {
 
     expect(editedState.history).toHaveLength(51);
     expect(editedState.historyIndex).toBe(50);
-    expect(editedState.history[0]).toEqual({ FR: '#000001' });
-    expect(editedState.colors).toEqual({ FR: '#000033' });
-    expect(oldestRetainedState.colors).toEqual({ FR: '#000001' });
+    expect(editedState.history[0]).toEqual({ FR: customColor('#000001') });
+    expect(editedState.colors).toEqual({ FR: customColor('#000033') });
+    expect(oldestRetainedState.colors).toEqual({ FR: customColor('#000001') });
     expect(oldestRetainedState.historyIndex).toBe(0);
     expect(mapStateReducer(oldestRetainedState, { type: 'UNDO' })).toBe(
       oldestRetainedState,
@@ -261,7 +280,7 @@ describe('mapStateReducer color history', (): void => {
     const initialState = createInitialMapState();
     const coloredState = mapStateReducer(initialState, {
       type: 'SET_COLOR',
-      payload: { countryId: 'FR', color: '#DC2626' },
+      payload: { countryId: 'FR', color: customColor('#DC2626') },
     });
     const resetState = mapStateReducer(coloredState, { type: 'RESET_ALL' });
     const restoredState = mapStateReducer(resetState, { type: 'UNDO' });
@@ -271,19 +290,21 @@ describe('mapStateReducer color history', (): void => {
     );
     expect(resetState.colors).toEqual({});
     expect(resetState.history).toHaveLength(3);
-    expect(restoredState.colors).toEqual({ FR: '#DC2626' });
+    expect(restoredState.colors).toEqual({ FR: customColor('#DC2626') });
   });
 
   it('replaces colors with a cloned load baseline and clears undo and redo', (): void => {
-    const loadedColors: Record<string, string> = { FR: '#DC2626' };
+    const loadedColors: Record<string, ColorMap[string]> = {
+      FR: customColor('#DC2626'),
+    };
     const editedState = reduceActions([
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'DE', color: '#16A34A' },
+        payload: { countryId: 'DE', color: customColor('#16A34A') },
       },
       {
         type: 'SET_COLOR',
-        payload: { countryId: 'PL', color: '#2563EB' },
+        payload: { countryId: 'PL', color: customColor('#2563EB') },
       },
       { type: 'UNDO' },
     ]);
@@ -292,10 +313,10 @@ describe('mapStateReducer color history', (): void => {
       payload: { colors: loadedColors },
     });
 
-    loadedColors.FR = '#000000';
+    loadedColors.FR = customColor('#000000');
 
-    expect(loadedState.colors).toEqual({ FR: '#DC2626' });
-    expect(loadedState.history).toEqual([{ FR: '#DC2626' }]);
+    expect(loadedState.colors).toEqual({ FR: customColor('#DC2626') });
+    expect(loadedState.history).toEqual([{ FR: customColor('#DC2626') }]);
     expect(loadedState.history[0]).toBe(loadedState.colors);
     expect(loadedState.historyIndex).toBe(0);
     expect(mapStateReducer(loadedState, { type: 'UNDO' })).toBe(loadedState);

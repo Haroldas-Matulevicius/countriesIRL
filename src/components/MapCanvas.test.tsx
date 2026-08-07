@@ -7,6 +7,7 @@ import { INITIAL_WORLD_CAMERA } from '../constants/camera';
 import { DEFAULT_COLOR, NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { GeoFeature, SceneFeature } from '../types/map';
 import { getEffectiveFeatureColor } from '../utils/scene';
+import { customColor } from '../utils/colors';
 import {
   createCameraController,
   type CameraControllerDriver,
@@ -431,7 +432,10 @@ describe('wrapped effective scene model', (): void => {
     const historical = createSceneFeature('HIST-PLC', 'historical-entity');
     const dependency = createSceneFeature('ABW', 'inherited-dependency');
     const neutral = createSceneFeature('NEUTRAL', 'neutral');
-    const colors = { 'HIST-PLC': '#AA0000', FRA: '#0000AA' };
+    const colors = {
+      'HIST-PLC': customColor('#AA0000'),
+      FRA: customColor('#0000AA'),
+    };
 
     expect(getSceneFeatureColor(historical, colors)).toBe('#AA0000');
     expect(getSceneFeatureColor(dependency, colors)).toBe('#0000AA');
@@ -450,7 +454,7 @@ describe('wrapped effective scene model', (): void => {
   it('returns the neutral fill from BOTH colour resolvers, and they agree', (): void => {
     const neutral = createSceneFeature('NEUTRAL', 'neutral');
     const colorable = createSceneFeature('FRA', 'modern-core');
-    const colors = { FRA: '#0000AA' };
+    const colors = { FRA: customColor('#0000AA') };
 
     expect(getSceneFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);
     expect(getEffectiveFeatureColor(neutral, colors)).toBe(NEUTRAL_UNIT_COLOR);

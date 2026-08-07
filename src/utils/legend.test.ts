@@ -24,6 +24,7 @@ import {
   getEffectiveSceneColors,
 } from './scene';
 import { createLegacyCompatibleSnapshot } from '../hooks/useLocalStorage';
+import { customColor } from './colors';
 import { createInitialCompositionState } from '../providers/CompositionStateProvider';
 
 const TEST_RING: number[][] = [
@@ -93,7 +94,7 @@ describe('legend defaults', (): void => {
     );
 
     expect(createInitialCompositionState().legend).toEqual(fresh);
-    expect(createLegacyCompatibleSnapshot({ FRA: '#DC2626' }).legend).toEqual({
+    expect(createLegacyCompatibleSnapshot({ FRA: customColor('#DC2626') }).legend).toEqual({
       ...fresh,
       entries: [{ color: '#DC2626', label: '#DC2626', order: 0 }],
     });
@@ -128,8 +129,8 @@ describe('reconcileLegend', (): void => {
       ],
     });
     const colors = {
-      'HIST-HRE': '#dc2626',
-      'HIST-SAXONY': 'rgb(220, 38, 38)',
+      'HIST-HRE': customColor('#dc2626'),
+      'HIST-SAXONY': customColor('rgb(220, 38, 38)'),
     };
     const effectiveColors = getEffectiveSceneColors(scene, colors);
     const reconciled = reconcileLegend(

@@ -15,6 +15,7 @@ import type {
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
 import { repairCameraState } from './camera';
+import { customColor } from './colors';
 import { createDefaultLegendState, reconcileLegend } from './legend';
 import {
   MAX_STORAGE_JSON_DEPTH,
@@ -65,7 +66,7 @@ class FakeStorage implements Storage {
 }
 
 function createCompositionSnapshot(
-  colors: ColorMap = { FRA: '#2563EB' },
+  colors: ColorMap = { FRA: customColor('#2563EB') },
   snapshotId: SnapshotId = 'modern',
 ): CompositionSnapshot {
   return {
@@ -113,18 +114,22 @@ describe('createStorageAdapter', () => {
 
     const first = adapter.save(
       '  First map  ',
-      createCompositionSnapshot({ FRA: '#abc' }),
+      createCompositionSnapshot({ FRA: customColor('#abc') }),
     );
     const second = adapter.save(
       'Second map',
-      createCompositionSnapshot({ DEU: 'rgb(1, 2, 3)' }),
+      createCompositionSnapshot({ DEU: customColor('rgb(1, 2, 3)') }),
     );
 
     expect(first).toMatchObject({
       ok: true,
       value: {
         replaced: false,
-        savedMap: { name: 'First map', colors: { FRA: '#AABBCC' }, timestamp: 100 },
+        savedMap: {
+          name: 'First map',
+          colors: { FRA: customColor('#AABBCC') },
+          timestamp: 100,
+        },
       },
     });
     expect(second).toMatchObject({
@@ -132,8 +137,16 @@ describe('createStorageAdapter', () => {
       value: {
         replaced: false,
         savedMaps: [
-          { name: 'Second map', colors: { DEU: '#010203' }, timestamp: 200 },
-          { name: 'First map', colors: { FRA: '#AABBCC' }, timestamp: 100 },
+          {
+            name: 'Second map',
+            colors: { DEU: customColor('#010203') },
+            timestamp: 200,
+          },
+          {
+            name: 'First map',
+            colors: { FRA: customColor('#AABBCC') },
+            timestamp: 100,
+          },
         ],
       },
     });
@@ -147,22 +160,22 @@ describe('createStorageAdapter', () => {
       adapter.save(
         'White is default',
         createCompositionSnapshot({
-          FRA: '#FFFFFF',
-          DEU: '#ffffff',
-          ITA: '#16A34A',
+          FRA: customColor('#FFFFFF'),
+          DEU: customColor('#ffffff'),
+          ITA: customColor('#16A34A'),
         }),
       ),
     ).toMatchObject({
       ok: true,
       value: {
-        savedMap: { colors: { ITA: '#16A34A' } },
+        savedMap: { colors: { ITA: customColor('#16A34A') } },
       },
     });
     expect(
       adapter.load('White is default', new Set(['FRA', 'DEU', 'ITA'])),
     ).toEqual({
       ok: true,
-      value: { ITA: '#16A34A' },
+      value: { ITA: customColor('#16A34A') },
       warnings: [],
     });
   });
@@ -172,8 +185,8 @@ describe('createStorageAdapter', () => {
     (reservedId) => {
       const saveStorage = new FakeStorage();
       const ownReservedColors = JSON.parse(
-        `{"${reservedId}":"#2563EB"}`,
-      ) as Record<string, string>;
+        `{"${reservedId}":{"kind":"custom","hex":"#2563EB"}}`,
+      ) as ColorMap;
 
       expect(
         createStorageAdapter(saveStorage, () => 100).save(
@@ -199,7 +212,7 @@ describe('createStorageAdapter', () => {
         ),
       ).toEqual({
         ok: true,
-        value: { FRA: '#DC2626' },
+        value: { FRA: customColor('#DC2626') },
         warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
       });
     },
@@ -210,11 +223,11 @@ describe('createStorageAdapter', () => {
     const timestamps = [100, 200, 300];
     const adapter = createStorageAdapter(storage, () => timestamps.shift() ?? 400);
 
-    adapter.save('Alpha', createCompositionSnapshot({ FRA: '#111111' }));
-    adapter.save('Beta', createCompositionSnapshot({ DEU: '#222222' }));
+    adapter.save('Alpha', createCompositionSnapshot({ FRA: customColor('#111111') }));
+    adapter.save('Beta', createCompositionSnapshot({ DEU: customColor('#222222') }));
     const result = adapter.save(
       '  Alpha ',
-      createCompositionSnapshot({ ITA: '#333333' }),
+      createCompositionSnapshot({ ITA: customColor('#333333') }),
     );
 
     expect(result).toMatchObject({
@@ -222,8 +235,8 @@ describe('createStorageAdapter', () => {
       value: {
         replaced: true,
         savedMaps: [
-          { name: 'Alpha', colors: { ITA: '#333333' }, timestamp: 300 },
-          { name: 'Beta', colors: { DEU: '#222222' }, timestamp: 200 },
+          { name: 'Alpha', colors: { ITA: customColor('#333333') }, timestamp: 300 },
+          { name: 'Beta', colors: { DEU: customColor('#222222') }, timestamp: 200 },
         ],
       },
     });
@@ -237,7 +250,7 @@ describe('createStorageAdapter', () => {
     const storage = new FakeStorage();
     const result = createStorageAdapter(storage).save(
       name,
-      createCompositionSnapshot({ FRA: '#123456' }),
+      createCompositionSnapshot({ FRA: customColor('#123456') }),
     );
 
     expect(result).toEqual({ ok: false, reason });
@@ -255,7 +268,7 @@ describe('createStorageAdapter', () => {
     for (let index = 1; index <= 11; index += 1) {
       adapter.save(
         `Map ${index}`,
-        createCompositionSnapshot({ FRA: '#123456' }),
+        createCompositionSnapshot({ FRA: customColor('#123456') }),
       );
     }
 
@@ -301,7 +314,7 @@ describe('createStorageAdapter', () => {
 
     expect(result).toEqual({
       ok: true,
-      value: { FRA: '#AABBCC', DEU: '#0A141E' },
+      value: { FRA: customColor('#AABBCC'), DEU: customColor('#0A141E') },
       warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
     });
   });
@@ -321,14 +334,14 @@ describe('createStorageAdapter', () => {
     expect(adapter.list()).toEqual({
       ok: true,
       value: [
-        { name: 'Clean map', colors: { FRA: '#123456' }, timestamp: 200 },
+        { name: 'Clean map', colors: { FRA: customColor('#123456') }, timestamp: 200 },
         { name: 'Corrupt map', colors: {}, timestamp: 100 },
       ],
       warnings: [{ code: 'corrupt-data', recordIndex: 1 }],
     });
     expect(adapter.load('Clean map', new Set(['FRA', 'DEU']))).toEqual({
       ok: true,
-      value: { FRA: '#123456' },
+      value: { FRA: customColor('#123456') },
       warnings: [],
     });
     expect(adapter.load('Corrupt map', new Set(['FRA', 'DEU']))).toEqual({
@@ -353,7 +366,7 @@ describe('createStorageAdapter', () => {
 
     expect(createStorageAdapter(storage).load('Stale map', new Set(['FRA']))).toEqual({
       ok: true,
-      value: { FRA: '#123456' },
+      value: { FRA: customColor('#123456') },
       warnings: [{ code: 'corrupt-data', recordIndex: 0 }],
     });
   });
@@ -375,8 +388,8 @@ describe('createStorageAdapter', () => {
     expect(adapter.list()).toEqual({
       ok: true,
       value: [
-        { name: 'Alpha', colors: { FRA: '#111111' }, timestamp: 300 },
-        { name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 },
+        { name: 'Alpha', colors: { FRA: customColor('#111111') }, timestamp: 300 },
+        { name: 'Beta', colors: { ESP: customColor('#444444') }, timestamp: 50 },
       ],
       warnings: [
         { code: 'corrupt-data', recordIndex: 1 },
@@ -385,12 +398,14 @@ describe('createStorageAdapter', () => {
     });
     expect(adapter.load(' Alpha ', new Set(['FRA', 'DEU', 'ITA']))).toEqual({
       ok: true,
-      value: { FRA: '#111111' },
+      value: { FRA: customColor('#111111') },
       warnings: [],
     });
     expect(adapter.delete('  Alpha ')).toEqual({
       ok: true,
-      value: [{ name: 'Beta', colors: { ESP: '#444444' }, timestamp: 50 }],
+      value: [
+        { name: 'Beta', colors: { ESP: customColor('#444444') }, timestamp: 50 },
+      ],
       warnings: [
         { code: 'corrupt-data', recordIndex: 1 },
         { code: 'corrupt-data', recordIndex: 2 },
@@ -430,8 +445,8 @@ describe('createStorageAdapter', () => {
     expect(result).toEqual({
       ok: true,
       value: [
-        { name: 'Valid', colors: { FRA: '#123456' }, timestamp: 300 },
-        { name: 'Partial', colors: { ITA: '#AABBCC' }, timestamp: 100 },
+        { name: 'Valid', colors: { FRA: customColor('#123456') }, timestamp: 300 },
+        { name: 'Partial', colors: { ITA: customColor('#AABBCC') }, timestamp: 100 },
       ],
       warnings: [
         { code: 'corrupt-data', recordIndex: 1 },
@@ -453,7 +468,7 @@ describe('createStorageAdapter', () => {
     expect(
       createStorageAdapter(quotaStorage).save(
         'Map',
-        createCompositionSnapshot({ FRA: '#123456' }),
+        createCompositionSnapshot({ FRA: customColor('#123456') }),
       ),
     ).toEqual({
       ok: false,
@@ -462,7 +477,7 @@ describe('createStorageAdapter', () => {
     expect(
       createStorageAdapter(blockedStorage).save(
         'Map',
-        createCompositionSnapshot({ FRA: '#123456' }),
+        createCompositionSnapshot({ FRA: customColor('#123456') }),
       ),
     ).toEqual({
       ok: false,
@@ -595,8 +610,8 @@ describe('createStorageAdapter', () => {
     const storage = new FakeStorage();
     const snapshot = createCompositionSnapshot(
       {
-        FRA: '#2563EB',
-        'hist:polish-lithuanian-commonwealth': '#DC2626',
+        FRA: customColor('#2563EB'),
+        'hist:polish-lithuanian-commonwealth': customColor('#DC2626'),
       },
       '1700',
     );
@@ -604,12 +619,20 @@ describe('createStorageAdapter', () => {
 
     const saveResult = adapter.save('Historical view', snapshot);
     expectSuccess(saveResult);
+    // The V2 WIRE shape is one canonical hex per country - the union is the
+    // in-memory model, not the persisted one, until `04-14` bumps to V3.
     expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
       {
         schemaVersion: 2,
         name: 'Historical view',
         timestamp: 500,
-        composition: snapshot,
+        composition: {
+          ...snapshot,
+          colors: {
+            FRA: '#2563EB',
+            'hist:polish-lithuanian-commonwealth': '#DC2626',
+          },
+        },
       },
     ]);
 
@@ -651,14 +674,18 @@ describe('createStorageAdapter', () => {
 
   it('migrates V1 in memory with defaults and never writes during list or load', () => {
     const storage = new FakeStorage();
-    const colors = { FRA: '#DC2626' };
+    // V1 persists a bare hex per country. The record on disk keeps that shape;
+    // what comes back in memory is the D4-02 union, with the hex demoted to the
+    // custom variant.
+    const storedColors = { FRA: '#DC2626' };
+    const colors: ColorMap = { FRA: customColor('#DC2626') };
     storage.values.set(
       STORAGE_KEY,
-      JSON.stringify([{ name: 'Legacy', colors, timestamp: 100 }]),
+      JSON.stringify([{ name: 'Legacy', colors: storedColors, timestamp: 100 }]),
     );
     const adapter = createStorageAdapter(storage);
     const expectedLegend = reconcileLegend(
-      Object.values(colors),
+      Object.values(storedColors),
       createDefaultLegendState(),
     );
 
@@ -694,7 +721,7 @@ describe('createStorageAdapter', () => {
       ]),
     );
     const snapshot = createCompositionSnapshot({
-      'hist:napoleonic-entity': '#16A34A',
+      'hist:napoleonic-entity': customColor('#16A34A'),
     }, '1815');
 
     const result = createStorageAdapter(storage, () => 200).save(
@@ -702,12 +729,18 @@ describe('createStorageAdapter', () => {
       snapshot,
     );
     expectSuccess(result);
+    // The BYTES stay a valid V2 record: one canonical hex per country, never a
+    // union object. `04-14` owns the V3 bump that persists the ramp identity;
+    // until then a save is lossy in that identity and never invalid.
     expect(JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null')).toEqual([
       {
         schemaVersion: 2,
         name: 'Legacy',
         timestamp: 200,
-        composition: snapshot,
+        composition: {
+          ...snapshot,
+          colors: { 'hist:napoleonic-entity': '#16A34A' },
+        },
       },
       { name: 'Neighbor', colors: { DEU: '#222222' }, timestamp: 50 },
     ]);
@@ -742,8 +775,12 @@ describe('createStorageAdapter', () => {
     expect(adapter.list()).toEqual({
       ok: true,
       value: [
-        { name: 'Legacy', colors: { FRA: '#2563EB' }, timestamp: 300 },
-        { name: 'Recovered', colors: { 'hist:safe': '#DC2626' }, timestamp: 200 },
+        { name: 'Legacy', colors: { FRA: customColor('#2563EB') }, timestamp: 300 },
+        {
+          name: 'Recovered',
+          colors: { 'hist:safe': customColor('#DC2626') },
+          timestamp: 200,
+        },
       ],
       warnings: [
         { code: 'corrupt-data', recordIndex: 1 },
@@ -764,7 +801,7 @@ describe('createStorageAdapter', () => {
       ok: true,
       sourceVersion: 2,
       value: {
-        colors: { 'hist:safe': '#DC2626' },
+        colors: { 'hist:safe': customColor('#DC2626') },
         snapshotId: '1700',
         legend: {
           entries: [{ color: '#DC2626', label: 'Safe', order: 0 }],

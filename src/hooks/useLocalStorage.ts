@@ -17,6 +17,7 @@ import type {
   ToolId,
 } from '../types/ui';
 import { useEditorConfig } from '../providers/EditorConfigProvider';
+import { resolveColorMapHexes } from '../utils/colors';
 import { createDefaultLegendState, reconcileLegend } from '../utils/legend';
 import type { SaveMapValue, StorageAdapter } from '../utils/storage';
 
@@ -59,7 +60,7 @@ export function createLegacyCompatibleSnapshot(
     camera: INITIAL_WORLD_CAMERA,
     snapshotId: 'modern',
     legend: reconcileLegend(
-      Object.values(colors),
+      resolveColorMapHexes(colors),
       createDefaultLegendState(),
     ),
     settings: DEFAULT_COMPOSITION_SETTINGS,

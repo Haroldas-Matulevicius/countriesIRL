@@ -7,6 +7,7 @@ import type {
   MapCanvasHandle,
 } from '../types/composition';
 import type { ColorMap } from '../types/map';
+import { customColor } from '../utils/colors';
 import type { StorageResult } from '../types/ui';
 import type { SaveMapValue } from '../utils/storage';
 import {
@@ -87,8 +88,8 @@ function createDependencies(
   return {
     getMapCanvasHandle: vi.fn(() => handle),
     getColors: vi.fn((): ColorMap => ({
-      FRA: '#2563EB',
-      'hist:napoleonic-entity': '#DC2626',
+      FRA: customColor('#2563EB'),
+      'hist:napoleonic-entity': customColor('#DC2626'),
     })),
     getComposition: vi.fn(() =>
       createComposition({
@@ -118,8 +119,8 @@ describe('createCompositionSaveTransaction', (): void => {
       centerLatitude: 8,
     };
     const colors: ColorMap = {
-      FRA: '#2563EB',
-      'hist:napoleonic-entity': '#DC2626',
+      FRA: customColor('#2563EB'),
+      'hist:napoleonic-entity': customColor('#DC2626'),
     };
     const composition = createComposition(staleCamera);
     const handle = createHandle('visible', liveCamera, calls);
