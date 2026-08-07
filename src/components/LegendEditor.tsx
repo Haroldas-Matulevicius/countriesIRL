@@ -18,6 +18,7 @@ import type {
   LegendTextSize,
 } from '../types/composition';
 import type { CompositionStateContextValue } from '../providers/CompositionStateProvider';
+import type { BandExtents } from '../utils/bands';
 import {
   LEGEND_LABEL_FIT_MESSAGE,
   getActiveLegendEntries,
@@ -83,6 +84,8 @@ interface LegendEditorProps {
   legend: LegendState;
   effectiveColors: ReadonlyArray<string>;
   bounds: LegendBounds;
+  /** D4-13 — see `LegendOverlay`. The picker and the overlay must agree. */
+  bandExtents: BandExtents;
   commands: LegendEditorCommands;
   onStatusMessage: (message: string) => void;
 }
@@ -128,6 +131,7 @@ export function LegendEditor({
   legend,
   effectiveColors,
   bounds,
+  bandExtents,
   commands,
   onStatusMessage,
 }: LegendEditorProps): JSX.Element {
@@ -169,8 +173,8 @@ export function LegendEditor({
 
   const validation = useMemo(
     (): LegendValidationResult =>
-      validateActiveLegend(legend, effectiveColors, bounds),
-    [bounds, effectiveColors, legend],
+      validateActiveLegend(legend, effectiveColors, bounds, bandExtents),
+    [bandExtents, bounds, effectiveColors, legend],
   );
 
   const blockingMessage = validation.ok
@@ -282,7 +286,9 @@ export function LegendEditor({
   };
 
   const setCorner = (corner: LegendCorner, label: string): void => {
-    commands.setLegendPosition(getLegendCornerPosition(corner, bounds));
+    commands.setLegendPosition(
+      getLegendCornerPosition(corner, bounds, bandExtents),
+    );
     onStatusMessage(`Legend moved to ${label}.`);
   };
 
@@ -290,7 +296,7 @@ export function LegendEditor({
   // free position, which is what reveals the nudge controls. Its announcement
   // is the existing approved string - no new message enters the allowlist.
   const setCustomPosition = (): void => {
-    const resolved = resolveLegendPosition(legend.position, bounds);
+    const resolved = resolveLegendPosition(legend.position, bounds, bandExtents);
     commands.setLegendPosition({
       x: resolved.x,
       y: resolved.y,
@@ -304,7 +310,7 @@ export function LegendEditor({
     // stored value that may predate a column reflow.
     commands.setLegendPosition(
       nudgeLegendPosition(
-        resolveLegendPosition(legend.position, bounds),
+        resolveLegendPosition(legend.position, bounds, bandExtents),
         direction,
         bounds,
       ),

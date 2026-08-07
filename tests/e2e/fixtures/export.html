@@ -33,12 +33,22 @@
       import { createRoot } from 'react-dom/client';
       import { MapCanvas } from '/src/components/MapCanvas.tsx';
       import { LegendOverlay } from '/src/components/LegendOverlay.tsx';
+      import { DEFAULT_COMPOSITION_SETTINGS } from '/src/constants/mapStyle.ts';
+      import { resolveBandExtents } from '/src/utils/bands.ts';
       import { CompositionStateProvider } from '/src/providers/CompositionStateProvider.tsx';
       import { useCompositionState } from '/src/hooks/useCompositionState.ts';
       import { useGeoData } from '/src/hooks/useGeoData.ts';
       import { exportMapPng } from '/src/utils/export.ts';
 
       const h = createElement;
+      /*
+       * D4-13: the legend's band extents must be the SAME ones MapCanvas
+       * derives, or the legend the spec crops to is not the legend the canvas
+       * drew. This fixture passes no band props, so MapCanvas defaults them
+       * from `DEFAULT_COMPOSITION_SETTINGS` — which is what this reads, rather
+       * than restating `{top: 120, bottom: 0}` beside it.
+       */
+      const LEGEND_BAND_EXTENTS = resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS);
       const LEGEND_COLOR = '#DC2626';
       const LEGEND_LABEL = 'Pacific route';
       const EXPORT_DATE = new Date('2026-07-21T12:00:00.000Z');
@@ -230,6 +240,11 @@
           get legendState() {
             return state.legend;
           },
+          // D4-13: and the extents that placed it, so the spec's crop cannot
+          // drift from the render by assuming a band configuration.
+          get legendBandExtents() {
+            return LEGEND_BAND_EXTENTS;
+          },
           setLegendLabel: (label) =>
             setLegendEntry({ color: LEGEND_COLOR, label, order: 0 }),
           setLegendTextSize: (textSize) => setLegendStyle({ textSize }),
@@ -327,6 +342,7 @@
           legendSlot: h(LegendOverlay, {
             legend: state.legend,
             effectiveColors,
+            bandExtents: LEGEND_BAND_EXTENTS,
             onPositionChange: () => undefined,
             onStatusMessage: () => undefined,
           }),

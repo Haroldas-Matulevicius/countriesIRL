@@ -5,8 +5,11 @@ import type {
   LegendState,
 } from '../types/composition';
 import type { SceneFeature } from '../types/map';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
+import { BAND_DEFAULT_HEIGHT, BAND_MAX_HEIGHT, resolveBandExtents } from './bands';
 import {
   LEGEND_CHARACTERS_PER_LINE,
+  LEGEND_SAFE_INSET,
   createDefaultLegendState,
   createLegendLayout,
   getActiveLegendEntries,
@@ -36,6 +39,13 @@ const TEST_RING: number[][] = [
 ];
 
 const TEST_LEGEND_BOUNDS = Object.freeze({ width: 320, height: 240 });
+/**
+ * Bands OFF. Every pre-D4-13 case below asserts the BARE safe inset, and it
+ * still holds exactly — the band-aware inset adds to 32, it does not replace
+ * it. Passing this explicitly rather than defaulting the parameter is what
+ * keeps a production call site from silently opting out of the inset.
+ */
+const NO_BANDS = Object.freeze({ top: 0, bottom: 0 });
 
 function createHistoricalFeature(
   sourceFeatureId: string,
@@ -93,10 +103,10 @@ describe('legend defaults', (): void => {
     ]);
     // The coordinates agree with the preset they claim, so the disclosure
     // summary can never describe a position the render contradicts.
-    expect(getLegendCornerPosition('top-left', { width: 0, height: 0 })).toEqual(
+    expect(getLegendCornerPosition('top-left', { width: 0, height: 0 }, NO_BANDS)).toEqual(
       fresh.position,
     );
-    expect(getLegendCornerPosition('top-left', TEST_LEGEND_BOUNDS)).toEqual(
+    expect(getLegendCornerPosition('top-left', TEST_LEGEND_BOUNDS, NO_BANDS)).toEqual(
       fresh.position,
     );
 
@@ -109,18 +119,18 @@ describe('legend defaults', (): void => {
 
   it('keeps the default valid for the export gate at boot and after the first color', (): void => {
     const fresh = createDefaultLegendState();
-    const empty = resolveLegendRender(fresh, []);
+    const empty = resolveLegendRender(fresh, [], NO_BANDS);
     expect(empty.position).toEqual(fresh.position);
-    expect(validateActiveLegend(fresh, [], empty.bounds)).toEqual({
+    expect(validateActiveLegend(fresh, [], empty.bounds, NO_BANDS)).toEqual({
       ok: true,
       activeEntries: [],
     });
 
     const colored = reconcileLegend(['#DC2626'], fresh);
-    const rendered = resolveLegendRender(colored, ['#DC2626']);
+    const rendered = resolveLegendRender(colored, ['#DC2626'], NO_BANDS);
     expect(rendered.position).toEqual(fresh.position);
     expect(
-      validateActiveLegend(colored, ['#DC2626'], rendered.bounds),
+      validateActiveLegend(colored, ['#DC2626'], rendered.bounds, NO_BANDS),
     ).toMatchObject({ ok: true });
   });
 });
@@ -233,6 +243,177 @@ describe('legend ordering and layout', (): void => {
   });
 });
 
+/* ------------------------------------------------------------------ *
+ * D4-13 — the band-aware inset
+ * ------------------------------------------------------------------ */
+
+/**
+ * The legend's top inset follows the top band's resolved height, and the
+ * bottom one follows the bottom band's. Two things make this the right shape
+ * rather than a literal `y = 152`:
+ *
+ * - it fixes **both** top presets, not only the default one, and both bottom
+ *   presets symmetrically;
+ * - it is a pure function of composition state, so it is `node`-testable with
+ *   no DOM and the legend can never collide with a band a creator has grown.
+ *
+ * Every case below asserts the number **twice** — once as a literal, once
+ * reproduced from `LEGEND_SAFE_INSET + bandHeight`. The literal catches a
+ * change to the arithmetic; the derivation catches a change to either input
+ * that a literal alone would hide. Neither form on its own can fail on both.
+ *
+ * ⚠ **This moves exported pixels.** Toggling a band now moves the legend. That
+ * is intended and it is gated per-property (D4-14), never by a re-baselined
+ * image.
+ */
+describe('the band-aware legend inset (D4-13)', (): void => {
+  const BOUNDS = TEST_LEGEND_BOUNDS;
+  const NO_BANDS = { top: 0, bottom: 0 } as const;
+
+  it('leaves a top-anchored preset at the bare safe inset when the top band is off', (): void => {
+    const extents = resolveBandExtents({
+      topBandVisible: false,
+      topBandHeight: BAND_DEFAULT_HEIGHT,
+      bottomBandVisible: false,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+
+    expect(extents.top).toBe(0);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(32);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(
+      LEGEND_SAFE_INSET + extents.top,
+    );
+  });
+
+  it('insets a top-anchored preset by the top band at its default height', (): void => {
+    const extents = resolveBandExtents({
+      topBandVisible: true,
+      topBandHeight: BAND_DEFAULT_HEIGHT,
+      bottomBandVisible: false,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+
+    expect(BAND_DEFAULT_HEIGHT).toBe(120);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(152);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(
+      LEGEND_SAFE_INSET + BAND_DEFAULT_HEIGHT,
+    );
+  });
+
+  it('insets a top-anchored preset by the top band at its cap', (): void => {
+    const extents = resolveBandExtents({
+      topBandVisible: true,
+      topBandHeight: BAND_MAX_HEIGHT,
+      bottomBandVisible: false,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+
+    expect(BAND_MAX_HEIGHT).toBe(154);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(186);
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents).y).toBe(
+      LEGEND_SAFE_INSET + BAND_MAX_HEIGHT,
+    );
+  });
+
+  it('grows a bottom-anchored preset symmetrically by the bottom band', (): void => {
+    const extents = resolveBandExtents({
+      topBandVisible: false,
+      topBandHeight: BAND_DEFAULT_HEIGHT,
+      bottomBandVisible: true,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+    const bareY = getLegendCornerPosition('bottom-left', BOUNDS, NO_BANDS).y;
+    const bandedY = getLegendCornerPosition('bottom-left', BOUNDS, extents).y;
+
+    expect(bareY).toBe(808);
+    expect(bandedY).toBe(688);
+    expect(bareY - bandedY).toBe(BAND_DEFAULT_HEIGHT);
+    // Symmetry, stated as the arithmetic rather than as a second literal.
+    expect(bandedY + BOUNDS.height).toBe(
+      1080 - LEGEND_SAFE_INSET - extents.bottom,
+    );
+  });
+
+  it('resolves the default position to {x: 32, y: 152} under Phase 4 defaults', (): void => {
+    const fresh = createDefaultLegendState();
+    const extents = resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS);
+
+    // The STORED default is unchanged: `top-left` at 32/32. The inset
+    // arithmetic is what moves it, so nothing had to be written back.
+    expect(fresh.position).toEqual({ x: 32, y: 32, preset: 'top-left' });
+
+    const colored = reconcileLegend(['#DC2626'], fresh);
+    const rendered = resolveLegendRender(colored, ['#DC2626'], extents);
+
+    expect(rendered.position).toEqual({ x: 32, y: 152, preset: 'top-left' });
+    expect(rendered.position.y).toBe(LEGEND_SAFE_INSET + extents.top);
+    // 14% down the square, below the title block, hugging the left edge —
+    // which is where the owner's reference puts it.
+    expect(rendered.position.y / 1080).toBeCloseTo(0.1407, 4);
+  });
+
+  it('moves BOTH top presets, not only the default one', (): void => {
+    const extents = resolveBandExtents({
+      topBandVisible: true,
+      topBandHeight: BAND_DEFAULT_HEIGHT,
+      bottomBandVisible: true,
+      bottomBandHeight: BAND_MAX_HEIGHT,
+    });
+
+    expect(getLegendCornerPosition('top-left', BOUNDS, extents)).toEqual({
+      x: 32,
+      y: 152,
+      preset: 'top-left',
+    });
+    expect(getLegendCornerPosition('top-right', BOUNDS, extents)).toEqual({
+      x: 728,
+      y: 152,
+      preset: 'top-right',
+    });
+    expect(getLegendCornerPosition('bottom-left', BOUNDS, extents)).toEqual({
+      x: 32,
+      y: 808 - BAND_MAX_HEIGHT,
+      preset: 'bottom-left',
+    });
+    expect(getLegendCornerPosition('bottom-right', BOUNDS, extents)).toEqual({
+      x: 728,
+      y: 808 - BAND_MAX_HEIGHT,
+      preset: 'bottom-right',
+    });
+  });
+
+  it('still clamps a legend whose layout would leave the square', (): void => {
+    // Three columns of two-line rows: 960 x 760, the tallest legend the
+    // product can produce. Both bands at their cap on top of it.
+    const entries = createEntries(30).map((entry) => ({
+      ...entry,
+      label: 'A very long two line label',
+    }));
+    const legend = withEntries(entries, {
+      position: { x: 32, y: 32, preset: 'top-left' },
+    });
+    const effectiveColors = entries.map((entry) => entry.color);
+    const extents = resolveBandExtents({
+      topBandVisible: true,
+      topBandHeight: BAND_MAX_HEIGHT,
+      bottomBandVisible: true,
+      bottomBandHeight: BAND_MAX_HEIGHT,
+    });
+    const rendered = resolveLegendRender(legend, effectiveColors, extents);
+
+    expect(rendered.bounds.width).toBe(960);
+    expect(rendered.position.x).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
+    expect(rendered.position.y).toBeGreaterThanOrEqual(LEGEND_SAFE_INSET);
+    expect(rendered.position.x + rendered.bounds.width).toBeLessThanOrEqual(
+      1080 - LEGEND_SAFE_INSET,
+    );
+    expect(
+      rendered.position.y + rendered.bounds.height,
+      'the band-aware inset pushed the legend off the bottom of the square',
+    ).toBeLessThanOrEqual(1080 - LEGEND_SAFE_INSET);
+  });
+});
+
 describe('legend positioning', (): void => {
   it.each([
     ['top-left', { x: 32, y: 32 }],
@@ -240,7 +421,7 @@ describe('legend positioning', (): void => {
     ['bottom-left', { x: 32, y: 808 }],
     ['bottom-right', { x: 728, y: 808 }],
   ] as const)('places %s at the exact safe inset', (corner, expected): void => {
-    expect(getLegendCornerPosition(corner, TEST_LEGEND_BOUNDS)).toEqual({
+    expect(getLegendCornerPosition(corner, TEST_LEGEND_BOUNDS, NO_BANDS)).toEqual({
       ...expected,
       preset: corner,
     });
@@ -270,14 +451,14 @@ describe('resolveLegendPosition', (): void => {
     // Dragged to the far right edge while 8 colors made one column.
     const parkedRight = { x: 712, y: 32, preset: null };
 
-    expect(resolveLegendPosition(parkedRight, ONE_COLUMN)).toEqual({
+    expect(resolveLegendPosition(parkedRight, ONE_COLUMN, NO_BANDS)).toEqual({
       x: 712,
       y: 32,
       preset: null,
     });
     // The 9th color reflows to two columns: 712 + 648 = 1360 would put 280px
     // outside the 1080 canvas, so the resolved x drops to the new maximum.
-    expect(resolveLegendPosition(parkedRight, TWO_COLUMNS)).toEqual({
+    expect(resolveLegendPosition(parkedRight, TWO_COLUMNS, NO_BANDS)).toEqual({
       x: 400,
       y: 32,
       preset: null,
@@ -288,7 +469,7 @@ describe('resolveLegendPosition', (): void => {
   it('re-clamps at the harsher 16 to 17 entry step', (): void => {
     const parkedRight = { x: 400, y: 32, preset: null };
 
-    expect(resolveLegendPosition(parkedRight, THREE_COLUMNS)).toEqual({
+    expect(resolveLegendPosition(parkedRight, THREE_COLUMNS, NO_BANDS)).toEqual({
       x: 88,
       y: 32,
       preset: null,
@@ -301,12 +482,14 @@ describe('resolveLegendPosition', (): void => {
       resolveLegendPosition(
         { x: 0, y: 0, preset: 'bottom-right' },
         ONE_COLUMN,
+        NO_BANDS,
       ),
     ).toEqual({ x: 712, y: 560, preset: 'bottom-right' });
     expect(
       resolveLegendPosition(
         { x: 712, y: 560, preset: 'bottom-right' },
         THREE_COLUMNS,
+        NO_BANDS,
       ),
     ).toEqual({ x: 88, y: 688, preset: 'bottom-right' });
   });
@@ -316,12 +499,14 @@ describe('resolveLegendPosition', (): void => {
       resolveLegendPosition(
         { x: Number.NaN, y: -4000, preset: null },
         ONE_COLUMN,
+        NO_BANDS,
       ),
     ).toEqual({ x: 32, y: 32, preset: null });
     expect(
       resolveLegendPosition(
         { x: 900, y: 900, preset: 'middle' as never },
         ONE_COLUMN,
+        NO_BANDS,
       ),
     ).toEqual({ x: 712, y: 560, preset: null });
   });
@@ -333,6 +518,7 @@ describe('resolveLegendPosition', (): void => {
     const resolved = resolveLegendRender(
       legend,
       createEntries(9).map((entry) => entry.color),
+      NO_BANDS,
     );
 
     expect(resolved.bounds).toEqual({ width: 648, height: resolved.layout.height });
@@ -478,7 +664,7 @@ describe('validateActiveLegend export gate', (): void => {
     );
 
     expect(
-      validateActiveLegend(overflowing, ['#DC2626'], TEST_LEGEND_BOUNDS),
+      validateActiveLegend(overflowing, ['#DC2626'], TEST_LEGEND_BOUNDS, NO_BANDS),
     ).toMatchObject({
       ok: false,
       issues: [{ code: 'label-does-not-fit', path: 'entries[0].label' }],
@@ -487,7 +673,7 @@ describe('validateActiveLegend export gate', (): void => {
     // Reset All Colors leaves the stored entry in place but drops every active
     // color, so the export gate must clear even though the entry never changed.
     expect(
-      validateActiveLegend(overflowing, ['#FFFFFF'], TEST_LEGEND_BOUNDS),
+      validateActiveLegend(overflowing, ['#FFFFFF'], TEST_LEGEND_BOUNDS, NO_BANDS),
     ).toEqual({ ok: true, activeEntries: [] });
   });
 
@@ -499,10 +685,13 @@ describe('validateActiveLegend export gate', (): void => {
     const strandedRight = withEntries(entries, {
       position: { x: 712, y: 32, preset: null },
     });
-    const bounds = resolveLegendRender(strandedRight, effectiveColors).bounds;
+    const bounds = resolveLegendRender(strandedRight, effectiveColors, NO_BANDS)
+      .bounds;
 
     expect(bounds.width).toBe(648);
-    expect(validateActiveLegend(strandedRight, effectiveColors, bounds)).toEqual(
+    expect(
+      validateActiveLegend(strandedRight, effectiveColors, bounds, NO_BANDS),
+    ).toEqual(
       {
         ok: true,
         activeEntries: getActiveLegendEntries(effectiveColors, strandedRight),
@@ -535,7 +724,7 @@ describe('validateActiveLegend export gate', (): void => {
       textSize: 'medium',
     });
     expect(
-      validateActiveLegend(bare, ['#DC2626'], TEST_LEGEND_BOUNDS),
+      validateActiveLegend(bare, ['#DC2626'], TEST_LEGEND_BOUNDS, NO_BANDS),
     ).toEqual({ ok: true, activeEntries: [entry] });
 
     expect(
@@ -545,6 +734,7 @@ describe('validateActiveLegend export gate', (): void => {
         }),
         ['#DC2626'],
         TEST_LEGEND_BOUNDS,
+        NO_BANDS,
       ),
     ).toMatchObject({
       ok: false,

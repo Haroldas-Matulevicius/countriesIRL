@@ -12,10 +12,12 @@ import type {
 } from '../types/composition';
 import { COMPOSITION_FONT_FAMILY } from '../styles/interFontFace';
 import { COMPOSITION_INK_COLOR } from '../utils/contrast';
+import type { BandExtents } from '../utils/bands';
 import {
   LEGEND_CHARACTERS_PER_LINE,
   clampLegendPosition,
   nudgeLegendPosition,
+  resolveLegendBounds,
   resolveLegendRender,
 } from '../utils/legend';
 import type { LegendBounds, LegendLayoutItem } from '../utils/legend';
@@ -54,6 +56,13 @@ const LEGEND_FONT_FAMILY = COMPOSITION_FONT_FAMILY;
 interface LegendOverlayProps {
   legend: LegendState;
   effectiveColors: ReadonlyArray<string>;
+  /**
+   * D4-13 — how far each band reaches into the square, from
+   * `resolveBandExtents`. REQUIRED, never defaulted: a silent
+   * `{top: 0, bottom: 0}` would render the legend under the title band and
+   * nothing would catch it.
+   */
+  bandExtents: BandExtents;
   onPositionChange: (position: LegendPosition) => void;
   onStatusMessage: (message: string) => void;
 }
@@ -93,11 +102,16 @@ function splitLabel(label: string, textSize: LegendTextSize): ReadonlyArray<stri
   ];
 }
 
+/**
+ * The legend's box. Band-independent by construction — a band MOVES the legend,
+ * it never resizes it — so this goes through `resolveLegendBounds` rather than
+ * inventing a `bandExtents` it would then throw away.
+ */
 export function getLegendOverlayBounds(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
 ): LegendBounds {
-  return resolveLegendRender(legend, effectiveColors).bounds;
+  return resolveLegendBounds(legend, effectiveColors);
 }
 
 /**
@@ -161,6 +175,7 @@ function renderLegendText(
 export function LegendOverlay({
   legend,
   effectiveColors,
+  bandExtents,
   onPositionChange,
   onStatusMessage,
 }: LegendOverlayProps): JSX.Element {
@@ -171,6 +186,7 @@ export function LegendOverlay({
   const { activeEntries, layout, bounds, position } = resolveLegendRender(
     legend,
     effectiveColors,
+    bandExtents,
   );
   const dragStateRef = useRef<DragState | null>(null);
 

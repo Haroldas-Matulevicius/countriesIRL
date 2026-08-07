@@ -12,6 +12,7 @@ import {
 import { createWorldProjection } from '../../src/utils/mapProjection';
 import {
   LEGEND_CHARACTERS_PER_LINE,
+  LEGEND_SAFE_INSET,
   resolveLegendRender,
 } from '../../src/utils/legend';
 import type { LegendState } from '../../src/types/composition';
@@ -19,7 +20,9 @@ import {
   BAND_DEFAULT_HEIGHT,
   BAND_KEYBOARD_STEP,
   BAND_MAX_HEIGHT,
+  resolveBandExtents,
 } from '../../src/utils/bands';
+import type { BandExtents } from '../../src/utils/bands';
 import {
   WIDEST_CHARACTER_ADVANCE_EM,
   compositionTextLength,
@@ -134,6 +137,8 @@ declare global {
       readonly bodyFrameCount: number;
       readonly anchorCount: number;
       readonly legendState: LegendState;
+    /** D4-13 — the extents that placed the legend, read from the fixture. */
+    readonly legendBandExtents: BandExtents;
       setLegendLabel(label: string): void;
       setLegendTextSize(textSize: LegendState['textSize']): void;
       selectCountry(countryId: string): void;
@@ -498,18 +503,62 @@ async function measureLegendCrops(
   );
 }
 
-/** The legend crop bounds, derived from `resolveLegendRender` — never hard-coded. */
+/**
+ * The legend crop bounds, derived from `resolveLegendRender` — never
+ * hard-coded, and since D4-13 never assuming a band configuration either: the
+ * extents come from the fixture that placed the legend, so a crop cannot drift
+ * from its subject by disagreeing about where the top band ends.
+ *
+ * ⚠ The crop MOVES with the legend, which is the `04-11` phantom-pixel shape.
+ * `expectRegionInsideFrame` bounds it to the 1080 square absolutely before any
+ * caller samples it.
+ */
 async function resolveLegendRegion(page: Page): Promise<LegendRegion> {
-  const legendState = await page.evaluate(
-    (): LegendState => window.__exportFixture.legendState,
+  const { legendState, legendBandExtents } = await page.evaluate(
+    (): { legendState: LegendState; legendBandExtents: BandExtents } => ({
+      legendState: window.__exportFixture.legendState,
+      legendBandExtents: window.__exportFixture.legendBandExtents,
+    }),
   );
-  const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
-  return {
+  const render = resolveLegendRender(
+    legendState,
+    [LEGEND_ENTRY_COLOR],
+    legendBandExtents,
+  );
+  const region = {
     x: render.position.x,
     y: render.position.y,
     width: render.bounds.width,
     height: render.bounds.height,
   };
+  expectRegionInsideFrame(region);
+  return region;
+}
+
+/**
+ * Every derived crop is bounded to the 1080 frame ABSOLUTELY.
+ *
+ * `04-11` measured what happens without this: a crop derived from its
+ * subject's own layout moved with the subject, `drawImage` read off-bitmap,
+ * and the transparent black it returned was counted as solid ink — 28,050
+ * phantom pixels passing a content floor. `04-12` moves legend geometry, so
+ * every legend crop goes through here first.
+ */
+function expectRegionInsideFrame(region: LegendRegion): void {
+  expect(region.width, 'a derived crop has no width').toBeGreaterThan(0);
+  expect(region.height, 'a derived crop has no height').toBeGreaterThan(0);
+  expect(region.x, 'a derived crop starts left of the frame').toBeGreaterThanOrEqual(0);
+  expect(region.y, 'a derived crop starts above the frame').toBeGreaterThanOrEqual(0);
+  expect(
+    region.x + region.width,
+    'a derived crop runs off the right of the 1080 frame — off-bitmap ' +
+      'samples read as transparent black and count as ink (04-11)',
+  ).toBeLessThanOrEqual(EXPORT_SIZE);
+  expect(
+    region.y + region.height,
+    'a derived crop runs off the bottom of the 1080 frame — off-bitmap ' +
+      'samples read as transparent black and count as ink (04-11)',
+  ).toBeLessThanOrEqual(EXPORT_SIZE);
 }
 
 test.describe('PNG export', (): void => {
@@ -1243,10 +1292,17 @@ test.describe('PNG export', (): void => {
 
     // Crop bounds derive from resolveLegendRender applied to the LIVE legend
     // state — never a hard-coded rectangle.
-    const legendState = await page.evaluate(
-      (): LegendState => window.__exportFixture.legendState,
+    const { legendState, legendBandExtents } = await page.evaluate(
+      (): { legendState: LegendState; legendBandExtents: BandExtents } => ({
+        legendState: window.__exportFixture.legendState,
+        legendBandExtents: window.__exportFixture.legendBandExtents,
+      }),
     );
-    const render = resolveLegendRender(legendState, [LEGEND_ENTRY_COLOR]);
+    const render = resolveLegendRender(
+      legendState,
+      [LEGEND_ENTRY_COLOR],
+      legendBandExtents,
+    );
     const region: LegendRegion = {
       x: render.position.x,
       y: render.position.y,
@@ -3165,6 +3221,21 @@ const MIN_TITLE_INK_PIXELS = 1_000;
 const MIN_FONT_CROP_INK_PIXELS = 1_000;
 const MIN_FONT_CROP_DIFF_PIXELS = 1_500;
 const MIN_TEXT_OVER_LEGEND_INK_PIXELS = 800;
+/**
+ * `04-12` D4-13. DERIVED FROM A MEASUREMENT taken in this change, installed
+ * Chrome **151.0.7922.76**, water `Warm paper`, one red-painted country: the
+ * one-column legend crop measured **2,085** pixels below `DARK_INK_THRESHOLD`
+ * with the top band on and **2,062** with it off. The floor is **1,000** —
+ * under half the smaller of the two, so ordinary rendering variation does not
+ * make it flap, and well above the zero a blank frame produces through the
+ * same counter at the same threshold.
+ *
+ * ⚠ The threshold matters and the default would have destroyed this gate:
+ * `Warm paper` is (245, 239, 230), two channels under the 240 default, so at
+ * `INK_CHANNEL_THRESHOLD` the crop measured **36,225** — the whole rectangle,
+ * water included. Measured, not assumed.
+ */
+const MIN_LEGEND_CROP_INK_PIXELS = 1_000;
 /** The water this whole block runs on; non-white so the band is not a no-op. */
 const TEXT_WATER_PRESET_NAME = 'Warm paper';
 
@@ -3415,6 +3486,233 @@ test.describe('composition text', (): void => {
   });
 
   /**
+   * **D4-13 - toggling the top band moves the exported legend, per-property.**
+   *
+   * `04-12` made the legend's top inset `LEGEND_SAFE_INSET + bandExtents.top`,
+   * so a creator toggling the title band **moves exported pixels**. That is
+   * intended, and `04-CONTEXT.md` D4-14 is explicit about how it may be gated:
+   * **per-property, never by a re-baselined image.** "The baseline changed
+   * because my plan changed it" is unfalsifiable, so no image baseline exists
+   * anywhere in this phase and none is added here.
+   *
+   * The property is proven on two real downloaded PNGs and a derived region:
+   *
+   * 1. both frames are exactly 1080x1080, read from the IHDR;
+   * 2. both crops are bounded to that frame ABSOLUTELY before anything is
+   *    sampled - `04-11` measured 28,050 phantom pixels from an off-bitmap
+   *    crop that `drawImage` filled with transparent black and an ink counter
+   *    read as solid ink;
+   * 3. the content floor comes FIRST and the blank control runs through the
+   *    SAME counter, so "the crops differ" can never be satisfied by two empty
+   *    boxes;
+   * 4. the load-bearing claim: the legend's own swatch - an opaque
+   *    `#DE2D26` - is AT the band-on point and is NOT at the band-off point,
+   *    and vice versa. The region moved up by exactly `BAND_DEFAULT_HEIGHT`.
+   *
+   * It lives in this file rather than in `legend.spec.ts`, where `04-12`'s plan
+   * put it, and the reason is the one `general.md` states: `countInkAroundRegion`,
+   * `samplePngPoints`, `expectBlankControlReadsZeroInk`, `readPngDimensions`,
+   * and `exportRealApp` all live here, and a second PNG decode path in another
+   * spec is how two "sampled pixel" assertions quietly start decoding
+   * differently. Recorded as a deviation in `04-12-SUMMARY.md`.
+   */
+  test('04-12 D4-13: toggling the top band moves the exported legend by exactly the band height', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+    await openRailTool(page, 'Map style');
+    // A non-white surface, so the band under the legend is not a silent no-op.
+    await chooseTextGateWater(page);
+
+    const france = page.locator(
+      'path.country-path[data-country-id="FRA"][data-path-kind="logical"]',
+    );
+    await france.focus();
+    await france.press('Enter');
+    await openRailTool(page, 'Colors');
+    await applyRampRed(page);
+    await openRailTool(page, 'Map style');
+
+    const legendLayer = page.locator('svg.map-canvas [data-layer="legend"]');
+    const legendState = reconcileLegend(
+      [RAMP_RED_HEX],
+      createDefaultLegendState(),
+    );
+
+    /*
+     * Both regions DERIVED from `resolveLegendRender` - the same pure function
+     * the renderer uses - and each cross-checked against the live DOM before
+     * its frame is exported. The cross-check is what makes a derived crop safe:
+     * a derivation that drifted would sample a box the legend is not in and
+     * report a tidy zero.
+     */
+    const readSwatchCentre = async (
+      origin: { readonly x: number; readonly y: number },
+    ): Promise<readonly [number, number]> => {
+      const swatch = legendLayer.locator(`rect[fill="${RAMP_RED_HEX}"]`);
+      await expect(swatch).toHaveCount(1);
+      const box = await swatch.evaluate((node: Element) => ({
+        x: Number(node.getAttribute('x')),
+        y: Number(node.getAttribute('y')),
+        width: Number(node.getAttribute('width')),
+        height: Number(node.getAttribute('height')),
+      }));
+      return [
+        Math.round(origin.x + box.x + box.width / 2),
+        Math.round(origin.y + box.y + box.height / 2),
+      ];
+    };
+
+    // --- band ON, at the shipped default -------------------------------
+    await setBandVisible(page, 'Top band', true);
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveAttribute('height', String(BAND_DEFAULT_HEIGHT));
+
+    const renderOn = resolveLegendRender(
+      legendState,
+      [RAMP_RED_HEX],
+      resolveBandExtents({
+        topBandVisible: true,
+        topBandHeight: BAND_DEFAULT_HEIGHT,
+        bottomBandVisible: false,
+        bottomBandHeight: BAND_DEFAULT_HEIGHT,
+      }),
+    );
+    await expect(legendLayer).toHaveAttribute(
+      'transform',
+      `translate(${String(renderOn.position.x)} ${String(renderOn.position.y)})`,
+    );
+    const regionOn: LegendRegion = {
+      x: renderOn.position.x,
+      y: renderOn.position.y,
+      width: renderOn.bounds.width,
+      height: renderOn.bounds.height,
+    };
+    const swatchOn = await readSwatchCentre(renderOn.position);
+    const bytesOn = await exportRealApp(page, 'legend-band-on');
+
+    // --- band OFF ------------------------------------------------------
+    await setBandVisible(page, 'Top band', false);
+    await expect(
+      page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
+    ).toHaveCount(0);
+
+    const renderOff = resolveLegendRender(
+      legendState,
+      [RAMP_RED_HEX],
+      resolveBandExtents({
+        topBandVisible: false,
+        topBandHeight: BAND_DEFAULT_HEIGHT,
+        bottomBandVisible: false,
+        bottomBandHeight: BAND_DEFAULT_HEIGHT,
+      }),
+    );
+    await expect(legendLayer).toHaveAttribute(
+      'transform',
+      `translate(${String(renderOff.position.x)} ${String(renderOff.position.y)})`,
+    );
+    const regionOff: LegendRegion = {
+      x: renderOff.position.x,
+      y: renderOff.position.y,
+      width: renderOff.bounds.width,
+      height: renderOff.bounds.height,
+    };
+    const swatchOff = await readSwatchCentre(renderOff.position);
+    const bytesOff = await exportRealApp(page, 'legend-band-off');
+
+    // 0. THE SIZE CONTRACT, on both frames, from the IHDR.
+    [bytesOn, bytesOff].forEach((bytes: Buffer): void => {
+      expect(readPngDimensions(bytes)).toEqual({
+        width: EXPORT_SIZE,
+        height: EXPORT_SIZE,
+      });
+    });
+
+    // 1. BOTH derived crops bounded to the 1080 frame, absolutely (04-11).
+    expectRegionInsideFrame(regionOn);
+    expectRegionInsideFrame(regionOff);
+
+    // 2. THE GEOMETRY PROPERTY: up by exactly the band height, x untouched.
+    expect(regionOn.y - regionOff.y).toBe(BAND_DEFAULT_HEIGHT);
+    expect(regionOn.y).toBe(LEGEND_SAFE_INSET + BAND_DEFAULT_HEIGHT);
+    expect(regionOff.y).toBe(LEGEND_SAFE_INSET);
+    expect(regionOn.x).toBe(regionOff.x);
+    expect(swatchOn[1] - swatchOff[1]).toBe(BAND_DEFAULT_HEIGHT);
+    // Band on, the legend CLEARS the band. Band off, it sits where the band was.
+    expect(regionOn.y).toBeGreaterThanOrEqual(BAND_DEFAULT_HEIGHT);
+    expect(regionOff.y).toBeLessThan(BAND_DEFAULT_HEIGHT);
+
+    // 3. CONTENT FLOOR FIRST, and the instrument checked on a blank at the
+    //    same size through the same counter. Two empty boxes satisfy every
+    //    "they differ" claim perfectly, and that defect has shipped here.
+    await expectBlankControlReadsZeroInk(page, regionOn);
+    await expectBlankControlReadsZeroInk(page, regionOff);
+    /*
+     * `DARK_INK_THRESHOLD`, not the default 240. `Warm paper` is
+     * (245, 239, 230) — two channels under 240 — so at the default threshold
+     * the whole crop counts as ink and the floor stops measuring anything.
+     * The same trap `measureLegendCrops` records by name.
+     */
+    const inkOn = await countInkAroundRegion(
+      page,
+      bytesOn,
+      regionOn,
+      DARK_INK_THRESHOLD,
+    );
+    const inkOff = await countInkAroundRegion(
+      page,
+      bytesOff,
+      regionOff,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      inkOn.inside,
+      `the band-on legend crop carries ${inkOn.inside} pixels of content ` +
+        `against a floor of ${MIN_LEGEND_CROP_INK_PIXELS}: it is blank, so ` +
+        'every claim below is about an empty box.',
+    ).toBeGreaterThan(MIN_LEGEND_CROP_INK_PIXELS);
+    expect(
+      inkOff.inside,
+      `the band-off legend crop carries ${inkOff.inside} pixels of content ` +
+        `against a floor of ${MIN_LEGEND_CROP_INK_PIXELS}.`,
+    ).toBeGreaterThan(MIN_LEGEND_CROP_INK_PIXELS);
+
+    /*
+     * 4. THE LOAD-BEARING CLAIM, on rasterised bytes: the legend's opaque
+     *    swatch is at the band-on point in the band-on frame and NOT there in
+     *    the band-off frame, and symmetrically. Four samples, so neither
+     *    direction can be satisfied by a legend that simply vanished.
+     */
+    const red = [...hexToRgb(RAMP_RED_HEX)];
+    const sampleAt = async (
+      bytes: Buffer,
+      point: readonly [number, number],
+    ): Promise<ReadonlyArray<number>> =>
+      (await samplePngPoints(page, bytes, [point])).pixels[0]?.slice(0, 3) ?? [];
+
+    expect(
+      await sampleAt(bytesOn, swatchOn),
+      `the band-on export has no legend swatch at (${swatchOn.join(", ")}).`,
+    ).toEqual(red);
+    expect(
+      await sampleAt(bytesOff, swatchOff),
+      `the band-off export has no legend swatch at (${swatchOff.join(", ")}).`,
+    ).toEqual(red);
+    expect(
+      await sampleAt(bytesOff, swatchOn),
+      'the band-off export still carries the legend swatch at the BAND-ON ' +
+        'point, so the legend did not move when the band was switched off.',
+    ).not.toEqual(red);
+    expect(
+      await sampleAt(bytesOn, swatchOff),
+      'the band-on export already carries the legend swatch at the BAND-OFF ' +
+        'point, so the inset never moved it.',
+    ).not.toEqual(red);
+  });
+
+  /**
    * **GATE C - the paint order at a DELIBERATELY FORCED overlap.**
    *
    * The top band is dragged to its cap, the legend sits at its default
@@ -3487,6 +3785,54 @@ test.describe('composition text', (): void => {
       page.locator('svg.map-canvas [data-layer="bands"] rect[data-band="top"]'),
     ).toHaveAttribute('height', String(BAND_MAX_HEIGHT));
 
+    const legendLayer = page.locator('svg.map-canvas [data-layer="legend"]');
+    const bandedExtents = resolveBandExtents({
+      topBandVisible: true,
+      topBandHeight: BAND_MAX_HEIGHT,
+      bottomBandVisible: false,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+    const presetLegend = reconcileLegend(
+      [RAMP_RED_HEX],
+      createDefaultLegendState(),
+    );
+
+    /*
+     * D4-13 re-baseline, deliberate and itemised — the reason this test needed
+     * a new step at all.
+     *
+     * A PRESET legend can no longer overlap the top band: its inset is now
+     * `LEGEND_SAFE_INSET + bandExtents.top`, so at the cap it resolves to
+     * y = 186 and clears a 154-unit band by construction. Asserted here rather
+     * than assumed, because it is the premise of everything that follows.
+     */
+    const presetRender = resolveLegendRender(
+      presetLegend,
+      [RAMP_RED_HEX],
+      bandedExtents,
+    );
+    expect(presetRender.position.y).toBe(LEGEND_SAFE_INSET + BAND_MAX_HEIGHT);
+    expect(
+      presetRender.position.y,
+      'a preset legend still reaches into the top band, so D4-13 is not in ' +
+        'force and the custom-position step below is unnecessary.',
+    ).toBeGreaterThanOrEqual(BAND_MAX_HEIGHT);
+    await expect(legendLayer).toHaveAttribute('transform', 'translate(32 186)');
+
+    /*
+     * So the overlap is forced the one way that remains, and it is a real
+     * creator path rather than a test-only poke: a CUSTOM position. Custom
+     * positions are deliberately not band-aware — a creator who dragged the
+     * legend somewhere chose that spot, and a band must not shove it. Five
+     * large keyboard nudges walk it from 186 up to the 32 clamp.
+     */
+    const moveLegend = legendLayer.getByRole('button', { name: 'Move legend' });
+    await moveLegend.focus();
+    for (let press = 0; press < 5; press += 1) {
+      await moveLegend.press('Shift+ArrowUp');
+    }
+    await expect(legendLayer).toHaveAttribute('transform', 'translate(32 32)');
+
     /*
      * The legend region is DERIVED from `resolveLegendRender` - never
      * hard-coded, which is assertion 25's existing practice - and then checked
@@ -3494,12 +3840,15 @@ test.describe('composition text', (): void => {
      * derivation that drifted would otherwise sample a box the legend is not
      * in and report a tidy zero.
      */
-    const legendState = reconcileLegend(
+    const legendState: LegendState = {
+      ...presetLegend,
+      position: { x: LEGEND_SAFE_INSET, y: LEGEND_SAFE_INSET, preset: null },
+    };
+    const render = resolveLegendRender(
+      legendState,
       [RAMP_RED_HEX],
-      createDefaultLegendState(),
+      bandedExtents,
     );
-    const render = resolveLegendRender(legendState, [RAMP_RED_HEX]);
-    const legendLayer = page.locator('svg.map-canvas [data-layer="legend"]');
     await expect(legendLayer).toHaveAttribute(
       'transform',
       `translate(${String(render.position.x)} ${String(render.position.y)})`,
@@ -3568,6 +3917,9 @@ test.describe('composition text', (): void => {
       height:
         render.position.y + labelTop - (render.position.y + TEXT_REGION_MARGIN),
     };
+    // Bounded to the 1080 frame absolutely: this crop is derived from its own
+    // subject's layout, and `04-12` moves that layout (04-11 phantom pixels).
+    expectRegionInsideFrame(overlapCrop);
     expect(overlapCrop.height).toBeGreaterThan(0);
     expect(overlapCrop.y + overlapCrop.height).toBeLessThan(BAND_MAX_HEIGHT);
 

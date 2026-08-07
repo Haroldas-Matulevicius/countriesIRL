@@ -77,6 +77,13 @@
       } from '/src/utils/legend.ts';
 
       const h = React.createElement;
+      /*
+       * D4-13: this harness renders NO bands, so its extents are genuinely
+       * zero and every position assertion in `legend.spec.ts` is the bare safe
+       * inset. Stated explicitly rather than defaulted — a defaulted zero is
+       * indistinguishable from a call site that forgot.
+       */
+      const NO_BANDS = { top: 0, bottom: 0 };
       const STANDARD_COLORS = ['#DC2626', '#2563EB', '#B45309'];
       const HISTORICAL_COLOR = '#B45309';
       const POSITION_LABELS = {
@@ -152,6 +159,7 @@
           state.legend,
           effectiveColors,
           bounds,
+          NO_BANDS,
         );
         const positionLabel =
           state.legend.position.preset === null
@@ -256,6 +264,7 @@
                 legend: state.legend,
                 effectiveColors,
                 bounds,
+                bandExtents: NO_BANDS,
                 commands,
                 onStatusMessage: setStatusMessage,
               }),
@@ -311,6 +320,7 @@
             h(LegendOverlay, {
               legend: state.legend,
               effectiveColors,
+              bandExtents: NO_BANDS,
               onPositionChange: setLegendPosition,
               onStatusMessage: setStatusMessage,
             }),

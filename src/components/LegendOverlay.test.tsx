@@ -1,11 +1,21 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
+import { DEFAULT_COMPOSITION_SETTINGS } from '../constants/mapStyle';
 import type { LegendEntryState, LegendState } from '../types/composition';
+import type { BandExtents } from '../utils/bands';
+import { BAND_DEFAULT_HEIGHT, resolveBandExtents } from '../utils/bands';
 import { LegendOverlay, getLegendOverlayBounds } from './LegendOverlay';
 
 const CANVAS_SIZE = 1080;
 const SAFE_INSET = 32;
+/**
+ * Bands OFF for the framing cases below, so their geometry is the bare safe
+ * inset and a column reflow is the only thing moving anything. The band-aware
+ * inset has its own suite in `utils/legend.test.ts`; the wiring assertion that
+ * the prop actually reaches the rendered transform is at the end of this file.
+ */
+const NO_BANDS: BandExtents = { top: 0, bottom: 0 };
 
 function createColors(count: number): ReadonlyArray<string> {
   return Array.from(
@@ -33,12 +43,17 @@ function createLegend(
   };
 }
 
-function renderOverlay(legend: LegendState, colors: ReadonlyArray<string>): string {
+function renderOverlay(
+  legend: LegendState,
+  colors: ReadonlyArray<string>,
+  bandExtents: BandExtents = NO_BANDS,
+): string {
   return renderToStaticMarkup(
     <svg viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}>
       <LegendOverlay
         legend={legend}
         effectiveColors={colors}
+        bandExtents={bandExtents}
         onPositionChange={vi.fn()}
         onStatusMessage={vi.fn()}
       />
@@ -117,5 +132,50 @@ describe('LegendOverlay export framing', (): void => {
       CANVAS_SIZE - SAFE_INSET,
     );
     expect(seventeenTranslate.x).toBe(88);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * D4-13 — the band extent reaches the rendered transform
+ * ------------------------------------------------------------------ */
+
+/**
+ * The WIRING assertion, and it is separate from the arithmetic on purpose.
+ * `utils/legend.test.ts` proves `getLegendCornerPosition` computes the inset;
+ * this proves the number survives the prop, the resolver, and JSX and lands in
+ * the `transform` the exported PNG is a clone of. A pure function that is
+ * right and a component that never calls it is the gap this closes.
+ */
+describe('LegendOverlay band-aware placement', (): void => {
+  it('renders the default preset 120 units lower when the top band is on', (): void => {
+    const colors = createColors(1);
+    const legend = createLegend(1, { x: 32, y: 32, preset: 'top-left' });
+    const defaults = resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS);
+
+    expect(defaults.top).toBe(BAND_DEFAULT_HEIGHT);
+    expect(readTranslate(renderOverlay(legend, colors, NO_BANDS))).toEqual({
+      x: 32,
+      y: 32,
+    });
+    expect(readTranslate(renderOverlay(legend, colors, defaults))).toEqual({
+      x: 32,
+      y: 152,
+    });
+  });
+
+  it('moves a bottom preset up by the bottom band, and leaves x alone', (): void => {
+    const colors = createColors(1);
+    const legend = createLegend(1, { x: 32, y: 32, preset: 'bottom-right' });
+    const bottomOnly = resolveBandExtents({
+      topBandVisible: false,
+      topBandHeight: BAND_DEFAULT_HEIGHT,
+      bottomBandVisible: true,
+      bottomBandHeight: BAND_DEFAULT_HEIGHT,
+    });
+    const bare = readTranslate(renderOverlay(legend, colors, NO_BANDS));
+    const banded = readTranslate(renderOverlay(legend, colors, bottomOnly));
+
+    expect(bare.y - banded.y).toBe(BAND_DEFAULT_HEIGHT);
+    expect(banded.x).toBe(bare.x);
   });
 });

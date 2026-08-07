@@ -27,6 +27,9 @@ const TEST_LEGEND: LegendState = {
   textSize: 'medium',
 };
 
+/** Bands off: these cases are about controls and SVG primitives, not placement. */
+const NO_BANDS = { top: 0, bottom: 0 } as const;
+
 function createCommands(): LegendEditorCommands {
   return {
     setLegendEntry: vi.fn(),
@@ -71,6 +74,7 @@ describe('LegendEditor static semantics', (): void => {
         legend={TEST_LEGEND}
         effectiveColors={['#DC2626', '#2563EB']}
         bounds={TEST_BOUNDS}
+        bandExtents={NO_BANDS}
         commands={createCommands()}
         onStatusMessage={vi.fn()}
       />,
@@ -118,6 +122,7 @@ describe('LegendEditor static semantics', (): void => {
         legend={{ ...TEST_LEGEND, entries: [] }}
         effectiveColors={[]}
         bounds={{ width: 0, height: 0 }}
+        bandExtents={NO_BANDS}
         commands={createCommands()}
         onStatusMessage={vi.fn()}
       />,
@@ -142,6 +147,7 @@ describe('LegendOverlay export-safe SVG', (): void => {
         <LegendOverlay
           legend={TEST_LEGEND}
           effectiveColors={['#DC2626', '#2563EB']}
+          bandExtents={NO_BANDS}
           onPositionChange={vi.fn()}
           onStatusMessage={vi.fn()}
         />

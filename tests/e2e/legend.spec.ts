@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { MAP_VIEWBOX_SIZE } from '../../src/constants/config';
-import { BAND_DEFAULT_HEIGHT } from '../../src/utils/bands';
+import { DEFAULT_COMPOSITION_SETTINGS } from '../../src/constants/mapStyle';
+import { BAND_DEFAULT_HEIGHT, resolveBandExtents } from '../../src/utils/bands';
 import {
   LEGEND_SAFE_INSET,
   createDefaultLegendState,
@@ -485,6 +486,7 @@ test.describe('G-1 investigation — the legend, measured from the running edito
     const render = resolveLegendRender(
       reconcileLegend([RAMP_RED_HEX], createDefaultLegendState()),
       [RAMP_RED_HEX],
+      resolveBandExtents(DEFAULT_COMPOSITION_SETTINGS),
     );
     expect(
       { x: measured.x, y: measured.y },
@@ -505,13 +507,16 @@ test.describe('G-1 investigation — the legend, measured from the running edito
      *    hide. An assertion written only against a constant it imports cannot
      *    fail on its own subject.
      *
-     *    Measured 2026-08-07 on installed Chrome: the default legend's top
-     *    edge is at `y = 32`, **2.96 % of the square** — directly under where
-     *    the title band now goes. That is the measurement `G-1` never had.
+     *    **RE-BASELINED ONCE, DELIBERATELY, by this plan's Task 4 (D4-13).**
+     *    The Task 2 measurement — taken on installed Chrome 151.0.7922.76
+     *    before the inset landed — was `y = 32`, **2.96 % of the square**,
+     *    directly under the title band. That was the measurement `G-1` never
+     *    had, and it is what the fix was aimed at. The band-aware inset moves
+     *    it to **152, 14.07 %**, below the title block.
      */
-    expect(measured.y).toBe(32);
-    expect(measured.y).toBe(LEGEND_SAFE_INSET);
-    expect(measured.y / MAP_VIEWBOX_SIZE).toBeCloseTo(0.0296, 4);
+    expect(measured.y).toBe(152);
+    expect(measured.y).toBe(LEGEND_SAFE_INSET + BAND_DEFAULT_HEIGHT);
+    expect(measured.y / MAP_VIEWBOX_SIZE).toBeCloseTo(0.1407, 4);
 
     /*
      * 3. The left edge hugs the same 32-unit rule the title, the subtitle, and
@@ -528,14 +533,21 @@ test.describe('G-1 investigation — the legend, measured from the running edito
     expect(measured.height / MAP_VIEWBOX_SIZE).toBeCloseTo(0.0889, 4);
 
     /*
-     * 5. Overlap with the top band's extent at Phase 4 defaults, and this is
-     *    the finding: the default legend's top edge (32) sits **88 units
-     *    inside** the 120-unit title band. The band and the legend are
-     *    competing for the same strip of the square.
+     * 5. Overlap with the top band's extent at Phase 4 defaults.
+     *
+     *    **RE-BASELINED ONCE, DELIBERATELY, by Task 4.** Task 2 measured the
+     *    legend's top edge (32) sitting **88 units inside** the 120-unit title
+     *    band — the band and the legend competing for one strip of the square.
+     *    The overlap is now exactly zero, and asserted as a `>=` so a legend
+     *    that merely lands somewhere else cannot satisfy it.
      */
     expect(measured.topBandHeight).toBe(BAND_DEFAULT_HEIGHT);
-    expect(measured.y).toBeLessThan(measured.topBandHeight);
-    expect(measured.topBandHeight - measured.y).toBe(88);
+    expect(
+      measured.y,
+      'the legend has re-entered the top band — the band-aware inset is not ' +
+        'reaching the rendered position',
+    ).toBeGreaterThanOrEqual(measured.topBandHeight);
+    expect(measured.y - measured.topBandHeight).toBe(LEGEND_SAFE_INSET);
 
     /*
      * 6. Type and swatch, read from the live DOM rather than from the source.

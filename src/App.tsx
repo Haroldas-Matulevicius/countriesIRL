@@ -64,6 +64,7 @@ import { useMapState } from './hooks/useMapState';
 import { resolveEffectiveSnapshotScene } from './utils/snapshotScene';
 import { useSnapshotCatalog } from './hooks/useSnapshotCatalog';
 import { useResponsiveLayout } from './hooks/useResponsiveLayout';
+import { resolveBandExtents } from './utils/bands';
 import { areColorMapsEqual } from './utils/colors';
 import { getCompositionTextBlockingMessage } from './utils/compositionText';
 import {
@@ -327,6 +328,29 @@ export default function App(): JSX.Element {
     () => getLegendOverlayBounds(compositionState.legend, effectiveColors),
     [compositionState.legend, effectiveColors],
   );
+  /*
+   * D4-13 — the ONE band-extent derivation on the legend's side, handed to the
+   * overlay, the editor's position picker, and the export gate so all three
+   * place the legend identically. `MapCanvas` derives its own from the same
+   * `resolveBandExtents`; a second `visible ? height : 0` written beside either
+   * is how the legend ends up under a band the creator has grown
+   * (`04-UI-SPEC.md` § 6.7).
+   */
+  const legendBandExtents = useMemo(
+    () =>
+      resolveBandExtents({
+        topBandVisible: compositionState.settings.topBandVisible,
+        topBandHeight: compositionState.settings.topBandHeight,
+        bottomBandVisible: compositionState.settings.bottomBandVisible,
+        bottomBandHeight: compositionState.settings.bottomBandHeight,
+      }),
+    [
+      compositionState.settings.bottomBandHeight,
+      compositionState.settings.bottomBandVisible,
+      compositionState.settings.topBandHeight,
+      compositionState.settings.topBandVisible,
+    ],
+  );
   // Derived in App, never reported up from the Legend editor: the editor only
   // exists while the disclosure is expanded, so an editor-owned verdict would
   // outlive the component that can clear it and permanently block Export PNG.
@@ -339,9 +363,15 @@ export default function App(): JSX.Element {
       compositionState.legend,
       effectiveColors,
       legendBounds,
+      legendBandExtents,
     );
     return validation.ok ? null : getLegendBlockingMessage(validation.issues);
-  }, [compositionState.legend, effectiveColors, legendBounds]);
+  }, [
+    compositionState.legend,
+    effectiveColors,
+    legendBandExtents,
+    legendBounds,
+  ]);
   /*
    * D4-15, and the SAME shape as the legend blocker directly above: one
    * derivation feeds both the counter the creator watches turn `--destructive`
@@ -1016,6 +1046,7 @@ export default function App(): JSX.Element {
     <LegendOverlay
       legend={compositionState.legend}
       effectiveColors={effectiveColors}
+      bandExtents={legendBandExtents}
       onPositionChange={setLegendPosition}
       onStatusMessage={showStatus}
     />
@@ -1203,6 +1234,7 @@ export default function App(): JSX.Element {
           legend={compositionState.legend}
           effectiveColors={effectiveColors}
           bounds={legendBounds}
+          bandExtents={legendBandExtents}
           commands={legendCommands}
           onStatusMessage={showStatus}
         />

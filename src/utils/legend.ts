@@ -6,6 +6,7 @@ import type {
   LegendState,
   LegendTextSize,
 } from '../types/composition';
+import type { BandExtents } from './bands';
 import { normalizeColor } from './colors';
 
 const LEGEND_CANVAS_SIZE = 1080;
@@ -392,16 +393,53 @@ export function createLegendLayout(
   };
 }
 
+/**
+ * D4-13 — where a corner preset actually sits, and the ONE place the band
+ * height reaches the legend.
+ *
+ * A top-anchored preset is inset by `LEGEND_SAFE_INSET + bandExtents.top`, and
+ * a bottom-anchored one by `LEGEND_SAFE_INSET + bandExtents.bottom`. At the
+ * Phase 4 defaults that puts `top-left` at `{x: 32, y: 152}` — **14 % down the
+ * square, below the title block, hugging the left edge**, which is where the
+ * owner's Eurostat reference puts its legend. `04-11` measured the title
+ * baseline at 76 and asked whether the legend belongs beside the title or
+ * under it; under it is the answer, and 152 clears 76 comfortably.
+ *
+ * **Derived, never a hard-coded `y = 152`,** for three reasons that a literal
+ * cannot give: it fixes BOTH top presets rather than only the default one; the
+ * legend can never collide with a band a creator has grown to the 154 cap; and
+ * it stays a pure function of composition state, so it is `node`-testable with
+ * no DOM.
+ *
+ * `bandExtents` comes from `resolveBandExtents` (`utils/bands.ts`) and is a
+ * REQUIRED argument on purpose. A defaulted `{top: 0, bottom: 0}` would let a
+ * call site silently opt out of the inset and render a legend under the band —
+ * exactly the drift `04-UI-SPEC.md` § 6.7 names — and the compiler is the only
+ * thing that catches that reliably.
+ *
+ * **`x` is untouched.** A band spans the full width, so it constrains the
+ * vertical axis only; the left rule stays the 32 the title, the subtitle, and
+ * the attribution align on.
+ *
+ * The inset is clamped into the legal range for the current bounds, so a
+ * legend tall enough that `32 + 154` would push it off the bottom is still
+ * inside the square. The clamp cannot lift it above `LEGEND_SAFE_INSET`.
+ */
 export function getLegendCornerPosition(
   corner: LegendCorner,
   bounds: LegendBounds,
+  bandExtents: BandExtents,
 ): LegendPosition {
   const maximumX = LEGEND_CANVAS_SIZE - LEGEND_SAFE_INSET - bounds.width;
   const maximumY = LEGEND_CANVAS_SIZE - LEGEND_SAFE_INSET - bounds.height;
+  const topInset = LEGEND_SAFE_INSET + bandExtents.top;
+  const bottomInset = maximumY - bandExtents.bottom;
 
   return {
     x: corner.endsWith('right') ? maximumX : LEGEND_SAFE_INSET,
-    y: corner.startsWith('bottom') ? maximumY : LEGEND_SAFE_INSET,
+    y: corner.startsWith('bottom')
+      ? clamp(bottomInset, LEGEND_SAFE_INSET, Math.max(LEGEND_SAFE_INSET, maximumY))
+      : clamp(topInset, LEGEND_SAFE_INSET, Math.max(LEGEND_SAFE_INSET, maximumY)),
     preset: corner,
   };
 }
@@ -422,14 +460,18 @@ export function getLegendCornerPosition(
  * - `preset !== null` is authoritative - the legend tracks its corner, so a
  *   "Bottom right" legend stays bottom-right as it grows.
  * - a custom position (`preset === null`) is re-clamped into the 32px safe
- *   inset for the current bounds.
+ *   inset for the current bounds. **It is deliberately NOT band-aware**: a
+ *   creator who has dragged the legend somewhere specific chose that spot, and
+ *   a band appearing underneath it must not shove it. The band inset is a
+ *   PRESET's resting place, not a no-go zone.
  */
 export function resolveLegendPosition(
   position: LegendPosition,
   bounds: LegendBounds,
+  bandExtents: BandExtents,
 ): LegendPosition {
   return position.preset !== null && LEGEND_CORNERS.has(position.preset)
-    ? getLegendCornerPosition(position.preset, bounds)
+    ? getLegendCornerPosition(position.preset, bounds, bandExtents)
     : clampLegendPosition({ ...position, preset: null }, bounds);
 }
 
@@ -448,6 +490,7 @@ export interface ResolvedLegendRender {
 export function resolveLegendRender(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
+  bandExtents: BandExtents,
 ): ResolvedLegendRender {
   const activeEntries = getActiveLegendEntries(effectiveColors, legend);
   const layout = createLegendLayout(activeEntries, legend.textSize);
@@ -457,8 +500,30 @@ export function resolveLegendRender(
     activeEntries,
     layout,
     bounds,
-    position: resolveLegendPosition(legend.position, bounds),
+    position: resolveLegendPosition(legend.position, bounds, bandExtents),
   };
+}
+
+/**
+ * The legend's box, and ONLY its box.
+ *
+ * Split out by `04-12` because bounds are a function of the entries and the
+ * text size alone — a band moves the legend, it never resizes it. Callers that
+ * need the box and not the placement (`getLegendOverlayBounds`, and every
+ * `bounds` prop threaded down from `App`) go through this rather than through
+ * `resolveLegendRender`, so they do not have to invent a `bandExtents` they
+ * have no use for. One layout implementation, two readers.
+ */
+export function resolveLegendBounds(
+  legend: LegendState,
+  effectiveColors: ReadonlyArray<string>,
+): LegendBounds {
+  const layout = createLegendLayout(
+    getActiveLegendEntries(effectiveColors, legend),
+    legend.textSize,
+  );
+
+  return { width: layout.width, height: layout.height };
 }
 
 export function nudgeLegendPosition(
@@ -582,12 +647,13 @@ export function validateActiveLegend(
   legend: LegendState,
   effectiveColors: ReadonlyArray<string>,
   bounds: LegendBounds,
+  bandExtents: BandExtents,
 ): LegendValidationResult {
   return validateLegend(
     {
       ...legend,
       entries: getActiveLegendEntries(effectiveColors, legend),
-      position: resolveLegendPosition(legend.position, bounds),
+      position: resolveLegendPosition(legend.position, bounds, bandExtents),
     },
     effectiveColors,
     bounds,
