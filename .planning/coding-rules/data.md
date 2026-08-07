@@ -296,6 +296,25 @@ geometries.**
 **Dropping the flag costs +78,028 bytes** (444,795 total); that is the escape hatch if a renderer
 ever finds it visibly lossy, and re-deriving without the flag is the whole change.
 
+**`04-09` was that renderer, and it evaluated the escape hatch rather than inheriting the
+assumption. KEEP THE FLAG.** Both meshes were re-derived from the same canonical polygon bytes
+and every coordinate pair compared, then projected through the app's own
+`createWorldProjection()`:
+
+| Measurement | Value |
+|---|---|
+| Geometries / line parts / points | **327 / 361 / 19,624 — identical either way** |
+| Max coordinate delta | **5.0e-5°** in each axis (exactly half the quantum: round-to-nearest) |
+| Mean displacement at the world camera | **1.30e-4 viewBox px** |
+| **Max** displacement at the world camera | **4.33e-4 viewBox px** — about 1/2,300 of a pixel |
+| **Max** displacement at `MAX_ZOOM` (24) | **1.04e-2 viewBox px** — about 1/96 of a pixel |
+
+A viewBox unit **is** a PNG pixel (1080 over a `0 0 1080 1080` viewBox), so those are pixels in
+the download. The flag **rounds** coordinates; it drops no geometry and simplifies no line, which
+is why all three counts are unchanged. Taking the escape hatch would spend **+21 %** on the
+asset to move the deepest-zoom worst case by a hundredth of a pixel. Re-run this comparison
+before taking it, and record the numbers; do not take it on suspicion.
+
 **The rule, and the non-obvious part: the mesh is bound to its own SHA-256, never to
 `world-modern.geojson`'s.** `-innerlines` reads geometry only and is **insensitive to feature
 properties** — re-deriving after flipping `isSelectable` / `colorOwnerId` on the twelve D4-10 units
