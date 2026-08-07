@@ -514,8 +514,25 @@ describe('Phase 3 stylesheet discovery equals stylesheet import (assertion 20)',
  * `pointer-events`, the round joins, the stroke, the width, the zoom pin) is an
  * inline attribute, because it reaches the export clone and a rule in
  * `MapCanvas.css` does not.
+ *
+ * **Raised 332 -> 334 by `04-10` (D4-16).** Both totals MEASURED by running
+ * this assertion before and after; neither is an estimate. The delta is TWO
+ * rules in `MapCanvas.css`, `.map-band-handle` and `.map-band-handle:focus-
+ * visible`, and they are the two properties an SVG presentation attribute
+ * cannot express: the `ns-resize` cursor and the focus ring.
+ *
+ * **Everything the handle PAINTS stayed out of CSS on purpose.** The line's
+ * `stroke`, `stroke-width`, and `stroke-linecap` are inline attributes, because
+ * the handle carries `data-editor-only` and `04-09` measured what happens when
+ * such an element's paint lives only in a stylesheet: it survives the clone,
+ * renders nothing in the isolated export document, and the gate proving the
+ * sanitizer removed it then measures zero either way.
+ *
+ * The two gradient bands themselves cost ZERO selectors - `defs[data-layer=
+ * "paint"]`, its two `<linearGradient>`s, their inline literal stops, and the
+ * two band rects are all attributes, for the same reason the interior mesh was.
  */
-const SELECTOR_INVENTORY_CEILING = 332;
+const SELECTOR_INVENTORY_CEILING = 334;
 
 /**
  * Every selector a rule declares, one per comma-separated part.

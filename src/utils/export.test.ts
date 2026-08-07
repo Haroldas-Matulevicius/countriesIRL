@@ -43,6 +43,22 @@ const SOURCE_STROKE_SENTINEL = '#0F766E';
 const MESH_STROKE_SENTINEL = '#7C3AED';
 const MESH_STROKE_WIDTH_SENTINEL = '0.9';
 const HIGHLIGHT_SELECTED_WIDTH = '2.5';
+/*
+ * 04-10. The band gradient ids and the stop colour, as sentinels.
+ *
+ * The ids are spelled here rather than imported from `MapCanvas` on purpose:
+ * this fixture stands in for a composition the exporter is HANDED, and an
+ * assertion that both sides read the same constant could not fail if the
+ * renderer stopped writing the reference at all. The real-app counterpart is
+ * `export.spec.ts`'s `band` gate, which measures pixels.
+ *
+ * The stop colour is a distinctive non-default so "the stop survived" cannot be
+ * satisfied by a default value the sanitizer happened to leave behind.
+ */
+const BAND_TOP_GRADIENT_ID = 'countriesirl-band-top';
+const BAND_BOTTOM_GRADIENT_ID = 'countriesirl-band-bottom';
+const BAND_STOP_COLOR_SENTINEL = '#F5EFE6';
+const BAND_HANDLE_STROKE_SENTINEL = '#2E7D32';
 
 const DOWNLOAD_HANDOFF_DELAY_MS = 100;
 const LEGEND_FONT_FAMILY_DECLARATION =
@@ -592,7 +608,68 @@ function createSource(): FakeSource {
   surface.setAttribute('height', '1080');
   surface.setAttribute('fill', SURFACE_FILL_SENTINEL);
   svg.appendChild(surface);
+
+  /*
+   * 04-10 / D4-16. The band gradients, and the ONE thing that keeps them alive:
+   * the rects below reference them by `fill="url(#...)"`, which is exactly what
+   * `collectReferencedIds` scans for. Strip the `id` and the `<defs>` subtree is
+   * still in the clone but resolves to NOTHING - a dangling reference and a PNG
+   * that silently lost its band while the editor looks correct.
+   */
+  const paintDefs = new FakeElement('DEFS');
+  paintDefs.setAttribute('data-layer', 'paint');
+  ([
+    [BAND_TOP_GRADIENT_ID, '0', '1'],
+    [BAND_BOTTOM_GRADIENT_ID, '1', '0'],
+  ] as ReadonlyArray<readonly [string, string, string]>).forEach(
+    ([gradientId, y1, y2]): void => {
+      const gradient = new FakeElement('LINEARGRADIENT');
+      gradient.setAttribute('id', gradientId);
+      gradient.setAttribute('x1', '0');
+      gradient.setAttribute('y1', y1);
+      gradient.setAttribute('x2', '0');
+      gradient.setAttribute('y2', y2);
+      ([
+        ['0%', '1'],
+        ['100%', '0'],
+      ] as ReadonlyArray<readonly [string, string]>).forEach(
+        ([offset, opacity]): void => {
+          const stop = new FakeElement('STOP');
+          stop.setAttribute('offset', offset);
+          // INLINE LITERALS, never a `var()`: the isolated export document sees
+          // no host stylesheet, so a token here renders as nothing at all.
+          stop.setAttribute('stop-color', BAND_STOP_COLOR_SENTINEL);
+          stop.setAttribute('stop-opacity', opacity);
+          gradient.appendChild(stop);
+        },
+      );
+      paintDefs.appendChild(gradient);
+    },
+  );
+  svg.appendChild(paintDefs);
   svg.appendChild(camera);
+
+  // The bands themselves: OUTSIDE the camera, before the legend (U-8).
+  const bands = new FakeElement('G');
+  bands.setAttribute('data-layer', 'bands');
+  bands.setAttribute('aria-hidden', 'true');
+  bands.setAttribute('pointer-events', 'none');
+  ([
+    ['top', '0', BAND_TOP_GRADIENT_ID],
+    ['bottom', '960', BAND_BOTTOM_GRADIENT_ID],
+  ] as ReadonlyArray<readonly [string, string, string]>).forEach(
+    ([edge, y, gradientId]): void => {
+      const bandRect = new FakeElement('RECT');
+      bandRect.setAttribute('data-band', edge);
+      bandRect.setAttribute('x', '0');
+      bandRect.setAttribute('y', y);
+      bandRect.setAttribute('width', '1080');
+      bandRect.setAttribute('height', '120');
+      bandRect.setAttribute('fill', `url(#${gradientId})`);
+      bands.appendChild(bandRect);
+    },
+  );
+  svg.appendChild(bands);
 
   const legend = new FakeElement('G');
   legend.setAttribute('data-layer', 'legend');
@@ -610,6 +687,29 @@ function createSource(): FakeSource {
   legend.appendChild(legendText);
   legend.appendChild(editorHitArea);
   svg.appendChild(legend);
+
+  /*
+   * A7's resize affordances. They must be GONE, and the line carries an INLINE
+   * `stroke` so that absence is a claim about paint rather than about markup:
+   * `04-09` measured that an editor-only element painted only from a stylesheet
+   * survives the clone, renders nothing in the isolated document, and leaves
+   * its removal gate measuring zero either way.
+   */
+  const bandHandles = new FakeElement('G');
+  bandHandles.setAttribute('data-layer', 'band-handles');
+  bandHandles.setAttribute('data-editor-only', 'true');
+  const handleLine = new FakeElement('LINE');
+  handleLine.setAttribute('stroke', BAND_HANDLE_STROKE_SENTINEL);
+  handleLine.setAttribute('stroke-width', '3');
+  const handleHitArea = new FakeElement('RECT');
+  handleHitArea.setAttribute('role', 'slider');
+  handleHitArea.setAttribute('tabindex', '0');
+  handleHitArea.setAttribute('aria-label', 'Top band');
+  handleHitArea.setAttribute('fill', 'transparent');
+  bandHandles.appendChild(handleLine);
+  bandHandles.appendChild(handleHitArea);
+  svg.appendChild(bandHandles);
+
   sourceElement.appendChild(svg);
 
   return {
@@ -938,7 +1038,14 @@ describe('exportMapPng', (): void => {
     const clonedLayers = clonedSvg.children.map(
       (child: FakeElement): string | null => child.getAttribute('data-layer'),
     );
-    expect(clonedLayers).toEqual([null, 'surface', 'camera', 'legend']);
+    expect(clonedLayers).toEqual([
+      null,
+      'surface',
+      'paint',
+      'camera',
+      'bands',
+      'legend',
+    ]);
     expect(clonedSvg.children[0]?.tagName).toBe('STYLE');
 
     /*
@@ -1231,13 +1338,23 @@ describe('exportMapPng', (): void => {
     camera.remove();
     sourceSvg.appendChild(camera);
 
-    // The water surface is a permitted sibling and takes no part in the order
-    // rule; what is refused is legend BEFORE camera.
+    // The water surface, the paint defs, and the bands are permitted siblings
+    // and take no part in the order rule; what is refused is legend BEFORE
+    // camera. `04-10` added three of those siblings, so the list is restated
+    // rather than loosened - a `toContain` here would stop describing the very
+    // arrangement the refusal is about.
     expect(
       sourceSvg.children.map(
         (child: FakeElement): string | null => child.getAttribute('data-layer'),
       ),
-    ).toEqual(['surface', 'legend', 'camera']);
+    ).toEqual([
+      'surface',
+      'paint',
+      'bands',
+      'legend',
+      'band-handles',
+      'camera',
+    ]);
 
     await expect(exportMapPng(source)).resolves.toEqual({
       ok: false,
@@ -1570,7 +1687,7 @@ describe('sanitizeExportClone honours the composition border contract', (): void
         clone.children.map((child: FakeElement): string | null =>
           child.getAttribute('data-layer'),
         ),
-      ).toEqual([null, 'surface', 'camera', 'legend']);
+      ).toEqual([null, 'surface', 'paint', 'camera', 'bands', 'legend']);
       expect(
         clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
       ).toBe(CAMERA_TRANSFORM);
@@ -1713,7 +1830,7 @@ describe('sanitizeExportClone honours the composition border contract', (): void
         clone.children.map((child: FakeElement): string | null =>
           child.getAttribute('data-layer'),
         ),
-      ).toEqual([null, 'surface', 'camera', 'legend']);
+      ).toEqual([null, 'surface', 'paint', 'camera', 'bands', 'legend']);
       expect(
         clone.querySelector('[data-layer="camera"]')?.getAttribute('transform'),
       ).toBe(CAMERA_TRANSFORM);
@@ -1727,6 +1844,138 @@ describe('sanitizeExportClone honours the composition border contract', (): void
           (child: FakeElement): string | null => child.getAttribute('data-layer'),
         ),
       ).toEqual(['countries', 'borders']);
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * 04-10 - the band gradients cross the export boundary, the handles do not
+   * ---------------------------------------------------------------- */
+
+  describe('the gradient bands cross the export boundary', (): void => {
+    /**
+     * **The silent-failure gate.** `sanitizeExportClone` strips every `id`
+     * unless `collectReferencedIds` found something pointing at it. A gradient
+     * whose id is stripped does not error and does not warn - the `<defs>`
+     * subtree is still there, the `fill="url(#...)"` still reads fine in the
+     * markup, and the reference resolves to NOTHING inside the isolated export
+     * document. The editor keeps its band and the download loses it.
+     *
+     * Both halves are asserted in one test on purpose: an id that survives
+     * beside a rect that lost its reference is just as broken as the reverse,
+     * and asserting them apart lets one pass while the pair is meaningless.
+     */
+    it('keeps both gradient ids alive because the band rects reference them', async (): Promise<void> => {
+      const { source } = createSource();
+
+      await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+      const clone = getSerializedClone();
+      const gradients = clone.querySelectorAll('lineargradient');
+      expect(gradients).toHaveLength(2);
+      expect(
+        gradients.map((gradient: FakeElement): string | null =>
+          gradient.getAttribute('id'),
+        ),
+        'a gradient id was stripped by the sanitizer, so its `url(#...)` now ' +
+          'dangles and the exported PNG has silently lost that band.',
+      ).toEqual([BAND_TOP_GRADIENT_ID, BAND_BOTTOM_GRADIENT_ID]);
+
+      const bandRects = clone.querySelectorAll('rect[data-band]');
+      expect(bandRects).toHaveLength(2);
+      expect(
+        bandRects.map((rect: FakeElement): string | null =>
+          rect.getAttribute('fill'),
+        ),
+      ).toEqual([
+        `url(#${BAND_TOP_GRADIENT_ID})`,
+        `url(#${BAND_BOTTOM_GRADIENT_ID})`,
+      ]);
+
+      /*
+       * The general form the clone contract asks for: not `ids === 0`, which
+       * CONFIRMS the break, but "no surviving reference dangles". It covers
+       * every future gradient, mask, marker, and clip path as well as these two.
+       */
+      const survivingIds = new Set(
+        [clone, ...clone.querySelectorAll('*')]
+          .map((element: FakeElement): string | null => element.getAttribute('id'))
+          .filter((id: string | null): id is string => id !== null),
+      );
+      const references = [clone, ...clone.querySelectorAll('*')].flatMap(
+        (element: FakeElement): string[] =>
+          element
+            .getAttributeNames()
+            .flatMap((name: string): string[] =>
+              [...(element.getAttribute(name) ?? '').matchAll(/url\(#([^)]+)\)/gu)].map(
+                (match): string => match[1] ?? '',
+              ),
+            ),
+      );
+      expect(references.length).toBeGreaterThan(0);
+      expect(
+        references.filter((id: string): boolean => !survivingIds.has(id)),
+        'a `url(#...)` in the sanitized clone points at an id that is no ' +
+          'longer there, so whatever it painted is missing from the PNG.',
+      ).toEqual([]);
+    });
+
+    /**
+     * The stops are the PAINT, and they must arrive as inline literals. A
+     * `stop-color` the sanitizer stripped, or one that was written as a `var()`
+     * upstream, produces a band that rasterises as nothing while the editor
+     * still shows it - the same measured trap `04-01` recorded for the water
+     * rect's `fill`.
+     */
+    it('carries the inline literal stops, opaque to transparent, into the clone', async (): Promise<void> => {
+      const { source } = createSource();
+
+      await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+      const stops = getSerializedClone().querySelectorAll('stop');
+      expect(stops).toHaveLength(4);
+      stops.forEach((stop: FakeElement): void => {
+        expect(stop.getAttribute('stop-color')).toBe(BAND_STOP_COLOR_SENTINEL);
+        expect(stop.getAttribute('stop-color')).not.toContain('var(');
+      });
+      expect(
+        stops.map((stop: FakeElement): string | null =>
+          stop.getAttribute('stop-opacity'),
+        ),
+      ).toEqual(['1', '0', '1', '0']);
+    });
+
+    /**
+     * A7's handles are affordances, and `data-editor-only` is the whole
+     * guarantee that they cannot become published pixels. The line's inline
+     * `stroke` is what makes this a claim about paint: without it the handle
+     * would survive into a document that renders nothing anyway, and this
+     * assertion would be green for the wrong reason.
+     */
+    it('removes the band drag handles, so an affordance cannot reach the PNG', async (): Promise<void> => {
+      const { source, sourceSvg } = createSource();
+
+      expect(
+        sourceSvg.querySelectorAll('[data-layer="band-handles"]'),
+        'the fixture has no handles, so their absence below proves nothing.',
+      ).toHaveLength(1);
+      expect(sourceSvg.querySelectorAll('[role="slider"]')).toHaveLength(1);
+
+      await expect(exportMapPng(source)).resolves.toMatchObject({ ok: true });
+
+      const clone = getSerializedClone();
+      expect(clone.querySelectorAll('[data-layer="band-handles"]')).toHaveLength(
+        0,
+      );
+      expect(clone.querySelectorAll('[role="slider"]')).toHaveLength(0);
+      expect(clone.querySelectorAll('line')).toHaveLength(0);
+      expect(
+        [clone, ...clone.querySelectorAll('*')].filter(
+          (element: FakeElement): boolean =>
+            element.getAttribute('stroke') === BAND_HANDLE_STROKE_SENTINEL,
+        ),
+        'the handle line survived the sanitizer with its inline stroke, so ' +
+          'the creator downloads a resize affordance drawn across their map.',
+      ).toHaveLength(0);
     });
   });
 });

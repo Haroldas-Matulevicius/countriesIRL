@@ -9,8 +9,11 @@ import {
 } from 'react';
 import type {
   CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
   ReactNode,
+  RefObject,
 } from 'react';
 import { geoPath, select, type Selection } from 'd3';
 
@@ -28,6 +31,7 @@ import type {
   SelectedCountryIds,
 } from '../types/map';
 import {
+  BAND_HANDLE_COLOR,
   DEFAULT_BORDER_COLOR,
   DEFAULT_COLOR,
   HOVERED_BORDER_COLOR,
@@ -41,13 +45,24 @@ import {
   MAP_VIEWBOX_SIZE,
 } from '../constants/config';
 import {
+  BAND_LABELS,
+  DEFAULT_BOTTOM_BAND_VISIBLE,
   DEFAULT_COASTLINE_WEIGHT,
   DEFAULT_INTERIOR_WEIGHT,
   DEFAULT_SURFACE_COLOR,
+  DEFAULT_TOP_BAND_VISIBLE,
   DEFAULT_UNCOLORED_FILL,
   hasStroke,
   strokeWidthFor,
 } from '../constants/mapStyle';
+import {
+  BAND_DEFAULT_HEIGHT,
+  BAND_KEYBOARD_STEP,
+  BAND_MAX_HEIGHT,
+  bandGradientStops,
+  clampBandHeight,
+  resolveBandExtents,
+} from '../utils/bands';
 import {
   useCameraController,
   type CameraControllerFactory,
@@ -74,6 +89,39 @@ const UNDO_START_MARK = 'countriesirl-undo-start';
 const UNDO_VISIBLE_MEASURE = 'countriesirl-undo-visible';
 const REDO_START_MARK = 'countriesirl-redo-start';
 const REDO_VISIBLE_MEASURE = 'countriesirl-redo-visible';
+/*
+ * 04-10 / D4-16. The two gradient ids, and the ONE reason they are constants.
+ *
+ * `sanitizeExportClone` strips every `id` UNLESS `collectReferencedIds` found a
+ * `url(#...)` or `href="#..."` pointing at it. The band rect's
+ * `fill="url(#...)"` is exactly what that scan looks for, so the id survives and
+ * the gradient comes with it. A gradient referenced only from a stylesheet
+ * loses its id and disappears from the PNG SILENTLY - the editor still looks
+ * perfect. Spelling the id in one place is what keeps the rect and the
+ * `<linearGradient>` from drifting into that state.
+ */
+const BAND_TOP_GRADIENT_ID = 'countriesirl-band-top';
+const BAND_BOTTOM_GRADIENT_ID = 'countriesirl-band-bottom';
+
+/*
+ * The drag handle's geometry, in user units of the 1080 viewBox.
+ *
+ * `BAND_HANDLE_HIT_HEIGHT` is A7's 44 target. It is a CENTERED pill rather than
+ * a full-width strip on purpose: a 1080-wide hit area at the band edge would
+ * swallow every country click in that band of the map, which is the same
+ * pointer-stealing defect `pointer-events: none` on the mesh and the highlight
+ * layers exists to prevent.
+ *
+ * The unit-to-CSS-pixel mapping depends on the rendered canvas size, so the
+ * rendered box is MEASURED in `export.spec.ts` rather than assumed to be 1:1.
+ */
+const BAND_HANDLE_HIT_HEIGHT = 44;
+const BAND_HANDLE_HIT_WIDTH = 88;
+const BAND_HANDLE_LINE_WIDTH = 64;
+const BAND_HANDLE_STROKE_WIDTH = 3;
+
+type BandEdge = 'top' | 'bottom';
+
 const COUNTRIES_LAYER_SELECTOR = '[data-layer="countries"]';
 const OUTGOING_LAYER_SELECTOR = '[data-layer="outgoing-scenes"]';
 /*
@@ -256,6 +304,21 @@ export interface MapCanvasProps {
    * asset does.
    */
   borderMesh?: BorderMesh | null;
+  /**
+   * D4-16 - the two gradient bands. Both heights are clamped again by
+   * `resolveBandExtents` at the render, so a caller that skipped the reducer
+   * still cannot draw a map-covering band.
+   */
+  topBandVisible?: boolean;
+  topBandHeight?: number;
+  bottomBandVisible?: boolean;
+  bottomBandHeight?: number;
+  /**
+   * The on-canvas drag handle's only writer. Absent for a caller that renders
+   * a read-only composition (the export fixture), in which case the handles
+   * are not rendered at all - there is nothing for them to write to.
+   */
+  onBandHeightChange?: (edge: BandEdge, height: number) => void;
   selectedIds: SelectedCountryIds;
   onSelectCountry: (countryId: CountryId) => void;
   onClearSelection: () => void;
@@ -520,6 +583,157 @@ export function pointerLeaveTooltipData(
     : null;
 }
 
+interface BandHandleProps {
+  readonly edge: BandEdge;
+  readonly height: number;
+  readonly svgRef: RefObject<SVGSVGElement>;
+  readonly onHeightChange: (edge: BandEdge, height: number) => void;
+}
+
+/**
+ * The on-canvas band resize affordance (A7, `04-UI-SPEC.md` § 6.6).
+ *
+ * `role="slider"` over `aria-valuenow`/`min`/`max`, so the ARROW KEYS MOVE THE
+ * VALUE rather than the handle: up and right grow the band, down and left
+ * shrink it, and both edges behave identically. Aiming the arrows at the
+ * handle's *position* instead would make the two handles disagree about which
+ * way is bigger, and would contradict what a screen reader announces.
+ *
+ * **`data-editor-only` is the whole export guarantee** - the sanitizer removes
+ * every element carrying it wholesale. The visible line is painted from an
+ * INLINE `stroke` attribute rather than only from `MapCanvas.css`, and that is
+ * the fix for `04-09`'s measured trap: an editor-only element painted only by a
+ * stylesheet survives into the clone and renders nothing there, so the gate
+ * that proves it is removed would measure zero either way.
+ */
+function BandHandle({
+  edge,
+  height,
+  svgRef,
+  onHeightChange,
+}: BandHandleProps): JSX.Element {
+  const edgeY = edge === 'top' ? height : MAP_VIEWBOX_SIZE - height;
+  const centreX = MAP_VIEWBOX_SIZE / 2;
+
+  const heightFromClientY = useCallback(
+    (clientY: number): number | null => {
+      const svgElement = svgRef.current;
+      if (svgElement === null) {
+        return null;
+      }
+      const screenToSvg = svgElement.getScreenCTM()?.inverse();
+      if (screenToSvg === undefined) {
+        return null;
+      }
+      const point = svgElement.createSVGPoint();
+      point.x = 0;
+      point.y = clientY;
+      const viewBoxY = point.matrixTransform(screenToSvg).y;
+
+      return clampBandHeight(
+        Math.round(edge === 'top' ? viewBoxY : MAP_VIEWBOX_SIZE - viewBoxY),
+      );
+    },
+    [edge, svgRef],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>): void => {
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>): void => {
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        return;
+      }
+      const next = heightFromClientY(event.clientY);
+      if (next !== null) {
+        onHeightChange(edge, next);
+      }
+    },
+    [edge, heightFromClientY, onHeightChange],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<SVGRectElement>): void => {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<SVGRectElement>): void => {
+      const next = ((): number | null => {
+        switch (event.key) {
+          case 'ArrowUp':
+          case 'ArrowRight':
+            return height + BAND_KEYBOARD_STEP;
+          case 'ArrowDown':
+          case 'ArrowLeft':
+            return height - BAND_KEYBOARD_STEP;
+          case 'Home':
+            return 0;
+          case 'End':
+            return BAND_MAX_HEIGHT;
+          default:
+            return null;
+        }
+      })();
+
+      if (next === null) {
+        return;
+      }
+      // The arrow keys pan the camera and Home/End are browser scroll keys;
+      // a band handle that let either through would move the map as well.
+      event.preventDefault();
+      event.stopPropagation();
+      onHeightChange(edge, clampBandHeight(next));
+    },
+    [edge, height, onHeightChange],
+  );
+
+  return (
+    <g data-band-handle={edge}>
+      <line
+        x1={centreX - BAND_HANDLE_LINE_WIDTH / 2}
+        y1={edgeY}
+        x2={centreX + BAND_HANDLE_LINE_WIDTH / 2}
+        y2={edgeY}
+        stroke={BAND_HANDLE_COLOR}
+        strokeWidth={BAND_HANDLE_STROKE_WIDTH}
+        strokeLinecap="round"
+        pointerEvents="none"
+      />
+      <rect
+        className="map-band-handle"
+        role="slider"
+        tabIndex={0}
+        aria-label={BAND_LABELS[edge]}
+        aria-valuemin={0}
+        aria-valuemax={BAND_MAX_HEIGHT}
+        aria-valuenow={height}
+        aria-orientation="vertical"
+        x={centreX - BAND_HANDLE_HIT_WIDTH / 2}
+        y={edgeY - BAND_HANDLE_HIT_HEIGHT / 2}
+        width={BAND_HANDLE_HIT_WIDTH}
+        height={BAND_HANDLE_HIT_HEIGHT}
+        fill="transparent"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
+      />
+    </g>
+  );
+}
+
 export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
   function MapCanvas(
     {
@@ -534,6 +748,11 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
       coastlineWeight = DEFAULT_COASTLINE_WEIGHT,
       interiorWeight = DEFAULT_INTERIOR_WEIGHT,
       borderMesh = null,
+      topBandVisible = DEFAULT_TOP_BAND_VISIBLE,
+      topBandHeight = BAND_DEFAULT_HEIGHT,
+      bottomBandVisible = DEFAULT_BOTTOM_BAND_VISIBLE,
+      bottomBandHeight = BAND_DEFAULT_HEIGHT,
+      onBandHeightChange,
       selectedIds,
       onSelectCountry,
       onClearSelection,
@@ -1211,6 +1430,34 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         );
     }, [borderColor, interiorWeight, meshPathData]);
 
+    /*
+     * D4-16. ONE reader of "how far does each band actually reach", shared with
+     * `04-12`'s band-aware legend inset. The rects, the handles, and the legend
+     * therefore cannot disagree about where a band ends.
+     */
+    const bandExtents = useMemo(
+      () =>
+        resolveBandExtents({
+          topBandVisible,
+          topBandHeight,
+          bottomBandVisible,
+          bottomBandHeight,
+        }),
+      [bottomBandHeight, bottomBandVisible, topBandHeight, topBandVisible],
+    );
+    /*
+     * The stops are DERIVED from the composition's water colour and written as
+     * inline literal attributes below. Not a `var()`: a host custom property
+     * measured as rendering NOTHING AT ALL inside the isolated export document.
+     * Not a subtree `<style>` either: that route works, but it puts a second
+     * `<style>` beside the injected font one, which the clone contract
+     * discusses by name. The literal is less clever and less fragile.
+     */
+    const [bandOpaqueStop, bandClearStop] = useMemo(
+      () => bandGradientStops(surfaceColor),
+      [surfaceColor],
+    );
+
     const handleBackgroundClick = useCallback(
       (event: ReactMouseEvent<SVGSVGElement>): void => {
         const target = event.target;
@@ -1292,6 +1539,66 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
             height={MAP_VIEWBOX_SIZE}
             fill={surfaceColor}
           />
+          {/*
+            04-10 / D4-16 / `04-UI-SPEC.md` section 6.6 - the band gradients.
+
+            Two facts hold this layer together:
+
+            1. **The stops are inline LITERALS.** `stop-color` and
+               `stop-opacity` carry resolved values, never a `var()`. The clone
+               is rasterised as an isolated document with no host stylesheet, so
+               a token here renders as nothing while the editor looks correct -
+               `04-01` measured exactly that for the water rect.
+            2. **The ids stay alive because the rects REFERENCE them.**
+               `sanitizeExportClone` strips an `id` unless `collectReferencedIds`
+               found a `url(#...)` pointing at it, and `fill="url(#...)"` below
+               is that reference. Without it the id goes, the `<defs>` subtree
+               goes with it, and the PNG silently loses the band.
+
+            The gradient runs along `y1`->`y2`, which is what aims each band at
+            its own edge: the top band is opaque at `y=0` and clear at its inner
+            edge, the bottom band the other way round. The two share ONE stop
+            pair, so an inversion is a change to this vector rather than a
+            second set of stops that can drift.
+          */}
+          <defs data-layer="paint">
+            <linearGradient
+              id={BAND_TOP_GRADIENT_ID}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset={bandOpaqueStop.offset}
+                stopColor={bandOpaqueStop.stopColor}
+                stopOpacity={bandOpaqueStop.stopOpacity}
+              />
+              <stop
+                offset={bandClearStop.offset}
+                stopColor={bandClearStop.stopColor}
+                stopOpacity={bandClearStop.stopOpacity}
+              />
+            </linearGradient>
+            <linearGradient
+              id={BAND_BOTTOM_GRADIENT_ID}
+              x1="0"
+              y1="1"
+              x2="0"
+              y2="0"
+            >
+              <stop
+                offset={bandOpaqueStop.offset}
+                stopColor={bandOpaqueStop.stopColor}
+                stopOpacity={bandOpaqueStop.stopOpacity}
+              />
+              <stop
+                offset={bandClearStop.offset}
+                stopColor={bandClearStop.stopColor}
+                stopOpacity={bandClearStop.stopOpacity}
+              />
+            </linearGradient>
+          </defs>
           <g ref={cameraLayerRef} data-layer="camera">
             <g data-layer="outgoing-scenes" aria-hidden="true" />
             <g
@@ -1357,7 +1664,72 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
               strokeLinejoin="round"
             />
           </g>
+          {/*
+            04-10 / D4-16 - the bands themselves.
+
+            OUTSIDE `[data-layer="camera"]`, like the water and the legend: a
+            title band that panned and zoomed with the map would slide off the
+            top of the square the moment a creator framed the Pacific.
+
+            Paint order is BANDS, then legend, then text (U-8) - which is DOM
+            order. The band is a backdrop for type, not a veil over it.
+
+            `pointer-events: none` as an attribute rather than a rule: this
+            layer covers the top eighth of the map, and without it the band
+            would swallow every click on the countries underneath.
+          */}
+          <g data-layer="bands" aria-hidden="true" pointerEvents="none">
+            {bandExtents.top > 0 ? (
+              <rect
+                data-band="top"
+                x={0}
+                y={0}
+                width={MAP_VIEWBOX_SIZE}
+                height={bandExtents.top}
+                fill={`url(#${BAND_TOP_GRADIENT_ID})`}
+              />
+            ) : null}
+            {bandExtents.bottom > 0 ? (
+              <rect
+                data-band="bottom"
+                x={0}
+                y={MAP_VIEWBOX_SIZE - bandExtents.bottom}
+                width={MAP_VIEWBOX_SIZE}
+                height={bandExtents.bottom}
+                fill={`url(#${BAND_BOTTOM_GRADIENT_ID})`}
+              />
+            ) : null}
+          </g>
           {legendSlot}
+          {/*
+            A7. The resize affordances, ABOVE the legend so a creator can still
+            grab a handle the legend overlaps, and `data-editor-only` so the
+            sanitizer removes them wholesale - which is what makes it structural
+            rather than incidental that they cannot move an exported pixel.
+
+            Rendered only for a VISIBLE band and only when there is a writer to
+            call: a read-only composition has nothing to drag.
+          */}
+          {onBandHeightChange === undefined ? null : (
+            <g data-layer="band-handles" data-editor-only="true">
+              {topBandVisible ? (
+                <BandHandle
+                  edge="top"
+                  height={bandExtents.top}
+                  svgRef={svgRef}
+                  onHeightChange={onBandHeightChange}
+                />
+              ) : null}
+              {bottomBandVisible ? (
+                <BandHandle
+                  edge="bottom"
+                  height={bandExtents.bottom}
+                  svgRef={svgRef}
+                  onHeightChange={onBandHeightChange}
+                />
+              ) : null}
+            </g>
+          )}
         </svg>
       </div>
     );

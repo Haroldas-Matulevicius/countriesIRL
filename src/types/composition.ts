@@ -230,6 +230,26 @@ export interface VisibleCompositionSettings {
    * a saved composition reloads with these defaults.
    */
   readonly coastlineWeight: StrokeWeight;
+  /**
+   * D4-16 — the title band, ON by default. CountriesIRL is full-bleed, so a
+   * title has to overlay the map; the band is what gives it something to sit
+   * on. It fades from `surfaceColor`, so on white water it is invisible by
+   * design and the out-of-the-box export is unchanged.
+   */
+  readonly topBandVisible: boolean;
+  /**
+   * D4-16 — user units of the 1080 viewBox, clamped to `[0, BAND_MAX_HEIGHT]`
+   * by `clampBandHeight`. Adjusted by the on-canvas drag handle and its
+   * keyboard equivalents (A7), never by a second control in the panel.
+   *
+   * **`04-12`'s legend inset derives from this**, through
+   * `resolveBandExtents` — so changing a band height moves exported pixels.
+   */
+  readonly topBandHeight: number;
+  /** D4-16 — the footer band, OFF by default. */
+  readonly bottomBandVisible: boolean;
+  /** D4-16, the bottom twin of `topBandHeight`. Same clamp, same cap. */
+  readonly bottomBandHeight: number;
 }
 
 export interface Composition {

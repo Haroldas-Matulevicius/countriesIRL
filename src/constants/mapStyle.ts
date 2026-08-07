@@ -3,6 +3,7 @@ import type {
   VisibleCompositionSettings,
 } from '../types/composition';
 import type { MapStyleColorPreset, WaterPreset } from '../types/ui';
+import { BAND_DEFAULT_HEIGHT } from '../utils/bands';
 import { DEFAULT_BORDER_COLOR, NEUTRAL_UNIT_COLOR } from './colors';
 
 /**
@@ -148,6 +149,26 @@ export const DEFAULT_INTERIOR_WEIGHT: StrokeWeight = 'thin';
 export const DEFAULT_COASTLINE_WEIGHT: StrokeWeight = 'none';
 
 /**
+ * D4-16, stated as two separate constants because the two defaults DIFFER and a
+ * single shared `DEFAULT_BAND_VISIBLE` would hide that.
+ *
+ * Top ON: the title is the reason the band exists, and `04-11`'s text tools
+ * ship into a band that is already there. Bottom OFF: an attribution line is
+ * opt-in, and two bands out of the box would frame every creator's first export
+ * whether they asked for it or not. On the default white water both are
+ * invisible anyway — which is why turning the top one on costs the shipped
+ * export nothing.
+ */
+export const DEFAULT_TOP_BAND_VISIBLE = true;
+export const DEFAULT_BOTTOM_BAND_VISIBLE = false;
+
+/** The `Bands` section's own labels. `04-UI-SPEC.md § 9` vocabulary. */
+export const BAND_LABELS = {
+  top: 'Top band',
+  bottom: 'Bottom band',
+} as const;
+
+/**
  * The ONE default `settings` object. The provider, the legacy save-migration
  * path, and the storage reader all seed from this rather than each spelling
  * their own literal — three copies of a default is how two "default"
@@ -164,4 +185,8 @@ export const DEFAULT_COMPOSITION_SETTINGS: VisibleCompositionSettings =
     borderColor: DEFAULT_BORDER_COLOR,
     interiorWeight: DEFAULT_INTERIOR_WEIGHT,
     coastlineWeight: DEFAULT_COASTLINE_WEIGHT,
+    topBandVisible: DEFAULT_TOP_BAND_VISIBLE,
+    topBandHeight: BAND_DEFAULT_HEIGHT,
+    bottomBandVisible: DEFAULT_BOTTOM_BAND_VISIBLE,
+    bottomBandHeight: BAND_DEFAULT_HEIGHT,
   });

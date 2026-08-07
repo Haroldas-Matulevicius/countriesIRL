@@ -15,6 +15,22 @@ export const SELECTED_BORDER_COLOR = '#000000';
  * asserts each constant equals its `--map-border-*` token, in both directions.
  */
 export const HOVERED_BORDER_COLOR = '#000000';
+/*
+ * `04-10`. The band drag handle's line, written as an INLINE `stroke` attribute
+ * on an element that carries `data-editor-only`.
+ *
+ * The inline route is not decoration and it is not a duplicate of a CSS rule -
+ * it is what makes the export gate able to fail. `04-09` measured the trap: an
+ * editor-only affordance painted only from `MapCanvas.css` survives the clone
+ * and renders NOTHING in the isolated export document, so deleting
+ * `data-editor-only` moves zero pixels and the gate that exists to catch it
+ * measures 0 either way. One inline paint attribute is the whole fix.
+ *
+ * It is deliberately NOT named `*_BORDER_COLOR`: it paints editor chrome on the
+ * canvas, not map geometry, so it is not part of the mode-invariant
+ * `--map-border-*` set `uiContract.test.ts` gates against its tokens.
+ */
+export const BAND_HANDLE_COLOR = '#000000';
 // The neutral fill for a feature with no colour owner. D4-10 made every Modern
 // unit self-colorable, so on the Modern scene nothing resolves to it any more;
 // it still covers historical scenes and malformed records, and `04-08` adopts

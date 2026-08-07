@@ -25,8 +25,11 @@ import {
   DEFAULT_INTERIOR_WEIGHT,
   DEFAULT_SURFACE_COLOR,
   DEFAULT_UNCOLORED_FILL,
+  DEFAULT_BOTTOM_BAND_VISIBLE,
+  DEFAULT_TOP_BAND_VISIBLE,
   STROKE_WEIGHTS,
 } from '../constants/mapStyle';
+import { clampBandHeight } from '../utils/bands';
 import { repairCameraState } from '../utils/camera';
 import { normalizeColor } from '../utils/colors';
 import {
@@ -80,6 +83,10 @@ export type MapStylePatch = Partial<
     | 'borderColor'
     | 'interiorWeight'
     | 'coastlineWeight'
+    | 'topBandVisible'
+    | 'topBandHeight'
+    | 'bottomBandVisible'
+    | 'bottomBandHeight'
   >
 >;
 
@@ -265,6 +272,15 @@ function canonicalizeStrokeWeight(
   return STROKE_WEIGHTS.has(value) ? value : fallback;
 }
 
+/**
+ * The field is typed `boolean`, so this is a boundary check rather than a type
+ * narrowing: `04-14`'s V3 record will hand this reducer values parsed out of
+ * stored bytes, where the declared type is a promise and not a guarantee.
+ */
+function canonicalizeBandVisible(value: boolean, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 function canonicalizeSettings(
   settings: VisibleCompositionSettings,
 ): VisibleCompositionSettings {
@@ -287,6 +303,23 @@ function canonicalizeSettings(
       settings.coastlineWeight,
       DEFAULT_COASTLINE_WEIGHT,
     ),
+    /*
+     * T-04-10-01. Every route to a band height goes through `clampBandHeight`
+     * here, at the ONE boundary, rather than at each render site: the drag
+     * handle, the keyboard step, `Reset Map Style`, and `04-14`'s V3 record all
+     * dispatch `SET_MAP_STYLE`, so bounding it at the reducer is what makes an
+     * unbounded height unrepresentable rather than merely unlikely.
+     */
+    topBandVisible: canonicalizeBandVisible(
+      settings.topBandVisible,
+      DEFAULT_TOP_BAND_VISIBLE,
+    ),
+    topBandHeight: clampBandHeight(settings.topBandHeight),
+    bottomBandVisible: canonicalizeBandVisible(
+      settings.bottomBandVisible,
+      DEFAULT_BOTTOM_BAND_VISIBLE,
+    ),
+    bottomBandHeight: clampBandHeight(settings.bottomBandHeight),
   };
 }
 
@@ -300,7 +333,11 @@ function areSettingsEqual(
     left.uncoloredFill === right.uncoloredFill &&
     left.borderColor === right.borderColor &&
     left.interiorWeight === right.interiorWeight &&
-    left.coastlineWeight === right.coastlineWeight
+    left.coastlineWeight === right.coastlineWeight &&
+    left.topBandVisible === right.topBandVisible &&
+    left.topBandHeight === right.topBandHeight &&
+    left.bottomBandVisible === right.bottomBandVisible &&
+    left.bottomBandHeight === right.bottomBandHeight
   );
 }
 

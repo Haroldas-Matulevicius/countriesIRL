@@ -742,6 +742,21 @@ export default function App(): JSX.Element {
     [effectiveCountryLookup, selectCountry],
   );
 
+  /*
+   * D4-16 / A7. The on-canvas band handles' one writer, dispatched through the
+   * SAME `SET_MAP_STYLE` action the panel's toggles use - so the reducer's
+   * `clampBandHeight` bounds the drag and the keyboard step as well, and there
+   * is no second place for the cap to be forgotten.
+   */
+  const handleBandHeightChange = useCallback(
+    (edge: 'top' | 'bottom', height: number): void => {
+      setMapStyle(
+        edge === 'top' ? { topBandHeight: height } : { bottomBandHeight: height },
+      );
+    },
+    [setMapStyle],
+  );
+
   const handleLocateCountry = useCallback(
     (countryId: CountryId): void => {
       const country = modernCountryLookup.get(countryId);
@@ -1049,6 +1064,11 @@ export default function App(): JSX.Element {
         borderColor={compositionState.settings.borderColor}
         coastlineWeight={compositionState.settings.coastlineWeight}
         interiorWeight={compositionState.settings.interiorWeight}
+        topBandVisible={compositionState.settings.topBandVisible}
+        topBandHeight={compositionState.settings.topBandHeight}
+        bottomBandVisible={compositionState.settings.bottomBandVisible}
+        bottomBandHeight={compositionState.settings.bottomBandHeight}
+        onBandHeightChange={handleBandHeightChange}
         selectedIds={selectedIds}
         exportSourceRef={bindMapCanvasHandle}
         legendSlot={legendSlot}

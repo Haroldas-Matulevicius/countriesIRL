@@ -54,6 +54,12 @@ interface MapWorkspaceProps {
   borderColor?: string;
   coastlineWeight?: StrokeWeight;
   interiorWeight?: StrokeWeight;
+  /** D4-16: the two gradient bands, forwarded verbatim to `MapCanvas`. */
+  topBandVisible?: boolean;
+  topBandHeight?: number;
+  bottomBandVisible?: boolean;
+  bottomBandHeight?: number;
+  onBandHeightChange?: (edge: 'top' | 'bottom', height: number) => void;
   selectedIds: SelectedCountryIds;
   exportSourceRef: Ref<MapCanvasHandle>;
   legendSlot?: ReactNode;
@@ -102,6 +108,11 @@ export function MapWorkspace({
   borderColor,
   coastlineWeight,
   interiorWeight,
+  topBandVisible,
+  topBandHeight,
+  bottomBandVisible,
+  bottomBandHeight,
+  onBandHeightChange,
   selectedIds,
   exportSourceRef,
   legendSlot,
@@ -182,6 +193,11 @@ export function MapWorkspace({
               borderColor={borderColor}
               coastlineWeight={coastlineWeight}
               interiorWeight={interiorWeight}
+              topBandVisible={topBandVisible}
+              topBandHeight={topBandHeight}
+              bottomBandVisible={bottomBandVisible}
+              bottomBandHeight={bottomBandHeight}
+              onBandHeightChange={onBandHeightChange}
               borderMesh={geoData.borderMesh}
               selectedIds={selectedIds}
               onSelectCountry={onSelectCountry}

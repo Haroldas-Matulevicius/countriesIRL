@@ -556,6 +556,31 @@
   line-height: var(--text-caption-line-height);
 }
 
+/*
+ * 04-10 / A7 - the band drag handle's HIT AREA.
+ *
+ * Only two properties live here, and both are things an SVG attribute cannot
+ * express: the resize cursor and the focus ring. Everything the handle PAINTS -
+ * the line's stroke, its width, its cap - is an inline attribute instead, and
+ * that is not a style preference. `04-09` measured the trap: an element
+ * carrying `data-editor-only` whose paint comes only from this stylesheet
+ * survives into the export clone and renders NOTHING there, so the gate proving
+ * the sanitizer removed it measures zero either way and cannot fail. One inline
+ * paint attribute is what keeps that gate honest.
+ *
+ * The hit rect is `fill="transparent"` rather than `fill="none"`: `none` is not
+ * hit-testable, so the handle would have no grab area at all.
+ */
+.map-band-handle {
+  cursor: ns-resize;
+  outline: none;
+}
+
+.map-band-handle:focus-visible {
+  outline: var(--focus-width) solid var(--themely-apple-blue);
+  outline-offset: var(--focus-offset);
+}
+
 @media (max-width: 767px) {
   .map-workspace__loading,
   .map-fatal-error {
