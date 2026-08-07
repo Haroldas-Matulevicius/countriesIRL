@@ -377,7 +377,7 @@ contracts have been promoted into `coding-rules/` and are not repeated here.
 
 - **F-1 · medium — a raw NUL byte hides a whole test file from `git diff` and from grep.**
   `src/utils/compositionText.test.ts:139` (offset 5079) carries a **literal NUL (0x00)** instead of
-  a ` ` escape. The test's intent is good (it proves `sanitizeCompositionText` strips NUL,
+  a `\u0000` escape. The test's intent is good (it proves `sanitizeCompositionText` strips NUL,
   newline, and a RTL override). The encoding is the defect: git classifies the file **binary**, so
   **all 333 lines were invisible in the aggregate diff** — the exact artifact the close-out review
   is built on — and this environment's `grep` (`ugrep -I`) **silently skips it**, so any negative

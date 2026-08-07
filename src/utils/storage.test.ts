@@ -1090,7 +1090,7 @@ describe('createStorageAdapter', () => {
   it('reports an INVALID form, an invalid showNoData, and a damaged caption as repairs', () => {
     const storage = new FakeStorage();
     const snapshot = createCompositionSnapshot();
-    const damagedCaption = `Ledger ${'x'.repeat(60)}`;
+    const damagedCaption = `Ledger\u0000${'x'.repeat(60)}`;
     storage.values.set(
       STORAGE_KEY,
       JSON.stringify([
@@ -1133,7 +1133,7 @@ describe('createStorageAdapter', () => {
     // stored value, which is the half a `toMatchObject` on the code alone
     // would not catch.
     expect(loadedCaption).not.toBe(damagedCaption);
-    expect(loadedCaption).not.toContain(' ');
+    expect(loadedCaption).not.toContain('\u0000');
     expect([...loadedCaption]).toHaveLength(MAX_LEGEND_CAPTION_LENGTH);
     expect(storage.setCalls).toBe(0);
   });
