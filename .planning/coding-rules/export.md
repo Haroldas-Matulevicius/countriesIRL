@@ -229,11 +229,26 @@ svg.map-canvas
 ├── defs[data-layer="paint"]       ← 04-10: band gradients; inline literal stops
 ├── g[data-layer="camera"]         ← still before the legend; transform preserved
 ├── g[data-layer="bands"]          ← 04-10: edge-anchored rects; url(#…) fills
-└── g[data-layer="legend"]         ← transform preserved
+├── g[data-layer="legend"]         ← transform preserved
+└── g[data-layer="text"]           ← 04-11: title/subtitle/attribution; all inline
 ```
 
 `g[data-layer="band-handles"]` is in the SOURCE and never in the clone: it carries
 `data-editor-only`, so the sanitizer removes it wholesale.
+
+**`g[data-layer="text"]` renders ALWAYS and is EMPTY when the composition has no type** (04-11).
+That is not tidiness: an empty `<text>` still carries a `font-family`, so
+`collectCompositionFonts` would report a family for a composition with no type in it and
+`injectExportFontFace` would embed ~113 KB of woff2 for nothing. An empty `<g>` carries none. The
+gate proving this pairs the claim with its **counterfactual** — an empty `<text>` that DOES
+declare the family is shown to register one — because "an empty SVG has no fonts" is vacuously
+true and would pass whatever the renderer did.
+
+Every declaration on a composition `<text>` is an **inline attribute**: `fill` (the resolved
+`#111827` literal, never the matching token), `font-family`, `font-size`, `font-weight`, and
+`text-anchor`. The `font-family` matters twice — it is what puts Inter's bytes in the clone at
+all, and a `var()` or a class in its place renders the title as **nothing** while the editor
+still looks perfect.
 
 The leading `<style>` is legitimate and expected: `isPreservedComposition` checks *order*
 (camera index < legend index), which a first-child insertion preserves because it shifts both
@@ -563,9 +578,52 @@ is therefore two parts, and **Part 2 is the load-bearing half**:
    shipped that defect once already.
 
 **One comparator, not one per gate.** `measureLegendCrops` in `tests/e2e/export.spec.ts` owns the
-decode → crop → count → diff path for both font gates. Two decode paths in one spec is how a
-"sampled pixel" assertion quietly starts measuring a differently decoded image from the one beside
-it — the same reason `samplePngPoints` was generalised.
+decode → crop → count → diff path for **all three** font gates — assertion 25, `04-04`'s latin-ext
+claim, and `04-11`'s composition-text claim. Two decode paths in one spec is how a "sampled pixel"
+assertion quietly starts measuring a differently decoded image from the one beside it — the same
+reason `samplePngPoints` was generalised. Its ink threshold is a **parameter** (`04-11`, on the
+`countInkAroundRegion` precedent): at the default 240 a crop sitting on a light water tint is
+entirely "ink" — `#F5EFE6` is (245, 239, 230), two channels under 240 — and the content floor
+stops measuring anything. One comparator, two thresholds.
+
+### A derived crop must be bounded to the 1080 frame (04-11)
+
+Recorded because a RED proof **defeated the gates** without it. Moving the `<text>` outside the
+viewBox also moves a crop *derived from the text's own layout*, and `drawImage` from a source rect
+off the bitmap yields **transparent black** — which every ink counter in this suite reads as solid
+ink. The content floors then passed on 28,050 phantom pixels while the exact defect they exist to
+catch had happened, and the failure surfaced on a *different* assertion with a misleading message.
+Any derived crop asserts `0 <= x`, `0 <= y`, `x + width <= 1080`, and `y + height <= 1080` before
+a single pixel is sampled.
+
+### Composition text, and what its gates do NOT claim (04-11, D4-15)
+
+Three gates, and they are three because they are three claims:
+
+| Gate | Claim | Measured |
+|---|---|---|
+| A | creator title ink reaches the PNG, and leaves with the title | 2,842 ink pixels with, **0** without |
+| B | the EMBEDDED faces are what drew it | 4,875 crop pixels differ from the font-suppressed control |
+| C | at a forced overlap: bands → legend → text | swatch reads `#DE2D26` exactly; 2,557 ink inside the legend background against 0 |
+
+**PRESENCE FIRST, THEN CORRECTNESS.** A gate that samples "is there ink here" goes green for text
+in the wrong font, at the wrong size, or showing the wrong string. Every pixel claim is preceded by
+DOM assertions on the element, its text, its size, weight, anchor, ink literal, and family — and
+Gate C adds a *pixel* presence probe ahead of both ordering claims, so text that never reached the
+frame cannot redden a claim about paint order (`04-10`'s measured lesson).
+
+**One ordering is HELD OUT, with the reason measured.** Bands-versus-legend read on the BAND rather
+than on the swatch cannot be sampled: the legend background is **90 % opaque**, so the largest band
+signal this product can produce in the top band (3.490 luminance, `04-10`) arrives underneath as
+0.35. Measured directly: the biggest band-on / band-off channel delta anywhere inside the legend
+box is **3 of 765**, and **9 of 765** outside it in the same frame. The swatch assertion replaces
+it — an opaque `#DE2D26` fill under a max-height band must read that colour exactly, and under the
+reversed DOM order it measured (233, 137, 129).
+
+⛔ **None of these claims that the latin-ext diacritics are the RIGHT GLYPHS.** That is **A12**, a
+physical check scheduled in `04-16`. It was never performed in Phase 3, skipped is not passed, and
+it cannot be inherited. An automated byte difference proves *something changed*, not that it is
+correct.
 
 ### The latin-ext gate (04-04) — and the probe string that could not fail
 
@@ -681,9 +739,9 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-07 (latest) — **the reference-aware `id` rule got its first real subject** (D4-16, plan `04-10`). The canonical clone shape gained `defs[data-layer="paint"]` and `g[data-layer="bands"]`, with `g[data-layer="band-handles"]` named as source-only. § Strip semantics records that BOTH `export.spec.ts` and `fixtures/export.html` carried `clone.ids === 0` — the assertion this file already warned CONFIRMS the break — and the three claims that replaced it, including the non-vacuity check the obvious two need; plus the measured evidence that stripping discriminates (one surviving id with the bottom band off, not two) and the reminder that a `<defs>` subtree can be present, correct, and inert with no error anywhere. § Prepared-Composition Clone Contract gained the rule that a band is invisible on white water by design, so a band gate needs a non-white surface AND a land-crossing column, with the measured 239.626-either-way over open ocean and a pointer at `frontend.md`'s presence-then-ordering probe shape.*
+*Last updated: 2026-08-07 (Phase 4, plan `04-11`) — **composition text joins the clone contract** (D4-15). The canonical clone shape gains `g[data-layer="text"]` as the LAST child, after the legend, completing U-8. Recorded with it: the layer renders ALWAYS and is EMPTY when there is no type, because an empty `<text>` still carries a `font-family` and would make `collectCompositionFonts` embed ~113 KB of woff2 for a composition with no type in it — and the gate proving that pairs the claim with its COUNTERFACTUAL, since "an empty SVG has no fonts" is vacuously true; every declaration on a composition `<text>` as an inline attribute, with `font-family` load-bearing twice over. § Testing gained three things: `measureLegendCrops` now serves all THREE font gates and its ink threshold is a PARAMETER (at 240 a `#F5EFE6` crop is entirely "ink" and the content floor stops measuring anything); **a derived crop must be bounded to the 1080 frame**, recorded because a RED proof defeated the gates without it — an off-frame `drawImage` source rect yields TRANSPARENT BLACK, every ink counter reads that as solid ink, and the floors passed on 28,050 phantom pixels while surfacing on the wrong assertion; and § Composition text with its three gates, the PRESENCE-FIRST-THEN-CORRECTNESS rule (an ink count goes green for the wrong font and the wrong string), the ONE ordering HELD OUT with the measurement that justifies it (the legend background is 90 % opaque, so `04-10`'s largest band signal of 3.490 luminance arrives underneath as 0.35; measured 3 of 765 inside the legend box), and the explicit refusal to claim A12 — whether the latin-ext diacritics are the RIGHT GLYPHS is a physical check scheduled in `04-16`, never performed in Phase 3, and not inheritable.*
 
-*Last updated: 2026-08-07 and 2026-08-06, condensed per the two-entry rule — § Strip semantics gained **the border rule is
+*Last updated: 2026-08-07 (plan `04-10`) and earlier, condensed per the two-entry rule — **the reference-aware `id` rule got its first real subject** (D4-16, plan `04-10`). The canonical clone shape gained `defs[data-layer="paint"]` and `g[data-layer="bands"]`, with `g[data-layer="band-handles"]` named as source-only. § Strip semantics records that BOTH `export.spec.ts` and `fixtures/export.html` carried `clone.ids === 0` — the assertion this file already warned CONFIRMS the break — and the three claims that replaced it, including the non-vacuity check the obvious two need; plus the measured evidence that stripping discriminates (one surviving id with the bottom band off, not two) and the reminder that a `<defs>` subtree can be present, correct, and inert with no error anywhere. § Prepared-Composition Clone Contract gained the rule that a band is invisible on white water by design, so a band gate needs a non-white surface AND a land-crossing column, with the measured 239.626-either-way over open ocean and a pointer at `frontend.md`'s presence-then-ordering probe shape. § Strip semantics gained **the border rule is*
 pass-through-with-neutralisation** (D4-08, plan `04-08`). `sanitizeExportClone`'s stroke loop no
 longer hard-sets `#000000` / `0.75` over the creator's choice — the measured reason a quiet
 coastline was unreachable in the PNG. It was **REPLACED, never deleted**: the `non-scaling-stroke`
