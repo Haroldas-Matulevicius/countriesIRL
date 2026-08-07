@@ -33,6 +33,18 @@
     "neutralUnits": "Disputed, indeterminate, and ambiguous associated units are visible and self-colorable: each owns its own color under colorPolicy \"self-colorable\" and inherits from no core state (decision D4-10, Phase 4). They are not core states. coreStateCount 195 counts UN-member core states and is unchanged; selectableCount 207 counts colorable units and is a different quantity. The two are never interchangeable.",
     "runtimeNetwork": "The browser loads only the committed same-origin world asset; upstream URLs are build-time provenance."
   },
+  "interiorBorderMesh": {
+    "file": "world-borders-modern.geojson",
+    "derivedFrom": "world-modern.geojson",
+    "tool": "mapshaper 0.7.48 (devDependency, Node API mapshaper.applyCommands)",
+    "command": "-i input.geojson -innerlines -o format=geojson precision=0.0001 output.geojson",
+    "rootType": "GeometryCollection",
+    "geometryCount": 327,
+    "byteLength": 366767,
+    "sha256": "72939b8f1bb20bae624a429c4c76119cb0687a05712271f695804d4d8f093e41",
+    "precision": "0.0001 degrees, about 11 m at the equator - far finer than a 1080px world render can express. Dropping the flag costs +78,028 bytes (444,795 total) and is the escape hatch if 04-09 finds it visibly lossy.",
+    "binding": "Bound to its own SHA-256, deliberately NOT to world-modern.geojson's hash. mapshaper -innerlines reads geometry only and is insensitive to feature properties: re-deriving after D4-10 flipped isSelectable/colorOwnerId on twelve units yields this same digest [MEASURED]. A polygon-hash binding would therefore report drift that has not happened every time a policy field moves. npm run data:world:check re-derives this mesh from the canonical polygon bytes and compares byte-for-byte, so it fails on a tampered mesh and on a mesh that no longer matches the geometry. It does not, and cannot, detect a properties-only change to world-modern.geojson - the polygon asset's own byte-equality check covers that."
+  },
   "sourceIdExceptions": [
     {
       "coreId": "SSD",

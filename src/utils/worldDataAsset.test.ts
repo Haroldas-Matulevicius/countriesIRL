@@ -2,6 +2,7 @@ import { geoPath } from 'd3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import repositoryAttributes from '../../.gitattributes?raw';
+import borderMeshText from '../../public/data/world-borders-modern.geojson?raw';
 import manifestText from '../../public/data/world-manifest.json?raw';
 import worldText from '../../public/data/world-modern.geojson?raw';
 import {
@@ -13,9 +14,19 @@ import {
 import { createSafeMapPath, createWorldProjection } from './mapProjection';
 
 const EXPECTED_MANIFEST_SHA256 =
-  '22af5b62c089544eef6ad107c4e3e6682b6f74b33a3be2638c6a8e1640f68d49';
+  'dcc2e78ad934d777b331897b81e4f8826df81a74348fe11c22707b42b53ba3bd';
 const EXPECTED_WORLD_SHA256 =
   'd02b604a92a4a7f4481c6bf9a92490adbfe4c6bc4b7ed4fd044c36bb4e2b5645';
+/**
+ * The interior-border mesh (plan 04-06). Pinned here as well as in the
+ * manifest because `npm run data:world:check` needs the network to fetch its
+ * Natural Earth sources; this offline gate still reddens on a tampered mesh.
+ * It is a digest pin, not a re-derivation - the derivational check is the one
+ * in `scripts/prepareWorldData.mjs`.
+ */
+const EXPECTED_BORDER_MESH_SHA256 =
+  '72939b8f1bb20bae624a429c4c76119cb0687a05712271f695804d4d8f093e41';
+const EXPECTED_BORDER_MESH_GEOMETRY_COUNT = 327;
 const EXPECTED_BASE_SOURCE_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson';
 const EXPECTED_SUPPLEMENT_SOURCE_URL =
@@ -156,10 +167,52 @@ describe('canonical world assets', (): void => {
     ]);
     expect(repositoryAttributes.split(/\r?\n/u)).toEqual(
       expect.arrayContaining([
+        'public/data/world-borders-modern.geojson text eol=lf',
         'public/data/world-manifest.json text eol=lf',
         'public/data/world-modern.geojson text eol=lf',
       ]),
     );
+  });
+
+  it('pins the interior-border mesh to the digest the manifest records', async (): Promise<void> => {
+    const { manifest } = readAssets();
+    await expect(calculateSha256(borderMeshText)).resolves.toBe(
+      EXPECTED_BORDER_MESH_SHA256,
+    );
+
+    const mesh = readJson(borderMeshText);
+    expect(isRecord(mesh)).toBe(true);
+    if (!isRecord(mesh)) {
+      return;
+    }
+    expect(mesh.type).toBe('GeometryCollection');
+    const geometries = readArray(mesh, 'geometries');
+    // A literal, never `a.length * b.length`: a product is green at zero rows.
+    expect(geometries).toHaveLength(EXPECTED_BORDER_MESH_GEOMETRY_COUNT);
+    expect(
+      geometries.every(
+        (geometry) =>
+          isRecord(geometry) &&
+          (geometry.type === 'LineString' || geometry.type === 'MultiLineString'),
+      ),
+    ).toBe(true);
+
+    expect(isRecord(manifest)).toBe(true);
+    if (!isRecord(manifest)) {
+      return;
+    }
+    // The manifest record and the artifact are asserted against each other, so
+    // editing one to agree with the other is not enough to keep this green.
+    expect(manifest.interiorBorderMesh).toMatchObject({
+      file: 'world-borders-modern.geojson',
+      derivedFrom: 'world-modern.geojson',
+      rootType: 'GeometryCollection',
+      command:
+        '-i input.geojson -innerlines -o format=geojson precision=0.0001 output.geojson',
+      geometryCount: EXPECTED_BORDER_MESH_GEOMETRY_COUNT,
+      byteLength: new TextEncoder().encode(borderMeshText).byteLength,
+      sha256: EXPECTED_BORDER_MESH_SHA256,
+    });
   });
 
   it('locks the exact core, supplement, count, and parent policy', async (): Promise<void> => {

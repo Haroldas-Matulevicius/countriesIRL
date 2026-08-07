@@ -28,6 +28,11 @@ const MESH_DERIVATION_COMMAND =
   '-i input.geojson -innerlines -o format=geojson precision=0.0001 output.geojson';
 const MESH_INPUT_KEY = 'input.geojson';
 const MESH_OUTPUT_KEY = 'output.geojson';
+const MESH_FILE_NAME = 'world-borders-modern.geojson';
+const MESH_SOURCE_FILE_NAME = 'world-modern.geojson';
+const MESH_ROOT_TYPE = 'GeometryCollection';
+const EXPECTED_MESH_GEOMETRY_COUNT = 327;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 const EXPECTED_NATURAL_EARTH_VERSION = '5.1.1';
 const EXPECTED_BASE_SOURCE_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson';
@@ -507,6 +512,84 @@ function countMeshGeometries(meshBytes, label) {
   return value.geometries.length;
 }
 
+function readMeshRecord(manifest) {
+  const record = manifest.interiorBorderMesh;
+  if (
+    !isRecord(record) ||
+    record.file !== MESH_FILE_NAME ||
+    record.derivedFrom !== MESH_SOURCE_FILE_NAME ||
+    record.rootType !== MESH_ROOT_TYPE ||
+    record.command !== MESH_DERIVATION_COMMAND ||
+    typeof record.sha256 !== 'string' ||
+    !SHA256_PATTERN.test(record.sha256) ||
+    typeof record.byteLength !== 'number' ||
+    !Number.isInteger(record.byteLength) ||
+    record.byteLength <= 0
+  ) {
+    throw new Error('World manifest interior-border mesh record is invalid.');
+  }
+  // A literal, so a manifest edited into agreement with a broken mesh is
+  // refused here rather than validating itself.
+  if (record.geometryCount !== EXPECTED_MESH_GEOMETRY_COUNT) {
+    throw new Error(
+      `World manifest records ${record.geometryCount} interior-border geometries, expected ${EXPECTED_MESH_GEOMETRY_COUNT}.`,
+    );
+  }
+
+  return record;
+}
+
+/**
+ * Four assertions in a deliberate order, each reachable on its own subject.
+ * A geometry deletion changes the count, the length, and the bytes at once, so
+ * an ordering that put byte equality first would report a generic mismatch and
+ * leave the count assertion unfalsifiable - which is how a vacuous gate ships.
+ *
+ * What this covers: a tampered committed mesh (2, 3, 4) and a mesh that no
+ * longer matches the geometry the script just regenerated (3). What it does
+ * NOT cover: a properties-only change to world-modern.geojson. `-innerlines`
+ * reads geometry only, so such a change leaves every number below identical -
+ * measured, and the reason the mesh is bound to its own digest rather than to
+ * the polygon asset's. The polygon asset's own byte-equality check above is
+ * what catches that.
+ */
+async function verifyMesh(manifest, canonicalBytes) {
+  const record = readMeshRecord(manifest);
+  const committedMeshBytes = await readFile(MESH_OUTPUT_PATH);
+
+  const committedGeometryCount = countMeshGeometries(
+    committedMeshBytes,
+    MESH_FILE_LABEL,
+  );
+  if (committedGeometryCount !== record.geometryCount) {
+    throw new Error(
+      `${MESH_FILE_LABEL} holds ${committedGeometryCount} geometries but the manifest records ${record.geometryCount}.`,
+    );
+  }
+
+  if (committedMeshBytes.length !== record.byteLength) {
+    throw new Error(
+      `${MESH_FILE_LABEL} is ${committedMeshBytes.length} bytes but the manifest records ${record.byteLength}.`,
+    );
+  }
+
+  const derivedMeshBytes = await createMeshBytes(canonicalBytes);
+  if (!derivedMeshBytes.equals(committedMeshBytes)) {
+    throw new Error(
+      `${MESH_FILE_LABEL} differs from the mesh re-derived from the canonical world geometry.`,
+    );
+  }
+
+  const committedSha256 = calculateSha256(committedMeshBytes);
+  if (committedSha256 !== record.sha256) {
+    throw new Error(
+      `${MESH_FILE_LABEL} digest ${committedSha256} does not match the manifest record ${record.sha256}.`,
+    );
+  }
+
+  return { geometryCount: committedGeometryCount, byteLength: committedMeshBytes.length };
+}
+
 async function run() {
   const { check, baseSource, supplementSource } = parseArguments(
     process.argv.slice(2),
@@ -550,11 +633,12 @@ async function run() {
         'public/data/world-modern.geojson differs from deterministic output.',
       );
     }
+    const mesh = await verifyMesh(manifest, canonicalBytes);
     // Two numbers, stated separately and read from the manifest the check just
     // validated. 195 is core states; 207 is colorable units. Collapsing them
     // into one figure is the misreading this line exists to prevent.
     globalThis.console.info(
-      `World GeoJSON check passed: ${manifest.policy.runtimeUnitCount} units, ${manifest.policy.coreStateCount} selectable core states, and ${manifest.policy.selectableCount} colorable units.`,
+      `World GeoJSON check passed: ${manifest.policy.runtimeUnitCount} units, ${manifest.policy.coreStateCount} selectable core states, and ${manifest.policy.selectableCount} colorable units. Interior-border mesh re-derived and matched: ${mesh.geometryCount} geometries, ${mesh.byteLength} bytes.`,
     );
     return;
   }
