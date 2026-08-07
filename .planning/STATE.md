@@ -10,20 +10,20 @@ progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 86
-  completed_plans: 62
-  percent: 72
+  completed_plans: 63
+  percent: 73
 ---
 
 # State: CountriesIRL Map Generator
 
-> **Status (2026-08-06):** Phase 4 — **EXECUTING · 2/16 plans · PAUSED by the owner** for usage
-> headroom. ▶ Resume with `/gsd-execute-phase 4`; the next unit of work is **`04-03`** (wave 2),
-> whose owner gate is **already decided: `policy-b-third-value`** — see
-> [`.continue-here.md`](phases/04-visual-cartographic-system-1-5-2-weeks/.continue-here.md).
-> Wave 1 (`04-01`, the tracer) is done: water colour now reaches real exported PNG pixels through a
-> serialized `rect[data-layer="surface"]`, proving the phase's architecture rather than assuming it.
-> `04-02` added the ramp data model (five bounded five-step ramps) and **substituted a palette
+> **Status (2026-08-06):** Phase 4 — **EXECUTING · 3/16 plans.** Waves 1–2 done.
+> `04-01` (tracer) proved water colour reaches real exported PNG pixels through a serialized
+> `rect[data-layer="surface"]`. `04-02` added the ramp data model and **substituted a palette
 > rather than loosening a gate** — ColorBrewer's `#3182BD` cannot carry either ink at AA.
+> **`04-03` landed the first one-way decision (`D4-10`):** the twelve neutral units are colourable,
+> `coreStateCount` stays **195** and factually true with `selectableCount: 207` alongside it. The
+> manifest hash chain was **re-derived, not waived**. **No geometry promoted, no snapshot added, no
+> rights/factual/topology approval implicated.**
 > ⚠️ **Running under a blanket, in-advance, sight-unseen proceed-authorization**
 > ([`04-AUTHORIZATION.md`](phases/04-visual-cartographic-system-1-5-2-weeks/04-AUTHORIZATION.md)).
 > It **authorizes proceeding**; it is **not a content review** and it is **not hash-bound.**
