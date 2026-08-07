@@ -249,11 +249,18 @@ the breakdown here.
    `npm run data:world:check` extended to verify it. *Gate:* the check fails on a mesh whose
    hash or edge count drifts from the manifest (mutate one byte → RED).
 5. `04-05` **Border rendering rework.** Fills keep no/hairline stroke; the interior mesh is
-   drawn as its own non-interactive layer inside the camera transform, weight states
-   (hover/selected) re-expressed on it; coastlines therefore render effectively unstroked.
+   drawn as its own non-interactive layer inside the camera transform, date-line wrapped on the
+   same offsets as the polygons; hover and selected weight states are carried by a **dedicated
+   `data-editor-only` highlight layer**, which the export clone removes wholesale, so they
+   provably cannot move an exported pixel; coastlines therefore render effectively unstroked.
    `non-scaling-stroke` pinning in the export clone preserved. *Gate:* export e2e asserts a
    coastline sample point has no dark stroke while an inland border sample does — each
    direction broken once and observed RED.
+   > **Amended 2026-08-07 (CD-11, plan `04-09`).** This line originally said the weight states
+   > were carried on the interior mesh. They cannot be: a mesh segment is the boundary **between
+   > two countries**, so weighting one segment would highlight both. The correction came from
+   > `04-UI-SPEC.md § 6.9` during Phase 4 planning and was reported rather than silently
+   > diverged from; `04-09` implemented the highlight layer and landed this amendment.
 6. `04-06` **Title/footer gradient bands.** Optional top band (default on) and bottom band
    (default off): white→transparent vertical gradients anchored to the square's edges,
    height creator-adjustable up to a hard cap of **1/7 of the export square** each; rendered

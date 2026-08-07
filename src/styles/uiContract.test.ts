@@ -1562,6 +1562,58 @@ describe('Phase 3 export isolation contract', (): void => {
       '.map-highlight-path--selected {\n  stroke: var(--map-border-selected);',
     );
   });
+
+  /**
+   * **The highlight stroke has TWO routes, and this is what stops them
+   * drifting.**
+   *
+   * The editor draws it from `var(--map-border-hover)` / `--map-border-selected`
+   * — mode-invariant tokens, which is the rule for a selection stroke on map
+   * geometry. The clone draws it from the inline attribute `MapCanvas` writes
+   * from `HOVERED_BORDER_COLOR` / `SELECTED_BORDER_COLOR`, because the isolated
+   * export document sees no stylesheet — and WITHOUT that inline copy the PNG
+   * gate for "interaction state never reaches the download" cannot go red, as
+   * measured in `04-09`.
+   *
+   * `src/constants/colors.ts` has carried a "keep these in sync" COMMENT since
+   * Phase 2. This is the gate that makes it a checked claim.
+   */
+  it('keeps the map-border TS constants equal to their tokens (04-09)', (): void => {
+    const colorsSource = readStyleSheet('../constants/colors.ts');
+    const root = unconditionedRootTokens();
+
+    const pairs = [
+      ['DEFAULT_BORDER_COLOR', '--map-border-default'],
+      ['SELECTED_BORDER_COLOR', '--map-border-selected'],
+      ['HOVERED_BORDER_COLOR', '--map-border-hover'],
+    ] as const;
+
+    // A literal, so an emptied table cannot pass by iterating nothing.
+    expect(pairs).toHaveLength(3);
+
+    pairs.forEach(([constantName, token]): void => {
+      const declared = colorsSource.match(
+        new RegExp(`export const ${constantName} = '(#[0-9A-Fa-f]{6})';`, 'u'),
+      )?.[1];
+      expect(
+        declared,
+        `${constantName} is no longer a plain hex literal in ` +
+          'constants/colors.ts, so this gate is reading nothing.',
+      ).toBeDefined();
+
+      const tokenValue = root.get(token);
+      expect(tokenValue, `"${token}" is not declared in the light root`).toBeDefined();
+
+      expect(
+        declared?.toLowerCase(),
+        `${constantName} is ${declared ?? 'absent'} while ${token} is ` +
+          `${tokenValue ?? 'absent'}. The editor draws the highlight from the ` +
+          'token and the exported PNG draws it from the constant, so a ' +
+          'difference here ships a selection ring in one colour on screen and ' +
+          'another in the download.',
+      ).toBe(tokenValue?.trim().toLowerCase());
+    });
+  });
 });
 
 /* ------------------------------------------------------------------ *

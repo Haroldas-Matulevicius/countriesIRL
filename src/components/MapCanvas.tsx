@@ -30,7 +30,9 @@ import type {
 import {
   DEFAULT_BORDER_COLOR,
   DEFAULT_COLOR,
+  HOVERED_BORDER_COLOR,
   NEUTRAL_UNIT_COLOR,
+  SELECTED_BORDER_COLOR,
 } from '../constants/colors';
 import { SCENE_CROSSFADE_DURATION_MS } from '../constants/camera';
 import {
@@ -115,6 +117,31 @@ const HIGHLIGHT_SELECTED_CLASS = 'map-highlight-path--selected';
 const HIGHLIGHT_STROKE_WIDTHS = {
   hovered: '1.5',
   selected: '2.5',
+} as const;
+
+/**
+ * The stroke is written INLINE as well, and the reason is a measured gate
+ * failure rather than a preference.
+ *
+ * `MapCanvas.css` styles these paths from `var(--map-border-hover)` /
+ * `var(--map-border-selected)`, which is what the editor sees and what keeps
+ * those two mode-invariant tokens consumed. But the export clone rasterises as
+ * an isolated document with NO host stylesheet, so a highlight path whose only
+ * stroke came from CSS renders nothing there - which meant the PNG gate for
+ * "interaction state never reaches the download" **could not go red** when the
+ * `data-editor-only` attribute was deleted. A second, accidental mechanism was
+ * hiding the one under test: exactly the shape this repository keeps shipping.
+ *
+ * Writing the colour inline as well makes the sanitizer the ONLY thing standing
+ * between a selection ring and a creator's published image, so the gate can
+ * fail on its own subject. On screen the class rule out-specifies the
+ * presentation attribute, so the tokens still decide what the editor draws;
+ * `uiContract.test.ts` asserts the constant and the token are equal in both
+ * directions, so the two routes cannot drift apart.
+ */
+const HIGHLIGHT_STROKE_COLORS = {
+  hovered: HOVERED_BORDER_COLOR,
+  selected: SELECTED_BORDER_COLOR,
 } as const;
 
 type HighlightState = keyof typeof HIGHLIGHT_STROKE_WIDTHS;
@@ -642,6 +669,7 @@ export const MapCanvas = forwardRef<MapCanvasHandle, MapCanvasProps>(
         )
         .attr('d', (model): string => model.pathData)
         .attr('transform', (model): string => `translate(${model.offsetX} 0)`)
+        .attr('stroke', (model): string => HIGHLIGHT_STROKE_COLORS[model.state])
         .attr(
           'stroke-width',
           (model): string => HIGHLIGHT_STROKE_WIDTHS[model.state],

@@ -342,13 +342,18 @@ still governs everything that reaches `public/data/`.
 
    The mesh path carries **`vector-effect="non-scaling-stroke"` as an attribute** for the same
    reason every scene path does: the camera wraps the layer in `scale(zoom)`.
-2. **The mesh cannot carry hover or selection state (CD-11).** `src/constants/colors.ts` records
-   that border **weight**, not colour, carries interaction state — every border is black at every
-   state. A mesh segment belongs to **two** countries, so weighting one segment highlights both.
-   `ROADMAP.md § Phase 4 04-05`'s claim that weight states are *"re-expressed on [the interior
-   mesh]"* is therefore **not achievable**, and `04-UI-SPEC.md § 6.9` specifies a dedicated
-   editor-only highlight layer instead. `04-09` owns both the implementation and the ROADMAP
-   amendment; the finding is recorded here so it survives that plan being re-scoped.
+2. **The mesh cannot carry hover or selection state (CD-11) — RESOLVED by `04-09`.**
+   `src/constants/colors.ts` records that border **weight**, not colour, carries interaction state
+   — every border is black at every state. A mesh segment belongs to **two** countries, so
+   weighting one segment highlights both. `ROADMAP.md § Phase 4 04-05`'s claim that the weight
+   states were re-expressed on the interior mesh was therefore **not achievable**, and
+   `04-UI-SPEC.md § 6.9` specifies a dedicated editor-only highlight layer instead.
+
+   **What shipped:** `g[data-layer="highlight"]` carrying `data-editor-only="true"`, which
+   `sanitizeExportClone` removes wholesale, so interaction state provably cannot move an exported
+   pixel. The ROADMAP line was amended in `04-09`'s Task 3 commit with a dated note. The mesh
+   itself carries no per-country state of any kind: it is one `d` string per wrapped copy for all
+   327 geometries, with no country identity anywhere on it.
 
 ### The approved-id filter on the saved-map row resolver (OPEN ITEM 4, decided in 03-07)
 

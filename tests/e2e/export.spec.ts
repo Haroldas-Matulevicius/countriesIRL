@@ -1249,6 +1249,40 @@ const MIN_BOUNDARY_INK_PIXELS = 20_000;
  * the band radius ever moves; do not delete the floor.
  */
 const MIN_COASTLINE_BAND_INK_PIXELS = 8;
+/**
+ * `04-09` Gate A's whole-frame content floor, and it is a DIFFERENT number from
+ * `MIN_BOUNDARY_INK_PIXELS` on purpose.
+ *
+ * That floor (20,000, from a measured 45,190) describes a frame whose coastlines
+ * are stroked at `thin`. Gate A runs at the SHIPPED DEFAULTS — coastlines
+ * `none`, interior `thin` — where the only ink in the frame is the interior
+ * mesh, which is a fraction of the total boundary length. Reusing the 20,000
+ * floor there would be red on arrival and would then get loosened rather than
+ * obeyed, which is how a floor stops being one.
+ *
+ * MEASURED in installed Chrome 151.0.7922.76 at the default world camera:
+ * **8,400** pixels below `DARK_INK_THRESHOLD` across the whole frame, against
+ * the 45,190 the same frame measures with coastlines at `thin`. The floor is
+ * **4,000** - under half the measured value, so ordinary rendering variation
+ * does not make it flap, and three orders of magnitude above the zero a blank
+ * or flood-filled frame produces. In the same run the Franco-German band
+ * measured **85** and the Australian coastline band **0**.
+ */
+const MEASURED_MESH_INK_PIXELS = 8_400;
+const MIN_MESH_INK_PIXELS = 4_000;
+/**
+ * `04-09` Gate B. Derived from a measurement in this same change, not guessed:
+ * the unselected control and the selected export both measured **0** ink around
+ * Australia's coast, and the RED proof that deletes `data-editor-only`
+ * measured **132**. A tolerance of 2 leaves room for anti-aliasing jitter while
+ * sitting sixty-six times below the real signal.
+ *
+ * The inline stroke on the highlight path is what makes that 132 exist at all.
+ * With the colour coming only from `MapCanvas.css`, the surviving ring rendered
+ * NOTHING in the isolated export document and this gate measured 0 either way -
+ * a gate the sandbox neutralised. Recorded because the fix is easy to undo.
+ */
+const SELECTION_INK_TOLERANCE = 2;
 const WHOLE_FRAME_REGION: LegendRegion = {
   x: 0,
   y: 0,
@@ -1586,6 +1620,17 @@ test.describe('water preset', (): void => {
  */
 const AUSTRALIA_WEST_COAST_LON_LAT: readonly [number, number] = [113.7, -22.3];
 const COASTLINE_BAND_RADIUS = 6;
+/**
+ * `04-09` Gate A's INLAND sample: the Franco-German Rhine, a boundary between
+ * two large neighbours, so the sample survives sub-pixel placement. It is
+ * nowhere near a coast, so ink measured here at `coastlineWeight: none` can
+ * only have come from the interior mesh.
+ *
+ * The pairing with `AUSTRALIA_WEST_COAST_LON_LAT` is what makes Gate A an
+ * INEQUALITY rather than two separate claims: the two samples are read from the
+ * SAME export, through the same counter, at the same band radius.
+ */
+const FRANCO_GERMAN_BORDER_LON_LAT: readonly [number, number] = [7.8, 48.7];
 
 /** An interior point of a large country, well clear of any boundary. */
 const CENTRAL_BRAZIL_LON_LAT: readonly [number, number] = [-52, -10];
@@ -2193,6 +2238,203 @@ test.describe('border weight', (): void => {
       ).toBeGreaterThan(previous ?? Number.NaN);
     });
 
+    await expectBlankControlReadsZeroInk(page, band);
+  });
+
+  /**
+   * **GATE A (04-09) — inland INKED and coastline QUIET, in the SAME export.**
+   *
+   * This is the phase's headline picture stated as an inequality: the Eurostat
+   * reference has thin dark lines clearly present BETWEEN countries and
+   * effectively nothing around the coasts. Either half alone is satisfiable by
+   * a mistake — "the coastline is quiet" by a blank frame, "the inland border
+   * is inked" by a frame where everything is inked — so both are read from one
+   * export, through one counter, at one band radius.
+   *
+   * It runs at the SHIPPED DEFAULTS (`coastlineWeight: none`,
+   * `interiorWeight: thin`), so it is a claim about what a creator downloads
+   * without touching a control.
+   */
+  test('an inland border inks while the coastline stays quiet, in one export', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const inland = await projectToExportPixel(page, FRANCO_GERMAN_BORDER_LON_LAT);
+    const coastline = await projectToExportPixel(
+      page,
+      AUSTRALIA_WEST_COAST_LON_LAT,
+    );
+    const inlandBand = bandAround(inland, COASTLINE_BAND_RADIUS);
+    const coastlineBand = bandAround(coastline, COASTLINE_BAND_RADIUS);
+
+    const bytes = await exportRealApp(page, 'mesh-defaults');
+    expect(readPngDimensions(bytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+
+    // 1. CONTENT FLOOR FIRST, on the whole frame. Coastlines are `none` here,
+    //    so the ink this counts is the interior mesh — which makes the floor
+    //    the mesh's own presence check as well as the frame's.
+    const frameInk = await countInkAroundRegion(
+      page,
+      bytes,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      frameInk.inside,
+      `the exported frame measured ${frameInk.inside} ink pixels against a ` +
+        `floor of ${MIN_MESH_INK_PIXELS} (derived from ` +
+        `${MEASURED_MESH_INK_PIXELS} measured when this gate landed). At the ` +
+        'shipped defaults that ink IS the interior mesh, so the frame is ' +
+        'carrying no borders at all and both samples below would be about a ' +
+        'blank square.',
+    ).toBeGreaterThan(MIN_MESH_INK_PIXELS);
+
+    // 2. THE INEQUALITY. Same export, same counter, same radius.
+    const inlandInk = await countInkAroundRegion(
+      page,
+      bytes,
+      inlandBand,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      inlandInk.inside,
+      `the Franco-German border band at (${inland[0]}, ${inland[1]}) measured ` +
+        `${inlandInk.inside} ink pixels. The interior mesh did not reach the ` +
+        'PNG, so the map downloads with no lines between countries.',
+    ).toBeGreaterThan(MIN_COASTLINE_BAND_INK_PIXELS);
+
+    const coastlineInk = await countInkAroundRegion(
+      page,
+      bytes,
+      coastlineBand,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      coastlineInk.inside,
+      `the Australian coastline band at (${coastline[0]}, ${coastline[1]}) ` +
+        `measured ${coastlineInk.inside} dark pixels at ` +
+        '`coastlineWeight: none`. Either the mesh is drawing coastlines - it ' +
+        'is derived from edges present in exactly TWO polygons, so it cannot - ' +
+        'or a country outline came back.',
+    ).toBe(0);
+
+    // 3. THE COUNTER'S OWN CONTROL, over both bands.
+    await expectBlankControlReadsZeroInk(page, inlandBand);
+    await expectBlankControlReadsZeroInk(page, coastlineBand);
+  });
+
+  /**
+   * **GATE B (04-09) — interaction state is absent from the PNG, structurally.**
+   *
+   * Australia is the subject because it has no land neighbours: at the shipped
+   * defaults the band around its west coast carries EXACTLY ZERO ink, so a
+   * selection ring there is not a small delta against a busy background - it is
+   * the difference between nothing and something.
+   *
+   * The comparison is against an unselected control export of the same region
+   * in the same run, so "no selection stroke" cannot be satisfied by an export
+   * that failed to draw anything.
+   */
+  test('a selected country ships no selection stroke into the PNG', async ({
+    page,
+  }): Promise<void> => {
+    await page.goto('/');
+    await waitForApp(page);
+
+    const coastline = await projectToExportPixel(
+      page,
+      AUSTRALIA_WEST_COAST_LON_LAT,
+    );
+    const band = bandAround(coastline, COASTLINE_BAND_RADIUS);
+    const inland = await projectToExportPixel(page, FRANCO_GERMAN_BORDER_LON_LAT);
+    const inlandBand = bandAround(inland, COASTLINE_BAND_RADIUS);
+
+    // 1. THE UNSELECTED CONTROL, first and in the same run.
+    const controlBytes = await exportRealApp(page, 'selection-control');
+    const controlInk = await countInkAroundRegion(
+      page,
+      controlBytes,
+      band,
+      DARK_INK_THRESHOLD,
+    );
+
+    // 2. SELECT AUSTRALIA. By keyboard: a `.click()` targets the bounding-box
+    //    centre, and the editor's own roving tab stop is the real path anyway.
+    const australia = page.locator(
+      'path.country-path[role="option"][data-country-id="AUS"]',
+    );
+    await australia.focus();
+    await australia.press('Enter');
+    await expect(australia).toHaveAttribute('aria-selected', 'true');
+    // The editor really IS drawing the ring, or the absence below is about
+    // nothing at all. This is the discrimination control for the whole gate.
+    await expect(
+      page.locator(
+        'svg.map-canvas [data-layer="highlight"] path.map-highlight-path--selected',
+      ),
+    ).toHaveCount(MESH_WRAP_COPY_COUNT);
+
+    const selectedBytes = await exportRealApp(page, 'selection-selected');
+    expect(readPngDimensions(selectedBytes)).toEqual({
+      width: EXPORT_SIZE,
+      height: EXPORT_SIZE,
+    });
+
+    // 3. CONTENT FLOOR on the SELECTED export specifically, so the comparison
+    //    below is between two real maps rather than between two failures.
+    const selectedFrameInk = await countInkAroundRegion(
+      page,
+      selectedBytes,
+      WHOLE_FRAME_REGION,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      selectedFrameInk.inside,
+      `the selected export measured ${selectedFrameInk.inside} ink pixels ` +
+        `against a floor of ${MIN_MESH_INK_PIXELS}.`,
+    ).toBeGreaterThan(MIN_MESH_INK_PIXELS);
+    const selectedInlandInk = await countInkAroundRegion(
+      page,
+      selectedBytes,
+      inlandBand,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      selectedInlandInk.inside,
+      'the selected export carries no interior border ink, so the counter is ' +
+        'reading a frame with no geography in it.',
+    ).toBeGreaterThan(MIN_COASTLINE_BAND_INK_PIXELS);
+
+    // 4. THE PROPERTY. The selected export's coastline band matches the
+    //    unselected control's, within a tolerance derived from a measurement
+    //    recorded in this change: both measured EXACTLY 0, and the RED proof
+    //    that deletes `data-editor-only` measured 132. The tolerance is 2 -
+    //    room for anti-aliasing jitter, sixty-six times below the real signal.
+    const selectedInk = await countInkAroundRegion(
+      page,
+      selectedBytes,
+      band,
+      DARK_INK_THRESHOLD,
+    );
+    expect(
+      Math.abs(selectedInk.inside - controlInk.inside),
+      `the selected export measured ${selectedInk.inside} ink pixels around ` +
+        `Australia's coast against the unselected control's ` +
+        `${controlInk.inside}. The editor's selection ring reached the ` +
+        "creator's published image - which means `sanitizeExportClone` " +
+        'stopped removing `data-editor-only` elements wholesale.',
+    ).toBeLessThanOrEqual(SELECTION_INK_TOLERANCE);
+    // Stated absolutely as well as as a delta: two equal NON-zero counts would
+    // satisfy the difference above while still meaning a ring shipped twice.
+    expect(controlInk.inside).toBe(0);
+    expect(selectedInk.inside).toBe(0);
+
+    // 5. THE COUNTER'S OWN CONTROL.
     await expectBlankControlReadsZeroInk(page, band);
   });
 });

@@ -5,6 +5,16 @@ export const DEFAULT_COLOR = '#FFFFFF';
 // Keep these in sync with `--map-border-default` / `--map-border-selected`.
 export const DEFAULT_BORDER_COLOR = '#000000';
 export const SELECTED_BORDER_COLOR = '#000000';
+/*
+ * `04-09`. The hover twin of `SELECTED_BORDER_COLOR`, added when hover and
+ * selection moved onto `g[data-layer="highlight"]`.
+ *
+ * All three are the same black, and they stay three names for the reason the
+ * comment above gives: a future re-tint needs a seam to open at. The
+ * TS-versus-token duplication is no longer only a comment - `uiContract.test.ts`
+ * asserts each constant equals its `--map-border-*` token, in both directions.
+ */
+export const HOVERED_BORDER_COLOR = '#000000';
 // The neutral fill for a feature with no colour owner. D4-10 made every Modern
 // unit self-colorable, so on the Modern scene nothing resolves to it any more;
 // it still covers historical scenes and malformed records, and `04-08` adopts
