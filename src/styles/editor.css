@@ -11,10 +11,30 @@
   --rail-width: 56px;
   --panel-width: 0px;
   /*
+   * D4-05: the open flyout width, widened from 280 to 360px and UNIFORM across
+   * every tool, so the panel edge never jumps when the creator switches tools.
+   *
+   * It is a NAMED TOKEN and never a bare literal, because after D4-05 `360px`
+   * means three different things in this one stylesheet: the compact bottom
+   * sheet's height cap at :129, the narrowest contained viewport discussed at
+   * :157 and :183, and now the desktop track's open width. Only a name keeps
+   * them apart, and only a name keeps the three consumers below in step -
+   * `.map-workspace > .editor-help`'s cap in particular is DERIVED from the
+   * panel measure and drifts the next time the panel moves if it is a literal.
+   *
+   * It lives here and NOT in `theme.css`: `themeTokens.test.ts`'s namespace
+   * allowlist governs `theme.css` only, and `04-UI-SPEC.md` section 11 is
+   * explicit that Phase 4 adds no `theme.css` tokens - composition appearance
+   * is persisted state, and reaching for a fixed token there is the signal
+   * someone is about to try painting exported pixels from CSS.
+   */
+  --panel-width-open: 360px;
+  /*
    * The pinned HUD blocks are a fixed height so `.tool-panel__body` can reserve
    * exactly that much room at both ends. The header and footer overhang the
-   * panel track when it is open (D-12/D-13 widen them to 336px), so without the
-   * reservation they would cover the panel's title row and its last control.
+   * panel track when it is open (D-12/D-13 widen them to 416px under D4-05),
+   * so without the reservation they would cover the panel's title row and its
+   * last control.
    *
    * The footer is two 48px controls stacked, at BOTH widths. Laying them side
    * by side when the panel opens would mean a footer whose height changes with
@@ -87,7 +107,7 @@
 }
 
 .map-editor[data-panel-open='true'] {
-  --panel-width: 280px;
+  --panel-width: var(--panel-width-open);
 }
 
 /*
@@ -264,7 +284,7 @@
 }
 
 /*
- * The body fills the sheet instead of a 280px track, and it reserves nothing at
+ * The body fills the sheet instead of the 360px track, and it reserves nothing at
  * either end: the HUD blocks are in the bar now, not stacked above and below
  * this column. It is still the ONE scroll container.
  */
@@ -417,7 +437,7 @@
  * than children of it, which is what makes "never scrolls away" structural.
  *
  * Both widen over the panel track when a tool is open, so identity and Export
- * read as one 336px block rather than as a 56px strip beside a panel.
+ * read as one 416px block rather than as a 56px strip beside a panel.
  */
 .tool-rail__header,
 .tool-rail__footer {
@@ -613,7 +633,7 @@
 
 .tool-panel__body {
   display: flex;
-  width: 280px;
+  width: var(--panel-width-open);
   height: 100%;
   padding-block: var(--hud-header-size) var(--hud-footer-size);
   overflow-y: auto;
@@ -624,7 +644,7 @@
 /*
  * The neutralisers that used to live here are gone with the containers they
  * fought: 03-05 retired the 1440px page measure, the 376px inspector track, and
- * the sticky card, so there is no page-scale rule left inside a 280px column to
+ * the sticky card, so there is no page-scale rule left inside the panel column to
  * cancel. What remains is the panel's own inner spacing, which is the panel's
  * to own.
  */
@@ -686,7 +706,7 @@
 
 /*
  * UI-SPEC 4.1: panel section padding is 24px on desktop and 16px in the narrow
- * sheet, where the sections are full-bleed rather than in a 280px track.
+ * sheet, where the sections are full-bleed rather than in the 360px track.
  *
  * Re-keyed off `data-layout` by `03-09`. The `@media (max-width: 1199px)` query
  * this carried was a SECOND copy of the layout breakpoint, and D-20 turns that
@@ -780,7 +800,7 @@
   position: absolute;
   z-index: 3;
   display: flex;
-  max-inline-size: 280px;
+  max-inline-size: var(--panel-width-open);
   inset-block-end: var(--space-lg);
   inset-inline-start: var(--space-lg);
   flex-direction: column;

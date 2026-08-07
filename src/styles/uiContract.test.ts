@@ -552,8 +552,35 @@ describe('Phase 3 selector inventory is a ceiling (assertion 21)', (): void => {
 const PANEL_STATE_ATTRIBUTE = 'data-panel-open';
 const PANEL_STATE_VALUES = ['false', 'true'] as const;
 const CLOSED_PANEL_WIDTH = '0px';
-const OPEN_PANEL_WIDTH = '280px';
+/**
+ * `280px` -> `360px` under D4-05, which widens every flyout uniformly so the
+ * panel edge never jumps between tools. **The literal moved; the mechanism did
+ * not** - `CLOSED_PANEL_WIDTH` is unchanged, the `@property --panel-width`
+ * `initial-value` is still the closed width, and the track is still
+ * `grid-template-columns: var(--rail-width) var(--panel-width) 1fr`.
+ *
+ * The open value is now reached through a NAMED token rather than a literal,
+ * because `editor.css` already spells `360px` for the compact sheet's height
+ * cap and for a viewport discussion. `resolveEditorLength` below follows the
+ * one alias so this assertion still rates the RESOLVED width - a `var()` that
+ * resolved to nothing would otherwise read as a pass.
+ */
+const OPEN_PANEL_WIDTH = '360px';
+const OPEN_PANEL_WIDTH_TOKEN = '--panel-width-open';
 const RAIL_WIDTH = '56px';
+
+/** Resolves one level of `var(--x)` against the tokens declared on `:root`. */
+function resolveEditorLength(
+  rootTokens: ReadonlyMap<string, string>,
+  declared: string | undefined,
+): string | undefined {
+  if (declared === undefined) {
+    return undefined;
+  }
+  const alias = /^var\(\s*(?<token>--[\w-]+)\s*\)$/u.exec(declared)?.groups
+    ?.token;
+  return alias === undefined ? declared : rootTokens.get(alias);
+}
 
 function panelStateValuesStyled(): string[] {
   const values = new Set<string>();
@@ -586,7 +613,7 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
     });
   });
 
-  it('resolves the track to 0px closed and 280px open', (): void => {
+  it('resolves the track to 0px closed and 360px open', (): void => {
     const editorRules = rulesOf('editor.css');
     const rootTokens = tokensOf(findRule(editorRules, ':root'));
     const openTokens = tokensOf(
@@ -595,7 +622,11 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
 
     expect(rootTokens.get('--rail-width')).toBe(RAIL_WIDTH);
     expect(rootTokens.get('--panel-width')).toBe(CLOSED_PANEL_WIDTH);
-    expect(openTokens.get('--panel-width')).toBe(OPEN_PANEL_WIDTH);
+    expect(rootTokens.get(OPEN_PANEL_WIDTH_TOKEN)).toBe(OPEN_PANEL_WIDTH);
+    expect(
+      resolveEditorLength(rootTokens, openTokens.get('--panel-width')),
+      'the open track does not resolve to the flyout width.',
+    ).toBe(OPEN_PANEL_WIDTH);
 
     // The token is only the track if the track actually reads it.
     const shell = new Map(declarationsOf(findRule(editorRules, '.map-editor').body));
@@ -603,6 +634,65 @@ describe('Phase 3 panel track (assertion 10)', (): void => {
       'var(--rail-width) var(--panel-width) 1fr',
     );
     expect(shell.get('block-size')).toBe('100dvh');
+  });
+
+  /**
+   * D4-05's other half. The width is only *uniform* if every consumer reads the
+   * same name: the panel body sizes the content column, and the help block's
+   * cap is documented as "the panel's own measure", which makes it a DERIVED
+   * value. A derived value written as a second literal drifts the next time the
+   * panel moves - silently, because nothing renders wrong until someone
+   * compares the two numbers.
+   *
+   * The negative half is what makes this a gate rather than a description: no
+   * rule in `editor.css` may size a surface with a bare `360px`, so a future
+   * reader cannot reintroduce the collision the token exists to prevent.
+   *
+   * Scoped to `editor.css` deliberately, and the scope is the point rather than
+   * a convenience: the collision this token resolves is a THREE-WAY one inside
+   * this one file. `MapCanvas.css:.map-workspace__warning` legitimately caps a
+   * banner at `360px`, and reddening that rule would make the probe prove a
+   * different claim than the one written above it.
+   */
+  it('reaches the open width through the token at all three consumers', (): void => {
+    const editorRules = rulesOf('editor.css');
+    const rootTokens = tokensOf(findRule(editorRules, ':root'));
+
+    const body = new Map(
+      declarationsOf(findRule(editorRules, '.tool-panel__body').body),
+    );
+    const help = new Map(
+      declarationsOf(findRule(editorRules, '.map-workspace > .editor-help').body),
+    );
+
+    expect(resolveEditorLength(rootTokens, body.get('width'))).toBe(
+      OPEN_PANEL_WIDTH,
+    );
+    expect(resolveEditorLength(rootTokens, help.get('max-inline-size'))).toBe(
+      OPEN_PANEL_WIDTH,
+    );
+
+    const panelSizingProperties = new Set([
+      'width',
+      'inline-size',
+      'max-inline-size',
+      'min-inline-size',
+      '--panel-width',
+    ]);
+    editorRules.forEach((rule): void => {
+      declarationsOf(rule.body).forEach(([property, value]): void => {
+        if (!panelSizingProperties.has(property)) {
+          return;
+        }
+        expect(
+          value.trim(),
+          `editor.css: "${rule.selector}" sizes with a bare ${OPEN_PANEL_WIDTH}. ` +
+            `In this stylesheet ${OPEN_PANEL_WIDTH} also means the compact ` +
+            'sheet height cap and the narrowest contained viewport; the ' +
+            `flyout width is var(${OPEN_PANEL_WIDTH_TOKEN}).`,
+        ).not.toBe(OPEN_PANEL_WIDTH);
+      });
+    });
   });
 
   /**

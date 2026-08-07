@@ -16,6 +16,68 @@ upstream_design_system: /Users/matul/claudeprojects/themely/Design.md (sibling r
 > verified by gsd-ui-checker. Consumed by `gsd-planner` (task authoring), `gsd-executor`
 > (visual source of truth), and `gsd-ui-auditor` (retroactive audit).
 
+## Amendment CD-1 — D4-05 widens every flyout 280px → 360px (plan `04-07`, 2026-08-07)
+
+> **This document is approved and outranks `Design.md`, so a Phase 4 decision that contradicts it
+> is REPORTED here rather than silently absorbed.** `04-CONTEXT.md` D4-05 widens every tool flyout
+> from 280px to 360px, uniformly, so the panel edge never jumps when the creator switches tools.
+> `280` appeared in this file at **eleven** places, and several of those rules exist *because* the
+> column was 280 wide — renumbering all of them would have been wrong. The thirteen-row disposition
+> below is the required annotation, lifted verbatim in substance from `04-UI-SPEC.md § 1`, and each
+> row has been applied at its named line **in the same commit as the width change**.
+>
+> **Nothing in this block rewrites Phase 3 release evidence.** § Checker Sign-Off's record of the
+> near-size risk still reads `280px column`, because it records what was decided then. It is
+> annotated by this block, not edited.
+
+| Line (at approval) | Text keyed to 280 | Disposition under 360 | Applied |
+|---|---|---|---|
+| `:198` | "Tool panel (280px) — the panel's single primary action" | **Renumber only.** The accent budget (D-05) is unaffected by width | ✅ |
+| `:257` | `--text-subheading` "Never inside the 280px tool panel" | **STAYS IN FORCE, re-reasoned** as "within any tool panel" | ✅ |
+| `:271` | Near-size adjacency: "at most two of the three may appear" | **STAYS IN FORCE, re-reasoned** as "within any tool panel" | ✅ |
+| `:321` | "…multiple of 4: rail 56, panel 280…" | **Renumber to 360.** 360 is a multiple of 4, so the exceptions-are-none claim survives | ✅ |
+| `:434` | Anatomy diagram `.tool-panel 0 \| 280px` | Renumbered to `0 \| 360px` | ✅ |
+| `:455` | `.map-editor[data-panel-open='true'] { --panel-width: 280px; }` | Renumbered **through the token** `--panel-width-open`, never a bare literal | ✅ |
+| `:710` | "Width \| 280px, reserves layout space, never overlays the map" | Renumbered to 360px; the *reserves-layout* half is unchanged and load-bearing | ✅ |
+| `:718` | "A row of full-phrase controls has no width at which it fits a 280px column" | ⚠ **RELAXED — practice preserved, stated reason corrected.** See § 1.2 below | ✅ |
+| `:743` | "At 280px minus 2 × 16px padding this resolves to 3 columns" | ⚠ **OBSOLETE — the preset grid it describes is DELETED by `04-07`.** Replaced with a pointer to `04-UI-SPEC.md § 6.3.3`, not renumbered | ✅ |
+| `:798` | Legend actions "Stacked onto their own row, because … 280px column" | ⚠ **RELAXED — see § 1.2.** Stacking remains the default; the stated reason no longer holds | ✅ |
+| `:805` | "16px and 14px … both land in the same 280px column" | **Rule STAYS IN FORCE**, reason restated for any width | ✅ |
+| `:1077` | Assertion 10: "the panel track resolves to `0px` closed and `280px` open" | Renumbered to `360px`. `uiContract.test.ts`'s `OPEN_PANEL_WIDTH` moved in the same commit; the `@property --panel-width` `initial-value` stays the CLOSED width | ✅ |
+| `Design.md:257, :271` | The same two typography rules, in the outranked document | **Annotated in the same commit.** `Design.md` is outranked but must not be left stating a retired number | ✅ |
+
+### CD-1 § 1.1 — why the two typography rules SURVIVE the widening
+
+The near-size adjacency rule and the `--text-subheading` ban read *as if* they are about column
+width. Their actual subject is **a 2px size difference reading as an accident rather than a
+hierarchy**, which is just as illegible at 360px as at 280px — the width was the occasion, not the
+cause. **Both stay in force, re-reasoned as "within any tool panel."** A careless renumber would
+have read them as satisfied by the widening and reintroduced 16px sub-headings into the panel,
+which is exactly the drift this annotation exists to prevent.
+
+### CD-1 § 1.2 — what the widening actually BUYS, measured
+
+At 360 − 2 × 16 = **328px** of content, two full-phrase controls on one row still do **not** fit:
+24 characters at `--text-body-sm` with Inter's worst-case 1.0202em advance is 24 × 14.28 =
+**342.8px of glyphs alone**, plus an 8px gap and two 16px paddings ≈ **382.8px** against 328px
+available. So `:718` / `:798`'s **practice is preserved** and only their **stated reason** is
+corrected. Icon-only rows, single-word pill groups, and a label plus one short control are the
+intended use of the extra 80px. Recorded so nobody later "discovers" the width and puts
+`Reset All Colors` beside `Apply Color`.
+
+### CD-1 § 1.3 — the number collision the token exists to prevent
+
+`editor.css` already spells `360px` twice for unrelated reasons — the compact bottom sheet's height
+cap (`--panel-height: min(60dvh, 360px)`) and the narrowest contained viewport discussed in two
+comments. After D4-05 that number means **three** different things in one stylesheet, so the open
+flyout width is declared **once** as `--panel-width-open` and read by three consumers: the
+`data-panel-open='true'` track, `.tool-panel__body`'s width, and `.map-workspace > .editor-help`'s
+`max-inline-size` (a *derived* cap, documented as "the panel's own measure", which drifts if it is
+a second literal). The token lives in `editor.css`, **not** `theme.css` — `themeTokens.test.ts`'s
+namespace allowlist governs `theme.css` only, and Phase 4 adds no `theme.css` tokens.
+
+---
+
 ## How to read this file
 
 - **`03-CONTEXT.md` D-01…D-35 are owner-locked.** This file does not revisit them. Where a row
@@ -195,7 +257,7 @@ for floating chrome).
 | Surface | Its **one** Apple Blue element | Everything else on that surface |
 |---|---|---|
 | Tool rail (56px) | **`Export PNG`** filled button in the footer (D-13), filled from the mode-invariant `--accent-fill` | Active tool row = Powder background + Nav Ink. Theme toggle = **neutral** (D-30). Undo/Redo = neutral |
-| Tool panel (280px) | the panel's **single primary action**, where it has one (`Apply Color`, `Save Map`) | Selected/active states use Powder + Midnight Ink. A panel with no primary action carries **no** accent |
+| Tool panel (360px) | the panel's **single primary action**, where it has one (`Apply Color`, `Save Map`) | Selected/active states use Powder + Midnight Ink. A panel with no primary action carries **no** accent |
 | Canvas region | **none** (D-21 — the accent belongs to Export) | Floating controls, export frame, and legend chrome are neutral with Stone Gray hairlines |
 | Tooltip | **none** (D-22) | dark ink chip |
 | Toast region | **none** | error = Themely Red; status/warning = neutral ink on Porcelain |
@@ -254,7 +316,7 @@ Each role bundles size + line-height + weight + tracking, as a CSS class the way
 | `--text-h1` | 30px | 1.20 | 600 | -0.02em | `FatalErrorState` heading |
 | `--text-h2` | 24px | 1.25 | 600 | -0.015em | Save form heading inside the Saved Maps panel |
 | `--text-h3` | 18px | 1.40 | 600 | -0.01em | tool panel title; HUD composition name; empty-state heading |
-| `--text-subheading` | 16px | 1.40 | 500 | 0 | onboarding banner heading; fatal-error lead line. **Never inside the 280px tool panel** — see § Legend editor rows |
+| `--text-subheading` | 16px | 1.40 | 500 | 0 | onboarding banner heading; fatal-error lead line. **Never inside a tool panel** — see § Legend editor rows. *(CD-1: the ban SURVIVES D4-05's widening to 360px. Its subject is a 2px size difference reading as an accident rather than a hierarchy, which is just as illegible at 360 as at 280 — the width was the occasion, not the cause.)* |
 | `--text-body` | 15px | 1.55 | 400 | 0 | prose: empty-state body, confirmation prompts, onboarding |
 | `--text-body-sm` | 14px | 1.50 | 400 | 0 | **the workhorse** — rail rows, buttons, inputs, list rows |
 | `--text-caption` | 12px | 1.40 | 400 | 0 | meta, helper text, field errors, swatch labels |
@@ -268,7 +330,7 @@ prose, and error states.
 
 **Near-size adjacency rule.** `--text-body-sm` (14), `--text-body` (15), and `--text-subheading`
 (16) sit within 2px of each other — inherited from Themely's scale, where a wider layout keeps
-them apart. Inside the **280px tool panel** at most **two** of the three may appear, and a
+them apart. Inside **any tool panel** at most **two** of the three may appear, and a
 hierarchy step within the panel is carried by **weight**, not by a 1–2px size difference. In
 practice the panel uses `--text-body-sm` (400 for rows, 500 for sub-headings) and `--text-body`
 (prose only, in empty states and confirmations); `--text-subheading` does not appear there at all.
@@ -318,7 +380,7 @@ tokens (it uses Tailwind's default scale), so this is the translation.
 | `--space-3xl` | 64px | HUD header block height |
 | `--target-compact` | 44px | touch target under the narrow breakpoint (D-20) |
 
-**Exceptions: none.** Every spacing value in this contract is a multiple of 4: rail 56, panel 280,
+**Exceptions: none.** Every spacing value in this contract is a multiple of 4: rail 56, panel 360,
 rail row 36, rail icon slot 32, icon glyph 20, control min-height 48, touch target 44. Radii are a
 separate scale and are not spacing.
 
@@ -431,7 +493,7 @@ and is a transition-readiness sub-gate).
 │   ├── .tool-rail__header        ← D-12 HUD identity block (pinned, never scrolls)
 │   ├── .tool-rail__tools         ← the 4 tool rows + Undo/Redo pair (scrolls if it must)
 │   └── .tool-rail__footer        ← D-13 Export (accent) · D-30 theme toggle (neutral)
-├── .tool-panel         0 | 280px ← at most ONE open (D-17); reserves layout space (D-19)
+├── .tool-panel         0 | 360px ← at most ONE open (D-17); reserves layout space (D-19)
 │   └── .tool-panel__body         ← the one scroll container
 └── .map-workspace      1fr       ← full-bleed canvas region
     ├── .map-workspace__canvas    ← container-type: size; overflow: hidden
@@ -452,7 +514,8 @@ and is a transition-readiness sub-gate).
   block-size: 100dvh;
 }
 :root { --rail-width: 56px; --panel-width: 0px; }
-.map-editor[data-panel-open='true'] { --panel-width: 280px; }
+:root { --panel-width-open: 360px; }              /* D4-05, editor.css — NOT theme.css */
+.map-editor[data-panel-open='true'] { --panel-width: var(--panel-width-open); }
 ```
 
 - **`[data-panel-open]` is exactly `'true' | 'false'`** — never absent, never a third value, so a
@@ -707,7 +770,7 @@ a live region and it must sit next to the control it describes.
 
 | Property | Value |
 |---|---|
-| Width | 280px, reserves layout space, never overlays the map |
+| Width | **360px** (D4-05, CD-1), reserves layout space, never overlays the map. Declared once as `--panel-width-open` and consumed by three sites; **no bare literal**. Content width is 360 − 2 × 16 = **328px**, and every width claim derives from 328 |
 | Surface | `--themely-platinum` body with a `--hairline` right edge; sections are `--themely-porcelain` cards at `--radius-card` |
 | Padding | `--space-md` (16px) horizontal, `--space-md` top, `--space-xl` (32px) between sections |
 | Title | the tool's label at `--text-h3`, `--themely-midnight-ink`, with the panel's close control (`Close <Tool>`) as a neutral ghost icon button at the trailing edge |
@@ -715,7 +778,7 @@ a live region and it must sit next to the control it describes.
 | Open/close | one at a time (D-17). Clicking the open tool's row closes it. `Escape` closes the panel and returns focus to the row that opened it |
 | First run | **closed** (D-18) — full-bleed world map plus a quiet icon strip. Thereafter the rail restores the last-open tool through the **storage-adapter interface**, never raw `localStorage`, respecting the bounded V2 record contract. Absent key ⇒ closed |
 | Nesting | **no borders on top of borders.** A `--hairline` card never contains another `--hairline` card — stack by background shift (Platinum → Porcelain) instead |
-| Stacking | **stack labelled controls; reserve rows for icon-only or single-word controls.** A row of full-phrase controls has no width at which it fits a 280px column |
+| Stacking | **stack labelled controls; reserve rows for icon-only or single-word controls.** *(CD-1 — the PRACTICE is preserved and only its stated REASON is corrected. The constraint is Inter's worst-case 1.0202em advance against **328px** of content, not the number 280: two full-phrase controls totalling 24 characters need ≈383px and still do not fit at 360. Icon-only rows, single-word pill groups, and a label plus one short control are the intended use of the extra 80px.)* |
 
 Focus movement into the opened panel and keyboard reachability are covered by the existing
 single-roving-tabindex invariant. The focus-order test asserts the **spec'd** order, including
@@ -740,7 +803,7 @@ everything below is the translation to a colour picker.
 The column count is **derived from a minimum track wide enough for the longest label**, never
 fixed. A fixed count plus `width: max-content` inside `overflow: hidden` is what once clipped
 `Magenta` at the tile edge with nothing failing. Overflow stays visible so the next one is caught
-by eye. At 280px minus 2 × 16px padding this resolves to 3 columns.
+by eye. ⚠ **CD-1 — OBSOLETE, not renumbered: the ten-tile preset grid this sentence describes is DELETED by plan `04-07`.** The Colors panel's palette is the ramp strip; see `04-UI-SPEC.md § 6.3.3` and § 6.3.4 for what replaces it.
 
 **Tile.**
 
@@ -795,14 +858,14 @@ read goes through `resolveLegendPosition` / `resolveLegendRender`.
 | Swatch | 20×20, `border-radius: 6px`, `border: 1px solid var(--swatch-border)`, `aria-label="Color <hex>"` — unchanged semantics |
 | Label input | `--text-body-sm`, transparent background, full row width, placeholder `--themely-ghost-gray` |
 | Counter | `--text-caption`, `--themely-ghost-gray`, `tabular-nums`, `aria-live="off"` (unchanged — it must not announce on every keystroke). Turns `--themely-red` at the limit |
-| Actions | icon-only ghost buttons at 44×44 (`--target-compact`), `--themely-nav-ink` glyphs. **Stacked onto their own row**, because a full-phrase control row has no width at which it fits a 280px column |
+| Actions | icon-only ghost buttons at 44×44 (`--target-compact`), `--themely-nav-ink` glyphs. **Stacked onto their own row** — *(CD-1: RELAXED reason, unchanged practice. See the tool-panel Stacking row above; the binding number is 328px of content, not 280.)* |
 | Reorder | keyboard reorder via the two arrow buttons is the primary path; drag is an enhancement. The drag handle keeps `aria-label="Drag <label> to reorder"` |
 | Invalid | the existing `data-legend-validation="invalid"` hook stays; an invalid row gets a `--themely-red` left edge (2px inset, **not** a positional selector — keyed on the data attribute) and its message at `--text-caption` in `--themely-red` |
 
 **Style controls** (theme, text size, border, position) are four `<fieldset>`s, each a Porcelain
 card whose `<legend>` is **`--text-body-sm` at weight 500** — deliberately *not* `--text-subheading`.
 16px and 14px are only 2px apart, which reads as an accident rather than a hierarchy when both
-land in the same 280px column; the weight bump carries the hierarchy instead. Applies to every
+land in the same tool panel at any width; the weight bump carries the hierarchy instead. *(CD-1: STAYS IN FORCE at 360px.)* Applies to every
 `<fieldset>` legend and sub-section heading **inside the tool panel**. Their options are **pills**: neutral (Porcelain + Slate
 Blue) when unselected, **Powder + Midnight Ink** when selected. **No accent** — the `legend` panel
 has no primary action, so per D-05 it carries no Apple Blue at all.
@@ -1074,7 +1137,7 @@ work.**
 | 7 | Motion CSS ↔ TS lockstep (`node` env, pure constants) | change one value in one layer | `03-01` |
 | 8 | No hex/rgba literal in any component `.tsx`, with a **closed** exemption list containing exactly `LegendOverlay.tsx` and its stated reason | add a literal to another component | `03-03` |
 | 9 | Type-role consumer exemption is a **closed set of exactly** `--text-display` and `--text-stat` | add a third | `03-01` |
-| 10 | `[data-panel-open]` is exactly `'true' \| 'false'`; the panel track resolves to `0px` closed and `280px` open | set a third value | `03-02` |
+| 10 | `[data-panel-open]` is exactly `'true' \| 'false'`; the panel track resolves to `0px` closed and `360px` open (D4-05; `initial-value` stays the closed width) | set a third value | `03-02`, amended `04-07` |
 | 11 | The `.map-frame` client rect equals the on-screen projection of the SVG's viewBox corners `(0,0)`/`(1080,1080)` via `getScreenCTM()` | inset the frame by 1px | `03-02` |
 | 12 | The floating cluster's rect does **not intersect** `.map-frame` at every spec'd viewport, at **every** legend preset | re-anchor the cluster to the frame's corner | `03-07` |
 | 13 | **Scoped to `.period-hud`:** the period surface renders exactly the manifest-derived options, and none of the four historical labels appears **within that surface** | render `SNAPSHOT_CATALOG` directly in the period surface | `03-06` |

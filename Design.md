@@ -6,6 +6,17 @@
 
 **Status:** authored 2026-08-06 by plan `03-02`, immediately after the D-01 one-way commitment gate.
 
+**Amended 2026-08-07 by plan `04-07` (CD-1 / D4-05): the tool panel is 360px, not 280px.** Every
+flyout widened uniformly so the panel edge never jumps between tools. This file is **outranked** by
+`.planning/phases/03-clean-ui-overhaul-1-1-5-weeks/03-UI-SPEC.md`, which carries the full thirteen-row
+disposition table — but it must not be left stating a retired number, so its seven `280` references
+moved here in the same commit. **Two of them are renumbered in name only:** the `--text-subheading`
+ban (§ 4) and the near-size adjacency rule (§ 4) **stay in force**. Their subject is a 2px size step
+reading as an accident rather than a hierarchy, which is just as illegible at 360px as at 280px; the
+width was the occasion, not the cause. The open width itself is declared once in `editor.css` as
+`--panel-width-open` — **never as a bare literal**, because `360px` already means two other things
+in that file.
+
 ---
 
 ## 1. Upstream attribution (D-02)
@@ -188,7 +199,7 @@ Each role bundles size + line-height + weight + tracking as one CSS class, the w
 | `--text-h1` | 30px | 1.20 | 600 | -0.02em | `FatalErrorState` heading |
 | `--text-h2` | 24px | 1.25 | 600 | -0.015em | Save form heading inside the Saved Maps panel |
 | `--text-h3` | 18px | 1.40 | 600 | -0.01em | tool panel title; HUD composition name; empty-state heading |
-| `--text-subheading` | 16px | 1.40 | 500 | 0 | onboarding banner heading; fatal-error lead line. **Never inside the 280px tool panel** |
+| `--text-subheading` | 16px | 1.40 | 500 | 0 | onboarding banner heading; fatal-error lead line. **Never inside a tool panel** *(CD-1: the ban survives D4-05's widening to 360px — its subject is a 2px size step reading as an accident, not the column width)* |
 | `--text-body` | 15px | 1.55 | 400 | 0 | prose: empty-state body, confirmation prompts, onboarding |
 | `--text-body-sm` | 14px | 1.50 | 400 | 0 | **the workhorse** — rail rows, buttons, inputs, list rows |
 | `--text-caption` | 12px | 1.40 | 400 | 0 | meta, helper text, field errors, swatch labels |
@@ -202,7 +213,7 @@ prose, and error states.
 
 **Near-size adjacency rule.** `--text-body-sm` (14), `--text-body` (15), and `--text-subheading`
 (16) sit within 2px of each other — inherited from Themely's scale, where a wider layout keeps
-them apart. Inside the **280px tool panel** at most **two** of the three may appear, and a
+them apart. Inside **any tool panel** at most **two** of the three may appear, and a
 hierarchy step within the panel is carried by **weight**, not by a 1-2px size difference. In
 practice the panel uses `--text-body-sm` (400 for rows, 500 for sub-headings) and `--text-body`
 (prose only); `--text-subheading` does not appear there at all.
@@ -246,7 +257,7 @@ legend theme*, not the app's colour scheme.
 | `--space-3xl` | 64px | HUD header block height |
 | `--target-compact` | 44px | touch target under the narrow breakpoint (D-20) |
 
-**Exceptions: none.** Every spacing value in this contract is a multiple of 4: rail 56, panel 280,
+**Exceptions: none.** Every spacing value in this contract is a multiple of 4: rail 56, panel 360,
 rail row 36, rail icon slot 32, icon glyph 20, control min-height 48, touch target 44. Radii are a
 separate scale and are not spacing.
 
@@ -344,7 +355,7 @@ glyph, never three at once.
 | Surface | Its **one** Apple Blue element | Everything else on that surface |
 |---|---|---|
 | Tool rail (56px) | **`Export PNG`** filled button in the footer, filled from `--accent-fill` | Active tool row = Powder + Nav Ink. Theme toggle = **neutral**. Undo/Redo = neutral |
-| Tool panel (280px) | the panel's **single primary action**, where it has one (`Apply Color`, `Save Map`) | Selected/active states use Powder + Midnight Ink. A panel with no primary action carries **no** accent |
+| Tool panel (360px) | the panel's **single primary action**, where it has one (`Apply Color`, `Save Map`) | Selected/active states use Powder + Midnight Ink. A panel with no primary action carries **no** accent |
 | Canvas region | **none** (D-21 — the accent belongs to Export) | Floating controls, export frame, and legend chrome are neutral with Stone Gray hairlines |
 | Tooltip | **none** (D-22) | dark ink chip |
 | Toast region | **none** | error = Themely Red; status/warning = neutral ink on Porcelain |
@@ -409,7 +420,7 @@ both modes, and the matrix asserts its own row count so it cannot silently resol
 │   ├── .tool-rail__header        ← HUD identity block (pinned, never scrolls)
 │   ├── .tool-rail__tools         ← 4 tool rows + the Undo/Redo pair
 │   └── .tool-rail__footer        ← Export (accent) · theme toggle (neutral)
-├── .tool-panel         0 | 280px ← at most ONE open; reserves layout space
+├── .tool-panel         0 | 360px ← at most ONE open; reserves layout space
 └── .map-workspace      1fr       ← full-bleed canvas region
     ├── .map-workspace__canvas    ← container-type: size; overflow: hidden
     │   ├── div.map-export-source
@@ -579,14 +590,14 @@ the *editor* moves. Nothing reads `legend.position` raw; every read goes through
 | Swatch | 20×20, `border-radius: 6px`, `1px solid var(--swatch-border)`, `aria-label="Color <hex>"` |
 | Label input | `--text-body-sm`, transparent background, full row width, `--themely-slate-blue` placeholder (a placeholder is text, and ghost gray misses AA — see § 2) |
 | Counter | `--text-caption`, `--themely-slate-blue`, `tabular-nums`, `aria-live="off"` — it must not announce on every keystroke. Turns `--destructive` at the limit |
-| Actions | icon-only ghost buttons at 44×44, `--themely-nav-ink` glyphs, **stacked onto their own row** — a full-phrase control row has no width at which it fits a 280px column |
+| Actions | icon-only ghost buttons at 44×44, `--themely-nav-ink` glyphs, **stacked onto their own row** — *(CD-1: practice preserved, reason corrected. Two full-phrase controls need ≈383px and still do not fit in 328px of content at 360px.)* |
 | Reorder | keyboard reorder via the two arrow buttons is the **primary** path; drag is an enhancement |
 | Invalid | `data-legend-validation="invalid"` stays; a `--themely-red` 2px inset left edge keyed on the **data attribute**, never a positional selector, plus its message at `--text-caption` in `--themely-red` |
 
 **Style controls** (theme, text size, border, position) are four `<fieldset>`s, each a Porcelain
 card whose `<legend>` is **`--text-body-sm` at weight 500** — deliberately *not*
 `--text-subheading`. 16px and 14px are 2px apart, which reads as an accident rather than a
-hierarchy in a 280px column; the weight bump carries it instead. Options are **pills**: neutral
+hierarchy in a tool panel at any width; the weight bump carries it instead. Options are **pills**: neutral
 (Porcelain + Slate Blue) unselected, **Powder + Midnight Ink** selected. **No accent** — the
 `legend` panel has no primary action, so per D-05 it carries no Apple Blue at all.
 
