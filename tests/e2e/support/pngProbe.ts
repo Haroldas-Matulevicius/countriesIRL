@@ -135,6 +135,23 @@ export function rec709Luminance(pixel: ReadonlyArray<number>): number {
   );
 }
 
+/**
+ * A square band of `radius` PNG pixels around a sample point — the shape every
+ * stroke-weight gate counts ink in. `countInkAroundRegion` adds its own
+ * four-pixel margin for centred strokes on top of this.
+ */
+export function regionAround(
+  point: readonly [number, number],
+  radius: number,
+): PngRegion {
+  return {
+    x: point[0] - radius,
+    y: point[1] - radius,
+    width: radius * 2,
+    height: radius * 2,
+  };
+}
+
 /** Breathing room around a derived glyph box, in viewBox user units. */
 export const TEXT_REGION_MARGIN = 8;
 

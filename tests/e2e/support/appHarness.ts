@@ -243,6 +243,83 @@ export async function collectTabOrder(
 }
 
 /* ------------------------------------------------------------------ *
+ * Map style / Text panel controls (`04-15` promoted these here)
+ *
+ * Each one deliberately asserts ONLY that the control took the choice, never
+ * that the composition rendered it. A markup assertion inside a helper
+ * short-circuits every RED probe downstream: breaking the fill would redden
+ * the helper instead of the pixel gate it exists to prove, which is the "probe
+ * reddens a DIFFERENT gate" shape this repository has already shipped once.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Deliberately asserts only that the CONTROL took the choice, never that the
+ * rect carries the right `fill`. A markup assertion here would short-circuit
+ * every RED probe below: breaking the fill would redden this helper instead of
+ * the pixel gate it is meant to prove, which is the "probe reddens a DIFFERENT
+ * gate" shape this repository has already shipped once. The rect's fill is the
+ * pixel assertion's subject and is left entirely to it.
+ *
+ * Waiting on `toBeChecked` is real synchronisation: the input is controlled, so
+ * it flips only after React has committed the render that also repaints the
+ * rect.
+ */
+export async function chooseWaterPreset(page: Page, name: string): Promise<void> {
+  const pill = page.getByRole('radio', { name, exact: true });
+  await pill.check();
+  await expect(pill).toBeChecked();
+}
+
+/**
+ * The same shape as `chooseWaterPreset`, scoped to one `Borders` sub-group, and
+ * deliberately asserting only that the CONTROL took the choice. The pixels are
+ * every gate's own subject; a markup assertion here would redden instead of
+ * them.
+ */
+export async function chooseStrokeWeight(
+  page: Page,
+  group: 'Interior' | 'Coastlines',
+  name: string,
+): Promise<void> {
+  const pill = page
+    .getByRole('radiogroup', { name: group })
+    .getByRole('radio', { name, exact: true });
+  await pill.check();
+  await expect(pill).toBeChecked();
+}
+
+
+/**
+ * The `Bands` section's two checkboxes (`04-10`). `setChecked` is idempotent,
+ * and the `toBeChecked` wait is real synchronisation: the input is controlled,
+ * so it flips only after React has committed the render that also paints - or
+ * removes - the band rect.
+ */
+export async function setBandVisible(
+  page: Page,
+  label: string,
+  isVisible: boolean,
+): Promise<void> {
+  const toggle = page.getByRole('checkbox', { name: label, exact: true });
+  await toggle.setChecked(isVisible);
+  await expect(toggle).toBeChecked({ checked: isVisible });
+}
+
+/**
+ * The `Text` section's title field (`04-11`). `exact: true` matters: the Legend
+ * panel has a caption field whose label is a superstring, and a loose match
+ * would start typing into whichever panel happens to be open.
+ */
+export async function setCompositionTitle(
+  page: Page,
+  value: string,
+): Promise<void> {
+  const field = page.getByLabel('Title', { exact: true });
+  await field.fill(value);
+  await expect(field).toHaveValue(value);
+}
+
+/* ------------------------------------------------------------------ *
  * Named geography -> exported PNG pixels (`04-15` promoted these here)
  *
  * Every sample point in every pixel gate is derived from a named lon/lat

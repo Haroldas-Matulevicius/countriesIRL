@@ -35,11 +35,15 @@ import {
   RAMP_RED_HEX,
   RAMP_RED_STEP,
   SAHARA_LON_LAT,
+  chooseStrokeWeight,
+  chooseWaterPreset,
   legendDisclosure,
   openRailTool,
   paintCountryWithRampShade,
   projectLonLat as project,
   projectToExportPixel,
+  setBandVisible,
+  setCompositionTitle,
   toExportPixels,
   waitForApp,
 } from './support/appHarness';
@@ -62,6 +66,7 @@ import {
   makeFloodFilledPng,
   readPngDimensions,
   rec709Luminance as luminanceOf,
+  regionAround as bandAround,
   samplePngPoints,
 } from './support/pngProbe';
 import type { PngRegion } from './support/pngProbe';
@@ -1362,42 +1367,6 @@ async function exportRealApp(page: Page, label: string): Promise<Buffer> {
   return saveDownload(download, `${label}-${UNNAMED_FILENAME}`);
 }
 
-/**
- * Deliberately asserts only that the CONTROL took the choice, never that the
- * rect carries the right `fill`. A markup assertion here would short-circuit
- * every RED probe below: breaking the fill would redden this helper instead of
- * the pixel gate it is meant to prove, which is the "probe reddens a DIFFERENT
- * gate" shape this repository has already shipped once. The rect's fill is the
- * pixel assertion's subject and is left entirely to it.
- *
- * Waiting on `toBeChecked` is real synchronisation: the input is controlled, so
- * it flips only after React has committed the render that also repaints the
- * rect.
- */
-async function chooseWaterPreset(page: Page, name: string): Promise<void> {
-  const pill = page.getByRole('radio', { name, exact: true });
-  await pill.check();
-  await expect(pill).toBeChecked();
-}
-
-/**
- * The same shape as `chooseWaterPreset`, scoped to one `Borders` sub-group, and
- * deliberately asserting only that the CONTROL took the choice. The pixels are
- * every gate's own subject; a markup assertion here would redden instead of
- * them.
- */
-async function chooseStrokeWeight(
-  page: Page,
-  group: 'Interior' | 'Coastlines',
-  name: string,
-): Promise<void> {
-  const pill = page
-    .getByRole('radiogroup', { name: group })
-    .getByRole('radio', { name, exact: true });
-  await pill.check();
-  await expect(pill).toBeChecked();
-}
-
 /** `04-08`, and it must stay a hand-written literal — see `hexToRgb`. */
 const DEFAULT_UNCOLORED_FILL_HEX = '#E5E7EB';
 
@@ -1563,17 +1532,6 @@ test.describe('water preset', (): void => {
 const CENTRAL_BRAZIL_LON_LAT: readonly [number, number] = [-52, -10];
 const CENTRAL_BRAZIL_COUNTRY_ID = 'BRA';
 
-function bandAround(
-  point: readonly [number, number],
-  radius: number,
-): LegendRegion {
-  return {
-    x: point[0] - radius,
-    y: point[1] - radius,
-    width: radius * 2,
-    height: radius * 2,
-  };
-}
 
 
 
@@ -2563,15 +2521,6 @@ async function sampleColumn(
   return sample.pixels;
 }
 
-async function setBandVisible(
-  page: Page,
-  label: string,
-  isVisible: boolean,
-): Promise<void> {
-  const toggle = page.getByRole('checkbox', { name: label, exact: true });
-  await toggle.setChecked(isVisible);
-  await expect(toggle).toBeChecked({ checked: isVisible });
-}
 
 interface BandColumnMeasurement {
   readonly withBands: ReadonlyArray<number>;
@@ -2952,11 +2901,6 @@ const MIN_LEGEND_CROP_INK_PIXELS = 1_000;
 /** The water this whole block runs on; non-white so the band is not a no-op. */
 const TEXT_WATER_PRESET_NAME = 'Warm paper';
 
-async function setCompositionTitle(page: Page, value: string): Promise<void> {
-  const field = page.getByLabel('Title', { exact: true });
-  await field.fill(value);
-  await expect(field).toHaveValue(value);
-}
 
 function compositionTitleNode(page: Page): ReturnType<Page['locator']> {
   return page.locator(

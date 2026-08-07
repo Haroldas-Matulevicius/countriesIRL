@@ -645,6 +645,60 @@ mutation, not the range-narrowing one, is what proves the raster claim is more t
 of the structural one: narrowing the range reddens **both**, because the structural claim asserts
 the range actually covers `U+0100-02BA`.
 
+### ONE home per helper, and `04-15` finished the consolidation
+
+`04-13` moved the decode path into `tests/e2e/support/pngProbe.ts` on the stated
+ground that *"two decode paths in two specs is the same defect with a longer fuse."*
+That reasoning does not stop at a decode path. `04-15` needed a **composite** frame
+and found three more shapes of the same hazard, each promoted rather than copied:
+
+| Promoted | To | Why a copy is worse than it looks |
+|---|---|---|
+| `rec709Luminance` | `pngProbe.ts` | It is **not** `contrast.ts`'s `relativeLuminance` — that one is the gamma-linearised WCAG quantity on 0..1, this one is Rec. 709 on 0..255. Two spellings of "luminance" silently rescale every band threshold. |
+| `compositionTitleInkRegion`, `regionAround` | `pngProbe.ts` | A derived crop is the `04-11` phantom-pixel shape; a *second* derivation of the same crop is two gates measuring two rectangles while both claim to measure the title. Both call `expectRegionInsideFrame` before returning. |
+| `countExactColorsInRegions` | `pngProbe.ts` | `final-integration.spec.ts` carried the suite's **last** private `createImageBitmap`. Its corner-box counter is now the generalised region-disjoint one, and the parallel `RED_RGB` / `BLUE_RGB` triples it needed are gone. |
+| `projectLonLat` / `toExportPixels` / `projectToExportPixel`, and the named sample geography | `appHarness.ts` | Worse than a copied decode path: a copied projection keeps *working* while sampling a different place. `04-09` had to MOVE the coastline sample once the interior mesh contaminated Cabo da Roca; a copy would not have moved with it. |
+| `chooseWaterPreset`, `chooseStrokeWeight`, `setBandVisible`, `setCompositionTitle`, `paintCountryWithRampShade` | `appHarness.ts` | Each asserts only that the CONTROL took the choice, never that the composition rendered it — a markup assertion inside a helper reddens the helper instead of the pixel gate it exists to prove. |
+
+**No assertion and no threshold moved in that consolidation**, and both specs were
+re-run whole against it (30/30 and 2/2) before a single new claim was added.
+
+### The composite reference frame (04-15, D4-14)
+
+One test builds the whole phase at once — three ramp fills at three steps, an
+uncoloured country, quiet coastlines, a present interior mesh, both bands, a title,
+and the bar legend — exports it, and asserts the **union of the per-property claims**
+on real downloaded bytes. There is still **no image baseline anywhere in this phase**;
+a re-baseline diff cannot be RED-proved on its own subject.
+
+Three things it records that a per-plan gate could not:
+
+1. **The composite frame cannot be the owner's white-water reference, and the reason
+   is the band.** `04-10` measured that a band fades from `surfaceColor` to
+   transparent, so on white it fades from white to white — **239.626 either way**. The
+   frame therefore runs on `Warm paper` AND samples a column that crosses land. State
+   which escape a band gate took; a white-on-white sample measures nothing and passes.
+2. **`04-12`'s band-derived inset holds in the raster, not just the DOM.** Title box
+   `y 32..87`, legend box `y 152..248`: the title is inside the top band and the legend
+   clears it. The byte-level proof is that **clearing the title changes the legend's own
+   bounds by exactly ZERO ink** (6,981 either way) while the same counter watches the
+   title appear and vanish in its own region (4,188 → 0).
+3. **A region that reports zero owes a POSITIVE control in the same run.** *"No legend
+   marks inside the top band"* is satisfied by a counter that cannot see a legend at all
+   — which is precisely `04-13`'s corner-box defect in this same file. The control is
+   the band-free export: with the top band off, `04-12`'s inset drops the legend to
+   `y = 32` and the counter finds **941 / 1,119 / 1,104** of the very pixels that read
+   zero in the reference frame.
+
+**A blank COMPOSITION is not an empty FRAME, and the two discriminate different
+things.** `02-27`'s reloaded-blank export has no colours, no legend and no title — but
+it is still a fully rendered world map at the shipped defaults, so it satisfies every
+claim that is a property of those defaults. Substituting it for the reference frame
+reddened six of the seven properties; the coastline-versus-interior-border pair
+survived it and reddens instead on the **flood-filled** frame, where the inland band
+measures 0 against its floor of 8. Both controls ship; neither is described as covering
+the other.
+
 ### Journey evidence: `tests/e2e/final-integration.spec.ts`
 
 **One spec owns the interactions between domains; the focused specs own the domains.** Do not
@@ -739,9 +793,11 @@ interval, … })` → a ZIP of 1080×1080 PNGs named `CountriesIRL_<ISO>_<year>.
 
 ---
 
-*Last updated: 2026-08-07 (Phase 4, plan `04-11`) — **composition text joins the clone contract** (D4-15). The canonical clone shape gains `g[data-layer="text"]` as the LAST child, after the legend, completing U-8. Recorded with it: the layer renders ALWAYS and is EMPTY when there is no type, because an empty `<text>` still carries a `font-family` and would make `collectCompositionFonts` embed ~113 KB of woff2 for a composition with no type in it — and the gate proving that pairs the claim with its COUNTERFACTUAL, since "an empty SVG has no fonts" is vacuously true; every declaration on a composition `<text>` as an inline attribute, with `font-family` load-bearing twice over. § Testing gained three things: `measureLegendCrops` now serves all THREE font gates and its ink threshold is a PARAMETER (at 240 a `#F5EFE6` crop is entirely "ink" and the content floor stops measuring anything); **a derived crop must be bounded to the 1080 frame**, recorded because a RED proof defeated the gates without it — an off-frame `drawImage` source rect yields TRANSPARENT BLACK, every ink counter reads that as solid ink, and the floors passed on 28,050 phantom pixels while surfacing on the wrong assertion; and § Composition text with its three gates, the PRESENCE-FIRST-THEN-CORRECTNESS rule (an ink count goes green for the wrong font and the wrong string), the ONE ordering HELD OUT with the measurement that justifies it (the legend background is 90 % opaque, so `04-10`'s largest band signal of 3.490 luminance arrives underneath as 0.35; measured 3 of 765 inside the legend box), and the explicit refusal to claim A12 — whether the latin-ext diacritics are the RIGHT GLYPHS is a physical check scheduled in `04-16`, never performed in Phase 3, and not inheritable.*
+*Last updated: 2026-08-07 (Phase 4, plan `04-15`) — **the composite reference frame, and ONE home per helper.** § Testing gained two sections. The first records that `04-13`'s one-decode-path rule generalises: `rec709Luminance` (Rec. 709 on 0..255, NOT `contrast.ts`'s gamma-linearised WCAG quantity), `compositionTitleInkRegion`, `regionAround` and `countExactColorsInRegions` moved into `support/pngProbe.ts`, and the projection, the named sample geography, and the five Map-style/Text panel helpers into `support/appHarness.ts` — a copied PROJECTION being worse than a copied decode path, because it keeps working while sampling a different place, and `04-09` having already had to MOVE the coastline sample once the mesh contaminated Cabo da Roca. `final-integration.spec.ts` carried the suite's last private `createImageBitmap`; it does not now. No assertion and no threshold moved. The second records the composite frame itself (D4-14): no image baseline anywhere in the phase, the frame CANNOT be the owner's white water because a band on white fades 239.626 to 239.626, `04-12`'s inset proven in the RASTER (clearing the title moves the legend's own bounds by exactly ZERO ink at 6,981 either way, while the same counter watches the title go 4,188 → 0), a region that reports zero owing a POSITIVE control in the same run (941 / 1,119 / 1,104 legend pixels in the very strip that read zero, once the band is off — `04-13`'s corner-box defect in this same file is why), and the distinction between a blank COMPOSITION and an empty FRAME: the reloaded blank reddened six of seven properties and the coastline-versus-interior-border pair survived it, reddening instead on the flood fill. Both controls ship; neither covers the other.*
 
-*Last updated: 2026-08-07 (plan `04-10`) and earlier, condensed per the two-entry rule — **the reference-aware `id` rule got its first real subject** (D4-16, plan `04-10`). The canonical clone shape gained `defs[data-layer="paint"]` and `g[data-layer="bands"]`, with `g[data-layer="band-handles"]` named as source-only. § Strip semantics records that BOTH `export.spec.ts` and `fixtures/export.html` carried `clone.ids === 0` — the assertion this file already warned CONFIRMS the break — and the three claims that replaced it, including the non-vacuity check the obvious two need; plus the measured evidence that stripping discriminates (one surviving id with the bottom band off, not two) and the reminder that a `<defs>` subtree can be present, correct, and inert with no error anywhere. § Prepared-Composition Clone Contract gained the rule that a band is invisible on white water by design, so a band gate needs a non-white surface AND a land-crossing column, with the measured 239.626-either-way over open ocean and a pointer at `frontend.md`'s presence-then-ordering probe shape. § Strip semantics gained **the border rule is*
+*Last updated: 2026-08-07 (Phase 4, plans `04-11` and `04-10`) and earlier, condensed per the two-entry rule — **composition text joins the clone contract** (D4-15). The canonical clone shape gains `g[data-layer="text"]` as the LAST child, after the legend, completing U-8. Recorded with it: the layer renders ALWAYS and is EMPTY when there is no type, because an empty `<text>` still carries a `font-family` and would make `collectCompositionFonts` embed ~113 KB of woff2 for a composition with no type in it — and the gate proving that pairs the claim with its COUNTERFACTUAL, since "an empty SVG has no fonts" is vacuously true; every declaration on a composition `<text>` as an inline attribute, with `font-family` load-bearing twice over. § Testing gained three things: `measureLegendCrops` now serves all THREE font gates and its ink threshold is a PARAMETER (at 240 a `#F5EFE6` crop is entirely "ink" and the content floor stops measuring anything); **a derived crop must be bounded to the 1080 frame**, recorded because a RED proof defeated the gates without it — an off-frame `drawImage` source rect yields TRANSPARENT BLACK, every ink counter reads that as solid ink, and the floors passed on 28,050 phantom pixels while surfacing on the wrong assertion; and § Composition text with its three gates, the PRESENCE-FIRST-THEN-CORRECTNESS rule (an ink count goes green for the wrong font and the wrong string), the ONE ordering HELD OUT with the measurement that justifies it (the legend background is 90 % opaque, so `04-10`'s largest band signal of 3.490 luminance arrives underneath as 0.35; measured 3 of 765 inside the legend box), and the explicit refusal to claim A12 — whether the latin-ext diacritics are the RIGHT GLYPHS is a physical check scheduled in `04-16`, never performed in Phase 3, and not inheritable.*
+
+Earlier, **the reference-aware `id` rule got its first real subject** (D4-16, plan `04-10`). The canonical clone shape gained `defs[data-layer="paint"]` and `g[data-layer="bands"]`, with `g[data-layer="band-handles"]` named as source-only. § Strip semantics records that BOTH `export.spec.ts` and `fixtures/export.html` carried `clone.ids === 0` — the assertion this file already warned CONFIRMS the break — and the three claims that replaced it, including the non-vacuity check the obvious two need; plus the measured evidence that stripping discriminates (one surviving id with the bottom band off, not two) and the reminder that a `<defs>` subtree can be present, correct, and inert with no error anywhere. § Prepared-Composition Clone Contract gained the rule that a band is invisible on white water by design, so a band gate needs a non-white surface AND a land-crossing column, with the measured 239.626-either-way over open ocean and a pointer at `frontend.md`'s presence-then-ordering probe shape. § Strip semantics gained **the border rule is*
 pass-through-with-neutralisation** (D4-08, plan `04-08`). `sanitizeExportClone`'s stroke loop no
 longer hard-sets `#000000` / `0.75` over the creator's choice — the measured reason a quiet
 coastline was unreachable in the PNG. It was **REPLACED, never deleted**: the `non-scaling-stroke`
