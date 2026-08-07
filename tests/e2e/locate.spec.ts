@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const LOCATE_FIXTURE_URL = '/tests/e2e/fixtures/locate.html';
-const MODERN_CORE_COUNT = 195;
+const MODERN_CORE_COUNT = 207;
 const HISTORICAL_ENTITY_ID = 'HIST-PLC';
 
 interface FixtureMapState {

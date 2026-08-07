@@ -187,6 +187,7 @@ const READY_WORLD: WorldGeoDataState = {
   coreFeatures: SCENE_FEATURES,
   lookup: SCENE_LOOKUP,
   coreLookup: SCENE_LOOKUP,
+  colorableLookup: SCENE_LOOKUP,
   entityLookup: SCENE_LOOKUP,
   countryMetadata: [
     { id: 'FRA', name: 'France' },

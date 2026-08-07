@@ -143,6 +143,15 @@ type SceneFeatureMetadata =
       readonly entityId: string;
       readonly boundaryMode: SceneFeature['boundaryMode'];
       readonly provenanceId: string;
+      readonly interactionMode: 'self-colorable';
+      readonly colorOwnerId: string;
+      readonly isSelectable: true;
+    }
+  | {
+      readonly sourceFeatureId: string;
+      readonly entityId: string;
+      readonly boundaryMode: SceneFeature['boundaryMode'];
+      readonly provenanceId: string;
       readonly interactionMode: 'inherited-dependency';
       readonly colorOwnerId: string;
       readonly isSelectable: false;
@@ -215,6 +224,26 @@ function readSceneFeatureMetadata(
       colorOwnerId,
       isSelectable: true,
       interactionMode: 'modern-core',
+      boundaryMode,
+      provenanceId,
+    };
+  }
+
+  // D4-10. Held to the same three conditions as `modern-core` - selectable,
+  // owns its own color, not a historical boundary - so this branch cannot
+  // admit a record the core branch would have rejected.
+  if (
+    feature.interactionMode === 'self-colorable' &&
+    feature.isSelectable &&
+    colorOwnerId === entityId &&
+    boundaryMode !== 'historical'
+  ) {
+    return {
+      sourceFeatureId,
+      entityId,
+      colorOwnerId,
+      isSelectable: true,
+      interactionMode: 'self-colorable',
       boundaryMode,
       provenanceId,
     };

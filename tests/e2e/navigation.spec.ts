@@ -485,22 +485,22 @@ test.describe('the floating cluster stays in the letterbox gutter', (): void => 
  * ------------------------------------------------------------------ */
 
 /**
- * The units nobody can colour: `colorOwnerId === null`, which the world
- * manifest records as disputed or neutral territory (Kosovo, Western Sahara,
- * Antarctica among them). The classification is DATA and this plan does not
- * touch it - the count is pinned so a silent reclassification is visible.
+ * D4-10 reversed the neutral-unit policy: the twelve units that used to carry
+ * `colorOwnerId === null` now own their own colour, so on the Modern scene the
+ * null-owner bucket is EMPTY. The count is pinned at zero for the same reason
+ * it was pinned at twelve - a silent reclassification stays visible.
  */
-const NON_COLORABLE_UNIT_COUNT = 12;
-/** The unit the defect was reported against. */
-const NON_COLORABLE_UNIT_ID = 'KOS';
+const NON_COLORABLE_UNIT_COUNT = 0;
+/** The unit the defect was reported against, and the one D4-10 unblocks. */
+const SELF_COLORABLE_UNIT_ID = 'KOS';
 /**
  * The unit the tooltip half hovers. Kosovo is enclaved and, at the whole-world
  * fit, its bounding-box centre lands on Serbia - Playwright's hit test resolves
  * to the neighbour and the hover never reaches the unit under test. Western
- * Sahara is in the same null-owner bucket, resolved through the same two
+ * Sahara is in the same self-colorable bucket, resolved through the same two
  * resolvers, and is large enough for a real pointer to land on it.
  */
-const NON_COLORABLE_HOVER_ID = 'SAH';
+const SELF_COLORABLE_HOVER_ID = 'SAH';
 /** Compact enough that its bounding-box centre is inside its own polygon. */
 const COLORABLE_UNIT_ID = 'POL';
 
@@ -563,88 +563,80 @@ async function computedCursor(page: Page, selector: string): Promise<string> {
     .evaluate((element): string => getComputedStyle(element).cursor);
 }
 
-test.describe('non-colourable units stay honest (D-23)', (): void => {
-  test('promises an interaction only where the map can perform one', async ({
+test.describe('every unit is colourable (D4-10)', (): void => {
+  test('Kosovo takes a colour where the click used to be swallowed', async ({
     page,
   }): Promise<void> => {
     await waitForApp(page);
 
     const colorable = `path.country-path[data-country-id="${COLORABLE_UNIT_ID}"]`;
-    const neutral = `path.map-unit-path[data-scene-unit-id="${NON_COLORABLE_UNIT_ID}"]`;
+    /*
+     * The selector itself is half the assertion. Before D4-10 Kosovo rendered
+     * as `.map-unit-path` - a class with zero CSS rules - and was absent from
+     * `[role="option"]`. Finding it as a `.country-path` option is what proves
+     * the reclassification reached the DOM, not just the manifest.
+     */
+    const kosovo = `path.country-path[data-country-id="${SELF_COLORABLE_UNIT_ID}"]`;
 
-    await expect(page.locator(neutral)).toHaveCount(1);
+    await expect(page.locator(kosovo)).toHaveCount(1);
+    await expect(
+      page.locator(`path.map-unit-path[data-scene-unit-id="${SELF_COLORABLE_UNIT_ID}"]`),
+      'Kosovo is still rendered as a non-selectable unit path.',
+    ).toHaveCount(0);
 
     /*
-     * `.map-unit-path` is every NON-SELECTABLE unit, which includes inherited
-     * dependencies that do have a colour owner (53 of them at the primary
-     * visual). The set D-23 is about is narrower: the NULL-owner units, and the
-     * only thing that distinguishes them in the rendered DOM is the neutral
-     * fill both resolvers return for them. Counting by fill is therefore also
-     * the browser-side proof that both resolvers agree - a resolver that
-     * regressed to DEFAULT_COLOR drops this count rather than changing a colour
-     * nobody measures.
+     * The null-owner bucket is now EMPTY on the Modern scene. Counting by fill
+     * is the browser-side proof that both colour resolvers agree: a resolver
+     * that still returned the neutral fill for one of the twelve would push
+     * this count off zero.
      */
     await expect(
       page.locator(
         `path.scene-path[data-primary-unit="true"][fill="${NEUTRAL_UNIT_COLOR}"]`,
       ),
-      'the non-colourable set changed, or a colour resolver stopped returning ' +
-        'the neutral fill. Reclassifying a unit is a DATA decision and needs ' +
-        'the approval chain in coding-rules/data.md, not a chrome plan.',
+      'a unit still resolves to the neutral fill - D4-10 says no Modern unit ' +
+        'has a null colour owner. Reclassifying a unit is a DATA decision ' +
+        'and needs the approval chain in coding-rules/data.md.',
     ).toHaveCount(NON_COLORABLE_UNIT_COUNT);
 
     /*
-     * A. The cursor is the honest signal: it promises an interaction the map
-     * can actually perform. `pointer` over a unit whose click is swallowed by
-     * design is a false affordance, and it is what made Kosovo read as a
-     * broken country rather than as a recorded policy.
+     * A. The cursor is the honest signal. It read `default` over Kosovo while
+     * the click was swallowed; now it promises an interaction the map performs.
      */
     expect(await computedCursor(page, colorable)).toBe('pointer');
-    expect(await computedCursor(page, neutral)).toBe('default');
+    expect(await computedCursor(page, kosovo)).toBe('pointer');
 
     /*
-     * B. The fill is a SOLID colour, never a CSS `filter`. Under D-34 the
-     * export clone is rasterised inside an SVG-as-image isolated document that
-     * sees none of the host page's stylesheets, so an externally styled effect
-     * renders NOT AT ALL - the PNG quietly loses it while the editor looks
-     * correct.
+     * B. The tooltip announces a colour and no longer states a refusal reason.
+     * The NEGATIVE half is the load-bearing one: a tooltip that showed both
+     * would pass a presence-only check. Both halves are read from ONE
+     * `innerText` snapshot - two retrying assertions can straddle a tooltip
+     * teardown and the second then passes on an absent element.
      */
-    await expect(page.locator(neutral)).toHaveAttribute(
-      'fill',
-      NEUTRAL_UNIT_COLOR,
-    );
-    expect(
-      await page
-        .locator(neutral)
-        .first()
-        .evaluate((element): string => getComputedStyle(element).filter),
-    ).toBe('none');
-
-    // C. The colourable unit's tooltip announces its colour.
-    await hoverUnit(page, colorable);
     const tooltip = page.locator('.map-tooltip');
+    const hoverTarget = `path.country-path[data-country-id="${SELF_COLORABLE_HOVER_ID}"]`;
+    await expect(page.locator(hoverTarget)).toHaveCount(1);
+    await hoverUnit(page, hoverTarget);
     await expect(tooltip).toBeVisible();
     await expect(tooltip.locator('.map-tooltip__color')).toHaveCount(1);
-    await expect(tooltip).toContainText('Current color:');
-    await expect(tooltip).not.toContainText(TOOLTIP_NOT_COLORABLE_REASON);
+    const tooltipText = await tooltip.innerText();
+    expect(tooltipText).toContain('Current color:');
+    expect(tooltipText).not.toContain(TOOLTIP_NOT_COLORABLE_REASON);
 
     /*
-     * D. The non-colourable unit's tooltip states the honest reason AND
-     * announces no colour. The NEGATIVE half is the load-bearing one: a
-     * tooltip that showed the reason and a readout would pass a
-     * presence-only check, which is exactly the spoof this gate exists for.
+     * C. The click itself - the exact interaction the debug note recorded as
+     * producing "literally nothing, not even a selection clear" - followed by
+     * a real paint.
      */
-    const neutralHoverTarget = `path.map-unit-path[data-scene-unit-id="${NON_COLORABLE_HOVER_ID}"]`;
-    await expect(page.locator(neutralHoverTarget)).toHaveAttribute(
-      'fill',
-      NEUTRAL_UNIT_COLOR,
-    );
-    expect(await computedCursor(page, neutralHoverTarget)).toBe('default');
-    await hoverUnit(page, neutralHoverTarget);
-    await expect(tooltip).toBeVisible();
-    await expect(tooltip).toContainText(TOOLTIP_NOT_COLORABLE_REASON);
-    await expect(tooltip.locator('.map-tooltip__color')).toHaveCount(0);
-    await expect(tooltip).not.toContainText('Current color');
-    expect(await tooltip.innerText()).not.toMatch(/#[0-9a-f]{6}/iu);
+    await page.locator(kosovo).click();
+    await expect(page.locator(kosovo)).toHaveAttribute('aria-selected', 'true');
+
+    await openRailTool(page, 'Colors');
+    await page.getByRole('button', { name: 'Apply Red' }).click();
+
+    const appliedFill = await page.locator(kosovo).getAttribute('fill');
+    expect(appliedFill).not.toBe(NEUTRAL_UNIT_COLOR);
+    expect(appliedFill).not.toBe('#FFFFFF');
+    expect(appliedFill?.toUpperCase()).toBe('#DC2626');
   });
 });

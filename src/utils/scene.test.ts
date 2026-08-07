@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import manifestText from '../../public/data/world-manifest.json?raw';
+import worldText from '../../public/data/world-modern.geojson?raw';
+import { WORLD_MANIFEST_URL, loadWorldGeoData } from '../hooks/useGeoData';
 
 import { NEUTRAL_UNIT_COLOR } from '../constants/colors';
 import type { EffectiveScene, SnapshotId } from '../types/composition';
@@ -364,5 +368,124 @@ describe('reconcileSelectionForScene', (): void => {
       new Set(['DEU', 'HIST-HRE']),
     );
     expect(previousSelection).toEqual(new Set(['FRA', 'DEU', 'HIST-HRE', 'HIST-COLONY']));
+  });
+});
+
+/**
+ * D4-10. These run against the committed world asset rather than synthetic
+ * fixtures, because the claim under test is about the shipped scene: there is
+ * no unit in the Modern scene a creator cannot colour.
+ */
+describe('the twelve self-colorable units (D4-10)', (): void => {
+  /**
+   * Written out, not counted. A list derived from the asset would agree with
+   * the asset whatever the asset said, which is the shape of a gate that
+   * cannot fail.
+   */
+  const SELF_COLORABLE_IDS: ReadonlyArray<CountryId> = [
+    'ATA',
+    'COK',
+    'CYN',
+    'FLK',
+    'GIB',
+    'IOT',
+    'KAS',
+    'KOS',
+    'NIU',
+    'SAH',
+    'SOL',
+    'TWN',
+  ];
+  /**
+   * The literal the whole plan turns on. 195 core states plus twelve
+   * self-colorable units. Never `cores.length + others.length` - that product
+   * is satisfied by an empty scene.
+   */
+  const COLORABLE_UNIT_COUNT = 207;
+
+  async function loadModernScene(): Promise<EffectiveScene> {
+    const manifest: unknown = JSON.parse(manifestText);
+    const world: unknown = JSON.parse(worldText);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (input: RequestInfo | URL): Promise<Response> =>
+          Promise.resolve(
+            new Response(
+              JSON.stringify(
+                String(input) === WORLD_MANIFEST_URL ? manifest : world,
+              ),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+          ),
+      ),
+    );
+
+    const result = await loadWorldGeoData(new AbortController().signal);
+    if (result.status !== 'ready') {
+      throw new Error(`world asset did not load: ${result.status}`);
+    }
+
+    return composeEffectiveScene({
+      snapshotId: 'modern',
+      modernFeatures: result.features,
+    });
+  }
+
+  afterEach((): void => {
+    vi.unstubAllGlobals();
+  });
+
+  it('puts all twelve in the selectable set and lands the count on 207', async (): Promise<void> => {
+    const scene = await loadModernScene();
+    const selectableEntityIds = getSelectableEntityIds(scene.features);
+
+    // The count first, so a regression reports the number that moved rather
+    // than the first id it happened to miss.
+    expect(selectableEntityIds.size).toBe(COLORABLE_UNIT_COUNT);
+    expect(scene.selectableEntityIds.size).toBe(COLORABLE_UNIT_COUNT);
+    for (const id of SELF_COLORABLE_IDS) {
+      expect(selectableEntityIds.has(id)).toBe(true);
+      expect(scene.selectableEntityIds.has(id)).toBe(true);
+    }
+    // The rendered scene is unchanged at 248 units - nothing was added or
+    // removed, only reclassified.
+    expect(scene.features).toHaveLength(248);
+  });
+
+  it('resolves an applied colour for each of the twelve instead of the neutral fill', async (): Promise<void> => {
+    const scene = await loadModernScene();
+    const applied = '#DC2626';
+    const colors: ColorMap = Object.fromEntries(
+      SELF_COLORABLE_IDS.map((id) => [id, applied]),
+    );
+
+    for (const id of SELF_COLORABLE_IDS) {
+      const feature = scene.features.find(
+        (candidate) => candidate.entityId === id,
+      );
+      expect(feature).toBeDefined();
+      if (feature === undefined) {
+        continue;
+      }
+
+      expect(feature.colorOwnerId).toBe(id);
+      expect(feature.isSelectable).toBe(true);
+      expect(feature.interactionMode).toBe('self-colorable');
+      expect(getEffectiveFeatureColor(feature, colors)).toBe(applied);
+      expect(getEffectiveFeatureColor(feature, {})).not.toBe(NEUTRAL_UNIT_COLOR);
+    }
+
+    // Every one of the twelve reaches the legend and export gate, which reads
+    // only owned features. Before D4-10 none of them did.
+    expect(getEffectiveSceneColors(scene, colors)).toHaveLength(248);
+  });
+
+  it('keeps a selection of the twelve through scene reconciliation', async (): Promise<void> => {
+    const scene = await loadModernScene();
+
+    expect(
+      reconcileSelectionForScene(new Set(SELF_COLORABLE_IDS), scene),
+    ).toEqual(new Set(SELF_COLORABLE_IDS));
   });
 });

@@ -7,12 +7,13 @@ export const DEFAULT_COLOR = '#FFFFFF';
 // Keep these in sync with `--map-border-default` / `--map-border-selected`.
 export const DEFAULT_BORDER_COLOR = '#000000';
 export const SELECTED_BORDER_COLOR = '#000000';
-// Solid fill for units nobody can color (colorOwnerId === null: disputed and
-// neutral territories such as Kosovo, Western Sahara, Antarctica). White made
-// them indistinguishable from an uncolored colorable country, which read as
-// "this country is broken". A solid fill, never a CSS filter - a filter
-// applied through external CSS never reaches the serialised export clone,
-// which is rasterised as an isolated SVG-as-image document.
+// The neutral fill for a feature with no colour owner. D4-10 made every Modern
+// unit self-colorable, so on the Modern scene nothing resolves to it any more;
+// it still covers historical scenes and malformed records, and `04-08` adopts
+// it as the default meaning of *uncoloured*.
+// A solid fill, never a CSS filter - a filter applied through external CSS
+// never reaches the serialised export clone, which is rasterised as an
+// isolated SVG-as-image document.
 export const NEUTRAL_UNIT_COLOR = '#E5E7EB';
 
 // The accepted-syntax hint for the custom colour field. It lives here rather

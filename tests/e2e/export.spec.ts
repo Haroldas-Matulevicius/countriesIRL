@@ -20,7 +20,7 @@ import { openRailTool, waitForApp } from './support/appHarness';
 const EXPORT_FIXTURE_URL = '/tests/e2e/fixtures/export.html';
 const EXPORT_ARTIFACT_ROOT = resolve('.artifacts/playwright/downloads');
 const EXPORT_SIZE = 1080;
-const LOGICAL_CORE_COUNT = 195;
+const LOGICAL_CORE_COUNT = 207;
 const VISIBLE_MODERN_UNIT_COUNT = 248;
 // Every visible unit is drawn three times (-360°, 0°, +360°) so a Pacific
 // composition has no seam at the date line.

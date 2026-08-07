@@ -13,9 +13,9 @@ import {
 import { createSafeMapPath, createWorldProjection } from './mapProjection';
 
 const EXPECTED_MANIFEST_SHA256 =
-  '57313d11df49285e348b3fb67179aedd7d01f227426729eb0107c4f18fb51fe4';
+  '22af5b62c089544eef6ad107c4e3e6682b6f74b33a3be2638c6a8e1640f68d49';
 const EXPECTED_WORLD_SHA256 =
-  '45ccfed198f2d3ba4cbeb1d1b06889b0ba6869ee944feff32a5355b94cf0827a';
+  'd02b604a92a4a7f4481c6bf9a92490adbfe4c6bc4b7ed4fd044c36bb4e2b5645';
 const EXPECTED_BASE_SOURCE_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.1/geojson/ne_50m_admin_0_countries.geojson';
 const EXPECTED_SUPPLEMENT_SOURCE_URL =
@@ -39,6 +39,25 @@ const EXPECTED_CORE_IDS = new Set(
     .filter((value) => value.length > 0),
 );
 const EXPECTED_SUPPLEMENT_IDS = ['CLP', 'CSI', 'ESB', 'GIB', 'UMI', 'WSB'];
+/**
+ * D4-10: the twelve units that own their own colour. Written out rather than
+ * counted, so a fixture that silently loses one reddens on the identity of the
+ * missing unit instead of quietly agreeing with a smaller total.
+ */
+const EXPECTED_SELF_COLORABLE_IDS = [
+  'ATA',
+  'COK',
+  'CYN',
+  'FLK',
+  'GIB',
+  'IOT',
+  'KAS',
+  'KOS',
+  'NIU',
+  'SAH',
+  'SOL',
+  'TWN',
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -167,29 +186,47 @@ describe('canonical world assets', (): void => {
         .sort(),
     ).toEqual(EXPECTED_SUPPLEMENT_IDS);
 
+    // D4-10: three categories now, and each one is asserted separately. A
+    // self-colorable unit owns its own colour and can never borrow a core
+    // state's; an inherit-parent unit still cannot be selected.
+    const selfColorableIds: string[] = [];
     for (const record of [...nonCoreUnits, ...supplements]) {
       expect(isRecord(record)).toBe(true);
       if (!isRecord(record)) {
         continue;
       }
 
-      expect(record.isSelectable).toBe(false);
-      if (record.parentCoreId === null) {
-        expect(record.colorPolicy).toBe('neutral');
-      } else {
-        expect(typeof record.parentCoreId).toBe('string');
-        expect(coreIds.has(String(record.parentCoreId))).toBe(true);
-        expect(record.colorPolicy).toBe('inherit-parent');
+      if (record.colorPolicy === 'self-colorable') {
+        selfColorableIds.push(readString(record, 'id'));
+        expect(record.isSelectable).toBe(true);
+        expect(record.parentCoreId).toBe(record.id);
+        expect(coreIds.has(String(record.id))).toBe(false);
+        continue;
       }
+
+      expect(record.isSelectable).toBe(false);
+      expect(record.colorPolicy).toBe('inherit-parent');
+      expect(typeof record.parentCoreId).toBe('string');
+      expect(coreIds.has(String(record.parentCoreId))).toBe(true);
     }
+
+    expect(selfColorableIds.sort()).toEqual(EXPECTED_SELF_COLORABLE_IDS);
 
     expect(isRecord(manifest.policy)).toBe(true);
     expect(manifest.policy).toMatchObject({
+      coreDefinition: '193 UN member states plus the Holy See and State of Palestine',
       coreStateCount: 195,
+      selfColorableCount: 12,
+      selectableCount: 207,
       runtimeUnitCount: 248,
       coreSelectable: true,
-      nonCoreSelectable: false,
+      selfColorableSelectable: true,
+      inheritParentSelectable: false,
     });
+    // The two counts mean different things and the second is derived from the
+    // first. Written as literals deliberately: `a.length + b.length` would be
+    // satisfied by an empty manifest.
+    expect(manifest.policy).not.toHaveProperty('nonCoreSelectable');
   });
 
   it('normalizes all visible units into finite world paths', async (): Promise<void> => {
@@ -216,10 +253,19 @@ describe('canonical world assets', (): void => {
     );
 
     expect(result.features).toHaveLength(248);
+    // 195 is core states and did not move. 207 is colorable units (D4-10) and
+    // is what the country browser and Locate see.
     expect(result.coreFeatures).toHaveLength(195);
     expect(result.entityLookup.size).toBe(248);
     expect(result.coreLookup.size).toBe(195);
-    expect(result.countryMetadata).toHaveLength(195);
+    expect(result.colorableLookup.size).toBe(207);
+    expect(result.countryMetadata).toHaveLength(207);
+    expect(
+      EXPECTED_SELF_COLORABLE_IDS.every((id) => result.colorableLookup.has(id)),
+    ).toBe(true);
+    expect(
+      EXPECTED_SELF_COLORABLE_IDS.some((id) => result.coreLookup.has(id)),
+    ).toBe(false);
     expect(new Set(result.features.map((feature) => feature.id)).size).toBe(248);
     expect(paths.every((path) => path.length > 0 && !/NaN|Infinity/u.test(path))).toBe(true);
   });

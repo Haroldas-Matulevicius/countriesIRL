@@ -24,8 +24,9 @@ interface CountryListProps {
   countries: ReadonlyArray<WorldCountryMetadata>;
   /**
    * Entities the active scene can actually select. The browsable catalog stays
-   * the modern 195-core list (historical entities are never searchable), so
-   * rows outside the scene are shown but rejected instead of being hidden.
+   * the modern colorable list - 195 core states plus the twelve self-colorable
+   * units, 207 in all since D4-10 (historical entities are never searchable) -
+   * so rows outside the scene are shown but rejected instead of being hidden.
    */
   selectableCountryIds: ReadonlySet<CountryId>;
   /**
@@ -235,7 +236,7 @@ export function CountryList({
             /*
              * `canonicalizeColorMap` deletes any entry equal to DEFAULT_COLOR,
              * so in this model "white" and "not coloured yet" are the same
-             * state. Painting all 195 rows with a filled chip made an untouched
+             * state. Painting every row with a filled chip made an untouched
              * map read as fully coloured; an unset row now shows an empty
              * outline instead.
              *

@@ -12,7 +12,7 @@ import {
   createHistoricalSavedRecord,
 } from './support/historicalFixture';
 
-const LOGICAL_CORE_COUNT = 195;
+const LOGICAL_CORE_COUNT = 207;
 const VISIBLE_MODERN_UNIT_COUNT = 248;
 const WRAPPED_PATH_COUNT = VISIBLE_MODERN_UNIT_COUNT * 3;
 const CAMERA_FIXTURE_URL = '/tests/e2e/fixtures/camera.html';

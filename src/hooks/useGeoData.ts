@@ -26,6 +26,16 @@ const MAP_LOAD_START_MARK = 'countriesirl-map-load-start';
 const EXPECTED_MANIFEST_SCHEMA_VERSION = 1;
 const EXPECTED_NATURAL_EARTH_VERSION = '5.1.1';
 const EXPECTED_CORE_COUNT = 195;
+/**
+ * D4-10: two counts that mean different things and are never interchangeable.
+ * 195 is core states - 193 UN member states plus the Holy See and the State of
+ * Palestine - and that definition did not move. 207 is how many units a creator
+ * can paint: the 195 plus the twelve that own their own color.
+ */
+const EXPECTED_SELF_COLORABLE_COUNT = 12;
+const EXPECTED_SELECTABLE_COUNT =
+  EXPECTED_CORE_COUNT + EXPECTED_SELF_COLORABLE_COUNT;
+const SELF_COLORABLE_POLICY = 'self-colorable';
 const EXPECTED_NON_CORE_COUNT = 47;
 const EXPECTED_SUPPLEMENT_COUNT = 6;
 const EXPECTED_RUNTIME_UNIT_COUNT = 248;
@@ -82,6 +92,13 @@ export type WorldGeoDataState =
       readonly coreFeatures: ReadonlyArray<SceneFeature>;
       readonly lookup: ReadonlyMap<CountryId, SceneFeature>;
       readonly coreLookup: ReadonlyMap<CountryId, SceneFeature>;
+      /**
+       * The 207 units a creator can paint (D4-10) - the 195 in `coreLookup`
+       * plus the twelve self-colorable ones. `coreLookup` still means core
+       * states and is still 195; Locate reads this one so the twelve are
+       * findable by name.
+       */
+      readonly colorableLookup: ReadonlyMap<CountryId, SceneFeature>;
       readonly entityLookup: ReadonlyMap<CountryId, SceneFeature>;
       readonly countryMetadata: ReadonlyArray<WorldCountryMetadata>;
       readonly warnings: ReadonlyArray<GeoJsonWarning>;
@@ -144,9 +161,12 @@ function hasExpectedManifestHeader(manifest: Record<string, unknown>): boolean {
     !isRecord(policy) ||
     hasReservedObjectKey(policy) ||
     policy.coreStateCount !== EXPECTED_CORE_COUNT ||
+    policy.selfColorableCount !== EXPECTED_SELF_COLORABLE_COUNT ||
+    policy.selectableCount !== EXPECTED_SELECTABLE_COUNT ||
     policy.runtimeUnitCount !== EXPECTED_RUNTIME_UNIT_COUNT ||
     policy.coreSelectable !== true ||
-    policy.nonCoreSelectable !== false ||
+    policy.selfColorableSelectable !== true ||
+    policy.inheritParentSelectable !== false ||
     !isRecord(naturalEarth) ||
     hasReservedObjectKey(naturalEarth) ||
     naturalEarth.version !== EXPECTED_NATURAL_EARTH_VERSION ||
@@ -218,16 +238,43 @@ function readNonCoreUnit(
   const name = readNonEmptyString(candidate.name);
   const sourceFeatureId = readStableId(candidate.sourceId);
   const sourceType = readNonEmptyString(candidate.sourceType);
+  if (
+    id === null ||
+    name === null ||
+    sourceFeatureId === null ||
+    sourceType === null
+  ) {
+    return null;
+  }
+
+  // D4-10, the third branch. It reaches this point through the same
+  // `hasReservedObjectKey` guard as every other record, and its owner is its
+  // own id - never a core id - so it can never borrow a core state's color.
+  if (candidate.colorPolicy === SELF_COLORABLE_POLICY) {
+    const selfOwnerId = readStableId(candidate.parentCoreId);
+    if (selfOwnerId !== id || candidate.isSelectable !== true) {
+      return null;
+    }
+
+    return {
+      sceneId: id,
+      sourceFeatureId,
+      entityId: id,
+      colorOwnerId: id,
+      isSelectable: true,
+      interactionMode: SELF_COLORABLE_POLICY,
+      boundaryMode: 'modern',
+      provenanceId,
+      name,
+    };
+  }
+
   const hasNeutralParent = candidate.parentCoreId === null;
   const colorOwnerId = hasNeutralParent
     ? null
     : readStableId(candidate.parentCoreId);
   const expectedColorPolicy = hasNeutralParent ? 'neutral' : 'inherit-parent';
   if (
-    id === null ||
-    name === null ||
-    sourceFeatureId === null ||
-    sourceType === null ||
     (!hasNeutralParent && colorOwnerId === null) ||
     candidate.isSelectable !== false ||
     candidate.colorPolicy !== expectedColorPolicy ||
@@ -324,12 +371,21 @@ function validateWorldManifest(input: unknown): ManifestValidationResult {
     return { ok: false };
   }
 
+  // The browsable catalog is the colorable set, not the core set (D4-10):
+  // 195 core states plus the twelve that own their own color. Counted here so
+  // a manifest that declares 207 but yields a different number is refused
+  // rather than quietly shipping a shorter country list.
+  const colorableUnits = allUnits.filter((unit) => unit.isSelectable);
+  if (colorableUnits.length !== EXPECTED_SELECTABLE_COUNT) {
+    return { ok: false };
+  }
+
   return {
     ok: true,
     value: {
       unitsById,
       coreIds,
-      countryMetadata: narrowedCoreUnits.map((unit) => ({
+      countryMetadata: colorableUnits.map((unit) => ({
         id: unit.entityId,
         name: unit.name,
       })),
@@ -462,10 +518,17 @@ export async function loadWorldGeoData(
   );
   const entityLookup = new Map<CountryId, SceneFeature>();
   const coreLookup = new Map<CountryId, SceneFeature>();
+  const colorableLookup = new Map<CountryId, SceneFeature>();
   for (const feature of normalizationResult.features) {
     entityLookup.set(feature.entityId, feature);
     if (feature.interactionMode === 'modern-core') {
       coreLookup.set(feature.entityId, feature);
+    }
+    if (
+      feature.interactionMode === 'modern-core' ||
+      feature.interactionMode === SELF_COLORABLE_POLICY
+    ) {
+      colorableLookup.set(feature.entityId, feature);
     }
   }
 
@@ -475,6 +538,7 @@ export async function loadWorldGeoData(
     coreFeatures,
     lookup: coreLookup,
     coreLookup,
+    colorableLookup,
     entityLookup,
     countryMetadata: manifestResult.value.countryMetadata,
     warnings: normalizationResult.warnings,

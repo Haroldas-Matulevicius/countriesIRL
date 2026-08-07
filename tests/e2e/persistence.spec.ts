@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { STORAGE_KEY } from '../../src/constants/config';
 import { legendDisclosure, openRailTool } from './support/appHarness';
 
-const LOGICAL_CORE_COUNT = 195;
+const LOGICAL_CORE_COUNT = 207;
 // UI-SPEC section 20: the map label names the active period.
 const MODERN_MAP_LISTBOX_NAME =
   'Interactive world map, Modern — current borders';

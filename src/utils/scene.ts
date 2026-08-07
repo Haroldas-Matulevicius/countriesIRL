@@ -19,8 +19,12 @@ export interface EffectiveSceneInput {
 function hasSelectableIdentity(feature: SceneFeature): boolean {
   return (
     feature.isSelectable &&
+    // `self-colorable` joins the set under exactly the same two conditions the
+    // other two satisfy - it is selectable and it owns its own colour (D4-10).
+    // The identity clauses below are unchanged and still gate all three.
     (feature.interactionMode === 'modern-core' ||
-      feature.interactionMode === 'historical-entity') &&
+      feature.interactionMode === 'historical-entity' ||
+      feature.interactionMode === 'self-colorable') &&
     isSafeStableCountryId(feature.entityId) &&
     feature.colorOwnerId === feature.entityId
   );
@@ -131,9 +135,11 @@ export function getEffectiveFeatureColor(
   feature: SceneFeature,
   colors: ColorMap,
 ): string {
-  // A null owner is "nobody can color this", which must not read as the
-  // uncolored white a colorable country starts with. An unsafe owner id is a
-  // data defect and stays white rather than borrowing the neutral treatment.
+  // A null owner takes the neutral fill. After D4-10 no Modern unit has a null
+  // owner, so on the Modern scene this branch no longer fires - it stays for
+  // historical scenes and for malformed records, which still need it. An
+  // unsafe owner id is a data defect and stays white rather than borrowing the
+  // neutral treatment.
   if (feature.colorOwnerId === null) {
     return NEUTRAL_UNIT_COLOR;
   }

@@ -2,7 +2,13 @@ import { expect, type Page } from '@playwright/test';
 
 import { STORAGE_KEY } from '../../../src/constants/config';
 
-export const LOGICAL_CORE_COUNT = 195;
+/**
+ * D4-10: the count of COLORABLE units, not of core states. 195 core states
+ * plus the twelve self-colorable units. `waitForApp` gates on it and every
+ * spec inherits it, so this constant is what reddens the whole suite if the
+ * data and the runtime fall out of step.
+ */
+export const LOGICAL_CORE_COUNT = 207;
 export const CAMERA_GROUP_SELECTOR = '[data-layer="camera"]';
 export const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
 export const CAMERA_OWNER_SENTINEL = 'data-camera-owner-sentinel';

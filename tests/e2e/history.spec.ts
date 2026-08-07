@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { openRailTool } from './support/appHarness';
 
 const HISTORY_FIXTURE_URL = '/tests/e2e/fixtures/history.html';
-const LOGICAL_CORE_COUNT = 195;
+const LOGICAL_CORE_COUNT = 207;
 const LOGICAL_PATH_SELECTOR = 'path.country-path[role="option"]';
 const MODERN_PERIOD_LABEL = 'Modern — current borders';
 const HISTORICAL_PERIOD_LABEL = '1700 — Post-Westphalia Europe';

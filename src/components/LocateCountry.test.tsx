@@ -11,8 +11,21 @@ import {
   reduceLocateState,
 } from './LocateCountry';
 
-const COUNTRY_CATALOG: ReadonlyArray<WorldCountryMetadata> =
-  worldManifest.coreStates.map(({ id, name }) => ({ id, name }));
+/**
+ * The catalog the app actually browses after D4-10: 195 core states plus the
+ * twelve self-colorable units. It is derived from the manifest so a
+ * reclassification reaches this fixture, and its length is asserted against the
+ * literal 207 rather than against its own `.length`.
+ */
+const COUNTRY_CATALOG: ReadonlyArray<WorldCountryMetadata> = [
+  ...worldManifest.coreStates,
+  ...worldManifest.nonCoreUnits.filter(
+    (unit) => unit.colorPolicy === 'self-colorable',
+  ),
+  ...worldManifest.supplements.filter(
+    (unit) => unit.colorPolicy === 'self-colorable',
+  ),
+].map(({ id, name }) => ({ id, name }));
 const HISTORICAL_ENTITY_ID = 'HIST-PLC';
 const NATIVE_DISABLED_ATTRIBUTE = /\sdisabled(?:=""|(?=[\s>]))/;
 
@@ -30,7 +43,7 @@ describe('LocateCountry', () => {
       /<button\b[^>]*type="button"[^>]*>Locate Country<\/button>/,
     )?.[0];
 
-    expect(COUNTRY_CATALOG).toHaveLength(195);
+    expect(COUNTRY_CATALOG).toHaveLength(207);
     expect(markup).toContain('aria-label="Find a country"');
     expect(markup).toContain('role="combobox"');
     expect(markup).toContain('aria-autocomplete="list"');
@@ -40,7 +53,11 @@ describe('LocateCountry', () => {
   });
 
   it('filters the fixed modern catalog and rejects historical-only IDs', () => {
-    expect(filterLocateCountries(COUNTRY_CATALOG, '')).toHaveLength(195);
+    expect(filterLocateCountries(COUNTRY_CATALOG, '')).toHaveLength(207);
+    // Locate can find the twelve by name (D4-10); before it, it could not.
+    expect(filterLocateCountries(COUNTRY_CATALOG, 'kosovo')).toEqual([
+      { id: 'KOS', name: 'Kosovo' },
+    ]);
     expect(filterLocateCountries(COUNTRY_CATALOG, 'fiji')).toEqual([
       { id: 'FJI', name: 'Fiji' },
     ]);

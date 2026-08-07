@@ -32,7 +32,7 @@ import {
 const DOWNLOAD_ROOT = resolve('.artifacts/playwright/downloads');
 const EXPORT_SIZE = 1080;
 const DESKTOP_VIEWPORT = { width: 1300, height: 900 };
-const LOGICAL_CORE_COUNT = 195;
+const LOGICAL_CORE_COUNT = 207;
 
 const RED = '#DC2626';
 const BLUE = '#2563EB';

@@ -278,7 +278,11 @@ function createSceneFeature(
     provenanceId: 'fixture',
   };
 
-  if (interactionMode === 'modern-core' || interactionMode === 'historical-entity') {
+  if (
+    interactionMode === 'modern-core' ||
+    interactionMode === 'historical-entity' ||
+    interactionMode === 'self-colorable'
+  ) {
     return {
       ...base,
       interactionMode,

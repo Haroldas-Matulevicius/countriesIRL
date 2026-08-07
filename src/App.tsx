@@ -284,8 +284,10 @@ export default function App(): JSX.Element {
   // across the 1200px transition and are therefore remounted, so their
   // transient UI state cannot live inside them.
   const inspectorUi = useInspectorUiState(countries);
+  // The colorable set, not the core set (D4-10): Locate has to find the twelve
+  // self-colorable units, which the browser now lists and the map now paints.
   const modernCountryLookup =
-    geoData.status === 'ready' ? geoData.coreLookup : EMPTY_COUNTRY_LOOKUP;
+    geoData.status === 'ready' ? geoData.colorableLookup : EMPTY_COUNTRY_LOOKUP;
   const effectiveCountryLookup = useMemo<ReadonlyMap<CountryId, GeoFeature>>(
     () => {
       if (effectiveScene === null) {

@@ -32,6 +32,17 @@ export type SceneFeature =
       readonly colorOwnerId: CountryId;
       readonly isSelectable: true;
     })
+  /**
+   * D4-10: a non-core unit that owns its own color - Kosovo, Taiwan, Western
+   * Sahara and the nine others. It is a fourth variant rather than a loosened
+   * third one: widening the neutral variant to `colorOwnerId: string | null`
+   * would make every narrowing site accept both and delete the type's value.
+   */
+  | (SceneFeatureBase & {
+      readonly interactionMode: 'self-colorable';
+      readonly colorOwnerId: CountryId;
+      readonly isSelectable: true;
+    })
   | (SceneFeatureBase & {
       readonly interactionMode: 'inherited-dependency';
       readonly colorOwnerId: CountryId;

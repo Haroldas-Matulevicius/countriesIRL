@@ -17,8 +17,21 @@ import {
   getVisibleCountryIds,
 } from './CountryList';
 
-const COUNTRY_CATALOG: ReadonlyArray<WorldCountryMetadata> =
-  worldManifest.coreStates.map(({ id, name }) => ({ id, name }));
+/**
+ * The catalog the app actually browses after D4-10: 195 core states plus the
+ * twelve self-colorable units. It is derived from the manifest so a
+ * reclassification reaches this fixture, and its length is asserted against the
+ * literal 207 rather than against its own `.length`.
+ */
+const COUNTRY_CATALOG: ReadonlyArray<WorldCountryMetadata> = [
+  ...worldManifest.coreStates,
+  ...worldManifest.nonCoreUnits.filter(
+    (unit) => unit.colorPolicy === 'self-colorable',
+  ),
+  ...worldManifest.supplements.filter(
+    (unit) => unit.colorPolicy === 'self-colorable',
+  ),
+].map(({ id, name }) => ({ id, name }));
 const HISTORICAL_ENTITY_ID = 'HIST-PLC';
 
 function renderCountryList(
@@ -64,12 +77,15 @@ function renderCountryList(
   );
 }
 
-describe('CountryList modern-core catalog', () => {
-  it('renders exactly the curated 195 logical countries without historical entities', () => {
+describe('CountryList colorable-unit catalog', () => {
+  it('renders exactly the curated 207 colorable units without historical entities', () => {
     const markup = renderCountryList(COUNTRY_CATALOG);
 
-    expect(COUNTRY_CATALOG).toHaveLength(195);
-    expect(markup.match(/class="country-list__item"/g)).toHaveLength(195);
+    expect(COUNTRY_CATALOG).toHaveLength(207);
+    expect(markup.match(/class="country-list__item"/g)).toHaveLength(207);
+    // The unit D4-10 was reported against. Before it, Kosovo was absent from
+    // this list entirely - the creator could not even find it to learn why.
+    expect(markup).toContain('>Kosovo<');
     expect(markup).toContain('>France<');
     expect(markup).toContain('aria-label="Current color #DC2626"');
     expect(markup).not.toContain(HISTORICAL_ENTITY_ID);
@@ -85,7 +101,7 @@ describe('CountryList modern-core catalog', () => {
 
     expect(filtered).toEqual([{ id: 'FJI', name: 'Fiji' }]);
     expect(getVisibleCountryIds(filtered)).toEqual(['FJI']);
-    expect(getVisibleCountryIds(COUNTRY_CATALOG)).toHaveLength(195);
+    expect(getVisibleCountryIds(COUNTRY_CATALOG)).toHaveLength(207);
     expect(getVisibleCountryIds(COUNTRY_CATALOG)).not.toContain(
       HISTORICAL_ENTITY_ID,
     );

@@ -18,6 +18,7 @@ const READY_GEO_DATA = {
   coreFeatures: [],
   lookup: new Map(),
   coreLookup: new Map(),
+  colorableLookup: new Map(),
   entityLookup: new Map(),
   countryMetadata: [],
   warnings: [],
