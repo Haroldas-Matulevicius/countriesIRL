@@ -24,7 +24,7 @@ Sources: `04-CONTEXT.md` (D4-01..D4-18), `04-RESEARCH.md` § Validation Architec
 | `src/components/icons/DropletIcon.tsx` **(new)** | component | event-driven | `src/components/icons/LayersIcon.tsx` | exact |
 | `src/components/icons/index.ts` · `PROVENANCE.md` · `iconContract.test.ts` | config/test | — | existing entries for `LayersIcon` | exact |
 | `src/components/editor/ToolRail.tsx` | component | event-driven | itself — `TOOL_ICONS` map + `TOOL_DEFINITIONS` loop | exact |
-| `src/components/controls/MapStylePanel.tsx` **(new)** | component | request-response | `LegendEditor` / `ColorPicker` panel bodies | role-match |
+| `src/components/MapStylePanel.tsx` **(new)** | component | request-response | `LegendEditor` / `ColorPicker` panel bodies | role-match |
 | `src/styles/controls/mapStyle.css` **(new)** | style sheet | — | `src/styles/controls/legendEditor.css` | exact |
 | `src/main.tsx` | config (import order) | — | itself — the pinned block | exact |
 | `src/styles/uiContract.test.ts` | test (css contract) | — | itself — assertions 10 and 21 | exact |
@@ -184,7 +184,7 @@ roving-tabindex writer.
 
 ---
 
-### `src/components/controls/MapStylePanel.tsx` + `src/styles/controls/mapStyle.css` (new surface)
+### `src/components/MapStylePanel.tsx` + `src/styles/controls/mapStyle.css` (new surface)
 
 **Analog:** `src/styles/controls/legendEditor.css:1-30` for the sheet; `ToolPanel.tsx:19-31` for the
 shell contract the panel body must respect.
