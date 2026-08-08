@@ -8,17 +8,29 @@ is_content_review: false
 is_hash_bound: false
 covers_physical_verification: false
 cells_total: 8
-cells_pass: 0
+cells_pass: 1
+cells_partial: 1
 cells_fail: 0
-cells_not_performed: 8
-phase_close_status: "shipped at code level and physically unverified"
+cells_not_performed: 6
+owner_session_date: 2026-08-07
+owner_session_kind: free-exploration
+phase_close_status: "closed by owner on a free exploration; six of eight cells never performed"
 ---
 
 # Phase 4 — Acceptance Record
 
-> **Read this line first.** **Zero of the eight cells below were performed.** All eight are
-> recorded **NOT PERFORMED**. The phase closes as **shipped at code level and physically
-> unverified**. Nothing in this document may be cited as a physical verification.
+> **Read this line first.** The owner ran a **free exploration on 2026-08-07** and closed the
+> phase on it. That is a real verdict and it is recorded below as one — but it is **not the
+> structured eight-cell gate**. **Six of the eight cells were never performed**, exactly as in
+> Phase 3. **Skipped is not passed. None of the six may be cited as verified.**
+>
+> **What the owner actually did:** exercised the PNG export, the colours and shading, the title
+> field, and legend-entry renaming, and judged the result good enough to ship. Two defects were
+> reported and are tracked below — one is **fixed**, one is **open**.
+>
+> ⚠ **This supersedes the original "zero of eight" line, and the change is an UPGRADE OF RECORD,
+> not of evidence.** Cells 1–5 and 7 are still `NOT PERFORMED` and were not made truer by the
+> phase closing.
 
 ---
 
@@ -63,8 +75,9 @@ dark-theme review anywhere in this repository. **Skipped is not passed.**
 
 ## The eight cells
 
-**Legend:** `PASS` · `FAIL` (with description) · `NOT PERFORMED`.
-**Performed by:** nobody, for every row.
+**Legend:** `PASS` · `PARTIAL` · `FAIL` (with description) · `NOT PERFORMED`.
+**Performed by:** the owner, on a **free exploration**, for cells 6 and 8 only. **Nobody, for the
+other six.**
 
 ### ⛔ Five physical accessibility checks (`04-UI-SPEC.md § 8`)
 
@@ -80,11 +93,38 @@ dark-theme review anywhere in this repository. **Skipped is not passed.**
 
 | # | Cell | Result | Performed by | Date |
 |---|---|---|---|---|
-| **6** | **The G-3 rework judgement.** Open the Colors flyout at 360px, exercise ramp selection and manual painting, compare against the original complaint: *"too squished, not organized well, hate the multi boxes within."* Is it answered? | **NOT PERFORMED** | — | — |
-| **7** | **Cartographic resemblance.** Build the reference frame — ramp fills, quiet coasts, top band, title, bar legend — and compare side by side with the owner's Eurostat image. | **NOT PERFORMED** | — | — |
-| **8** | **Anything in the exported PNG that differs from what was seen on screen.** | **NOT PERFORMED** | — | — |
+| **6** | **The G-3 rework judgement.** Open the Colors flyout at 360px, exercise ramp selection and manual painting, compare against the original complaint: *"too squished, not organized well, hate the multi boxes within."* Is it answered? | **PARTIAL** — the panel was exercised and **no complaint was raised**: *"the colors… everything seemed to work decently"*, *"color shading worked nice"*. But the owner did **not explicitly re-judge the three original complaints** (density · information architecture · nested bordered boxes), and absence of complaint is weaker evidence than a judgement. **G-3 is NOT recorded as resolved.** | owner | 2026-08-07 |
+| **7** | **Cartographic resemblance.** Build the reference frame — ramp fills, quiet coasts, top band, title, bar legend — and compare side by side with the owner's Eurostat image. | **NOT PERFORMED** — no side-by-side against the reference image was done | — | — |
+| **8** | **Anything in the exported PNG that differs from what was seen on screen.** | **PASS, with two defects reported** — the owner exported and compared: *"i tested the PNG generator… everything seemed to work decently"*. No PNG-vs-screen discrepancy was reported. The two defects found are **F-6** (title character ceiling, since **FIXED**) and **F-7** (legend bar placement/obstruction, **OPEN**) — see below. | owner | 2026-08-07 |
 
-**`grep -c "NOT PERFORMED"` over the eight rows returns 8. No cell was silently upgraded.**
+**`grep -c "NOT PERFORMED"` over the eight rows returns 6** (cells 1–5 and 7). Cells 6 and 8 were
+upgraded **only** on the owner's own report, quoted verbatim above, and cell 6 was deliberately
+**not** upgraded past `PARTIAL`.
+
+---
+
+## The owner's acceptance session — 2026-08-07
+
+**Kind:** free exploration of the running editor, not the structured gate. Same shape as the
+Phase 3 close, and it carries the same caveat: **it closes the phase; it does not fill the cells.**
+
+**Exercised:** PNG export · colours and ramp shading · the title field · legend-entry renaming.
+**Verdict:** *"everything seemed to work decently"* — good enough to ship.
+
+### The two defects it found
+
+| # | Finding | State |
+|---|---|---|
+| **F-6** | **The title field refused text far too early** — *"very low amount of characters here, i dont like it — 28 is little"*. **Confirmed and root-caused.** The fit rule counted characters against a worst-case-uniform bound (every character charged the advance of `W`), which roughly **halved** real capacity: a `medium` title got **22** characters while `'Countries I have visited across all of Europe'` (45 characters) really renders at **970 of the 1016** available units. The same model was also **not conservative** — since `04-04`'s latin-ext face, `U+01F1 DZ` is **1.3745em**, 35 % wider than `W`, so 22 of them sat *on* the old bound while rendering **46 % past the line**. | ✅ **FIXED 2026-08-07.** `src/utils/interMetrics.ts` vendors real per-character advances and a pair-kern table, measured by the same method that produced `1.0202`. A 45-character title now fits at the default size. Full gate re-run green. |
+| **F-7** | **The legend bar sits slightly wrong and collides with the boxes** — *"The legend bar was off a little, some obstruction with the boxes themselves, but thats fixable."* | ⏳ **OPEN.** This is the owner signal `OQ-3` was waiting for, and it **answers it in the negative**: `04-13` moved the legend from `y = 32` to `y = 152` and **it is still not right**. `G-1` is therefore **worked but NOT closed**. The "obstruction with the boxes" is a **new** report and is not the same thing as the position — `04-12` enumerated **eight legend properties beyond position, four still open**, and this likely lands among them. |
+
+### What this session did NOT establish
+
+**No screen reader was driven. No browser was zoomed to 200 %. No dark theme was reviewed. No
+latin-ext diacritic PNG was opened and inspected. No window was sized to ≥ 1200px. No Eurostat
+side-by-side was made.** Those are cells 1–5 and 7, they remain `NOT PERFORMED`, and **`A12` in
+particular is untouched** — the F-6 fix changed how text is *measured*, not whether the
+latin-ext glyphs *render correctly in an exported PNG*, which still nobody has looked at.
 
 ---
 
@@ -192,9 +232,23 @@ independent). They are carried in `STATE.md` § Pending Todos.
 
 ## The close-out statement
 
-> **Phase 4 is SHIPPED at code level and physically unverified.**
+> **Phase 4 is COMPLETE — closed by the owner on a free exploration on 2026-08-07, with six of
+> the eight acceptance cells never performed.**
 
-Recorded in `.planning/STATE.md` in those words, exactly as Phase 3 was recorded.
+Recorded in `.planning/STATE.md` in those words. **The wording matters and is deliberate**: it is
+the same form Phase 3 was closed in, because it is the same kind of close. The superseded
+statement was *"SHIPPED at code level and physically unverified"*, which was accurate until the
+owner looked; it is kept here rather than deleted so the transition is legible.
 
-**If any later phase needs one of these eight checks, it must be performed then — none of them can
-be inherited from this phase, just as none could be inherited from Phase 3.**
+**What changed is the record, not the evidence.** The owner exercised the product and accepted
+it. That closes the phase. It did **not** perform cells 1–5 or 7, and the fact that the phase is
+now closed does not make them any truer.
+
+**If any later phase needs one of the six unperformed checks, it must be performed then — none of
+them can be inherited from this phase, just as none could be inherited from Phase 3.** The running
+total of never-performed cells across Phases 3 and 4 is now the binding constraint on Phase 6's
+`06-03` WCAG audit and its v1.1 acceptance matrix, which is where they will finally have to be
+done.
+
+**One follow-up is open and owner-reported:** `F-7`, the legend bar's placement and its collision
+with the boxes. It answers `OQ-3` in the negative — `G-1` is **worked but not closed**.
