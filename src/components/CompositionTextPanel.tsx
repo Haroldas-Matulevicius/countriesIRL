@@ -13,8 +13,8 @@ import {
   COMPOSITION_TEXT_SIZE_LABELS,
   COMPOSITION_TEXT_SIZE_ORDER,
   type CompositionTextRole,
-  characterBoundFor,
-  compositionTextLength,
+  compositionTextFillRatio,
+  isCompositionTextOverBound,
 } from "../utils/compositionText";
 
 const SIZE_CONTROL_SUFFIX = "size";
@@ -123,8 +123,16 @@ export function CompositionTextPanel({
 
   /*
    * ONE derivation feeds the counter's destructive state AND the export
-   * refusal: both read `characterBoundFor`, so the number a creator sees turn
-   * red can never disagree with the number that blocks the export.
+   * refusal: `compositionTextFillRatio` and `isCompositionTextOverBound` are
+   * the same measurement compared against the same line width, so the readout
+   * a creator watches climb cannot disagree with the rule that blocks export.
+   *
+   * It reads as a PERCENTAGE OF THE LINE rather than `used/max characters`
+   * (2026-08-07). A character budget was never the real constraint — `'MMMM'`
+   * and `'llll'` are the same four characters and nowhere near the same width —
+   * and quoting one forced the budget down to the worst case, refusing about
+   * half of what fits. A percentage is exact for whatever was actually typed,
+   * and it degrades honestly: 100 % is the refusal line, by construction.
    */
   const renderCounter = (
     role: CompositionTextRole,
@@ -132,20 +140,19 @@ export function CompositionTextPanel({
     size: CompositionTextSize,
     counterId: string,
   ): JSX.Element => {
-    const bound = characterBoundFor(role, size);
-    const length = compositionTextLength(value);
+    const isOver = isCompositionTextOverBound(role, value, size);
 
     return (
       <p
         id={counterId}
         className={
-          length > bound
+          isOver
             ? "map-style__readout composition-text__counter--over"
             : "map-style__readout"
         }
         aria-live="off"
       >
-        {`${length}/${bound}`}
+        {`${Math.round(compositionTextFillRatio(role, value, size) * 100)}%`}
       </p>
     );
   };

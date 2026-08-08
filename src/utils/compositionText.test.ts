@@ -15,12 +15,22 @@ import {
   TITLE_TEXT_FIT_MESSAGE,
   WIDEST_CHARACTER_ADVANCE_EM,
   characterBoundFor,
+  compositionTextFillRatio,
   compositionTextLength,
+  compositionTextWidth,
   getCompositionTextBlockingMessage,
   hasCompositionText,
+  isCompositionTextOverBound,
   resolveCompositionTextLines,
   sanitizeCompositionText,
 } from './compositionText';
+import {
+  RESIDUAL_KERN_EM,
+  WIDEST_KNOWN_ADVANCE_EM,
+  advanceEmFor,
+  kernEmFor,
+  measureTextEm,
+} from './interMetrics';
 import { LEGEND_CHARACTERS_PER_LINE, LEGEND_SAFE_INSET } from './legend';
 
 const MEDIUM_SIZES = { title: 'medium', subtitle: 'medium' } as const;
@@ -206,8 +216,15 @@ describe('getCompositionTextBlockingMessage', (): void => {
     );
   });
 
+  /*
+   * RE-BASELINED 2026-08-07, itemised: was `characterBoundFor('attribution') + 1`
+   * = 50 `W`s. Under the measured fit rule 50 `W`s render at 1010.5 units and
+   * genuinely FIT inside the 1016-unit line, so the old subject no longer
+   * refuses — the bound moved because it was wrong, not because the test was.
+   * 51 is the first count that actually overflows (1030.7 units).
+   */
   it('returns the attribution message for an over-bound attribution', (): void => {
-    const overBound = 'W'.repeat(characterBoundFor('attribution') + 1);
+    const overBound = 'W'.repeat(51);
     expect(
       getCompositionTextBlockingMessage(
         contentOf('Baltic Tour', '', overBound),
@@ -329,5 +346,211 @@ describe('resolveCompositionTextLines', (): void => {
     expect(
       getCompositionTextBlockingMessage(contentOf(overBound), MEDIUM_SIZES),
     ).toBe(TITLE_TEXT_FIT_MESSAGE);
+  });
+});
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * The fit rule measures REAL advances (2026-08-07).
+ *
+ * These exist because the change that introduced them broke NOTHING in the
+ * 875-test suite, which was the warning sign rather than the reassurance: every
+ * pre-existing refusal test builds its subject with `'W'.repeat(...)`, and `W`
+ * is the one character where the old worst-case-count rule and the new measured
+ * rule agree by construction. A rule can be replaced wholesale without a single
+ * all-`W` assertion noticing.
+ *
+ * So each test below is built to fail if the fix is reverted, and the two that
+ * matter most assert OPPOSITE directions of the same defect:
+ *   - ordinary text that the old rule wrongly REFUSED must now pass, and
+ *   - latin-ext digraphs that the old rule wrongly ACCEPTED must now refuse.
+ * A rule that is merely "looser" satisfies the first and fails the second.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+describe('composition text fits by measurement, not by character count', (): void => {
+  /*
+   * The owner's own Phase 4 finding: a title well inside the line was refused.
+   * 34 characters against a `medium` bound of 22 - and it uses under 94% of the
+   * line, so it was never close to overflowing.
+   */
+  it('accepts ordinary text the worst-case count refused', (): void => {
+    const title = 'Countries I have visited in Europe';
+
+    expect(compositionTextLength(title)).toBeGreaterThan(
+      characterBoundFor('title', 'medium'),
+    );
+    expect(isCompositionTextOverBound('title', title, 'medium')).toBe(false);
+    expect(
+      getCompositionTextBlockingMessage(contentOf(title), MEDIUM_SIZES),
+    ).toBeNull();
+    expect(compositionTextWidth('title', title, 'medium')).toBeLessThan(
+      COMPOSITION_TEXT_LINE_WIDTH,
+    );
+  });
+
+  /*
+   * The other half, and the one a "just raise the limit" fix would miss.
+   *
+   * `U+01F1 DZ` is 1.3745em - 35% wider than `W`. At EXACTLY the old bound of
+   * 22 characters the old rule returned "fits" (22 > 22 is false), while the
+   * string really renders ~46% past the line. `04-04` introduced this exposure
+   * when it added the latin-ext face and nobody re-derived "widest character".
+   */
+  it('refuses latin-ext digraphs the worst-case count wrongly accepted', (): void => {
+    const oldBound = characterBoundFor('title', 'medium');
+    const title = 'Ǳ'.repeat(oldBound);
+
+    // Precondition: the OLD rule's own comparison would have passed this.
+    expect(compositionTextLength(title)).toBe(oldBound);
+    expect(compositionTextLength(title) > oldBound).toBe(false);
+
+    // The new rule refuses it, because it genuinely overflows.
+    expect(advanceEmFor(0x1f1, TITLE_FONT_WEIGHT)).toBeGreaterThan(
+      WIDEST_CHARACTER_ADVANCE_EM,
+    );
+    expect(isCompositionTextOverBound('title', title, 'medium')).toBe(true);
+    expect(
+      getCompositionTextBlockingMessage(contentOf(title), MEDIUM_SIZES),
+    ).toBe(TITLE_TEXT_FIT_MESSAGE);
+  });
+
+  /** Genuinely too-wide text is still refused - the rule loosened, not lifted. */
+  it('still refuses text that truly overflows', (): void => {
+    const title = 'W'.repeat(60);
+    expect(isCompositionTextOverBound('title', title, 'medium')).toBe(true);
+    expect(compositionTextWidth('title', title, 'medium')).toBeGreaterThan(
+      COMPOSITION_TEXT_LINE_WIDTH,
+    );
+  });
+
+  /**
+   * The safety property the whole design rests on: the estimate may never come
+   * in UNDER the real rendered width, because under-stating clips the exported
+   * PNG. Summing advances alone does not have this property - some pairs kern
+   * apart - so the bound adds the worst observed pair kerning once per gap.
+   */
+  it('never under-states: the bound exceeds the bare advance sum', (): void => {
+    const sample = 'Košice / Łódź / Magyarország';
+    const characters = [...sample];
+    const bareSum = characters.reduce(
+      (total, character) =>
+        total + advanceEmFor(character.codePointAt(0) ?? 0, TITLE_FONT_WEIGHT),
+      0,
+    );
+    const kernSum = characters.slice(1).reduce(
+      (total, character, index) =>
+        total +
+        kernEmFor(
+          characters[index].codePointAt(0) ?? 0,
+          character.codePointAt(0) ?? 0,
+          TITLE_FONT_WEIGHT,
+        ),
+      0,
+    );
+
+    expect(measureTextEm(sample, TITLE_FONT_WEIGHT)).toBeGreaterThan(bareSum);
+    expect(measureTextEm(sample, TITLE_FONT_WEIGHT)).toBeCloseTo(
+      bareSum + kernSum,
+      10,
+    );
+  });
+
+  /**
+   * The kern table exists to stop a blunt margin causing FALSE REFUSALS, and
+   * this is the case that forced it: an e2e refused `'W'.repeat(22)`, a title
+   * that genuinely renders at 22.92em — 1008 of the 1016 available units.
+   *
+   * It is asserted against the browser-measured value, so it fails in both
+   * directions: too blunt a kern charge refuses a fitting title, and dropping
+   * the kern charge entirely under-states a real one.
+   */
+  it('does not refuse a full line of W, which measures 1008 of 1016 units', (): void => {
+    const title = 'W'.repeat(22);
+    const measuredInChrome = 22.9191845703125;
+
+    expect(measureTextEm(title, TITLE_FONT_WEIGHT)).toBeGreaterThanOrEqual(
+      measuredInChrome,
+    );
+    // ...but not blunt: within 1% of the truth, not the 13% a flat worst-case
+    // pair charge produced.
+    expect(measureTextEm(title, TITLE_FONT_WEIGHT)).toBeLessThan(
+      measuredInChrome * 1.01,
+    );
+    expect(isCompositionTextOverBound('title', title, 'medium')).toBe(false);
+  });
+
+  /** Untabulated pairs are charged the measured maximum, never zero. */
+  it('charges the residual kern to untabulated pairs', (): void => {
+    // 'W' + 'W' kerns above the threshold, so it is tabulated exactly.
+    expect(kernEmFor(0x57, 0x57, TITLE_FONT_WEIGHT)).toBeGreaterThan(
+      RESIDUAL_KERN_EM,
+    );
+    // A pair with no meaningful kerning falls back to the residual maximum.
+    expect(kernEmFor(0x6f, 0x6f, TITLE_FONT_WEIGHT)).toBe(RESIDUAL_KERN_EM);
+    expect(RESIDUAL_KERN_EM).toBeGreaterThan(0);
+  });
+
+  /** An unmeasured codepoint costs the widest known glyph, never zero. */
+  it('charges unknown codepoints the widest known advance', (): void => {
+    // U+4E00 (CJK) is outside both vendored subsets.
+    expect(advanceEmFor(0x4e00, TITLE_FONT_WEIGHT)).toBe(
+      WIDEST_KNOWN_ADVANCE_EM,
+    );
+    expect(measureTextEm('一', TITLE_FONT_WEIGHT)).toBe(WIDEST_KNOWN_ADVANCE_EM);
+  });
+
+  /**
+   * The vendored table must not silently drift below the measurement the
+   * repository already recorded. Stored advances are rounded UP, so `W` should
+   * sit at or just above 1.0202 - never under it.
+   */
+  it('agrees with the recorded W measurement, rounding upward', (): void => {
+    const w = advanceEmFor(0x57, TITLE_FONT_WEIGHT);
+    expect(w).toBeGreaterThanOrEqual(WIDEST_CHARACTER_ADVANCE_EM);
+    expect(w).toBeLessThan(WIDEST_CHARACTER_ADVANCE_EM + 0.001);
+  });
+
+  /** Empty is zero width, and zero width never blocks. */
+  it('measures empty text as zero', (): void => {
+    expect(measureTextEm('', TITLE_FONT_WEIGHT)).toBe(0);
+    expect(compositionTextFillRatio('title', '', 'medium')).toBe(0);
+    expect(isCompositionTextOverBound('title', '', 'medium')).toBe(false);
+  });
+
+  /**
+   * The readout and the refusal are ONE derivation: the counter crosses 100%
+   * exactly when the export starts refusing. If these ever disagree, a creator
+   * sees a green counter on a map that will not export.
+   */
+  it('crosses 100% exactly when the export refuses', (): void => {
+    const sizes = ['small', 'medium', 'large'] as const;
+    for (const size of sizes) {
+      for (let length = 1; length <= 60; length++) {
+        const value = 'Wi'.repeat(length).slice(0, length);
+        const overByRatio = compositionTextFillRatio('title', value, size) > 1;
+        expect(overByRatio).toBe(
+          isCompositionTextOverBound('title', value, size),
+        );
+      }
+    }
+  });
+
+  /**
+   * Bigger size step, same string, less room - the step still governs.
+   *
+   * 45 characters: 793 units at `small`, 970 at `medium` (both inside the
+   * 1016-unit line), 1234 at `large`. Worth stating plainly, because it is the
+   * measure of the fix: a 45-character title now fits at the DEFAULT size,
+   * where the worst-case count refused anything past 22.
+   */
+  it('keeps the size step meaningful', (): void => {
+    const value = 'Countries I have visited across all of Europe';
+    expect(compositionTextLength(value)).toBe(45);
+    expect(compositionTextWidth('title', value, 'large')).toBeGreaterThan(
+      compositionTextWidth('title', value, 'small'),
+    );
+    expect(isCompositionTextOverBound('title', value, 'small')).toBe(false);
+    expect(isCompositionTextOverBound('title', value, 'medium')).toBe(false);
+    expect(isCompositionTextOverBound('title', value, 'large')).toBe(true);
   });
 });

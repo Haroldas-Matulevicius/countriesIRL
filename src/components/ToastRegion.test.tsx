@@ -157,7 +157,14 @@ describe('color application messages', (): void => {
   });
 
   it('surfaces an attribution that will not fit, without a refresh instruction or retry', (): void => {
-    const overBound = 'W'.repeat(characterBoundFor('attribution') + 1);
+    /*
+     * RE-BASELINED 2026-08-07, itemised: was `characterBoundFor('attribution')
+     * + 1` = 50 `W`s. Under the measured fit rule 50 `W`s render at 1010.5
+     * units and genuinely FIT the 1016-unit line; 51 is the first count that
+     * overflows (1030.7). The subject moved because the old bound was wrong,
+     * not because this assertion was.
+     */
+    const overBound = 'W'.repeat(51);
     const markup = renderToStaticMarkup(
       <ToastRegion
         message={{
