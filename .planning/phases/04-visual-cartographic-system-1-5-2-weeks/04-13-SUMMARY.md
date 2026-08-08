@@ -670,12 +670,60 @@ result is produced or cited. **No Phase 3 UAT cell is cited as verified.**
 > manifest, or approval is implicated; the check should be re-run when the
 > network is reachable.
 
-**Live Invariant 3 holds.** `grep -rn "legend\.position" src/ --include=*.ts
---include=*.tsx | grep -v "legend.ts\|\.test\."` returns nothing, and the
+**Live Invariant 3 holds.** ~~`grep -rn "legend\.position" src/ --include=*.ts
+--include=*.tsx | grep -v "legend.ts\|\.test\."` returns nothing~~ — and the
 per-file raw-occurrence counts are byte-identical to pre-plan `63fc17a`:
 `CompositionStateProvider.tsx` 2 → 2, `LegendEditor.tsx` 5 → 5,
 `useCompositionLoadTransaction.ts` 1 → 1, `useCompositionSaveTransaction.ts`
 1 → 1, `App.tsx` 1 → 1, `LegendOverlay.tsx` 0 → 0. **No new reader.**
+
+> ⚠ **CORRECTED 2026-08-07 — finding `F-3` of
+> [`04-16-REVIEW.md`](04-16-REVIEW.md) § 9. The conclusion above is correct and
+> was independently re-verified; the struck-through *proof* was void.**
+>
+> **What was wrong.** The `--include` globs were **unquoted**. Under this repo's
+> shell (zsh) the command never ran at all — it aborts during word expansion with
+> `no matches found: --include=*.ts`, and a command that does not run produces no
+> output, which was then read as *"returns nothing"*. This is the exact failure
+> shape the project has been burned by before: **a gate that cannot fail, whose
+> silence is mistaken for a pass.**
+>
+> **The command, quoted, as it should have been run:**
+>
+> ```
+> grep -rn "legend\.position" src/ --include="*.ts" --include="*.tsx" \
+>   | grep -v "legend\.ts\|\.test\."
+> ```
+>
+> It returns **ten hits, not nothing.** The per-file counts above were always
+> right — those ten *are* the 2 + 5 + 1 + 1 + 1 the table already lists. Only the
+> "returns nothing" sentence was false. Every hit classified:
+>
+> | # | Site | Class | Render or export path? |
+> |---|---|---|---|
+> | 1 | `LegendEditor.tsx:338` — `resolveLegendPosition(legend.position, bounds, bandExtents)` | **Goes through the sanctioned chokepoint** — this is what the invariant *mandates*, not a bypass | no |
+> | 2 | `LegendEditor.tsx:352` — same call inside `nudge()` | Same | no |
+> | 3 | `LegendEditor.tsx:647` — `checked={legend.position.preset === option.value}` | Editor chrome: the corner radio's `checked` state | no |
+> | 4 | `LegendEditor.tsx:664` — `checked={legend.position.preset === null}` | Editor chrome: the Custom radio | no |
+> | 5 | `LegendEditor.tsx:678` — `legend.position.preset === null ? …` | Editor chrome: reveals the nudge controls | no |
+> | 6 | `App.tsx:1253` — `getLegendPositionLabel(compositionState.legend.position)` | Editor chrome: the disclosure's summary label | no |
+> | 7 | `CompositionStateProvider.tsx:283` — inside `canonicalizeLegend` | State normalisation on write | no |
+> | 8 | `CompositionStateProvider.tsx:634` — the `SET_LEGEND_POSITION` reducer case | Reducer | no |
+> | 9 | `useCompositionSaveTransaction.ts:72` — `position: { ...composition.legend.position }` | Persistence write | no |
+> | 10 | `useCompositionLoadTransaction.ts:122` — `position: { ...snapshot.legend.position }` | Persistence read | no |
+>
+> **None of the ten is a render or export path.** `LegendEditor.tsx` is the
+> editor panel — radio inputs, nudge buttons, fieldsets — and panel chrome is
+> outside export membership; its only two *positional* reads go **through**
+> `resolveLegendPosition`. The two components that actually put legend pixels on
+> screen and into the PNG are clean by direct inspection:
+> `LegendOverlay.tsx:378` takes `{ activeEntries, layout, bounds, position }`
+> from **`resolveLegendRender`** and holds no raw read (0 → 0, as the table
+> says), and `grep -n "legend\.position" src/utils/export.ts` returns **zero**.
+>
+> **The invariant is intact. The recorded proof of it was not.** Corrected here
+> rather than deleted, so the failure shape stays visible: an unquoted glob is
+> indistinguishable from a clean result unless you check the exit path.
 
 ---
 
